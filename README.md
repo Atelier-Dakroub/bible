@@ -15,6 +15,14 @@ word addresses (`JHN.3.16.w2` to `JHN.3.16.w6`), apart from the text, so
 every card that holds those words shows it, in inverse. Marking the same span
 again, or a tap on a highlighted word while you hold the card, removes it.
 
+Links: while you mark words, drag the marking finger out of the card and lift
+it on another card. That links the marked words to the highlight under your
+finger, or to the whole passage when no highlight is there. A solid white line
+shows a link; a dashed gray line joins the places where the same highlighted
+words show on more than one card. Drawing a link again removes it, and
+removing a highlight removes its links. A link is two spans of word
+addresses, kept with the workspace.
+
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
@@ -36,7 +44,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `workspace.js`, `pointer-log.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
 | `tools/` | The import script and its parser. |

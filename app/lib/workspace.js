@@ -12,7 +12,8 @@
 /** @typedef {import('./affine.js').Point} Point */
 /** @typedef {import('./words.js').Highlight} Highlight */
 /** @typedef {{ address: string, matrix: Matrix }} StoredCard */
-/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[] }} Workspace */
+/** @typedef {import('./links.js').Link} Link */
+/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[] }} Workspace */
 
 import { isWordAddress } from './words.js';
 
@@ -20,7 +21,7 @@ const KEY = 'bible.table.v1';
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [], highlights: [] };
+  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [] };
 }
 
 /**
@@ -40,7 +41,10 @@ export function parse(text) {
   const offset = isPoint(value.offset) ? value.offset : { x: 0, y: 0 };
   const cards = Array.isArray(value.cards) ? value.cards.filter(isCard) : [];
   const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isHighlight) : [];
-  return { offset, cards, highlights };
+  const links = Array.isArray(value.links)
+    ? value.links.filter((/** @type {any} */ link) => isHighlight(link?.a) && isHighlight(link?.b))
+    : [];
+  return { offset, cards, highlights, links };
 }
 
 /** @returns {Workspace} */

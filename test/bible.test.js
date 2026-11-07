@@ -4,6 +4,7 @@ import { passage, plainText, preview, search } from '../app/data/bible.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
+import { dropLinksTo, firstCovered, removed, toggleLink } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
   const { title, verses } = await passage({ book: 'JHN', chapter: 3, from: 16, to: 18 });
@@ -63,8 +64,8 @@ test('the table pans by the mean move of the fingers in both frames', () => {
 });
 
 test('a broken or old workspace reads as an empty table', () => {
-  assert.deepEqual(parse(null), { offset: { x: 0, y: 0 }, cards: [], highlights: [] });
-  assert.deepEqual(parse('not json'), { offset: { x: 0, y: 0 }, cards: [], highlights: [] });
+  assert.deepEqual(parse(null), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [] });
+  assert.deepEqual(parse('not json'), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [] });
   const kept = parse(
     JSON.stringify({
       offset: { x: 5, y: 6 },
@@ -118,4 +119,33 @@ test('marking adds a span, marking it again removes it, and a tap removes what i
 test('a stored highlight with a bad address is dropped', () => {
   const kept = parse(JSON.stringify({ highlights: [{ from: 'JHN.3.16.w1', to: 'JHN.3.16.w4' }, { from: 'x', to: 'y' }] }));
   assert.deepEqual(kept.highlights, [{ from: 'JHN.3.16.w1', to: 'JHN.3.16.w4' }]);
+});
+
+const love = { from: 'JHN.3.16.w2', to: 'JHN.3.16.w6' };
+const light = { from: 'GEN.1.3.w1', to: 'GEN.1.3.w9' };
+
+test('a link has no direction, and drawing it again removes it', () => {
+  const one = toggleLink([], love, light);
+  assert.equal(one.length, 1);
+  assert.deepEqual(toggleLink(one, light, love), []);
+  assert.deepEqual(toggleLink([], love, love), []);
+});
+
+test('removing a highlight removes the links to it', () => {
+  const links = toggleLink(toggleLink([], love, light), light, { from: 'ROM.8.28.w1', to: 'ROM.8.28.w5' });
+  const gone = removed([love, light], [light]);
+  assert.deepEqual(gone, [love]);
+  assert.equal(dropLinksTo(links, gone).length, 1);
+});
+
+test('the first word a span covers is found in a sorted index', () => {
+  const index = ['JHN.3.15.w1', 'JHN.3.16.w1', 'JHN.3.16.w2', 'JHN.3.16.w3', 'JHN.3.17.w1'].map((address) => ({ key: wordKey(address), item: address }));
+  assert.equal(firstCovered(index, love), 'JHN.3.16.w2');
+  assert.equal(firstCovered(index, { from: 'JHN.3.16.w9', to: 'JHN.3.16.w12' }), null);
+  assert.equal(firstCovered(index, { from: 'JHN.3.14.w1', to: 'JHN.3.15.w4' }), 'JHN.3.15.w1');
+});
+
+test('a stored link with a bad end is dropped', () => {
+  const kept = parse(JSON.stringify({ links: [{ a: love, b: light }, { a: love, b: { from: 'x', to: 'y' } }] }));
+  assert.deepEqual(kept.links, [{ a: love, b: light }]);
 });

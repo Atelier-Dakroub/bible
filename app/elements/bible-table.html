@@ -12,13 +12,22 @@
      A card sends `card-mark` when a hand marks words, and the table adds or
      removes the span and paints every card again.
 
+     Lines (app/lib/links.js), drawn in one SVG layer over the resting cards:
+       solid white   a link the reader drew between two spans
+       dashed gray   the same highlighted words, shown on more than one card
+     A card sends `card-link` when a marking finger leaves it and lifts. The
+     other end is the highlight under the finger, or, on words with no
+     highlight, the whole passage of that card. Drawing a link again removes
+     it, and removing a highlight removes its links.
+
      It listens for `place` from a search panel inside it:
        detail.address  the passage
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
   import { pan } from '../lib/gesture.js';
-  import { paintWords, toggle } from '../lib/words.js';
+  import { dropLinksTo, firstCovered, removed, toggleLink } from '../lib/links.js';
+  import { covers, paintWords, toggle, wordAt, wordKey } from '../lib/words.js';
   import { load, save } from '../lib/workspace.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -31,6 +40,89 @@
   const LONG = 24;
   const LONG_SCALE = 0.5;
 
+  const SVG = 'http://www.w3.org/2000/svg';
+
+  /** @typedef {import('../lib/links.js').Span} Span */
+  /** @typedef {import('../lib/links.js').Link} Link */
+  /** @typedef {{ card: Element, box: DOMRect }} Place */
+
+  // A card's words in reading order, with their sort keys, built the first
+  // time a line needs them. The text of a card never changes, so neither does
+  // its index.
+  /** @type {WeakMap<Element, { key: number, item: Element }[]>} */
+  const indexes = new WeakMap();
+
+  /** @param {Element} card */
+  function indexOf(card) {
+    let index = indexes.get(card);
+    if (!index) {
+      index = [...card.querySelectorAll('[data-w]')].map((item) => ({ key: wordKey(wordAt(item) ?? ''), item }));
+      indexes.set(card, index);
+    }
+    return index;
+  }
+
+  /**
+   * The point on the edge of a box that faces another point.
+   *
+   * @param {DOMRect} box
+   * @param {Point} toward
+   * @returns {Point}
+   */
+  function edge(box, toward) {
+    const x = Math.min(Math.max(toward.x, box.left), box.right);
+    const y = Math.min(Math.max(toward.y, box.top), box.bottom);
+    return { x, y };
+  }
+
+  /** @param {DOMRect} box */
+  function middle(box) {
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  }
+
+  /**
+   * A line between the facing edges of two boxes.
+   *
+   * @param {DOMRect} from
+   * @param {DOMRect} to
+   * @param {string} kind the class: `link` or `same`
+   */
+  function line(from, to, kind) {
+    const start = edge(from, middle(to));
+    const end = edge(to, middle(from));
+    const element = document.createElementNS(SVG, 'line');
+    element.setAttribute('class', kind);
+    element.setAttribute('x1', String(start.x));
+    element.setAttribute('y1', String(start.y));
+    element.setAttribute('x2', String(end.x));
+    element.setAttribute('y2', String(end.y));
+    return element;
+  }
+
+  /**
+   * The place in `places` nearest to `from`, on another card when there is one.
+   *
+   * @param {Place} from
+   * @param {Place[]} places
+   */
+  function nearest(from, places) {
+    const others = places.filter((place) => place.card !== from.card);
+    const pool = others.length ? others : places;
+    const at = middle(from.box);
+    /** @type {Place | null} */
+    let best = null;
+    let distance = Infinity;
+    for (const place of pool) {
+      const there = middle(place.box);
+      const d = Math.hypot(there.x - at.x, there.y - at.y);
+      if (d < distance) {
+        distance = d;
+        best = place;
+      }
+    }
+    return best;
+  }
+
   export const prototype = {
     /** @type {Point} */
     offset: { x: 0, y: 0 },
@@ -38,13 +130,19 @@
     fingers: null,
     /** @type {import('../lib/words.js').Highlight[]} */
     highlights: [],
+    /** @type {Link[]} */
+    links: [],
+    /** @type {{ span: Span, x: number, y: number } | null} a link being drawn */
+    pending: null,
     frame: 0,
+    lineFrame: 0,
 
     connected({ signal }) {
       this.fingers = new Map();
       const workspace = load();
       this.offset = workspace.offset;
       this.highlights = workspace.highlights;
+      this.links = workspace.links;
       this.paint();
       for (const stored of workspace.cards) this.restore(stored.address, stored.matrix);
 
@@ -57,12 +155,19 @@
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('card-paint', () => this.drawSoon(), options);
       // The card removes itself after the event, so keep what is left a moment later.
-      this.addEventListener('card-remove', () => queueMicrotask(() => this.keep()), options);
+      this.addEventListener('card-remove', () => queueMicrotask(() => {
+        this.keep();
+        this.drawSoon();
+      }), options);
     },
 
     disconnected() {
       cancelAnimationFrame(this.frame);
+      cancelAnimationFrame(this.lineFrame);
     },
 
     /** @returns {HTMLElement} */
@@ -102,6 +207,7 @@
       const world = this.world();
       world.style.left = `${x}px`;
       world.style.top = `${y}px`;
+      this.drawSoon();
     },
 
     /**
@@ -119,9 +225,126 @@
 
     /** @param {{ from: string, to: string }} detail */
     mark({ from, to }) {
-      this.highlights = toggle(this.highlights, from, to);
+      const before = this.highlights;
+      this.highlights = toggle(before, from, to);
+      this.links = dropLinksTo(this.links, removed(before, this.highlights));
       paintWords(this.world(), this.highlights, 'is-highlighted');
       this.keep();
+      this.drawSoon();
+    },
+
+    /** @param {{ span: Span, x: number, y: number }} detail */
+    linking(detail) {
+      this.pending = detail;
+      this.drawSoon();
+    },
+
+    /** @param {{ span: Span, x: number, y: number }} detail */
+    link({ span, x, y }) {
+      this.pending = null;
+      const target = Number.isFinite(x) ? this.endAt(x, y) : null;
+      if (target) {
+        const source = this.sourceOf(span);
+        if (!this.highlights.some((each) => each.from === source.from && each.to === source.to)) {
+          this.highlights = [...this.highlights, source];
+          paintWords(this.world(), this.highlights, 'is-highlighted');
+        }
+        this.links = toggleLink(this.links, source, target);
+        this.keep();
+      }
+      this.drawSoon();
+    },
+
+    /**
+     * The words a link starts from. A finger that left the card from a single
+     * highlighted word takes the whole highlight with it.
+     *
+     * @param {Span} span
+     * @returns {Span}
+     */
+    sourceOf(span) {
+      if (span.from !== span.to) return span;
+      return this.highlights.find((each) => covers(each, span.from)) ?? span;
+    },
+
+    /**
+     * What a link lands on at a point on the screen: the highlight under the
+     * finger, or else the whole passage of the card under it, or nothing.
+     *
+     * @param {number} x
+     * @param {number} y
+     * @returns {Span | null}
+     */
+    endAt(x, y) {
+      const under = document.elementFromPoint(x, y);
+      const card = under?.closest('gesture-card');
+      if (!under || !card || !this.world().contains(card)) return null;
+      const word = wordAt(under);
+      const highlight = word ? this.highlights.find((each) => covers(each, word)) : null;
+      if (highlight) return highlight;
+      const index = indexOf(card);
+      if (!index.length) return null;
+      const first = wordAt(index[0].item);
+      const last = wordAt(index[index.length - 1].item);
+      return first && last ? { from: first, to: last } : null;
+    },
+
+    drawSoon() {
+      if (this.lineFrame) return;
+      this.lineFrame = requestAnimationFrame(() => {
+        this.lineFrame = 0;
+        this.draw();
+      });
+    },
+
+    /**
+     * Where a span shows: one box per card that holds any of its words. The
+     * box is the first word of the span on that card, or the card's heading
+     * when the card is in its short form and the words are hidden.
+     *
+     * @param {Span} span
+     * @returns {Place[]}
+     */
+    placesOf(span) {
+      /** @type {Place[]} */
+      const places = [];
+      for (const card of this.world().querySelectorAll('gesture-card')) {
+        const word = firstCovered(indexOf(card), span);
+        if (!word) continue;
+        let box = word.getBoundingClientRect();
+        if (box.width === 0) box = (card.querySelector('.passage__heading') ?? card).getBoundingClientRect();
+        places.push({ card, box });
+      }
+      return places;
+    },
+
+    draw() {
+      const svg = /** @type {SVGSVGElement} */ (this.querySelector('.table__lines'));
+      /** @type {Element[]} */
+      const lines = [];
+
+      // The same words on several cards: a chain from each place to the next.
+      for (const span of this.highlights) {
+        const places = this.placesOf(span);
+        for (let i = 1; i < places.length; i += 1) lines.push(line(places[i - 1].box, places[i].box, 'same'));
+      }
+
+      // Links: each place of one end to the nearest place of the other.
+      for (const { a, b } of this.links) {
+        const ends = this.placesOf(b);
+        for (const start of this.placesOf(a)) {
+          const near = nearest(start, ends);
+          if (near) lines.push(line(start.box, near.box, 'link'));
+        }
+      }
+
+      // A link being drawn follows the finger.
+      if (this.pending) {
+        const finger = new DOMRect(this.pending.x, this.pending.y, 0, 0);
+        for (const start of this.placesOf(this.pending.span)) lines.push(line(start.box, finger, 'link'));
+      }
+
+      svg.replaceChildren(...lines);
     },
 
     /**
@@ -147,6 +370,7 @@
       this.world().append(card);
       paintWords(card, this.highlights, 'is-highlighted');
       await customElements.whenDefined('gesture-card');
+      this.drawSoon();
       return /** @type {Card} */ (card);
     },
 
@@ -172,6 +396,7 @@
         offset: this.offset,
         cards: cards.filter((card) => card.address && card.matrix),
         highlights: this.highlights,
+        links: this.links,
       });
     },
   };
@@ -208,7 +433,29 @@
   .table__world > * {
     pointer-events: auto;
   }
+  /* Above the cards at rest, below the search panel and below a held card. */
+  .table__lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999999;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .table__lines line {
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+  .table__lines .link {
+    stroke: var(--text);
+  }
+  .table__lines .same {
+    stroke: var(--muted);
+    stroke-dasharray: 6 6;
+  }
 </style>
 
 <div class="table__world"></div>
+<svg class="table__lines" aria-hidden="true"></svg>
 <slot></slot>

@@ -7,6 +7,10 @@
      on to the word it lifts from. Two fingers that land together, or a second
      finger that lands off the words, still move, turn and scale the card.
 
+     A marking finger that leaves the card draws a link instead: the marked
+     words are one end, and wherever the finger lifts is the other. The table
+     decides what the other end is.
+
      The card's position is a matrix in the coordinates of its offset parent,
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
@@ -19,6 +23,9 @@
      Events, all bubbling:
        card-change  a gesture ended, so the position is worth keeping
        card-mark    a marking ended: detail { from, to }, two word addresses
+       card-link-move  a link is being drawn: detail { span, x, y }
+       card-link    a link was drawn: detail { span, x, y }, x and y on screen
+       card-paint   the card moved or changed form, so lines to it move too
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
@@ -80,7 +87,7 @@
     frame: 0,
     /** @type {{ x: number, y: number, t: number } | null} where the holding finger last settled */
     still: null,
-    /** @type {{ id: number, anchor: string, current: string } | null} */
+    /** @type {{ id: number, anchor: string, current: string, linking: boolean } | null} */
     marking: null,
 
     connected({ signal }) {
@@ -148,15 +155,20 @@
       } catch {
         return;
       }
-      this.marking = { id: pointerId, anchor: word, current: word };
+      this.marking = { id: pointerId, anchor: word, current: word, linking: false };
       this.paintMarking();
     },
 
     /** @param {PointerEvent} event */
     moveMarking(event) {
-      const marking = /** @type {{ id: number, anchor: string, current: string }} */ (this.marking);
+      const marking = /** @type {{ id: number, anchor: string, current: string, linking: boolean }} */ (this.marking);
       const under = document.elementFromPoint(event.clientX, event.clientY);
-      if (!under || !this.contains(under)) return;
+      // Once the finger leaves the card, the gesture is a link until it lifts.
+      if (marking.linking || !under || !this.contains(under)) {
+        marking.linking = true;
+        this.sendLink('card-link-move', event);
+        return;
+      }
       const word = wordAt(under);
       if (!word || word === marking.current) return;
       marking.current = word;
@@ -168,12 +180,30 @@
      * @param {boolean} keep false when the browser cancelled the pointer
      */
     endMarking(event, keep) {
-      const marking = /** @type {{ id: number, anchor: string, current: string }} */ (this.marking);
+      const marking = /** @type {{ id: number, anchor: string, current: string, linking: boolean }} */ (this.marking);
+      if (marking.linking) {
+        // A cancelled link ends at nowhere, which the table ignores.
+        this.sendLink('card-link', keep ? event : null);
+      } else if (keep) {
+        const detail = span(marking.anchor, marking.current);
+        this.dispatchEvent(new CustomEvent('card-mark', { bubbles: true, detail }));
+      }
       this.marking = null;
       this.paintMarking();
-      if (!keep) return;
-      const detail = span(marking.anchor, marking.current);
-      this.dispatchEvent(new CustomEvent('card-mark', { bubbles: true, detail }));
+    },
+
+    /**
+     * @param {string} type
+     * @param {PointerEvent | null} event
+     */
+    sendLink(type, event) {
+      const marking = /** @type {{ anchor: string, current: string }} */ (this.marking);
+      const detail = {
+        span: span(marking.anchor, marking.current),
+        x: event ? event.clientX : NaN,
+        y: event ? event.clientY : NaN,
+      };
+      this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
     },
 
     paintMarking() {
@@ -303,6 +333,7 @@
       const far = this.dataset.zoom === 'far';
       if (!far && scale < FAR_BELOW) this.dataset.zoom = 'far';
       if (far && scale > NEAR_ABOVE) this.dataset.zoom = 'near';
+      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
     },
   };
 </script>

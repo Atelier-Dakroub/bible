@@ -35,11 +35,19 @@ type Highlight = {
   from: string;
   to: string;
 };
+type Link = {
+  a: Highlight;
+  b: Highlight;
+};
 type Pull = {
   id: number;
   x: number;
   y: number;
   down: boolean;
+};
+type Place = {
+  card: Element;
+  box: DOMRect;
 };
 type Matrix = {
   a: number;
@@ -124,7 +132,14 @@ export type BibleTableMembers = {
   offset: Point;
   fingers: Map<number, Point> | null;
   highlights: Highlight[];
+  links: Link[];
+  pending: {
+    span: Highlight;
+    x: number;
+    y: number;
+  } | null;
   frame: number;
+  lineFrame: number;
   connected({
     signal
   }: {
@@ -148,6 +163,23 @@ export type BibleTableMembers = {
     from: string;
     to: string;
   }): void;
+  linking(detail: {
+    span: Highlight;
+    x: number;
+    y: number;
+  }): void;
+  link({
+    span, x, y
+  }: {
+    span: Highlight;
+    x: number;
+    y: number;
+  }): void;
+  sourceOf(span: Highlight): Highlight;
+  endAt(x: number, y: number): Highlight | null;
+  drawSoon(): void;
+  placesOf(span: Highlight): Place[];
+  draw(): void;
   restore(address: string, matrix: Matrix): Promise<void>;
   fetchCard(address: string): Promise<Card | null>;
   openSpot(): Point;
@@ -200,6 +232,7 @@ export type GestureCardMembers = {
     id: number;
     anchor: string;
     current: string;
+    linking: boolean;
   } | null;
   connected({
     signal
@@ -213,6 +246,7 @@ export type GestureCardMembers = {
   startMarking(pointerId: number, word: string): void;
   moveMarking(event: PointerEvent): void;
   endMarking(event: PointerEvent, keep: boolean): void;
+  sendLink(type: string, event: PointerEvent | null): void;
   paintMarking(): void;
   take(pointerId: number, at: Point): void;
   hold(pointerId: number, at: Point, scale?: number | undefined): void;
