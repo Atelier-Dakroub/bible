@@ -38,10 +38,12 @@
     entries: [],
     startedAt: 0,
     samples: 0,
-    sizeSeen: false,
+    /** @type {Set<string>} every contact size seen, as "w × h" */
+    sizes: new Set(),
 
     connected({ signal }) {
       this.rings = new Map();
+      this.sizes = new Set();
       this.entries = [];
       this.limit = navigator.maxTouchPoints;
       this.measureScreen();
@@ -104,7 +106,7 @@
       if (!ring) return;
 
       const reported = event.width > NO_GEOMETRY || event.height > NO_GEOMETRY;
-      if (event.pointerType === 'touch') this.noteContact(reported);
+      if (event.pointerType === 'touch') this.noteContact(event, reported);
       const w = reported ? event.width : RING;
       const h = reported ? event.height : RING;
 
@@ -116,10 +118,20 @@
       ring.dataset.size = reported ? `${Math.round(event.width)}×${Math.round(event.height)}` : '';
     },
 
-    /** @param {boolean} reported */
-    noteContact(reported) {
-      if (reported) this.sizeSeen = true;
-      const contact = this.sizeSeen ? 'Reported' : 'Not reported (1 × 1)';
+    /**
+     * A size that never changes is not a measurement. The ILITEK panel has no
+     * contact axes, and Chrome reports 50 × 50 for every touch, so a size
+     * counts as real only when it varies.
+     *
+     * @param {PointerEvent} event
+     * @param {boolean} reported
+     */
+    noteContact(event, reported) {
+      if (reported) this.sizes.add(`${Math.round(event.width)} × ${Math.round(event.height)}`);
+      const [only] = this.sizes;
+      let contact = 'Not reported (1 × 1)';
+      if (this.sizes.size > 1) contact = `Reported (${this.sizes.size} different sizes)`;
+      else if (only) contact = `Fixed at ${only}, not measured`;
       if (contact !== this.contact) this.contact = contact;
     },
 
@@ -164,7 +176,7 @@
 
     reset() {
       this.peak = this.active;
-      this.sizeSeen = false;
+      this.sizes = new Set();
       this.contact = 'No touch yet';
       this.kind = 'None yet';
       this.entries = [];

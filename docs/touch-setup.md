@@ -93,7 +93,7 @@ What the script does, and why:
 | --- | --- | --- |
 | Touch points | Put ten fingers down | **Most at one time** shows 10 |
 | Pointer type | Touch anything | **Pointer type** shows `touch`, not `mouse` |
-| Contact size | Touch with a fingertip, then with the flat of a finger | **Contact size** shows Reported, and the rings change size |
+| Contact size | Touch with a fingertip, then with the flat of a finger | **Contact size** shows Reported, with more than one size. This panel shows "Fixed at 50 × 50". |
 | Screen mapping | Touch the center of each crosshair several times | Each offset is less than about 10 px |
 | Input rate | Move one finger steadily | **Input samples** shows 60 per second or more |
 | Gestures | Move, turn and scale the two cards | The card stays under the fingers |
@@ -103,9 +103,11 @@ not cover the full panel. Go back to step 2.3. If the offsets in Y are large at
 the top and small at the bottom, the picture has black bars: the **Screen** line
 then shows less than the panel's resolution.
 
-Contact size decides whether the app can reject a resting palm. A panel that
-reports 1 × 1 for every touch gives no size, and palm rejection then needs a
-different method.
+Contact size decides whether the app can reject a resting palm. The size counts
+only when it changes with the contact. The ILITEK panel has no contact axes, and
+Chrome reports a fixed 50 × 50 for every touch, so this panel gives no size.
+Palm rejection must use a different method, such as the shape of the contact
+group or a touch that stays still while others move.
 
 ## 6. Record a session
 
