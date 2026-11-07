@@ -17,6 +17,26 @@ import world from './world/polities.json' with { type: 'json' };
 
 export { timeline, world };
 
+/**
+ * The base map, with a marker for every place that has coordinates on it.
+ *
+ * @returns {Promise<{ width: number, height: number, land: string[], lakes: string[], rivers: string[], places: { id: string, name: string, x: string, y: string }[] }>}
+ */
+export async function mapOf() {
+  const [{ default: base }, { onMap, project }, known] = await Promise.all([
+    import('./map/near-east.json', { with: { type: 'json' } }),
+    import('../lib/map.js'),
+    entities(),
+  ]);
+  const places = Object.entries(known)
+    .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
+    .map(([id, place]) => {
+      const { x, y } = project(place.lon, place.lat);
+      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1) };
+    });
+  return { width: base.width, height: base.height, land: base.land, lakes: base.lakes, rivers: base.rivers, places };
+}
+
 /** @type {Promise<Record<string, Entity>> | null} */
 let all = null;
 

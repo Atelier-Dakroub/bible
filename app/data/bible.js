@@ -9,6 +9,7 @@ import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
+import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
 
@@ -28,7 +29,9 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /**
  * An entity as the search panel shows it.
  *
- * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, relations: Relation[], credit: string }} EntityView
+ * `mapped` is true for a place that is on the map.
+ *
+ * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, relations: Relation[], credit: string, mapped: boolean }} EntityView
  */
 /**
  * What the search panel shows.
@@ -367,6 +370,7 @@ export async function entityView(id) {
     summary: found.summary ?? '',
     relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
     credit,
+    mapped: found.kind === 'place' && found.lat !== null && onMap(found.lon, found.lat),
   };
 }
 
@@ -387,6 +391,7 @@ function worldView(id) {
     summary: '',
     relations: [],
     credit: `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
+    mapped: false,
   };
 }
 

@@ -39,6 +39,7 @@
           <dd><button each="item of relation.items" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
         </template>
       </dl>
+      <button if="entity && entity.mapped" type="button" class="results__switch" data-show-map="${entity ? entity.id : ''}">Show on the map</button>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </section>
     <section if="dictionary" class="entity" aria-label="${dictionary ? dictionary.term : ''}">

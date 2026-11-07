@@ -33,6 +33,10 @@
      The timeline strip (time-line) marks the events that the cards on the
      table tell, from Theographic's verse links, and a thin line joins each
      card to its events. A tap on a tick shows the event.
+
+     The map is a card too (map:near-east). Its places that the cards on the
+     table name are labelled, with a thin line to each card that names them,
+     and the place on show in the panel is marked. A tap on a place shows it.
      A card sends `card-link` when a marking finger leaves it and lifts. The
      other end is the highlight under the finger, or, on words with no
      highlight, the whole passage of that card. Drawing a link again removes
@@ -71,9 +75,12 @@
   /** @type {WeakMap<Element, { key: number, item: Element }[]>} */
   const indexes = new WeakMap();
 
-  // The events each card's verses tell, fetched once per card.
+  // The entities each card's verses name (people, places, groups, events),
+  // fetched once per card.
   /** @type {WeakMap<Element, string[]>} */
-  const cardEvents = new WeakMap();
+  const cardNamed = new WeakMap();
+
+  const MAP = 'map:near-east';
 
   // The cross-references of each card's verses, fetched once per card.
   /** @type {WeakMap<Element, Record<string, [string, number][]>>} */
@@ -204,9 +211,12 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
+      this.addEventListener('toggle-map', () => this.toggleMap(), options);
+      this.addEventListener('show-on-map', () => this.openMap(), options);
       // The card removes itself after the event, so keep what is left a moment later.
       this.addEventListener('card-remove', () => queueMicrotask(() => {
         this.keep();
+        this.paintMap();
         this.drawSoon();
       }), options);
     },
@@ -339,6 +349,11 @@
     tapped({ target }) {
       const element = target instanceof Element ? target : null;
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      const place = element?.closest('[data-place]');
+      if (place instanceof Element) {
+        panel?.showEntity(place.getAttribute('data-place'));
+        return;
+      }
       const word = wordAt(element);
       if (word) {
         panel?.showWord(word);
@@ -357,6 +372,80 @@
       for (const tick of strip?.querySelectorAll('.is-shown') ?? []) tick.classList.remove('is-shown');
       if (entity.startsWith('event:')) /** @type {any} */ (strip)?.tickFor(entity)?.classList.add('is-shown');
       if (entity.startsWith('world:')) /** @type {any} */ (strip)?.tickFor(entity)?.classList.add('is-shown');
+      this.paintMap();
+    },
+
+    /** The map card on the table, or null. */
+    mapCard() {
+      return this.world().querySelector(`gesture-card[data-address="${MAP}"]`);
+    },
+
+    async toggleMap() {
+      const card = this.mapCard();
+      if (card) {
+        card.remove();
+        this.keep();
+        this.drawSoon();
+        return;
+      }
+      await this.openMap();
+    },
+
+    /** Puts the map on the table, unless it is there already. */
+    async openMap() {
+      if (this.mapCard()) {
+        this.paintMap();
+        return;
+      }
+      const card = await this.fetchCard(MAP);
+      if (!card) return;
+      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
+      card.placeAt({ x: (panel?.right ?? 0) + 80, y: 80 });
+      this.keep();
+    },
+
+    /**
+     * Labels the map's places that the cards on the table name, and marks the
+     * place on show.
+     */
+    paintMap() {
+      const map = this.mapCard();
+      if (!map) return;
+      const named = new Set();
+      for (const card of this.world().querySelectorAll('gesture-card')) {
+        for (const id of cardNamed.get(card) ?? []) if (id.startsWith('place:')) named.add(id);
+      }
+      for (const marker of map.querySelectorAll('[data-place]')) {
+        const id = marker.getAttribute('data-place');
+        marker.classList.toggle('is-on-table', named.has(id));
+        marker.classList.toggle('is-shown', id === this.shown);
+      }
+      this.drawSoon();
+    },
+
+    /**
+     * A line from each card to the places on the map that it names.
+     *
+     * @returns {Element[]}
+     */
+    placeLines() {
+      const map = this.mapCard();
+      if (!map) return [];
+      /** @type {Element[]} */
+      const lines = [];
+      for (const card of this.world().querySelectorAll('gesture-card')) {
+        if (card === map) continue;
+        const places = (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'));
+        if (!places.length) continue;
+        const edgeBox = card.getBoundingClientRect();
+        for (const id of places) {
+          const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
+          if (!dot) continue;
+          const box = dot.getBoundingClientRect();
+          if (box.width > 0) lines.push(line(edgeBox, box, 'place'));
+        }
+      }
+      return lines;
     },
 
     /** @param {Element} root */
@@ -371,13 +460,18 @@
     /** @param {Element} card */
     async loadEvents(card) {
       const address = card instanceof HTMLElement ? card.dataset.address : null;
-      if (!address || address.includes(':')) return;
+      if (!address) return;
+      if (address === MAP) {
+        this.paintMap();
+        return;
+      }
+      if (address.includes(':')) return;
       const response = await fetch(`/entities/${encodeURIComponent(address)}`).catch(() => null);
       if (!response?.ok) return;
       /** @type {Record<string, string[]>} */
       const named = await response.json();
-      const events = [...new Set(Object.values(named).flat().filter((id) => id.startsWith('event:')))];
-      cardEvents.set(card, events);
+      cardNamed.set(card, [...new Set(Object.values(named).flat())]);
+      this.paintMap();
       this.drawSoon();
     },
 
@@ -396,7 +490,7 @@
       for (const card of this.world().querySelectorAll('gesture-card')) {
         // From the card's edge, so the line does not cross its text.
         const edgeBox = card.getBoundingClientRect();
-        for (const id of cardEvents.get(card) ?? []) {
+        for (const id of (cardNamed.get(card) ?? []).filter((each) => each.startsWith('event:'))) {
           const tick = strip.tickFor(id);
           if (!tick) continue;
           tick.classList.add('is-on-table');
@@ -501,7 +595,7 @@
     draw() {
       const svg = /** @type {SVGSVGElement} */ (this.querySelector('.table__lines'));
       /** @type {Element[]} */
-      const lines = [...this.timeLines(), ...this.referenceLines()];
+      const lines = [...this.timeLines(), ...this.placeLines(), ...this.referenceLines()];
 
       // The same words on several cards: a chain from each place to the next.
       for (const span of this.highlights) {
@@ -656,6 +750,11 @@
   .table__lines .same {
     stroke: var(--muted);
     stroke-dasharray: 6 6;
+  }
+  .table__lines .place {
+    stroke: var(--line);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
   }
   .table__lines .time {
     stroke: var(--line);

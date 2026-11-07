@@ -16,6 +16,9 @@
      on the same axis. A tap on a span sends `show-entity` too, with a world:
      id, and the panel lists the biblical events inside it.
 
+     The Map button sends `toggle-map` (bubbling): the table puts the map card
+     down, or takes it away.
+
      It keeps --timeline-height on its parent up to date, so the search panel
      can stop above it. -->
 
@@ -62,6 +65,10 @@
         if (target?.closest('[data-action="toggle"]')) {
           this.collapsed = !this.collapsed;
           remember(COLLAPSED_KEY, this.collapsed);
+          return;
+        }
+        if (target?.closest('[data-action="map"]')) {
+          this.dispatchEvent(new Event('toggle-map', { bubbles: true }));
           return;
         }
         if (target?.closest('[data-action="world"]')) {
@@ -251,6 +258,7 @@
     data-action="world"
     aria-pressed="${world ? 'true' : 'false'}"
   >World</button>
+  <button type="button" class="timeline__toggle timeline__world-toggle" data-action="map">Map</button>
   <p class="timeline__note">
     Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
   </p>

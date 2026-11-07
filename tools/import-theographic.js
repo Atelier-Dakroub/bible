@@ -132,8 +132,9 @@ for (const { fields } of places) {
     title: fields.displayTitle ?? fields.kjvName,
     type: fields.featureType ?? '',
     comment: fields.comment ?? '',
-    lat: Number.isFinite(lat) ? lat : null,
-    lon: Number.isFinite(lon) ? lon : null,
+    // A place is on the map only with both: a few records carry one.
+    lat: Number.isFinite(lat) && Number.isFinite(lon) ? lat : null,
+    lon: Number.isFinite(lat) && Number.isFinite(lon) ? lon : null,
     summary: summary((fields.dictText ?? [])[0] ?? fields.dictionaryText ?? ''),
     partOf: toIds(fields.partOf),
     sameAs: one(fields.canonicalPlace),

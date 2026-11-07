@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { entityResults, parallel, passage, worldResults, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
-import { eastonFor, formatYear, timeline } from '../app/data/entities.js';
+import { eastonFor, formatYear, mapOf, timeline } from '../app/data/entities.js';
+import { HEIGHT, WIDTH, project } from '../app/lib/map.js';
 import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
@@ -268,4 +269,21 @@ test('a world span lists the biblical events inside it, and names both chronolog
   assert.match(assyria.entity?.credit ?? '', /Wikidata.*Jones/s);
   assert.ok(assyria.results.length > 0);
   assert.match(assyria.summary, /biblical events? falls? in these years/);
+});
+
+test('the map projects places inside its frame, with Jerusalem east of Joppa', async () => {
+  const jerusalem = project(35.23, 31.78);
+  const joppa = project(34.75, 32.05);
+  assert.ok(jerusalem.x > joppa.x && jerusalem.y > joppa.y);
+  for (const point of [jerusalem, joppa]) assert.ok(point.x > 0 && point.x < WIDTH && point.y > 0 && point.y < HEIGHT);
+  const map = await mapOf();
+  assert.ok(map.land.length > 0 && map.lakes.length > 0);
+  assert.ok(map.places.length > 1200);
+});
+
+test('a place on the map offers it; a person does not', async () => {
+  const hebron = await entityResults('place:hebron_551');
+  assert.equal(hebron.entity?.mapped, true);
+  const david = await entityResults('person:david_994');
+  assert.equal(david.entity?.mapped, false);
 });

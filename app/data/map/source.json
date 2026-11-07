@@ -1,0 +1,6 @@
+{
+  "name": "Natural Earth, 1:10 million",
+  "source": "https://github.com/nvkelso/natural-earth-vector (ne_10m_land, ne_10m_lakes, ne_10m_rivers_lake_centerlines)",
+  "license": "Public domain.",
+  "note": "Modern coastlines and rivers. Ancient coastlines differed in places, such as the head of the Persian Gulf."
+}

@@ -1,5 +1,6 @@
 <script server>
   import { books, entityView, parallel, preview, verseCount } from '../../data/bible.js';
+  import { mapOf } from '../../data/entities.js';
   import { parseAddress } from '../../lib/reference.js';
 
   // A card is a passage with an address of its own. The table asks for the
@@ -12,11 +13,15 @@
   export default async ({ params, url }) => {
     const asked = new URL(url).searchParams.get('version') ?? 'kjv';
     const version = VERSIONS.includes(asked) ? asked : 'kjv';
+    // The map of the biblical world.
+    if (params.address === 'map:near-east') {
+      return { address: params.address, version, title: 'The biblical world', verses: [], rows: [], opening: 'Map', count: '', entity: null, map: await mapOf() };
+    }
     // An address with a colon is an entity, such as person:david_994.
     if (params.address.includes(':')) {
       const entity = await entityView(params.address);
       if (!entity) return new Response('Nothing has that address.', { status: 404 });
-      return { address: params.address, version, title: entity.title, verses: [], rows: [], opening: entity.facts.join(' · '), count: '', entity };
+      return { address: params.address, version, title: entity.title, verses: [], rows: [], opening: entity.facts.join(' · '), count: '', entity, map: null };
     }
     const ref = parseAddress(params.address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
@@ -31,6 +36,7 @@
       opening: preview(verses),
       count: verseCount(verses.length),
       entity: null,
+      map: null,
     };
   };
 </script>
@@ -38,10 +44,10 @@
 <title>Passage</title>
 
 <gesture-card id="card" fragment data-address="${address}" data-version="${version}" data-verses="${verses.length}" x="0.5" y="0.4">
-  <article class="passage passage--${version}">
+  <article class="passage passage--${map ? 'map' : version}">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
-      <div if="!entity" class="passage__versions" role="group" aria-label="Translation">
+      <div if="!entity && !map" class="passage__versions" role="group" aria-label="Translation">
         <button type="button" data-version="kjv" aria-pressed="${version === 'kjv' ? 'true' : 'false'}">KJV</button>
         <button type="button" data-version="bsb" aria-pressed="${version === 'bsb' ? 'true' : 'false'}">BSB</button>
         <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
@@ -54,6 +60,20 @@
       <span class="passage__opening">${opening}</span>
       <span class="passage__count">${count}</span>
     </p>
+    <!-- The map: modern coastlines, every mapped place as a dot. The table
+         labels the places that the cards on it name, and the one on show. -->
+    <div if="map" class="map">
+      <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
+        <path each="d of map ? map.land : []" d="${d}" class="map__land"></path>
+        <path each="d of map ? map.lakes : []" d="${d}" class="map__lake"></path>
+        <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
+        <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" transform="translate(${place.x} ${place.y})">
+          <circle r="2.5"></circle>
+          <text x="8" y="6">${place.name}</text>
+        </g>
+      </svg>
+      <p class="entity__credit">Base map: Natural Earth (public domain), with modern coastlines. Places: Theographic (CC BY-SA).</p>
+    </div>
     <div if="entity" class="entity-card">
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
       <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>

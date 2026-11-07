@@ -56,6 +56,15 @@ history is Wikidata's conventional scholarly dating (the Kingdom of Israel
 930–720 BC, where Jones puts the division of the kingdom in 975 BC). They can
 disagree, and the strip shows where.
 
+The map: the Map button on the strip puts a map of the biblical world on the
+table as a card, from Italy to Persia. Every place with coordinates is a dot
+(1,257 of them). The places that the cards on the table name are labelled,
+with a dashed line to each card that names them. A place's entry in the
+search panel has a Show on the map button, and a tap on a place on the map
+shows it. Pinch the map card to zoom in; its lines stay one pixel wide. The
+coastlines are modern; ancient ones differed in places, such as the head of
+the Persian Gulf.
+
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
 verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
@@ -82,14 +91,15 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js` and `import-world.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
+| `app/data/map/` | The base map, from Natural Earth. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -114,6 +124,20 @@ node tools/import-world.js
 It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
+
+## The map data
+
+`app/data/map/near-east.json` is the base map: land, natural lakes and rivers
+as SVG paths, from Natural Earth's 1:10 million files (public domain), clipped
+to the region and simplified to 91 KB. `app/lib/map.js` holds the projection
+that both the import and the server use.
+
+```sh
+node tools/import-map.js <directory with ne_10m_land, ne_10m_lakes and ne_10m_rivers_lake_centerlines .geojson>
+```
+
+Modern reservoirs, such as Lake Nasser, are left out. The place markers come
+from the entity data at request time.
 
 ## The BSB data
 

@@ -62,6 +62,10 @@
         if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
         const link = target?.closest('button[data-entity]');
         if (link instanceof HTMLElement && link.dataset.entity) this.showEntity(link.dataset.entity);
+        const onMap = target?.closest('[data-show-map]');
+        if (onMap instanceof HTMLElement && onMap.dataset.showMap) {
+          this.dispatchEvent(new CustomEvent('show-on-map', { bubbles: true, detail: { id: onMap.dataset.showMap } }));
+        }
         const strongs = target?.closest('[data-strongs]');
         if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
           input.value = strongs.dataset.strongs;

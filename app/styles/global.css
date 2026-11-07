@@ -365,3 +365,50 @@ gesture-card[data-zoom='far'] .passage__versions {
   padding-left: 2.5em;
   text-indent: -1em;
 }
+
+/* The map card. Lines keep one pixel at any scale. */
+.passage--map {
+  width: 44rem;
+}
+.map__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+}
+.map__land,
+.map__lake {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.map__river {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+.map__place circle {
+  fill: var(--line);
+}
+.map__place text {
+  display: none;
+  fill: var(--text);
+  font: 18px system-ui, sans-serif;
+}
+.map__place.is-on-table circle,
+.map__place.is-shown circle {
+  r: 6px;
+  fill: var(--text);
+}
+.map__place.is-on-table text,
+.map__place.is-shown text {
+  display: inline;
+}
+.map__place.is-shown text {
+  font-weight: 700;
+}
+gesture-card[data-zoom='far'] .map {
+  display: block;
+}

@@ -131,6 +131,7 @@ type EntityView = {
   summary: string;
   relations: Relation[];
   credit: string;
+  mapped: boolean;
 };
 type Relation = {
   label: string;
@@ -250,6 +251,11 @@ export type BibleTableMembers = {
     code: string;
     entity: string;
   }): void;
+  mapCard(): Element | null;
+  toggleMap(): Promise<void>;
+  openMap(): Promise<void>;
+  paintMap(): void;
+  placeLines(): Element[];
   paintStudy(root: Element): void;
   loadEvents(card: Element): Promise<void>;
   timeLines(): Element[];
@@ -663,7 +669,30 @@ export type CardAddressData = __Shape<{
   rows: never[];
   opening: string;
   count: string;
+  entity: null;
+  map: {
+    width: number;
+    height: number;
+    land: string[];
+    lakes: string[];
+    rivers: string[];
+    places: {
+      id: string;
+      name: string;
+      x: string;
+      y: string;
+    }[];
+  };
+}> | __Shape<{
+  address: string;
+  version: string;
+  title: string;
+  verses: never[];
+  rows: never[];
+  opening: string;
+  count: string;
   entity: EntityView;
+  map: null;
 }> | __Shape<{
   address: string;
   version: string;
@@ -673,6 +702,7 @@ export type CardAddressData = __Shape<{
   opening: string;
   count: string;
   entity: null;
+  map: null;
 }>;
 
 /** The `ctx` argument of `404`'s <script server> loader. */
