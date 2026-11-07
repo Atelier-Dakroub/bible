@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { passage, plainText, preview, search } from '../app/data/bible.js';
+import { passage, plainText, preview, referenceResults, referencesIn, search } from '../app/data/bible.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
-import { dropLinksTo, firstCovered, removed, toggleLink } from '../app/lib/links.js';
+import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
   const { title, verses } = await passage({ book: 'JHN', chapter: 3, from: 16, to: 18 });
@@ -148,4 +148,24 @@ test('the first word a span covers is found in a sorted index', () => {
 test('a stored link with a bad end is dropped', () => {
   const kept = parse(JSON.stringify({ links: [{ a: love, b: light }, { a: love, b: { from: 'x', to: 'y' } }] }));
   assert.deepEqual(kept.links, [{ a: love, b: light }]);
+});
+
+test('a passage has the cross-references of its verses, best first', async () => {
+  const refs = await referencesIn({ book: 'JHN', chapter: 3, from: 16, to: 17 });
+  assert.deepEqual(Object.keys(refs), ['JHN.3.16', 'JHN.3.17']);
+  assert.equal(refs['JHN.3.16'][0][0], 'ROM.5.8');
+  const votes = refs['JHN.3.16'].map(([, count]) => count);
+  assert.deepEqual(votes, [...votes].sort((a, b) => b - a));
+});
+
+test('the cross-references of a verse read as search results, with credit', async () => {
+  const found = await referenceResults('JHN.3.16');
+  assert.equal(found.results[0].title, 'Romans 5:8');
+  assert.match(found.summary, /^John 3:16: \d+ cross-references, most voted first\. From OpenBible\.info\.$/);
+  assert.equal((await referenceResults('JHN.3')).summary, 'That is not one verse.');
+});
+
+test('a target address names its verses', () => {
+  assert.deepEqual(versesOf('ROM.5.8'), ['ROM.5.8']);
+  assert.deepEqual(versesOf('1JN.4.9-10'), ['1JN.4.9', '1JN.4.10']);
 });

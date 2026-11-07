@@ -14,7 +14,10 @@
 
      The toggle collapses the panel to one small box and expands it again.
      Escape in the field collapses it, and "/" anywhere expands it and puts the
-     cursor in the field. The panel remembers its state in this browser. -->
+     cursor in the field. The panel remembers its state in this browser.
+
+     showReferences(address) lists the cross-references of one verse in place
+     of search results, from the same `results` fragment. -->
 
 <script element>
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
@@ -92,13 +95,22 @@
       this.timer = setTimeout(() => this.run(), 150);
     },
 
-    async run() {
+    /** @param {string} address a verse address */
+    showReferences(address) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      this.run(new URLSearchParams({ refs: address, fragment: 'results' }));
+    },
+
+    /** @param {URLSearchParams} [query] what to ask for; the typed search by default */
+    async run(query) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       this.request?.abort();
       const request = new AbortController();
       this.request = request;
 
-      const query = new URLSearchParams({ q: input.value, fragment: 'results' });
+      query ??= new URLSearchParams({ q: input.value, fragment: 'results' });
       const response = await fetch(`/search?${query}`, { signal: request.signal }).catch(() => null);
       if (!response?.ok || request.signal.aborted) return;
       const text = await response.text();

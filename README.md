@@ -23,6 +23,12 @@ words show on more than one card. Drawing a link again removes it, and
 removing a highlight removes its links. A link is two spans of word
 addresses, kept with the workspace.
 
+Cross-references: tap a verse on a card, and the search panel lists its
+cross-references, most voted first. Pull them out like any result. A dotted
+gray line joins a verse on one card to a verse on another when one refers to
+the other. The references are OpenBible.info's (CC BY), from the Treasury of
+Scripture Knowledge.
+
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
@@ -47,7 +53,8 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The import script and its parser. |
+| `tools/` | The imports: `import-kjv.js` and its parser, and `import-xrefs.js`. |
+| `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
 ## Colors
@@ -56,6 +63,23 @@ A wireframe for now: black boxes with thin gray lines, white text, and red only
 for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
+
+## The cross-reference data
+
+`app/data/xrefs/<BOOK>.json` maps each verse to its references, best first:
+`{ "JHN.3.16": [["ROM.5.8", 992], ["1JN.4.9-10", 705], ...] }`. The number
+is OpenBible.info's vote count. To make the files again from
+[cross-references.zip](https://a.openbible.info/data/cross-references.zip):
+
+```sh
+node tools/import-xrefs.js <path to cross_references.txt>
+```
+
+The import keeps 341,354 references and drops 3,445: those with zero or fewer
+votes, and one to a verse the KJV data does not have. A target that runs into
+the next chapter stops at the end of its first chapter (655 targets), because
+a card address holds one chapter. The license is CC BY, so the app credits
+OpenBible.info wherever it lists references.
 
 ## The KJV data
 

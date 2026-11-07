@@ -26,6 +26,7 @@
        card-link-move  a link is being drawn: detail { span, x, y }
        card-link    a link was drawn: detail { span, x, y }, x and y on screen
        card-paint   the card moved or changed form, so lines to it move too
+       card-tap     one finger touched and lifted without moving: detail { target }
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
@@ -52,6 +53,8 @@
   // How long, and how still, a finger holds a card before a second finger marks.
   const HOLD_MS = 200;
   const STILL_PX = 10;
+  // A tap is short and still. Anything longer or further is a move.
+  const TAP_MS = 350;
 
   // Where a finger holds a card that it pulled out of a list: near the top left,
   // on the heading, so the card hangs from the finger like a sheet of paper.
@@ -89,6 +92,8 @@
     still: null,
     /** @type {{ id: number, anchor: string, current: string, linking: boolean } | null} */
     marking: null,
+    /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
+    tap: null,
 
     connected({ signal }) {
       const parent = this.parent();
@@ -132,6 +137,10 @@
         this.startMarking(event.pointerId, word);
         return;
       }
+      // The first finger down might be a tap; a second finger means it is not.
+      this.tap = this.points?.size === 0
+        ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target }
+        : null;
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
     },
 
@@ -280,6 +289,9 @@
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
 
+      const tap = this.tap;
+      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
+
       // The holding finger settles again wherever it stops moving.
       const still = this.still;
       if (points.size === 1 && still && Math.hypot(event.clientX - still.x, event.clientY - still.y) > STILL_PX) {
@@ -306,6 +318,11 @@
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.delete(event.pointerId)) return;
       this.still = null;
+      const tap = this.tap;
+      this.tap = null;
+      if (tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS) {
+        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
+      }
       if (points.size > 0) return;
       top += 1;
       this.style.zIndex = String(top);

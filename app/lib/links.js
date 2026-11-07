@@ -88,3 +88,19 @@ export function firstCovered(index, span) {
   const entry = index[low];
   return entry && entry.key <= to ? entry.item : null;
 }
+
+/**
+ * The verse ids a one-chapter address names: `ROM.5.8` is one verse, and
+ * `1JN.4.9-10` is two.
+ *
+ * @param {string} address
+ * @returns {string[]}
+ */
+export function versesOf(address) {
+  const [base, end] = address.split('-');
+  const parts = base.split('.');
+  const first = Number(parts[2]);
+  const last = end ? Number(end) : first;
+  const prefix = `${parts[0]}.${parts[1]}`;
+  return Array.from({ length: Math.max(0, last - first + 1) }, (_, i) => `${prefix}.${first + i}`);
+}

@@ -1,9 +1,14 @@
 <script server>
-  import { search } from '../data/bible.js';
+  import { referenceResults, search } from '../data/bible.js';
 
   export const prerender = false;
 
-  export default async ({ url }) => search(new URL(url).searchParams.get('q') ?? '');
+  // `q` searches the text. `refs` lists the cross-references of one verse.
+  export default async ({ url }) => {
+    const params = new URL(url).searchParams;
+    const refs = params.get('refs');
+    return refs ? referenceResults(refs) : search(params.get('q') ?? '');
+  };
 </script>
 
 <title>Search</title>

@@ -5,7 +5,8 @@
 
 import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
-import { formatReference, parseReference, toAddress } from '../lib/reference.js';
+import { loaders as referenceLoaders } from './xrefs/index.js';
+import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
@@ -95,6 +96,70 @@ export function preview(verses, limit = 90) {
 /** @param {number} count */
 export function verseCount(count) {
   return count === 1 ? '1 verse' : `${count} verses`;
+}
+
+/** @typedef {[string, number]} CrossReference a target address and its votes */
+
+/** @type {Map<string, Promise<Record<string, CrossReference[]>>>} */
+const referenceBooks = new Map();
+
+/** @param {string} id */
+function referenceBook(id) {
+  let promise = referenceBooks.get(id);
+  if (!promise) {
+    const load = referenceLoaders[/** @type {keyof typeof referenceLoaders} */ (id)];
+    promise = load
+      ? load().then((module) => /** @type {Record<string, CrossReference[]>} */ (module.default))
+      : Promise.resolve({});
+    referenceBooks.set(id, promise);
+  }
+  return promise;
+}
+
+/**
+ * The cross-references of each verse in a passage, best first, from
+ * OpenBible.info (CC BY). Verses with none are left out.
+ *
+ * @param {Reference} ref
+ * @returns {Promise<Record<string, CrossReference[]>>}
+ */
+export async function referencesIn(ref) {
+  const all = await referenceBook(ref.book);
+  const { verses } = await passage(ref);
+  /** @type {Record<string, CrossReference[]>} */
+  const found = {};
+  for (const verse of verses) if (all[verse.id]) found[verse.id] = all[verse.id];
+  return found;
+}
+
+/**
+ * The cross-references of one verse as search results, so the search panel
+ * can list them and they can be pulled onto the table.
+ *
+ * @param {string} address a verse address, such as JHN.3.16
+ * @param {number} [limit]
+ * @returns {Promise<{ query: string, summary: string, results: Result[] }>}
+ */
+export async function referenceResults(address, limit = 50) {
+  const ref = parseAddress(address, books);
+  if (!ref || !ref.from || ref.to) return { query: '', summary: 'That is not one verse.', results: [] };
+
+  const list = (await referenceBook(ref.book))[address] ?? [];
+  const title = formatReference(ref, books);
+  /** @type {Result[]} */
+  const results = [];
+  for (const [target] of list.slice(0, limit)) {
+    const found = parseAddress(target, books);
+    if (!found) continue;
+    const { title: heading, verses } = await passage(found);
+    results.push({ address: target, title: heading, parts: [{ text: preview(verses, 200), hit: false }] });
+  }
+
+  const count = list.length === 1 ? '1 cross-reference' : `${list.length} cross-references`;
+  const summary = list.length
+    ? `${title}: ${count}, most voted first. From OpenBible.info.`
+    : `${title} has no cross-references.`;
+  return { query: '', summary, results };
 }
 
 /** @type {Promise<{ address: string, title: string, text: string }[]> | null} */

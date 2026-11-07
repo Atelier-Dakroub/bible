@@ -177,6 +177,14 @@ export type BibleTableMembers = {
   }): void;
   sourceOf(span: Highlight): Highlight;
   endAt(x: number, y: number): Highlight | null;
+  tapped({
+    target
+  }: {
+    target: EventTarget | null;
+  }): void;
+  loadReferences(card: Element): Promise<void>;
+  verseBox(card: Element, verse: Element): DOMRect;
+  referenceLines(): Element[];
   drawSoon(): void;
   placesOf(span: Highlight): Place[];
   draw(): void;
@@ -233,6 +241,13 @@ export type GestureCardMembers = {
     anchor: string;
     current: string;
     linking: boolean;
+  } | null;
+  tap: {
+    id: number;
+    x: number;
+    y: number;
+    t: number;
+    target: EventTarget | null;
   } | null;
   connected({
     signal
@@ -296,7 +311,8 @@ export type PassageSearchMembers = {
   }): () => void;
   setCollapsed(collapsed: boolean): void;
   queueSearch(): void;
-  run(): Promise<void>;
+  showReferences(address: string): void;
+  run(query?: URLSearchParams | undefined): Promise<void>;
   down(event: PointerEvent): void;
   move(event: PointerEvent): void;
   up(event: PointerEvent): void;

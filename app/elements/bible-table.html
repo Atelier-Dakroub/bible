@@ -15,6 +15,11 @@
      Lines (app/lib/links.js), drawn in one SVG layer over the resting cards:
        solid white   a link the reader drew between two spans
        dashed gray   the same highlighted words, shown on more than one card
+       dotted gray   a cross-reference (OpenBible.info) from a verse on one
+                     card to a verse on another
+
+     A tap on a verse lists its cross-references in the search panel, and
+     they can be pulled out from there like any result.
      A card sends `card-link` when a marking finger leaves it and lifts. The
      other end is the highlight under the finger, or, on words with no
      highlight, the whole passage of that card. Drawing a link again removes
@@ -26,7 +31,7 @@
 
 <script element>
   import { pan } from '../lib/gesture.js';
-  import { dropLinksTo, firstCovered, removed, toggleLink } from '../lib/links.js';
+  import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../lib/links.js';
   import { covers, paintWords, toggle, wordAt, wordKey } from '../lib/words.js';
   import { load, save } from '../lib/workspace.js';
 
@@ -51,6 +56,11 @@
   // its index.
   /** @type {WeakMap<Element, { key: number, item: Element }[]>} */
   const indexes = new WeakMap();
+
+  // The cross-references of each card's verses, fetched once per card.
+  /** @type {WeakMap<Element, Record<string, [string, number][]>>} */
+  const references = new WeakMap();
+
 
   /** @param {Element} card */
   function indexOf(card) {
@@ -158,6 +168,7 @@
       this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-paint', () => this.drawSoon(), options);
+      this.addEventListener('card-tap', (event) => this.tapped(/** @type {CustomEvent} */ (event).detail), options);
       // The card removes itself after the event, so keep what is left a moment later.
       this.addEventListener('card-remove', () => queueMicrotask(() => {
         this.keep();
@@ -289,6 +300,76 @@
       return first && last ? { from: first, to: last } : null;
     },
 
+    /** @param {{ target: EventTarget | null }} detail */
+    tapped({ target }) {
+      const verse = target instanceof Element ? target.closest('kjv-verse[data-ref]') : null;
+      if (!(verse instanceof HTMLElement) || !verse.dataset.ref) return;
+      const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      panel?.showReferences(verse.dataset.ref);
+    },
+
+    /** @param {Element} card */
+    async loadReferences(card) {
+      const address = card instanceof HTMLElement ? card.dataset.address : null;
+      if (!address) return;
+      const response = await fetch(`/xrefs/${encodeURIComponent(address)}`).catch(() => null);
+      if (!response?.ok) return;
+      references.set(card, await response.json());
+      this.drawSoon();
+    },
+
+    /**
+     * The box a line to a verse on a card starts from: the verse, or the
+     * card's heading when the card is in its short form.
+     *
+     * @param {Element} card
+     * @param {Element} verse
+     */
+    verseBox(card, verse) {
+      const box = verse.getBoundingClientRect();
+      if (box.width > 0) return box;
+      return (card.querySelector('.passage__heading') ?? card).getBoundingClientRect();
+    },
+
+    /**
+     * A line for each cross-reference from a verse on one card to a verse on
+     * another, once per pair of verses whichever way the reference runs.
+     *
+     * @returns {Element[]}
+     */
+    referenceLines() {
+      const cards = [...this.world().querySelectorAll('gesture-card')];
+      /** @type {Map<string, Element>[]} each card's verses by id */
+      const verseMaps = cards.map((card) => new Map(
+        [...card.querySelectorAll('kjv-verse[data-ref]')].map((verse) => [/** @type {HTMLElement} */ (verse).dataset.ref ?? '', verse]),
+      ));
+      const seen = new Set();
+      /** @type {Element[]} */
+      const lines = [];
+      cards.forEach((card, i) => {
+        const refs = references.get(card);
+        if (!refs) return;
+        for (const [fromId, list] of Object.entries(refs)) {
+          const from = verseMaps[i].get(fromId);
+          if (!from) continue;
+          for (const [target] of list) {
+            for (const toId of versesOf(target)) {
+              cards.forEach((other, j) => {
+                if (j === i) return;
+                const to = verseMaps[j].get(toId);
+                if (!to) return;
+                const key = [`${i}:${fromId}`, `${j}:${toId}`].sort().join('|');
+                if (seen.has(key)) return;
+                seen.add(key);
+                lines.push(line(this.verseBox(card, from), this.verseBox(other, to), 'ref'));
+              });
+            }
+          }
+        }
+      });
+      return lines;
+    },
+
     drawSoon() {
       if (this.lineFrame) return;
       this.lineFrame = requestAnimationFrame(() => {
@@ -321,7 +402,7 @@
     draw() {
       const svg = /** @type {SVGSVGElement} */ (this.querySelector('.table__lines'));
       /** @type {Element[]} */
-      const lines = [];
+      const lines = this.referenceLines();
 
       // The same words on several cards: a chain from each place to the next.
       for (const span of this.highlights) {
@@ -371,6 +452,7 @@
       paintWords(card, this.highlights, 'is-highlighted');
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
+      this.loadReferences(card);
       return /** @type {Card} */ (card);
     },
 
@@ -453,6 +535,11 @@
   .table__lines .same {
     stroke: var(--muted);
     stroke-dasharray: 6 6;
+  }
+  .table__lines .ref {
+    stroke: var(--muted);
+    stroke-dasharray: 1 6;
+    stroke-linecap: round;
   }
 </style>
 
