@@ -257,3 +257,59 @@ gesture-card[data-zoom='far'] kjv-verse {
   text-decoration-thickness: 2px;
   text-underline-offset: 0.2em;
 }
+
+/* A person, place, group or event, or a dictionary entry, in the search panel. */
+.entity {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.entity p {
+  margin: 0 0 0.4rem;
+}
+.entity__title {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 600 1.4rem/1.25 system-ui, sans-serif;
+  text-align: start;
+}
+.entity__facts,
+.entity__credit {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.entity__summary {
+  font: 0.95rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  white-space: pre-line;
+}
+.entity__relations {
+  margin: 0.5rem 0;
+}
+.entity__relations dt {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.entity__relations dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+}
+.entity__link {
+  min-height: 2.2rem;
+  padding: 0 0.6rem;
+  font: 0.85rem system-ui, sans-serif;
+}
+.entity-card .entity__summary {
+  font-size: 1rem;
+}
+
+/* A word that names a person, place or group: a tap shows it. */
+.w[data-e] {
+  text-decoration: underline dotted var(--line);
+  text-underline-offset: 0.25em;
+}

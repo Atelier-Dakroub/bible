@@ -1,0 +1,153 @@
+<!-- The timeline strip at the bottom of the table.
+
+     One tick per event, on an axis of equal-width eras (app/lib/timeline.js).
+     The page renders the axis into the slot: a light element that re-renders
+     for its own state cannot also repeat over a list it was given.
+     A tap on a tick sends `show-entity` (bubbling) with { id }, and the table
+     shows the event in the search panel. The table marks the ticks of the
+     events that the cards on it tell, and draws a line from each card to them.
+
+     The dates are Theographic's, which follow Floyd Nolen Jones's chronology;
+     the strip says so. It collapses to one box, like the search panel, and
+     remembers its state in this browser. -->
+
+<script element>
+  export const state = {
+    collapsed: false,
+  };
+
+  const COLLAPSED_KEY = 'bible.timeline.collapsed';
+
+  export const prototype = {
+    connected({ signal }) {
+      try {
+        this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
+      } catch {
+        // No storage: the strip starts open.
+      }
+      this.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('[data-action="toggle"]')) {
+          this.collapsed = !this.collapsed;
+          try {
+            localStorage.setItem(COLLAPSED_KEY, String(this.collapsed));
+          } catch {
+            // No storage: the state lasts until the page closes.
+          }
+          this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
+          return;
+        }
+        const tick = target?.closest('[data-entity]');
+        if (tick instanceof HTMLElement) {
+          this.dispatchEvent(new CustomEvent('show-entity', { bubbles: true, detail: { id: tick.dataset.entity } }));
+        }
+      }, { signal });
+    },
+
+    /**
+     * The tick of an event, or null.
+     *
+     * @param {string} id
+     * @returns {HTMLElement | null}
+     */
+    tickFor(id) {
+      return this.querySelector(`[data-entity="${CSS.escape(id)}"]`);
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1000000;
+    display: block;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  :scope:state(collapsed) {
+    right: auto;
+  }
+  .timeline__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+  }
+  .timeline__toggle {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    font: inherit;
+  }
+  .timeline__note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  :scope:state(collapsed) .timeline__note,
+  :scope:state(collapsed) .timeline__axis {
+    display: none;
+  }
+  .timeline__axis {
+    position: relative;
+    height: 4.5rem;
+    margin: 0 1rem 0.75rem;
+  }
+  .timeline__era {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--at) * 100%);
+    padding-left: 0.3rem;
+    border-left: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .timeline__era span {
+    display: block;
+  }
+  /* The hit area is wider than the mark, so a finger can find a tick. */
+  .timeline__tick {
+    position: absolute;
+    bottom: 0;
+    left: calc(var(--at) * 100%);
+    width: 14px;
+    height: 1.8rem;
+    margin-left: -7px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .timeline__tick::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    bottom: 0;
+    width: 2px;
+    height: 0.8rem;
+    background: var(--muted);
+  }
+  .timeline__tick.is-on-table::before,
+  .timeline__tick.is-shown::before {
+    height: 1.8rem;
+    background: var(--text);
+  }
+</style>
+
+<div class="timeline__bar">
+  <button
+    type="button"
+    class="timeline__toggle"
+    data-action="toggle"
+    aria-expanded="${collapsed ? 'false' : 'true'}"
+  >${collapsed ? 'Timeline' : 'Hide'}</button>
+  <p class="timeline__note">
+    Dates from Theographic, after Floyd Nolen Jones's chronology in the tradition of Ussher. Other chronologies differ. Each era has the same width.
+  </p>
+</div>
+<slot></slot>

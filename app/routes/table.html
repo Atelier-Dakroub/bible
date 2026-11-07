@@ -1,3 +1,20 @@
+<script server>
+  import { timeline } from '../data/entities.js';
+  import { ERAS, positionOf, yearLabel } from '../lib/timeline.js';
+
+  // The timeline strip's ticks and era marks, placed on the axis here so the
+  // strip arrives drawn.
+  export default async () => ({
+    events: timeline.map((event) => ({
+      id: event.id,
+      title: event.title,
+      label: `${event.approx ? 'about ' : ''}${yearLabel(event.start)}`,
+      at: positionOf(event.start),
+    })),
+    eras: ERAS.map((era) => ({ name: era.name, label: yearLabel(era.from), at: positionOf(era.from) })),
+  });
+</script>
+
 <title>Table</title>
 
 <!-- The panel is 32 inches at 4K and one device pixel per CSS pixel, so text at
@@ -12,5 +29,22 @@
   <h1 class="visually-hidden">Table</h1>
   <bible-table>
     <passage-search></passage-search>
+    <time-line>
+      <div class="timeline__axis">
+        <div each="era of eras" class="timeline__era" style="--at: ${era.at}">
+          <span>${era.name}</span>
+          <span>${era.label}</span>
+        </div>
+        <button
+          each="event of events"
+          type="button"
+          class="timeline__tick"
+          data-entity="${event.id}"
+          style="--at: ${event.at}"
+          aria-label="${event.title}, ${event.label}"
+          title="${event.title}, ${event.label}"
+        ></button>
+      </div>
+    </time-line>
   </bible-table>
 </main>

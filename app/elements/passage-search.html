@@ -20,9 +20,12 @@
      of search results, from the same `results` fragment. showWord(address)
      shows a word study: the word's Strong's entry and the verses that use it.
 
-     After each answer it sends `study` (bubbling) with { code }: the Strong's
-     number on show, or "" for none, so the table can mark the same original
-     word on every card. -->
+     showEntity(id) shows a person, place, group or event, with its relations
+     as buttons that show those in turn. Its heading pulls out as a card.
+
+     After each answer it sends `study` (bubbling) with { code, entity }: the
+     Strong's number and the entity on show, or "" for none, so the table can
+     mark the words on every card that render that word or name that entity. -->
 
 <script element>
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
@@ -57,6 +60,13 @@
         if (target?.closest('[data-action="toggle"]')) this.setCollapsed(!this.collapsed);
         const refs = target?.closest('[data-refs]');
         if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
+        const link = target?.closest('button[data-entity]');
+        if (link instanceof HTMLElement && link.dataset.entity) this.showEntity(link.dataset.entity);
+        const strongs = target?.closest('[data-strongs]');
+        if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
+          input.value = strongs.dataset.strongs;
+          this.run();
+        }
       }, { signal });
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') this.setCollapsed(true);
@@ -110,6 +120,14 @@
       this.run(new URLSearchParams({ refs: address, fragment: 'results' }));
     },
 
+    /** @param {string} id an entity id, such as person:david_994 */
+    showEntity(id) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      this.run(new URLSearchParams({ entity: id, fragment: 'results' }));
+    },
+
     /** @param {string} address a word address */
     showWord(address) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
@@ -133,8 +151,10 @@
       const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
       results.setHTMLUnsafe(text);
       results.scrollTop = 0;
-      const code = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'))?.dataset.code ?? '';
-      this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code } }));
+      const answer = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
+      const code = answer?.dataset.code ?? '';
+      const entity = answer?.dataset.entity ?? '';
+      this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code, entity } }));
     },
 
     /** @param {PointerEvent} event */
@@ -242,6 +262,10 @@
     min-height: 2.75rem;
     padding: 0 1rem;
     font: inherit;
+  }
+  /* Clear of the timeline strip while the strip is open. */
+  bible-table:has(time-line:not(:state(collapsed))) :scope {
+    bottom: 9.5rem;
   }
   /* Collapsed, the panel is one box around the toggle. */
   :scope:state(collapsed) {

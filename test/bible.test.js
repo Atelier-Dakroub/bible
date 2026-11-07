@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
+import { entityResults, passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
+import { eastonFor, formatYear, timeline } from '../app/data/entities.js';
+import { ERAS, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
@@ -193,4 +195,42 @@ test('a tap on a word studies its number, or lists the cross-references', async 
   const plainWord = await wordResults('GEN.1.1.w1');
   assert.equal(plainWord.entry, null);
   assert.match(plainWord.summary, /^Genesis 1:1: \d+ cross-references/);
+});
+
+test('a word that names a person shows the person first, with both other views offered', async () => {
+  const { verses } = await passage({ book: 'GEN', chapter: 23, from: 10 });
+  const ephron = verses[0].blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens)).find((token) => token.e?.startsWith('person:ephron'));
+  assert.ok(ephron);
+  const shown = await wordResults(`GEN.23.10.w${ephron.w}`);
+  assert.equal(shown.entity?.title, 'Ephron');
+  assert.equal(shown.refsFor, 'GEN.23.10');
+  assert.match(shown.studyCode, /^H\d+$/);
+});
+
+test("a people's name with no linked entity finds its Easton entry", async () => {
+  assert.equal((await eastonFor('Hittite'))?.term, 'Hittites');
+  assert.equal((await eastonFor('Amorites'))?.term, 'Amorites');
+  assert.equal(await eastonFor('of'), null);
+});
+
+test('an event shows its date with the chronology named, and the verses that tell it', async () => {
+  const event = timeline.find((each) => each.title === 'Exodus from Egypt');
+  const exodus = await entityResults(event?.id ?? '');
+  assert.match(exodus.entity?.facts.join(' ') ?? '', /1491 BC/);
+  assert.match(exodus.entity?.credit ?? '', /Floyd Nolen Jones/);
+  assert.ok(exodus.results.length > 0);
+});
+
+test('years read as BC and AD, from astronomical numbering', () => {
+  assert.equal(formatYear(-4003), '4004 BC');
+  assert.equal(formatYear(0), '1 BC');
+  assert.equal(formatYear(30), 'AD 30');
+});
+
+test('the time axis gives each era the same width, and is linear inside one', () => {
+  assert.equal(positionOf(ERAS[0].from), 0);
+  assert.equal(positionOf(ERAS[1].from), 1 / ERAS.length);
+  const middle = (ERAS[6].from + ERAS[6].to) / 2;
+  assert.ok(Math.abs(positionOf(middle) - 6.5 / ERAS.length) < 1e-9);
+  assert.equal(positionOf(500), 1);
 });

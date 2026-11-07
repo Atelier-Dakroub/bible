@@ -1,5 +1,5 @@
 <script server>
-  import { books, passage, preview, verseCount } from '../../data/bible.js';
+  import { books, entityView, passage, preview, verseCount } from '../../data/bible.js';
   import { parseAddress } from '../../lib/reference.js';
 
   // A card is a passage with an address of its own. The table asks for the
@@ -7,6 +7,12 @@
   export const prerender = false;
 
   export default async ({ params }) => {
+    // An address with a colon is an entity, such as person:david_994.
+    if (params.address.includes(':')) {
+      const entity = await entityView(params.address);
+      if (!entity) return new Response('Nothing has that address.', { status: 404 });
+      return { address: params.address, title: entity.title, verses: [], opening: entity.facts.join(' · '), count: '', entity };
+    }
     const ref = parseAddress(params.address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
     const { title, verses } = await passage(ref);
@@ -16,6 +22,7 @@
       verses,
       opening: preview(verses),
       count: verseCount(verses.length),
+      entity: null,
     };
   };
 </script>
@@ -34,6 +41,11 @@
       <span class="passage__opening">${opening}</span>
       <span class="passage__count">${count}</span>
     </p>
+    <div if="entity" class="entity-card">
+      <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
+      <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>
+      <p class="entity__credit">${entity ? entity.credit : ''}</p>
+    </div>
     <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
   </article>
 </gesture-card>

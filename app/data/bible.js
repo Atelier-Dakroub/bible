@@ -9,26 +9,61 @@ import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
+import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor } from './entities.js';
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
 /** @typedef {{ text: string, marks: string[] }} Run */
 /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
 /** @typedef {{ n: number, id: string, org?: string, blocks: Block[] }} Verse */
 /** @typedef {{ id: string, name: string, chapters: { n: number, verses: Verse[] }[] }} Book */
-/** @typedef {{ text: string, w: number, s: string | null }} Token `s` is the word's Strong's number */
+/** @typedef {{ text: string, w: number, s: string | null, e: string | null }} Token `s` is the word's Strong's number, `e` the entity it names */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
 /** @typedef {{ n: number, id: string, org?: string, blocks: WordBlock[] }} WordVerse */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
+/** @typedef {{ label: string, items: { id: string, name: string }[] }} Relation */
 /**
- * What the search panel shows. `entry` is a dictionary entry for a word study
- * or a search by Strong's number; `refsFor` is a verse whose cross-references
- * the panel can switch to.
+ * An entity as the search panel shows it.
  *
- * @typedef {{ query: string, summary: string, results: Result[], entry: Entry | null, refsFor: string, refsTitle: string }} Results
+ * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, relations: Relation[], credit: string }} EntityView
  */
+/**
+ * What the search panel shows.
+ *   entry       a Strong's dictionary entry: a word study, or a search by number
+ *   entity      a person, place, group or event (Theographic)
+ *   dictionary  an Easton's dictionary entry for a word that names no entity
+ *   refsFor     a verse whose cross-references the panel can switch to
+ *   studyCode   a Strong's number the panel can switch to
+ *
+ * @typedef {{
+ *   query: string, summary: string, results: Result[], entry: Entry | null,
+ *   entity: EntityView | null, dictionary: { term: string, text: string } | null,
+ *   refsFor: string, refsTitle: string, studyCode: string
+ * }} Results
+ */
+
+/**
+ * A full answer from the fields that are set; the rest are empty.
+ *
+ * @param {Partial<Results>} fields
+ * @returns {Results}
+ */
+function answer(fields) {
+  return {
+    query: '',
+    summary: '',
+    results: [],
+    entry: null,
+    entity: null,
+    dictionary: null,
+    refsFor: '',
+    refsTitle: '',
+    studyCode: '',
+    ...fields,
+  };
+}
 
 export const books = index;
 
@@ -51,13 +86,15 @@ export function book(id) {
  * @returns {Promise<{ title: string, verses: WordVerse[] }>}
  */
 export async function passage(ref) {
-  const [{ chapters }, codes] = await Promise.all([book(ref.book), strongsBook(ref.book)]);
+  const [{ chapters }, codes, named] = await Promise.all([book(ref.book), strongsBook(ref.book), namedIn(ref.book)]);
   const verses = chapters[ref.chapter - 1].verses;
   const from = ref.from ?? 1;
   const to = ref.to ?? ref.from ?? verses.length;
+  const chosen = verses.slice(from - 1, to);
+  const names = await Promise.all(chosen.map((verse) => namesFor(named[verse.id] ?? [])));
   return {
     title: formatReference(ref, books),
-    verses: verses.slice(from - 1, to).map((verse) => withWords(verse, codes[verse.id])),
+    verses: chosen.map((verse, i) => withWords(verse, codes[verse.id], names[i])),
   };
 }
 
@@ -109,9 +146,10 @@ async function entryFor(code, verseCount) {
  *
  * @param {Verse} verse
  * @param {string} [codes] the verse's Strong's numbers, one per word
+ * @param {Map<string, string>} [names] the names of what the verse names, to their entity ids
  * @returns {WordVerse}
  */
-export function withWords(verse, codes = '') {
+export function withWords(verse, codes = '', names = new Map()) {
   const numbers = codes.split(' ');
   let next = 1;
   const blocks = verse.blocks.map((block) => ({
@@ -121,7 +159,8 @@ export function withWords(verse, codes = '') {
       next = split.next;
       const tokens = split.tokens.map((token) => {
         const code = token.w ? numbers[token.w - 1] : undefined;
-        return { ...token, s: code && code !== '-' ? code : null };
+        const named = token.w ? names.get(nameKey(token.text)) : undefined;
+        return { ...token, s: code && code !== '-' ? code : null, e: named ?? null };
       });
       return { ...run, tokens };
     }),
@@ -162,7 +201,7 @@ export async function strongsResults(code, limit = 50) {
     : results.length < found.length
       ? `The first ${results.length} verses, in canon order.`
       : 'Every verse, in canon order.';
-  return { query: code, summary, results, entry, refsFor: '', refsTitle: '' };
+  return answer({ query: code, summary, results, entry });
 }
 
 /**
@@ -191,9 +230,12 @@ function markCode(verse, code) {
 }
 
 /**
- * What a tap on a word shows: a study of its Strong's number, with a way to
- * the verse's cross-references; or, for a word with no number, the
- * cross-references at once.
+ * What a tap on a word shows, the first that applies:
+ *   1. the person, place or group the word names in this verse;
+ *   2. Easton's dictionary entry for the word, such as "Hittites";
+ *   3. a study of the word's Strong's number;
+ *   4. the verse's cross-references.
+ * Each view offers the cross-references, and 1 and 2 offer the word study too.
  *
  * @param {string} address a word address, such as JHN.3.16.w4
  * @returns {Promise<Results>}
@@ -203,11 +245,135 @@ export async function wordResults(address) {
   const number = Number(/\.w(\d+)$/.exec(address)?.[1]);
   const ref = parseAddress(verseAddress, books);
   if (!ref || !number) return referenceResults(verseAddress);
-  const codes = (await strongsBook(ref.book))[verseAddress]?.split(' ') ?? [];
-  const code = codes[number - 1];
-  if (!code || code === '-') return referenceResults(verseAddress);
-  const study = await strongsResults(code);
-  return { ...study, query: '', refsFor: verseAddress, refsTitle: formatReference(ref, books) };
+
+  const { verses } = await passage(ref);
+  const token = verses[0]?.blocks
+    .flatMap((block) => block.runs.flatMap((run) => run.tokens))
+    .find((each) => each.w === number);
+  if (!token) return referenceResults(verseAddress);
+
+  const offers = { refsFor: verseAddress, refsTitle: formatReference(ref, books) };
+  if (token.e) return { ...(await entityResults(token.e)), ...offers, studyCode: token.s ?? '' };
+
+  const easton = await eastonFor(token.text.trim());
+  if (easton) {
+    const rest = token.s ? await strongsResults(token.s) : await referenceResults(verseAddress);
+    return { ...rest, query: '', dictionary: easton, ...offers, studyCode: '' };
+  }
+
+  if (token.s) return { ...(await strongsResults(token.s)), query: '', ...offers };
+  return referenceResults(verseAddress);
+}
+
+const KIND_LABEL = { person: 'Person', place: 'Place', group: 'Group', event: 'Event' };
+const CHRONOLOGY = "Dates follow Floyd Nolen Jones's chronology, in the tradition of Ussher. Other chronologies differ.";
+
+/**
+ * An entity, with its relations named, as the search panel shows it.
+ *
+ * @param {string} id
+ * @returns {Promise<EntityView | null>}
+ */
+export async function entityView(id) {
+  const all = await entities();
+  const found = all[id];
+  if (!found) return null;
+
+  /** @param {string | null | undefined} other */
+  const named = (other) => (other && all[other] ? [{ id: other, name: all[other].title }] : []);
+  /** @param {string[] | undefined} list */
+  const many = (list) => (list ?? []).flatMap((other) => named(other));
+  /** @type {[string, { id: string, name: string }[]][]} */
+  let relations = [];
+  /** @type {string[]} */
+  const facts = [KIND_LABEL[/** @type {keyof typeof KIND_LABEL} */ (found.kind)] ?? found.kind];
+
+  if (found.kind === 'person') {
+    if (found.born !== null || found.died !== null) {
+      facts.push([found.born !== null ? `born ${formatYear(found.born)}` : '', found.died !== null ? `died ${formatYear(found.died)}` : ''].filter(Boolean).join(', '));
+    }
+    relations = [
+      ['Father', named(found.father)],
+      ['Mother', named(found.mother)],
+      ['Spouses', many(found.partners)],
+      ['Children', many(found.children)],
+      ['Siblings', many(found.siblings)],
+      ['Born in', named(found.birthPlace)],
+      ['Died in', named(found.deathPlace)],
+      ['Groups', many(found.groups)],
+      ['Events', many(found.events)],
+    ];
+  }
+  if (found.kind === 'place') {
+    if (found.type) facts.push(found.type);
+    if (found.lat !== null && found.lon !== null) facts.push(`${found.lat.toFixed(3)}, ${found.lon.toFixed(3)}`);
+    if (found.start !== null) facts.push(`${formatYear(found.start)} to ${formatYear(found.end)}`);
+    if (found.comment) facts.push(found.comment);
+    relations = [
+      ['Same place as', named(found.sameAs)],
+      ['Part of', many(found.partOf)],
+    ];
+  }
+  if (found.kind === 'event') {
+    facts.push(`${found.approx ? 'about ' : ''}${formatYear(found.start)}${found.duration ? `, lasting ${duration(found.duration)}` : ''}`);
+    relations = [
+      ['Part of', named(found.partOf)],
+      ['People', many(found.participants)],
+      ['Places', many(found.locations)],
+    ];
+  }
+  if (found.kind === 'group') relations = [['Members', many(found.members)]];
+
+  const dated = found.kind === 'event' || (found.kind === 'person' && (found.born !== null || found.died !== null));
+  const credit = `From Theographic (CC BY-SA)${found.summary ? " and Easton's Bible Dictionary" : ''}.${dated ? ` ${CHRONOLOGY}` : ''}`;
+  return {
+    id,
+    kind: found.kind,
+    title: found.title,
+    facts,
+    summary: found.summary ?? '',
+    relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
+    credit,
+  };
+}
+
+/** @param {string} text such as 40Y or 7D */
+function duration(text) {
+  const match = /^(\d+)([DWMY])$/.exec(text);
+  if (!match) return text;
+  const unit = { D: 'day', W: 'week', M: 'month', Y: 'year' }[/** @type {'D' | 'W' | 'M' | 'Y'} */ (match[2])];
+  return `${match[1]} ${unit}${match[1] === '1' ? '' : 's'}`;
+}
+
+/**
+ * An entity and the verses that name it, with its names marked.
+ *
+ * @param {string} id
+ * @param {number} [limit]
+ * @returns {Promise<Results>}
+ */
+export async function entityResults(id, limit = 50) {
+  const view = await entityView(id);
+  const found = await entity(id);
+  if (!view || !found) return answer({ summary: 'Nothing has that address.' });
+
+  const names = [found.name, ...String(found.alsoCalled ?? '').split(',')].map((name) => name.trim()).filter(Boolean);
+  const marker = names.length ? new RegExp(`\\b(?:${names.map(escapeRegExp).join('|')})(?:[’']s)?\\b`, 'gi') : null;
+
+  /** @type {Result[]} */
+  const results = [];
+  for (const address of found.verses.slice(0, limit)) {
+    const ref = parseAddress(address, books);
+    if (!ref) continue;
+    const { title, verses } = await passage(ref);
+    const text = plainText(verses[0]);
+    results.push({ address, title, parts: marker && found.kind !== 'event' ? mark(text, marker) : [{ text, hit: false }] });
+  }
+  const total = found.verses.length;
+  const summary = total === 0
+    ? 'No verses are linked yet.'
+    : `${found.kind === 'event' ? 'Told in' : 'Named in'} ${verseCount(total)}${results.length < total ? `. The first ${results.length}, in canon order.` : '.'}`;
+  return answer({ summary, results, entity: view });
 }
 
 /**
@@ -284,9 +450,7 @@ export async function referencesIn(ref) {
  */
 export async function referenceResults(address, limit = 50) {
   const ref = parseAddress(address, books);
-  if (!ref || !ref.from || ref.to) {
-    return { query: '', summary: 'That is not one verse.', results: [], entry: null, refsFor: '', refsTitle: '' };
-  }
+  if (!ref || !ref.from || ref.to) return answer({ summary: 'That is not one verse.' });
 
   const list = (await referenceBook(ref.book))[address] ?? [];
   const title = formatReference(ref, books);
@@ -303,7 +467,7 @@ export async function referenceResults(address, limit = 50) {
   const summary = list.length
     ? `${title}: ${count}, most voted first. From OpenBible.info.`
     : `${title} has no cross-references.`;
-  return { query: '', summary, results, entry: null, refsFor: '', refsTitle: '' };
+  return answer({ summary, results });
 }
 
 /** @type {Promise<{ address: string, title: string, text: string }[]> | null} */
@@ -337,7 +501,7 @@ function allVerses() {
  */
 export async function search(query, limit = 50) {
   const text = query.trim();
-  if (!text) return { query: text, summary: '', results: [], entry: null, refsFor: '', refsTitle: '' };
+  if (!text) return answer({});
 
   // A Strong's number, such as H2617 or g25, finds the verses that use it.
   const strongs = /^([HG])0*(\d+)$/i.exec(text);
@@ -366,7 +530,7 @@ export async function search(query, limit = 50) {
     .slice(0, limit)
     .map((verse) => ({ address: verse.address, title: verse.title, parts: mark(verse.text, marker) }));
 
-  return { query: text, summary: summarize(total, results.length), results, entry: null, refsFor: '', refsTitle: '' };
+  return answer({ query: text, summary: summarize(total, results.length), results });
 }
 
 /**
@@ -376,14 +540,7 @@ export async function search(query, limit = 50) {
 async function referenceResult(query, ref) {
   const { title, verses } = await passage(ref);
   const parts = [{ text: preview(verses, 200), hit: false }];
-  return {
-    query,
-    summary: `Passage, ${verseCount(verses.length)}`,
-    results: [{ address: toAddress(ref), title, parts }],
-    entry: null,
-    refsFor: '',
-    refsTitle: '',
-  };
+  return answer({ query, summary: `Passage, ${verseCount(verses.length)}`, results: [{ address: toAddress(ref), title, parts }] });
 }
 
 /**

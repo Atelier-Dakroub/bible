@@ -36,6 +36,19 @@ gray line joins a verse on one card to a verse on another when one refers to
 the other. The references are OpenBible.info's (CC BY), from the Treasury of
 Scripture Knowledge.
 
+People, places and the timeline: a word that names a person, place or group
+(dotted underline) shows it in the search panel: dates, family, places,
+Easton's dictionary text, and the verses that name it. Its relations are
+buttons, and its heading pulls out as a card. A people's name with no linked
+entity, such as "Hittite", shows its entry in Easton's dictionary. The
+timeline strip at the bottom shows 450 events on an axis of equal-width eras;
+the events that the cards on the table tell are marked, with a line from each
+card. A tap on a tick shows the event.
+
+Every date is Theographic's, which follows Floyd Nolen Jones's chronology, in
+the tradition of Ussher (creation 4004 BC, Exodus 1491 BC). The app says so
+wherever it shows a date. Other chronologies differ, and none is built in yet.
+
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
@@ -60,8 +73,9 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, and `import-strongs.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js` and `import-theographic.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
+| `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -71,6 +85,31 @@ A wireframe for now: black boxes with thin gray lines, white text, and red only
 for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
+
+## The entity data
+
+`app/data/entities/` comes from
+[Theographic Bible Metadata](https://github.com/robertrouse/theographic-bible-metadata)
+(CC BY-SA 4.0):
+
+| File | What it holds |
+| --- | --- |
+| `entities.json` | 3,067 people, 1,298 places, 23 groups and 450 events, by id (`person:david_994`) |
+| `verses/<BOOK>.json` | The entities each verse names (24,556 verses name at least one) |
+| `timeline.json` | The events in time order, for the strip |
+| `easton.json` | Easton's Bible Dictionary (1897), 3,962 terms |
+
+```sh
+node tools/import-theographic.js <directory with Theographic's json files>
+```
+
+It needs `verses`, `people`, `places`, `peopleGroups`, `events` and `easton`
+from Theographic's `json/` folder. The license is CC BY-SA, like the Strong's
+dictionary: the app credits Theographic wherever it shows an entity, and the
+data must keep the license if it is published as data.
+
+Peoples such as the Hittites and the Amorites are not linked entities in
+Theographic. They are found through Easton's dictionary, by the word.
 
 ## The Strong's data
 

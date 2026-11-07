@@ -16,6 +16,9 @@ type __Cookies = {
     set(name: string, value: string, options?: __CookieOptions): Promise<void>
   }
 };
+type __Shape<T> = {
+  [K in keyof T]: T[K] extends never[] ? any[] : T[K]
+};
 type __CookieOptions = {
   path?: string;
   domain?: string;
@@ -75,6 +78,7 @@ type Run = {
     text: string;
     w: number;
     s: string | null;
+    e: string | null;
   }[];
 };
 type Pull_2 = {
@@ -114,6 +118,22 @@ type Entry = {
   dir: string;
   count: string;
 };
+type EntityView = {
+  id: string;
+  kind: string;
+  title: string;
+  facts: string[];
+  summary: string;
+  relations: Relation[];
+  credit: string;
+};
+type Relation = {
+  label: string;
+  items: {
+    id: string;
+    name: string;
+  }[];
+};
 type WordVerse = {
   n: number;
   id: string;
@@ -136,6 +156,7 @@ type Token = {
   text: string;
   w: number;
   s: string | null;
+  e: string | null;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -153,6 +174,7 @@ export type BibleTableMembers = {
     y: number;
   } | null;
   studied: string;
+  shown: string;
   frame: number;
   lineFrame: number;
   connected({
@@ -197,8 +219,15 @@ export type BibleTableMembers = {
   }: {
     target: EventTarget | null;
   }): void;
-  study(code: string): void;
+  study({
+    code, entity
+  }: {
+    code: string;
+    entity: string;
+  }): void;
   paintStudy(root: Element): void;
+  loadEvents(card: Element): Promise<void>;
+  timeLines(): Element[];
   loadReferences(card: Element): Promise<void>;
   verseBox(card: Element, verse: Element): DOMRect;
   referenceLines(): Element[];
@@ -329,6 +358,7 @@ export type PassageSearchMembers = {
   setCollapsed(collapsed: boolean): void;
   queueSearch(): void;
   showReferences(address: string): void;
+  showEntity(id: string): void;
   showWord(address: string): void;
   run(query?: URLSearchParams | undefined): Promise<void>;
   down(event: PointerEvent): void;
@@ -343,6 +373,24 @@ export type SvgIconProps = {
   library: string;
   name: string;
   label: string;
+};
+
+/** Properties of `<time-line>`, from its <script element> block. */
+export type TimeLineProps = {};
+
+/** Internal state of `<time-line>`, from its <script element> block. */
+export type TimeLineState = {
+  collapsed: boolean;
+};
+
+/** Members of `<time-line>`, from its `export const prototype`. */
+export type TimeLineMembers = {
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  tickFor(id: string): HTMLElement | null;
 };
 
 /** Properties of `<touch-probe>`, from its <script element> block. */
@@ -442,8 +490,14 @@ export type SearchData = {
   summary: string;
   results: Result[];
   entry: Entry | null;
+  entity: EntityView | null;
+  dictionary: {
+    term: string;
+    text: string;
+  } | null;
   refsFor: string;
   refsTitle: string;
+  studyCode: string;
 };
 
 /** The `ctx` argument of `table`'s <script server> loader. */
@@ -470,7 +524,19 @@ export type TableContext = {
 };
 
 /** Data returned by `table`'s <script server> block. */
-export type TableData = {};
+export type TableData = {
+  events: {
+    id: string;
+    title: string;
+    label: string;
+    at: number;
+  }[];
+  eras: {
+    name: string;
+    label: string;
+    at: number;
+  }[];
+};
 
 /** The `ctx` argument of `touch`'s <script server> loader. */
 export type TouchContext = {
@@ -556,13 +622,21 @@ export type CardAddressContext = {
 };
 
 /** Data returned by `card-_address`'s <script server> block. */
-export type CardAddressData = {
+export type CardAddressData = __Shape<{
+  address: string;
+  title: string;
+  verses: never[];
+  opening: string;
+  count: string;
+  entity: EntityView;
+}> | __Shape<{
   address: string;
   title: string;
   verses: WordVerse[];
   opening: string;
   count: string;
-};
+  entity: null;
+}>;
 
 /** The `ctx` argument of `404`'s <script server> loader. */
 export type _404Context = {
@@ -598,6 +672,7 @@ declare global {
     "kjv-verse": HTMLElement;
     "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
     "svg-icon": HTMLElement;
+    "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;
   }
 }

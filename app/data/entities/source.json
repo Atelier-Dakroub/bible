@@ -1,0 +1,7 @@
+{
+  "name": "Theographic Bible Metadata",
+  "source": "https://github.com/robertrouse/theographic-bible-metadata",
+  "license": "CC BY-SA 4.0: credit Theographic, and share this data under the same license.",
+  "chronology": "Floyd Nolen Jones, The Chronology of the Old Testament (follows Ussher for most of the Old Testament: creation 4004 BC, Exodus 1491 BC, crucifixion AD 30). Years are astronomical: -4003 is 4004 BC.",
+  "dictionary": "Easton's Bible Dictionary (1897), public domain, as edited in Theographic."
+}
