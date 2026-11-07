@@ -9,6 +9,12 @@ sideways to put the passage on the table as a card. Cards move, turn and
 scale; a drag on the empty table pans everything, and the table has no edge.
 What is on the table is kept in the browser as addresses and positions.
 
+Highlights take two hands: hold a card still with one finger, then run a
+finger of the other hand over the words. A highlight is stored as a span of
+word addresses (`JHN.3.16.w2` to `JHN.3.16.w6`), apart from the text, so
+every card that holds those words shows it, in inverse. Marking the same span
+again, or a tap on a highlighted word while you hold the card, removes it.
+
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
@@ -21,6 +27,7 @@ npm install
 npm run dev      # http://localhost:1960
 npm test         # the gesture math, the import parser and the KJV data
 npm run check    # types
+npm run verify   # the tests, the types and a build: the build compiles every template
 ```
 
 ## Layout

@@ -11,7 +11,8 @@
     "start:worker": "npx wrangler dev",
     "deploy": "npm run build && npx wrangler deploy",
     "test": "node --test",
-    "import:kjv": "node tools/import-kjv.js"
+    "import:kjv": "node tools/import-kjv.js",
+    "verify": "npm test && npm run check && npm run build"
   },
   "dependencies": {
     "@transclude/core": "^1.5.0"

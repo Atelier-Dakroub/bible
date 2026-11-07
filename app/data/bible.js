@@ -6,12 +6,16 @@
 import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
 import { formatReference, parseReference, toAddress } from '../lib/reference.js';
+import { tokenize } from '../lib/words.js';
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
 /** @typedef {{ text: string, marks: string[] }} Run */
 /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
 /** @typedef {{ n: number, id: string, org?: string, blocks: Block[] }} Verse */
 /** @typedef {{ id: string, name: string, chapters: { n: number, verses: Verse[] }[] }} Book */
+/** @typedef {Run & { tokens: { text: string, w: number }[] }} WordRun */
+/** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
+/** @typedef {{ n: number, id: string, org?: string, blocks: WordBlock[] }} WordVerse */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 
@@ -33,14 +37,34 @@ export function book(id) {
 
 /**
  * @param {Reference} ref
- * @returns {Promise<{ title: string, verses: Verse[] }>}
+ * @returns {Promise<{ title: string, verses: WordVerse[] }>}
  */
 export async function passage(ref) {
   const { chapters } = await book(ref.book);
   const verses = chapters[ref.chapter - 1].verses;
   const from = ref.from ?? 1;
   const to = ref.to ?? ref.from ?? verses.length;
-  return { title: formatReference(ref, books), verses: verses.slice(from - 1, to) };
+  return { title: formatReference(ref, books), verses: verses.slice(from - 1, to).map(withWords) };
+}
+
+/**
+ * The verse with each run split into numbered words (app/lib/words.js), so a
+ * card can address a single word. A new object: the loaded book is shared.
+ *
+ * @param {Verse} verse
+ * @returns {WordVerse}
+ */
+export function withWords(verse) {
+  let next = 1;
+  const blocks = verse.blocks.map((block) => ({
+    ...block,
+    runs: block.runs.map((run) => {
+      const split = tokenize(run.text, next);
+      next = split.next;
+      return { ...run, tokens: split.tokens };
+    }),
+  }));
+  return { ...verse, blocks };
 }
 
 /**

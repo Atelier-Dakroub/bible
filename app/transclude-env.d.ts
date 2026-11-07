@@ -31,6 +31,10 @@ type Point = {
   x: number;
   y: number;
 };
+type Highlight = {
+  from: string;
+  to: string;
+};
 type Pull = {
   id: number;
   x: number;
@@ -59,6 +63,10 @@ type Block = {
 type Run = {
   text: string;
   marks: string[];
+  tokens: {
+    text: string;
+    w: number;
+  }[];
 };
 type Pull_2 = {
   id: number;
@@ -86,16 +94,22 @@ type Part = {
   text: string;
   hit: boolean;
 };
-type Verse = {
+type WordVerse = {
   n: number;
   id: string;
   org?: string | undefined;
-  blocks: Block_2[];
+  blocks: WordBlock[];
 };
-type Block_2 = {
+type WordBlock = {
   style: string;
   numbered?: boolean | undefined;
-  runs: Run_2[];
+  runs: WordRun[];
+};
+type WordRun = Run_2 & {
+  tokens: {
+    text: string;
+    w: number;
+  }[];
 };
 type Run_2 = {
   text: string;
@@ -109,6 +123,7 @@ export type BibleTableProps = {};
 export type BibleTableMembers = {
   offset: Point;
   fingers: Map<number, Point> | null;
+  highlights: Highlight[];
   frame: number;
   connected({
     signal
@@ -127,6 +142,12 @@ export type BibleTableMembers = {
     address: string;
     pointer: Pull | null;
   }): Promise<void>;
+  mark({
+    from, to
+  }: {
+    from: string;
+    to: string;
+  }): void;
   restore(address: string, matrix: Matrix): Promise<void>;
   fetchCard(address: string): Promise<Card | null>;
   openSpot(): Point;
@@ -170,6 +191,16 @@ export type GestureCardMembers = {
   points: Map<number, Point> | null;
   origin: Point | null;
   frame: number;
+  still: {
+    x: number;
+    y: number;
+    t: number;
+  } | null;
+  marking: {
+    id: number;
+    anchor: string;
+    current: string;
+  } | null;
   connected({
     signal
   }: {
@@ -178,6 +209,11 @@ export type GestureCardMembers = {
   disconnected(): void;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
+  held(now: number): boolean;
+  startMarking(pointerId: number, word: string): void;
+  moveMarking(event: PointerEvent): void;
+  endMarking(event: PointerEvent, keep: boolean): void;
+  paintMarking(): void;
   take(pointerId: number, at: Point): void;
   hold(pointerId: number, at: Point, scale?: number | undefined): void;
   placeAt(at: Point, scale?: number | undefined): void;
@@ -391,7 +427,7 @@ export type TouchContext = {
 /** Data returned by `touch`'s <script server> block. */
 export type TouchData = {
   title: string;
-  verses: Verse[];
+  verses: WordVerse[];
 };
 
 /** The `ctx` argument of `index`'s <script server> loader. */
@@ -452,7 +488,7 @@ export type CardAddressContext = {
 export type CardAddressData = {
   address: string;
   title: string;
-  verses: Verse[];
+  verses: WordVerse[];
   opening: string;
   count: string;
 };

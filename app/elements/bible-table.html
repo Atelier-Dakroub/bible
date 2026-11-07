@@ -8,12 +8,17 @@
      addresses and positions (app/lib/workspace.js), and the cards are fetched
      again on the next visit.
 
+     Highlights are kept with the workspace as word spans (app/lib/words.js).
+     A card sends `card-mark` when a hand marks words, and the table adds or
+     removes the span and paints every card again.
+
      It listens for `place` from a search panel inside it:
        detail.address  the passage
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
   import { pan } from '../lib/gesture.js';
+  import { paintWords, toggle } from '../lib/words.js';
   import { load, save } from '../lib/workspace.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -31,12 +36,15 @@
     offset: { x: 0, y: 0 },
     /** @type {Map<number, Point> | null} */
     fingers: null,
+    /** @type {import('../lib/words.js').Highlight[]} */
+    highlights: [],
     frame: 0,
 
     connected({ signal }) {
       this.fingers = new Map();
       const workspace = load();
       this.offset = workspace.offset;
+      this.highlights = workspace.highlights;
       this.paint();
       for (const stored of workspace.cards) this.restore(stored.address, stored.matrix);
 
@@ -48,6 +56,7 @@
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
+      this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
       // The card removes itself after the event, so keep what is left a moment later.
       this.addEventListener('card-remove', () => queueMicrotask(() => this.keep()), options);
     },
@@ -108,6 +117,13 @@
       this.keep();
     },
 
+    /** @param {{ from: string, to: string }} detail */
+    mark({ from, to }) {
+      this.highlights = toggle(this.highlights, from, to);
+      paintWords(this.world(), this.highlights, 'is-highlighted');
+      this.keep();
+    },
+
     /**
      * @param {string} address
      * @param {Matrix} matrix
@@ -129,6 +145,7 @@
       const card = holder.content.querySelector('gesture-card');
       if (!card) return null;
       this.world().append(card);
+      paintWords(card, this.highlights, 'is-highlighted');
       await customElements.whenDefined('gesture-card');
       return /** @type {Card} */ (card);
     },
@@ -151,7 +168,11 @@
         const card = /** @type {Card} */ (element);
         return { address: card.dataset.address ?? '', matrix: card.matrix };
       });
-      save({ offset: this.offset, cards: cards.filter((card) => card.address && card.matrix) });
+      save({
+        offset: this.offset,
+        cards: cards.filter((card) => card.address && card.matrix),
+        highlights: this.highlights,
+      });
     },
   };
 </script>

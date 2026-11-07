@@ -1,6 +1,7 @@
 // What is on the table, kept in this browser between visits.
 //
-// A card is stored as its address and its matrix, never as its text: the text
+// A card is stored as its address and its matrix, and a highlight as two word
+// addresses, never as text: the text
 // comes back from the server by address. That keeps the stored state small,
 // and it is the shape a shared or linked workspace will need later.
 //
@@ -9,14 +10,17 @@
 
 /** @typedef {import('./affine.js').Matrix} Matrix */
 /** @typedef {import('./affine.js').Point} Point */
+/** @typedef {import('./words.js').Highlight} Highlight */
 /** @typedef {{ address: string, matrix: Matrix }} StoredCard */
-/** @typedef {{ offset: Point, cards: StoredCard[] }} Workspace */
+/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[] }} Workspace */
+
+import { isWordAddress } from './words.js';
 
 const KEY = 'bible.table.v1';
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [] };
+  return { offset: { x: 0, y: 0 }, cards: [], highlights: [] };
 }
 
 /**
@@ -35,7 +39,8 @@ export function parse(text) {
 
   const offset = isPoint(value.offset) ? value.offset : { x: 0, y: 0 };
   const cards = Array.isArray(value.cards) ? value.cards.filter(isCard) : [];
-  return { offset, cards };
+  const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isHighlight) : [];
+  return { offset, cards, highlights };
 }
 
 /** @returns {Workspace} */
@@ -54,6 +59,11 @@ export function save(workspace) {
   } catch {
     // Storage is off or full. The table still works; it is not kept.
   }
+}
+
+/** @param {any} value */
+function isHighlight(value) {
+  return isWordAddress(String(value?.from)) && isWordAddress(String(value?.to));
 }
 
 /** @param {any} value */

@@ -204,3 +204,16 @@ gesture-card[data-zoom='far'] kjv-verse {
   color: var(--muted);
   font: 0.75em system-ui, sans-serif;
 }
+
+/* Highlights are inverse: black on white, or black on the light red for the
+   words of Christ. APCA: black on white Lc 106, black on #ffbcbc Lc 77. A
+   marking in progress looks the same, so the hand sees the result as it goes. */
+.w.is-highlighted,
+.w.is-marking {
+  background: var(--text);
+  color: var(--table);
+}
+.wj .w.is-highlighted,
+.wj .w.is-marking {
+  background: var(--red-letter);
+}

@@ -1,6 +1,12 @@
 <!-- An object on the table. One finger moves it. Two fingers move, turn and
      scale it.
 
+     Marking takes two hands. One finger holds the card still for a moment
+     (HOLD_MS, within STILL_PX), and a second finger that then lands on a word
+     marks words instead of turning the card: it runs from the word it landed
+     on to the word it lifts from. Two fingers that land together, or a second
+     finger that lands off the words, still move, turn and scale the card.
+
      The card's position is a matrix in the coordinates of its offset parent,
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
@@ -12,11 +18,13 @@
 
      Events, all bubbling:
        card-change  a gesture ended, so the position is worth keeping
+       card-mark    a marking ended: detail { from, to }, two word addresses
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
   import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
   import { centroid, step } from '../lib/gesture.js';
+  import { paintWords, span, wordAt } from '../lib/words.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -34,6 +42,9 @@
   const MAX_SCALE = 6;
   const FAR_BELOW = 0.55;
   const NEAR_ABOVE = 0.65;
+  // How long, and how still, a finger holds a card before a second finger marks.
+  const HOLD_MS = 200;
+  const STILL_PX = 10;
 
   // Where a finger holds a card that it pulled out of a list: near the top left,
   // on the heading, so the card hangs from the finger like a sheet of paper.
@@ -67,6 +78,10 @@
     /** @type {Point | null} the parent's corner on screen, read when a gesture starts */
     origin: null,
     frame: 0,
+    /** @type {{ x: number, y: number, t: number } | null} where the holding finger last settled */
+    still: null,
+    /** @type {{ id: number, anchor: string, current: string } | null} */
+    marking: null,
 
     connected({ signal }) {
       const parent = this.parent();
@@ -103,7 +118,67 @@
     press(event) {
       // A button on the card is pressed, not dragged.
       if (event.target instanceof Element && event.target.closest('button')) return;
+      if (this.marking) return;
+
+      const word = event.target instanceof Element ? wordAt(event.target) : null;
+      if (word && this.held(event.timeStamp)) {
+        this.startMarking(event.pointerId, word);
+        return;
+      }
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * True when exactly one finger holds the card and it has stayed still for
+     * HOLD_MS. That finger is the hand that holds the page down.
+     *
+     * @param {number} now
+     */
+    held(now) {
+      return this.points?.size === 1 && this.still !== null && now - this.still.t >= HOLD_MS;
+    },
+
+    /**
+     * @param {number} pointerId
+     * @param {string} word
+     */
+    startMarking(pointerId, word) {
+      try {
+        this.setPointerCapture(pointerId);
+      } catch {
+        return;
+      }
+      this.marking = { id: pointerId, anchor: word, current: word };
+      this.paintMarking();
+    },
+
+    /** @param {PointerEvent} event */
+    moveMarking(event) {
+      const marking = /** @type {{ id: number, anchor: string, current: string }} */ (this.marking);
+      const under = document.elementFromPoint(event.clientX, event.clientY);
+      if (!under || !this.contains(under)) return;
+      const word = wordAt(under);
+      if (!word || word === marking.current) return;
+      marking.current = word;
+      this.paintMarking();
+    },
+
+    /**
+     * @param {PointerEvent} event
+     * @param {boolean} keep false when the browser cancelled the pointer
+     */
+    endMarking(event, keep) {
+      const marking = /** @type {{ id: number, anchor: string, current: string }} */ (this.marking);
+      this.marking = null;
+      this.paintMarking();
+      if (!keep) return;
+      const detail = span(marking.anchor, marking.current);
+      this.dispatchEvent(new CustomEvent('card-mark', { bubbles: true, detail }));
+    },
+
+    paintMarking() {
+      const marking = this.marking;
+      paintWords(this, marking ? [span(marking.anchor, marking.current)] : [], 'is-marking');
     },
 
     /**
@@ -126,6 +201,7 @@
       }
       points.set(pointerId, this.local(at));
       this.style.zIndex = String(HELD);
+      this.still = points.size === 1 ? { ...at, t: performance.now() } : null;
     },
 
     /**
@@ -167,8 +243,18 @@
 
     /** @param {PointerEvent} event */
     drag(event) {
+      if (this.marking?.id === event.pointerId) {
+        this.moveMarking(event);
+        return;
+      }
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
+
+      // The holding finger settles again wherever it stops moving.
+      const still = this.still;
+      if (points.size === 1 && still && Math.hypot(event.clientX - still.x, event.clientY - still.y) > STILL_PX) {
+        this.still = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+      }
 
       const after = new Map(points);
       after.set(event.pointerId, this.local({ x: event.clientX, y: event.clientY }));
@@ -183,8 +269,13 @@
 
     /** @param {PointerEvent} event */
     release(event) {
+      if (this.marking?.id === event.pointerId) {
+        this.endMarking(event, event.type === 'pointerup');
+        return;
+      }
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.delete(event.pointerId)) return;
+      this.still = null;
       if (points.size > 0) return;
       top += 1;
       this.style.zIndex = String(top);
