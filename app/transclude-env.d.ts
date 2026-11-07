@@ -142,7 +142,6 @@ type Relation = {
 type WordVerse = {
   n: number;
   id: string;
-  org?: string | undefined;
   blocks: WordBlock[];
 };
 type WordBlock = {

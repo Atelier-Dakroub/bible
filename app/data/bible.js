@@ -15,12 +15,12 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor } f
 /** @typedef {import('../lib/reference.js').Reference} Reference */
 /** @typedef {{ text: string, marks: string[] }} Run */
 /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
-/** @typedef {{ n: number, id: string, org?: string, blocks: Block[] }} Verse */
+/** @typedef {{ n: number, id: string, blocks: Block[] }} Verse */
 /** @typedef {{ id: string, name: string, chapters: { n: number, verses: Verse[] }[] }} Book */
 /** @typedef {{ text: string, w: number, s: string | null, e: string | null }} Token `s` is the word's Strong's number, `e` the entity it names */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
-/** @typedef {{ n: number, id: string, org?: string, blocks: WordBlock[] }} WordVerse */
+/** @typedef {{ n: number, id: string, blocks: WordBlock[] }} WordVerse */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */

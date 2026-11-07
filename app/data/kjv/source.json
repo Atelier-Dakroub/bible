@@ -1,7 +1,5 @@
 {
   "translation": "King James Version",
-  "source": "https://github.com/joe-dakroub/data_bible-json",
-  "origin": "An export from API.Bible, bible id de4e12af7f28f599-02",
-  "license": "The KJV text is in the public domain, except in the United Kingdom, where the Crown letters patent restrict printing.",
-  "note": "This data came through API.Bible. Read their terms, or rebuild it from a public-domain source, before it is published on a public site."
+  "source": "https://eBible.org/Scriptures/eng-kjv2006_usfm.zip",
+  "license": "Public domain, except in the United Kingdom, where the Crown letters patent restrict printing."
 }

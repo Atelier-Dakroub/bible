@@ -176,7 +176,7 @@ OpenBible.info wherever it lists references.
 list of blocks, and a block is a list of runs:
 
 ```json
-{ "n": 1, "id": "PSA.3.1", "org": "PSA.3.2", "blocks": [
+{ "n": 1, "id": "PSA.3.1", "blocks": [
   { "style": "d", "runs": [{ "text": "A Psalm of David, when he fled from Absalom his son.", "marks": [] }] },
   { "style": "q1", "numbered": true, "runs": [
     { "text": "LORD", "marks": ["nd"] },
@@ -188,21 +188,31 @@ list of blocks, and a block is a list of runs:
 ```
 
 - `style` is the USFM paragraph style: `p` prose, `q1` poetry, `d` a psalm
-  title, `b` a stanza break, `s1` a heading.
+  title, `b` a stanza break, `s1` a Psalm 119 letter heading.
 - `marks` are the character styles: `add` supplied words (italics), `nd` the
-  divine name, `wj` the words of Jesus, `tl` a Psalm 119 letter heading.
-- `org` is the verse's number in the original-language versification. It is
-  present only where it differs (1,969 verses).
+  divine name, `wj` the words of Jesus, `tl` a transliterated letter.
 - `books.json` lists the books with the verse count of each chapter.
 
-To make the files again from
-[data_bible-json](https://github.com/joe-dakroub/data_bible-json):
+The source is eBible.org's
+[`eng-kjv2006_usfm.zip`](https://eBible.org/Scriptures/eng-kjv2006_usfm.zip),
+which is in the public domain (except for the Crown patent on printing in the
+UK). To make the files again:
 
 ```sh
-npm run import:kjv -- <path to data_bible-json>
+npm run import:kjv -- <usfm directory>
 ```
 
-The source is an API.Bible export. The KJV text is in the public domain
-(except for the Crown patent in the UK), but read API.Bible's terms, or rebuild
-from a public-domain source, before you publish the app on a public site.
-`app/data/kjv/source.json` records this.
+`tools/lib/usfm.js` reads the USFM. Footnotes, Strong's tags and the closing
+headings of the epistles are left out; psalm titles and Psalm 119 headings
+join their verse.
+
+The data came from an API.Bible export until 2026-11-07. The rebuilt text
+matches it in 31,086 of 31,102 verses. The 16 differences are edition
+differences in the eBible text: "can not", "what soever", "where unto" and
+"where in" for "cannot", "whatsoever", "whereunto" and "wherein" in 13
+verses; brackets for parentheses in 1 John 2:23; and two verses where the old
+data had a stray space. The old data's `org` field (the original-language
+verse numbers, from API.Bible) is not in the rebuilt data.
+
+The rebuild also renumbers the words of those verses. A highlight made before
+the rebuild on one of the 16 verses can be off by a word.

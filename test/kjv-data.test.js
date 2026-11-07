@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { BLOCK_STYLES, MARKS, plainText } from '../tools/lib/kjv-content.js';
+import { BLOCK_STYLES, MARKS, plainText } from '../tools/lib/usfm.js';
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../app/data/kjv/${name}.json`, import.meta.url), 'utf8'));
 const index = read('books');
@@ -34,10 +34,10 @@ test('every verse has text, one number, and only known styles', () => {
   }
 });
 
-test('the versification mapping is kept', () => {
-  assert.equal(verses.filter((verse) => verse.org).length, 1969);
-  assert.equal(verses.find((verse) => verse.id === 'PSA.3.1').org, 'PSA.3.2');
-  assert.equal(verses.find((verse) => verse.id === 'MAL.4.1').org, 'MAL.3.19');
+test('the source is the public-domain eBible text', () => {
+  const source = JSON.parse(readFileSync(new URL('../app/data/kjv/source.json', import.meta.url), 'utf8'));
+  assert.match(source.source, /eBible\.org\/Scriptures\/eng-kjv2006_usfm\.zip$/);
+  assert.match(source.license, /^Public domain/);
 });
 
 test('known verses read as printed', () => {
