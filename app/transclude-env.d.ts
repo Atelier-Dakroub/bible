@@ -74,6 +74,7 @@ type Run = {
   tokens: {
     text: string;
     w: number;
+    s: string | null;
   }[];
 };
 type Pull_2 = {
@@ -102,6 +103,17 @@ type Part = {
   text: string;
   hit: boolean;
 };
+type Entry = {
+  code: string;
+  lemma: string;
+  xlit: string;
+  pron: string;
+  def: string;
+  kjv: string;
+  lang: string;
+  dir: string;
+  count: string;
+};
 type WordVerse = {
   n: number;
   id: string;
@@ -114,14 +126,16 @@ type WordBlock = {
   runs: WordRun[];
 };
 type WordRun = Run_2 & {
-  tokens: {
-    text: string;
-    w: number;
-  }[];
+  tokens: Token[];
 };
 type Run_2 = {
   text: string;
   marks: string[];
+};
+type Token = {
+  text: string;
+  w: number;
+  s: string | null;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -138,6 +152,7 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   } | null;
+  studied: string;
   frame: number;
   lineFrame: number;
   connected({
@@ -182,6 +197,8 @@ export type BibleTableMembers = {
   }: {
     target: EventTarget | null;
   }): void;
+  study(code: string): void;
+  paintStudy(root: Element): void;
   loadReferences(card: Element): Promise<void>;
   verseBox(card: Element, verse: Element): DOMRect;
   referenceLines(): Element[];
@@ -312,6 +329,7 @@ export type PassageSearchMembers = {
   setCollapsed(collapsed: boolean): void;
   queueSearch(): void;
   showReferences(address: string): void;
+  showWord(address: string): void;
   run(query?: URLSearchParams | undefined): Promise<void>;
   down(event: PointerEvent): void;
   move(event: PointerEvent): void;
@@ -423,6 +441,9 @@ export type SearchData = {
   query: string;
   summary: string;
   results: Result[];
+  entry: Entry | null;
+  refsFor: string;
+  refsTitle: string;
 };
 
 /** The `ctx` argument of `table`'s <script server> loader. */

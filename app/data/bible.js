@@ -6,6 +6,7 @@
 import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
 import { loaders as referenceLoaders } from './xrefs/index.js';
+import { loaders as strongsLoaders } from './strongs/index.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
 
@@ -14,11 +15,20 @@ import { tokenize } from '../lib/words.js';
 /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
 /** @typedef {{ n: number, id: string, org?: string, blocks: Block[] }} Verse */
 /** @typedef {{ id: string, name: string, chapters: { n: number, verses: Verse[] }[] }} Book */
-/** @typedef {Run & { tokens: { text: string, w: number }[] }} WordRun */
+/** @typedef {{ text: string, w: number, s: string | null }} Token `s` is the word's Strong's number */
+/** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
 /** @typedef {{ n: number, id: string, org?: string, blocks: WordBlock[] }} WordVerse */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
+/** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
+/**
+ * What the search panel shows. `entry` is a dictionary entry for a word study
+ * or a search by Strong's number; `refsFor` is a verse whose cross-references
+ * the panel can switch to.
+ *
+ * @typedef {{ query: string, summary: string, results: Result[], entry: Entry | null, refsFor: string, refsTitle: string }} Results
+ */
 
 export const books = index;
 
@@ -41,11 +51,56 @@ export function book(id) {
  * @returns {Promise<{ title: string, verses: WordVerse[] }>}
  */
 export async function passage(ref) {
-  const { chapters } = await book(ref.book);
+  const [{ chapters }, codes] = await Promise.all([book(ref.book), strongsBook(ref.book)]);
   const verses = chapters[ref.chapter - 1].verses;
   const from = ref.from ?? 1;
   const to = ref.to ?? ref.from ?? verses.length;
-  return { title: formatReference(ref, books), verses: verses.slice(from - 1, to).map(withWords) };
+  return {
+    title: formatReference(ref, books),
+    verses: verses.slice(from - 1, to).map((verse) => withWords(verse, codes[verse.id])),
+  };
+}
+
+/** @type {Map<string, Promise<Record<string, string>>>} */
+const strongsBooks = new Map();
+
+/**
+ * Each verse's Strong's numbers, one per word, "-" for none (tools/import-strongs.js).
+ *
+ * @param {string} id
+ */
+function strongsBook(id) {
+  let promise = strongsBooks.get(id);
+  if (!promise) {
+    const load = strongsLoaders[/** @type {keyof typeof strongsLoaders} */ (id)];
+    promise = load().then((module) => /** @type {Record<string, string>} */ (module.default));
+    strongsBooks.set(id, promise);
+  }
+  return promise;
+}
+
+/** @type {Promise<Record<string, { lemma: string, xlit: string, pron: string, def: string, kjv: string }>> | null} */
+let lexicon = null;
+
+/**
+ * The dictionary entry for a Strong's number (Open Scriptures, CC BY-SA).
+ *
+ * @param {string} code
+ * @param {number} verseCount how many verses use it
+ * @returns {Promise<Entry | null>}
+ */
+async function entryFor(code, verseCount) {
+  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  const found = (await lexicon)[code];
+  if (!found) return null;
+  const hebrew = code.startsWith('H');
+  return {
+    code,
+    ...found,
+    lang: hebrew ? 'he' : 'grc',
+    dir: hebrew ? 'rtl' : 'ltr',
+    count: verseCount === 1 ? 'in 1 verse' : `in ${verseCount.toLocaleString('en')} verses`,
+  };
 }
 
 /**
@@ -53,19 +108,106 @@ export async function passage(ref) {
  * card can address a single word. A new object: the loaded book is shared.
  *
  * @param {Verse} verse
+ * @param {string} [codes] the verse's Strong's numbers, one per word
  * @returns {WordVerse}
  */
-export function withWords(verse) {
+export function withWords(verse, codes = '') {
+  const numbers = codes.split(' ');
   let next = 1;
   const blocks = verse.blocks.map((block) => ({
     ...block,
     runs: block.runs.map((run) => {
       const split = tokenize(run.text, next);
       next = split.next;
-      return { ...run, tokens: split.tokens };
+      const tokens = split.tokens.map((token) => {
+        const code = token.w ? numbers[token.w - 1] : undefined;
+        return { ...token, s: code && code !== '-' ? code : null };
+      });
+      return { ...run, tokens };
     }),
   }));
   return { ...verse, blocks };
+}
+
+/**
+ * Every verse that uses a Strong's number, in canon order, with the English
+ * words that render it marked.
+ *
+ * @param {string} code such as H2617
+ * @param {number} [limit]
+ * @returns {Promise<Results>}
+ */
+export async function strongsResults(code, limit = 50) {
+  const all = await Promise.all(books.map((entry) => strongsBook(entry.id)));
+  /** @type {string[]} */
+  const found = [];
+  for (const each of all) {
+    for (const [address, codes] of Object.entries(each)) {
+      if (codes.split(' ').includes(code)) found.push(address);
+    }
+  }
+
+  /** @type {Result[]} */
+  const results = [];
+  for (const address of found.slice(0, limit)) {
+    const ref = parseAddress(address, books);
+    if (!ref) continue;
+    const { title, verses } = await passage(ref);
+    results.push({ address, title, parts: markCode(verses[0], code) });
+  }
+
+  const entry = await entryFor(code, found.length);
+  const summary = !entry
+    ? `${code} is not in the dictionary.`
+    : results.length < found.length
+      ? `The first ${results.length} verses, in canon order.`
+      : 'Every verse, in canon order.';
+  return { query: code, summary, results, entry, refsFor: '', refsTitle: '' };
+}
+
+/**
+ * A verse's words as parts, with the words that render `code` marked.
+ *
+ * @param {WordVerse} verse
+ * @param {string} code
+ * @returns {Part[]}
+ */
+function markCode(verse, code) {
+  /** @type {Part[]} */
+  const parts = [];
+  for (const block of verse.blocks) {
+    for (const run of block.runs) {
+      for (const token of run.tokens) {
+        const hit = token.s === code;
+        const last = parts.at(-1);
+        if (last && last.hit === hit) last.text += token.text;
+        else parts.push({ text: token.text, hit });
+      }
+    }
+    const last = parts.at(-1);
+    if (last && !last.text.endsWith(' ')) last.text += ' ';
+  }
+  return parts;
+}
+
+/**
+ * What a tap on a word shows: a study of its Strong's number, with a way to
+ * the verse's cross-references; or, for a word with no number, the
+ * cross-references at once.
+ *
+ * @param {string} address a word address, such as JHN.3.16.w4
+ * @returns {Promise<Results>}
+ */
+export async function wordResults(address) {
+  const verseAddress = address.replace(/\.w\d+$/, '');
+  const number = Number(/\.w(\d+)$/.exec(address)?.[1]);
+  const ref = parseAddress(verseAddress, books);
+  if (!ref || !number) return referenceResults(verseAddress);
+  const codes = (await strongsBook(ref.book))[verseAddress]?.split(' ') ?? [];
+  const code = codes[number - 1];
+  if (!code || code === '-') return referenceResults(verseAddress);
+  const study = await strongsResults(code);
+  return { ...study, query: '', refsFor: verseAddress, refsTitle: formatReference(ref, books) };
 }
 
 /**
@@ -138,11 +280,13 @@ export async function referencesIn(ref) {
  *
  * @param {string} address a verse address, such as JHN.3.16
  * @param {number} [limit]
- * @returns {Promise<{ query: string, summary: string, results: Result[] }>}
+ * @returns {Promise<Results>}
  */
 export async function referenceResults(address, limit = 50) {
   const ref = parseAddress(address, books);
-  if (!ref || !ref.from || ref.to) return { query: '', summary: 'That is not one verse.', results: [] };
+  if (!ref || !ref.from || ref.to) {
+    return { query: '', summary: 'That is not one verse.', results: [], entry: null, refsFor: '', refsTitle: '' };
+  }
 
   const list = (await referenceBook(ref.book))[address] ?? [];
   const title = formatReference(ref, books);
@@ -159,7 +303,7 @@ export async function referenceResults(address, limit = 50) {
   const summary = list.length
     ? `${title}: ${count}, most voted first. From OpenBible.info.`
     : `${title} has no cross-references.`;
-  return { query: '', summary, results };
+  return { query: '', summary, results, entry: null, refsFor: '', refsTitle: '' };
 }
 
 /** @type {Promise<{ address: string, title: string, text: string }[]> | null} */
@@ -189,11 +333,15 @@ function allVerses() {
  *
  * @param {string} query
  * @param {number} [limit]
- * @returns {Promise<{ query: string, summary: string, results: Result[] }>}
+ * @returns {Promise<Results>}
  */
 export async function search(query, limit = 50) {
   const text = query.trim();
-  if (!text) return { query: text, summary: '', results: [] };
+  if (!text) return { query: text, summary: '', results: [], entry: null, refsFor: '', refsTitle: '' };
+
+  // A Strong's number, such as H2617 or g25, finds the verses that use it.
+  const strongs = /^([HG])0*(\d+)$/i.exec(text);
+  if (strongs) return strongsResults(`${strongs[1].toUpperCase()}${strongs[2]}`, limit);
 
   const ref = parseReference(text, books);
   if (ref) return referenceResult(text, ref);
@@ -218,7 +366,7 @@ export async function search(query, limit = 50) {
     .slice(0, limit)
     .map((verse) => ({ address: verse.address, title: verse.title, parts: mark(verse.text, marker) }));
 
-  return { query: text, summary: summarize(total, results.length), results };
+  return { query: text, summary: summarize(total, results.length), results, entry: null, refsFor: '', refsTitle: '' };
 }
 
 /**
@@ -228,7 +376,14 @@ export async function search(query, limit = 50) {
 async function referenceResult(query, ref) {
   const { title, verses } = await passage(ref);
   const parts = [{ text: preview(verses, 200), hit: false }];
-  return { query, summary: `Passage, ${verseCount(verses.length)}`, results: [{ address: toAddress(ref), title, parts }] };
+  return {
+    query,
+    summary: `Passage, ${verseCount(verses.length)}`,
+    results: [{ address: toAddress(ref), title, parts }],
+    entry: null,
+    refsFor: '',
+    refsTitle: '',
+  };
 }
 
 /**

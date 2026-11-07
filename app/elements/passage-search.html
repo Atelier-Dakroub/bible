@@ -17,7 +17,12 @@
      cursor in the field. The panel remembers its state in this browser.
 
      showReferences(address) lists the cross-references of one verse in place
-     of search results, from the same `results` fragment. -->
+     of search results, from the same `results` fragment. showWord(address)
+     shows a word study: the word's Strong's entry and the verses that use it.
+
+     After each answer it sends `study` (bubbling) with { code }: the Strong's
+     number on show, or "" for none, so the table can mark the same original
+     word on every card. -->
 
 <script element>
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
@@ -50,6 +55,8 @@
       this.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest('[data-action="toggle"]')) this.setCollapsed(!this.collapsed);
+        const refs = target?.closest('[data-refs]');
+        if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
       }, { signal });
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') this.setCollapsed(true);
@@ -103,6 +110,14 @@
       this.run(new URLSearchParams({ refs: address, fragment: 'results' }));
     },
 
+    /** @param {string} address a word address */
+    showWord(address) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      this.run(new URLSearchParams({ word: address, fragment: 'results' }));
+    },
+
     /** @param {URLSearchParams} [query] what to ask for; the typed search by default */
     async run(query) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
@@ -115,7 +130,11 @@
       if (!response?.ok || request.signal.aborted) return;
       const text = await response.text();
       if (request.signal.aborted) return;
-      /** @type {HTMLElement} */ (this.querySelector('.search__results')).setHTMLUnsafe(text);
+      const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
+      results.setHTMLUnsafe(text);
+      results.scrollTop = 0;
+      const code = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'))?.dataset.code ?? '';
+      this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code } }));
     },
 
     /** @param {PointerEvent} event */

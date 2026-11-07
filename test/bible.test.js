@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { passage, plainText, preview, referenceResults, referencesIn, search } from '../app/data/bible.js';
+import { passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
@@ -168,4 +168,29 @@ test('the cross-references of a verse read as search results, with credit', asyn
 test('a target address names its verses', () => {
   assert.deepEqual(versesOf('ROM.5.8'), ['ROM.5.8']);
   assert.deepEqual(versesOf('1JN.4.9-10'), ['1JN.4.9', '1JN.4.10']);
+});
+
+test('the words of a passage carry their Strong\'s numbers', async () => {
+  const { verses } = await passage({ book: 'GEN', chapter: 1, from: 1 });
+  const tokens = verses[0].blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens)).filter((token) => token.w);
+  assert.deepEqual(tokens.slice(0, 4).map((token) => [token.text.trim(), token.s]), [['In', null], ['the', null], ['beginning', 'H7225'], ['God', 'H430']]);
+});
+
+test('a Strong\'s number finds the verses that use it, with its entry', async () => {
+  const found = await search('g0025');
+  assert.equal(found.entry?.code, 'G25');
+  assert.equal(found.entry?.lemma, 'ἀγαπάω');
+  assert.ok(found.results.some((result) => result.address === 'JHN.3.16'));
+  const john = found.results.find((result) => result.address === 'JHN.3.16');
+  assert.deepEqual(john?.parts.filter((part) => part.hit).map((part) => part.text.trim()), ['loved']);
+});
+
+test('a tap on a word studies its number, or lists the cross-references', async () => {
+  const study = await wordResults('JHN.3.16.w4');
+  assert.equal(study.entry?.code, 'G25');
+  assert.equal(study.refsFor, 'JHN.3.16');
+  assert.equal(study.refsTitle, 'John 3:16');
+  const plainWord = await wordResults('GEN.1.1.w1');
+  assert.equal(plainWord.entry, null);
+  assert.match(plainWord.summary, /^Genesis 1:1: \d+ cross-references/);
 });

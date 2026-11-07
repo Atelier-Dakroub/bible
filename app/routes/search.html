@@ -1,12 +1,15 @@
 <script server>
-  import { referenceResults, search } from '../data/bible.js';
+  import { referenceResults, search, wordResults } from '../data/bible.js';
 
   export const prerender = false;
 
-  // `q` searches the text. `refs` lists the cross-references of one verse.
+  // `q` searches the text, or finds a Strong's number such as H2617. `refs`
+  // lists the cross-references of one verse. `word` studies one word address.
   export default async ({ url }) => {
     const params = new URL(url).searchParams;
     const refs = params.get('refs');
+    const word = params.get('word');
+    if (word) return wordResults(word);
     return refs ? referenceResults(refs) : search(params.get('q') ?? '');
   };
 </script>
@@ -20,7 +23,15 @@
     <button type="submit">Search</button>
   </form>
 
-  <div id="results" fragment class="results">
+  <div id="results" fragment class="results" data-code="${entry ? entry.code : ''}">
+    <section if="entry" class="entry" aria-label="Dictionary entry">
+      <p class="entry__lemma"><span lang="${entry ? entry.lang : ''}" dir="${entry ? entry.dir : ''}">${entry ? entry.lemma : ''}</span></p>
+      <p class="entry__name">${entry ? entry.xlit : ''} · ${entry ? entry.code : ''} · ${entry ? entry.count : ''}</p>
+      <p class="entry__def">${entry ? entry.def : ''}</p>
+      <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
+      <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
+    </section>
+    <button if="refsFor" type="button" class="results__switch" data-refs="${refsFor}">Cross-references of ${refsTitle}</button>
     <p if="summary" class="results__summary">${summary}</p>
     <ol class="results__list">
       <li each="result of results">

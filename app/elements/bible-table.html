@@ -18,8 +18,11 @@
        dotted gray   a cross-reference (OpenBible.info) from a verse on one
                      card to a verse on another
 
-     A tap on a verse lists its cross-references in the search panel, and
-     they can be pulled out from there like any result.
+     A tap on a word studies it in the search panel: its Strong's entry and
+     the verses that use the same original word. A tap on a word with no
+     Strong's number lists the verse's cross-references instead. Either list
+     can be pulled out like any result. While a study is on show, every word
+     on the table with the same Strong's number is underlined.
      A card sends `card-link` when a marking finger leaves it and lifts. The
      other end is the highlight under the finger, or, on words with no
      highlight, the whole passage of that card. Drawing a link again removes
@@ -144,6 +147,8 @@
     links: [],
     /** @type {{ span: Span, x: number, y: number } | null} a link being drawn */
     pending: null,
+    /** the Strong's number the search panel is studying, or "" */
+    studied: '',
     frame: 0,
     lineFrame: 0,
 
@@ -169,6 +174,7 @@
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-paint', () => this.drawSoon(), options);
       this.addEventListener('card-tap', (event) => this.tapped(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('study', (event) => this.study(/** @type {CustomEvent} */ (event).detail.code), options);
       // The card removes itself after the event, so keep what is left a moment later.
       this.addEventListener('card-remove', () => queueMicrotask(() => {
         this.keep();
@@ -302,10 +308,28 @@
 
     /** @param {{ target: EventTarget | null }} detail */
     tapped({ target }) {
-      const verse = target instanceof Element ? target.closest('kjv-verse[data-ref]') : null;
-      if (!(verse instanceof HTMLElement) || !verse.dataset.ref) return;
+      const element = target instanceof Element ? target : null;
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
-      panel?.showReferences(verse.dataset.ref);
+      const word = wordAt(element);
+      if (word) {
+        panel?.showWord(word);
+        return;
+      }
+      const verse = element?.closest('kjv-verse[data-ref]');
+      if (verse instanceof HTMLElement && verse.dataset.ref) panel?.showReferences(verse.dataset.ref);
+    },
+
+    /** @param {string} code */
+    study(code) {
+      this.studied = code;
+      this.paintStudy(this.world());
+    },
+
+    /** @param {Element} root */
+    paintStudy(root) {
+      for (const word of root.querySelectorAll('[data-s]')) {
+        word.classList.toggle('is-studied', Boolean(this.studied) && /** @type {HTMLElement} */ (word).dataset.s === this.studied);
+      }
     },
 
     /** @param {Element} card */
@@ -450,6 +474,7 @@
       if (!card) return null;
       this.world().append(card);
       paintWords(card, this.highlights, 'is-highlighted');
+      this.paintStudy(card);
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
       this.loadReferences(card);

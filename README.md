@@ -23,8 +23,15 @@ words show on more than one card. Drawing a link again removes it, and
 removing a highlight removes its links. A link is two spans of word
 addresses, kept with the workspace.
 
-Cross-references: tap a verse on a card, and the search panel lists its
-cross-references, most voted first. Pull them out like any result. A dotted
+Word studies: tap a word on a card. The search panel shows its Hebrew or
+Greek word from Strong's dictionary, with the verses that use it, and every
+word on the table that renders the same original word is underlined. A
+search for a Strong's number, such as `H2617` or `G25`, does the same. A
+button in the study switches to the verse's cross-references.
+
+Cross-references: tap a word with no Strong's number (or use the button in a
+word study), and the search panel lists the verse's cross-references, most
+voted first. Pull them out like any result. A dotted
 gray line joins a verse on one card to a verse on another when one refers to
 the other. The references are OpenBible.info's (CC BY), from the Treasury of
 Scripture Knowledge.
@@ -53,7 +60,8 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, and `import-xrefs.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, and `import-strongs.js`. |
+| `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -63,6 +71,29 @@ A wireframe for now: black boxes with thin gray lines, white text, and red only
 for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
+
+## The Strong's data
+
+`app/data/strongs/<BOOK>.json` gives each verse one Strong's number per word,
+in word order, with `-` for a word that has none:
+`{ "GEN.1.1": "- - H7225 H430 H1254 - H8064 H853 - H776" }`.
+`app/data/strongs/lexicon.json` is the dictionary: lemma, transliteration,
+pronunciation, definition and the KJV renderings for each number.
+
+```sh
+node tools/import-strongs.js <usfm directory> <strongs-hebrew-dictionary.js> <strongs-greek-dictionary.js>
+```
+
+- The numbers come from eBible.org's `eng-kjv2006_usfm.zip` (public domain).
+  Its text is another edition of the same KJV, so the import matches words by
+  spelling, verse by verse: 790,605 of 790,707 words match, and 45.7% of all
+  words carry a number. Most of the rest are small words, such as "the" and
+  "of", that the source does not tag.
+- The dictionary is Open Scriptures' JSON edition of Strong's dictionaries
+  ([openscriptures/strongs](https://github.com/openscriptures/strongs)),
+  **CC BY-SA**. The app credits Open Scriptures wherever it shows an entry.
+  Dictionary data that is published as data must keep the same license; the
+  app's code is not affected.
 
 ## The cross-reference data
 

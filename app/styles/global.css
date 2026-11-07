@@ -217,3 +217,43 @@ gesture-card[data-zoom='far'] kjv-verse {
 .wj .w.is-marking {
   background: var(--red-letter);
 }
+
+/* A word study in the search panel. */
+.entry {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.entry p {
+  margin: 0 0 0.3rem;
+}
+.entry__lemma {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+.entry__name,
+.entry__credit {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.entry__def {
+  font: 1rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.entry__kjv {
+  font-size: 0.9rem;
+}
+.results__switch {
+  display: block;
+  width: calc(100% - 1.5rem);
+  min-height: 2.75rem;
+  margin: 0.75rem;
+  padding: 0 0.75rem;
+  font: inherit;
+  text-align: start;
+}
+
+/* The words on the table that render the original word being studied. */
+.w.is-studied {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}

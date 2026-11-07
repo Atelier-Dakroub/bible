@@ -1,0 +1,10 @@
+{
+  "numbers": {
+    "source": "https://eBible.org/Scriptures/eng-kjv2006_usfm.zip",
+    "license": "Public domain. Old Testament numbers from The Bible Foundation, New Testament from the KJV2003 Project."
+  },
+  "lexicon": {
+    "source": "https://github.com/openscriptures/strongs",
+    "license": "CC BY-SA. Credit Open Scriptures, and share this dictionary data under the same license. Strong's 1890 and 1894 dictionaries are in the public domain."
+  }
+}
