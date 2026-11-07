@@ -32,9 +32,10 @@ npm run check    # types
 
 ## Colors
 
-Black, white and one gray, with red only for the words of Christ. Each text
-color is checked with APCA on the card surface: white Lc 107, gray Lc 75, red
-Lc 76. `app/styles/global.css` lists the values and the rule for changing them.
+A wireframe for now: black boxes with thin gray lines, white text, and red only
+for the words of Christ. No rounded corners, shadows, fills or texture. Each
+text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
+`app/styles/global.css` lists the values and the rule for changing them.
 
 ## The KJV data
 

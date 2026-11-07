@@ -1,14 +1,15 @@
 /* Linked by every page. It goes through Vite, so nesting and @import work, and
    the build hashes and compresses it. */
 
-/* One palette: black, white and a gray, with red only for the words of
-   Christ. Every text color is checked with APCA (0.0.98G) on the card surface,
-   #121212, and on the table, #000:
+/* A wireframe: black boxes with thin gray lines, white text, and red only for
+   the words of Christ. No rounded corners, no shadows, no fills, no texture.
 
-     text     #ffffff   Lc 107   everything that is read
-     muted    #cccccc   Lc 75    verse numbers, summaries, labels
+   Every text color is checked with APCA (0.0.98G) on black:
+
+     text     #ffffff   Lc 108   everything that is read
+     muted    #cccccc   Lc 76    verse numbers, summaries, labels
      red      #ffbcbc   Lc 76    the words of Christ
-     line     #5a5a5a   Lc 17.5  borders: not text, so Lc 15 is the floor
+     line     #5a5a5a   Lc 18    box edges: not text, so Lc 15 is the floor
 
    Lc 75 is the APCA minimum for body text, and the words of Christ are body
    text. A red that dark readers see as red is too dark to reach it on black,
@@ -17,15 +18,11 @@
 :root {
   color-scheme: dark;
   --table: #000000;
-  --surface: #121212;
+  --surface: #000000;
   --text: #ffffff;
   --muted: #cccccc;
   --line: #5a5a5a;
   --red-letter: #ffbcbc;
-  /* A search hit: white text on this gray is Lc 99. */
-  --hit: #3d3d3d;
-  /* The table's dot grid. It is decoration, so it stays below Lc 15 on purpose. */
-  --grid: #262626;
   /* The older names, for the touch test elements. */
   --panel: var(--surface);
   --paper: var(--surface);
@@ -46,7 +43,7 @@ a {
 
 button {
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: 0;
   background: var(--surface);
   color: var(--text);
 }
@@ -76,7 +73,6 @@ button {
   width: 26rem;
   padding: 1.25rem 1.5rem;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
   background: var(--paper);
   font: 1.05rem/1.55 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 }
@@ -155,7 +151,6 @@ button {
   padding: 0.6rem 0.75rem;
   border: 0;
   border-top: 1px solid var(--line);
-  border-radius: 0;
   background: none;
   color: inherit;
   text-align: start;
@@ -171,8 +166,11 @@ button {
   display: block;
   font: 0.95rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 }
+/* A search hit is underlined: a fill would be decoration. */
 .result mark {
-  background: var(--hit);
+  background: none;
   color: inherit;
-  border-radius: 0.15em;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
 }

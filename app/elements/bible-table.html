@@ -88,8 +88,6 @@
       const world = this.world();
       world.style.left = `${x}px`;
       world.style.top = `${y}px`;
-      // The dot grid moves with the content, so a pan shows on an empty table.
-      this.style.backgroundPosition = `${x}px ${y}px`;
     },
 
     /**
@@ -162,9 +160,7 @@
     user-select: none;
     -webkit-user-select: none;
     overscroll-behavior: none;
-    background-color: var(--table);
-    background-image: radial-gradient(circle, var(--grid) 1.5px, transparent 1.6px);
-    background-size: 48px 48px;
+    background: var(--table);
   }
   /* The world is moved with left and top, not a transform. A transform would
      make it a stacking context, and then every card would stack with the
