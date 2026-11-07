@@ -1,0 +1,30 @@
+<!-- One verse, from the records in app/data/kjv.
+
+     Each run keeps its marks as classes: `add` for the words the translators
+     supplied, `nd` for the divine name, `wj` for the words of Jesus. The page
+     stylesheet draws them, so a card and a reading view can draw them
+     differently. -->
+
+<script element>
+  /** @typedef {{ text: string, marks: string[] }} Run */
+  /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
+
+  // The page puts the verse id on the element as `data-ref`, so a selection
+  // inside it can be traced back to its address.
+  export const properties = {
+    n: 0,
+    /** @type {Block[]} */
+    blocks: [],
+  };
+</script>
+
+<style>
+  :scope {
+    display: block;
+  }
+</style>
+
+<p each="block of blocks" class="verse__block verse__block--${block.style}">
+  <sup if="block.numbered" class="verse__number">${n}</sup>
+  <span each="run of block.runs" class="${run.marks.join(' ')}">${run.text}</span>
+</p>

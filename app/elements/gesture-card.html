@@ -1,0 +1,124 @@
+<!-- An object on the table. One finger moves it. Two fingers move, turn and
+     scale it.
+
+     The card's position is a matrix in the coordinates of its offset parent,
+     written as one CSS transform. Nothing else about the card changes during a
+     gesture, so a move costs a composite and no layout. -->
+
+<script element>
+  import { clampScale, multiply, rotation, toCSS, translation } from '../lib/affine.js';
+  import { centroid, step } from '../lib/gesture.js';
+
+  /** @typedef {import('../lib/affine.js').Matrix} Matrix */
+  /** @typedef {import('../lib/affine.js').Point} Point */
+
+  export const properties = {
+    /** Where the card starts, as a fraction of the parent's width. */
+    x: 0.5,
+    /** Where the card starts, as a fraction of the parent's height. */
+    y: 0.5,
+    /** The turn the card starts with, in degrees. */
+    angle: 0,
+  };
+
+  const MIN_SCALE = 0.3;
+  const MAX_SCALE = 6;
+
+  // The card touched last goes on top. One counter for every card on the page.
+  let top = 1;
+
+  export const prototype = {
+    /** @type {Matrix | null} */
+    matrix: null,
+    /** @type {Map<number, Point> | null} pointer id to position, in parent coordinates */
+    points: null,
+    /** @type {Point | null} the parent's corner on screen, read when a gesture starts */
+    origin: null,
+    frame: 0,
+
+    connected({ signal }) {
+      const parent = /** @type {HTMLElement} */ (this.offsetParent ?? document.body);
+      const start = translation(
+        Number(this.x) * parent.clientWidth - this.offsetWidth / 2,
+        Number(this.y) * parent.clientHeight - this.offsetHeight / 2,
+      );
+      const turn = multiply(
+        translation(this.offsetWidth / 2, this.offsetHeight / 2),
+        multiply(rotation((Number(this.angle) * Math.PI) / 180), translation(-this.offsetWidth / 2, -this.offsetHeight / 2)),
+      );
+      this.matrix = multiply(start, turn);
+      this.points = new Map();
+      this.paint();
+
+      this.addEventListener('pointerdown', (event) => this.press(event), { signal });
+      this.addEventListener('pointermove', (event) => this.drag(event), { signal });
+      this.addEventListener('pointerup', (event) => this.release(event), { signal });
+      this.addEventListener('pointercancel', (event) => this.release(event), { signal });
+    },
+
+    disconnected() {
+      cancelAnimationFrame(this.frame);
+    },
+
+    /** @param {PointerEvent} event */
+    press(event) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (points.size === 0) {
+        const parent = /** @type {HTMLElement} */ (this.offsetParent ?? document.body);
+        const box = parent.getBoundingClientRect();
+        this.origin = { x: box.left, y: box.top };
+      }
+      this.setPointerCapture(event.pointerId);
+      points.set(event.pointerId, this.local(event));
+      top += 1;
+      this.style.zIndex = String(top);
+    },
+
+    /** @param {PointerEvent} event */
+    drag(event) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (!points.has(event.pointerId)) return;
+
+      const after = new Map(points);
+      after.set(event.pointerId, this.local(event));
+
+      const moved = multiply(step(points, after), /** @type {Matrix} */ (this.matrix));
+      this.matrix = clampScale(moved, MIN_SCALE, MAX_SCALE, centroid(after));
+      this.points = after;
+
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => this.paint());
+    },
+
+    /** @param {PointerEvent} event */
+    release(event) {
+      this.points?.delete(event.pointerId);
+    },
+
+    /** @param {PointerEvent} event */
+    local(event) {
+      const origin = this.origin ?? { x: 0, y: 0 };
+      return { x: event.clientX - origin.x, y: event.clientY - origin.y };
+    },
+
+    paint() {
+      this.style.transform = toCSS(/** @type {Matrix} */ (this.matrix));
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    transform-origin: 0 0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+</style>
+
+<slot></slot>

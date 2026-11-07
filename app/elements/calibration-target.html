@@ -1,0 +1,89 @@
+<!-- A crosshair that measures where a touch lands.
+
+     Touch the center. The readout shows how far the contact was from the
+     crosshair, as the mean of every touch so far. A large offset that is the
+     same at every target means the VM screen and the panel do not cover the
+     same area.
+
+     Place it with custom properties on the element:
+       <calibration-target label="Top left" style="--x: 6%; --y: 8%"> -->
+
+<script element>
+  export const properties = {
+    label: '',
+  };
+
+  export const state = {
+    reading: 'Touch the center',
+  };
+
+  export const prototype = {
+    hits: 0,
+    sumX: 0,
+    sumY: 0,
+
+    connected({ signal }) {
+      this.addEventListener('pointerdown', (event) => this.measure(event), { signal });
+    },
+
+    /** @param {PointerEvent} event */
+    measure(event) {
+      const cross = /** @type {HTMLElement} */ (this.querySelector('.calibration__cross'));
+      const box = cross.getBoundingClientRect();
+      this.hits += 1;
+      this.sumX += event.clientX - (box.left + box.width / 2);
+      this.sumY += event.clientY - (box.top + box.height / 2);
+      const dx = Math.round(this.sumX / this.hits);
+      const dy = Math.round(this.sumY / this.hits);
+      this.reading = `${signed(dx)}, ${signed(dy)} px over ${this.hits}`;
+    },
+
+    reset() {
+      this.hits = 0;
+      this.sumX = 0;
+      this.sumY = 0;
+      this.reading = 'Touch the center';
+    },
+  };
+
+  /** @param {number} n */
+  function signed(n) {
+    return n > 0 ? `+${n}` : String(n);
+  }
+</script>
+
+<style>
+  :scope {
+    --size: 9rem;
+    position: absolute;
+    left: var(--x, 50%);
+    top: var(--y, 50%);
+    width: var(--size);
+    height: var(--size);
+    translate: -50% -50%;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px dashed var(--line);
+    touch-action: none;
+  }
+  .calibration__cross {
+    width: 2rem;
+    height: 2rem;
+    background:
+      linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat,
+      linear-gradient(var(--accent), var(--accent)) center / 100% 2px no-repeat;
+  }
+  .calibration__readout {
+    position: absolute;
+    top: 100%;
+    margin-top: 0.4rem;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<span class="calibration__cross" aria-hidden="true"></span>
+<span class="calibration__readout">${label}: ${reading}</span>

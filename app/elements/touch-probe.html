@@ -1,0 +1,285 @@
+<!-- A full-screen surface that shows every contact point.
+
+     Each pointer gets a ring at its position, sized by the contact area when
+     the panel reports one. The readout counts the points, names the pointer
+     type and shows the input rate. Record keeps every sample, and Save hands
+     the samples back as a JSON file.
+
+     The children go in the slot: calibration targets and cards. Their pointer
+     events bubble here, so the rings show touches on them too. -->
+
+<script element>
+  import { download, entriesOf } from '../lib/pointer-log.js';
+
+  /** @typedef {import('../lib/pointer-log.js').LogEntry} LogEntry */
+
+  export const state = {
+    active: 0,
+    peak: 0,
+    limit: 0,
+    kind: 'None yet',
+    contact: 'No touch yet',
+    rate: 0,
+    screenSize: '',
+    windowSize: '',
+    recording: false,
+    saved: 0,
+  };
+
+  // The spec says a pointer with no contact geometry reports 1 × 1.
+  const NO_GEOMETRY = 1;
+  // The ring's size when the panel reports no contact area, in CSS pixels.
+  const RING = 56;
+
+  export const prototype = {
+    /** @type {Map<number, HTMLElement> | null} */
+    rings: null,
+    /** @type {LogEntry[]} */
+    entries: [],
+    startedAt: 0,
+    samples: 0,
+    sizeSeen: false,
+
+    connected({ signal }) {
+      this.rings = new Map();
+      this.entries = [];
+      this.limit = navigator.maxTouchPoints;
+      this.measureScreen();
+
+      const options = { signal };
+      this.addEventListener('pointerdown', (event) => this.down(event), options);
+      this.addEventListener('pointermove', (event) => this.move(event), options);
+      this.addEventListener('pointerup', (event) => this.up(event), options);
+      this.addEventListener('pointercancel', (event) => this.up(event), options);
+      this.addEventListener('click', (event) => this.act(event), options);
+      // A long press opens the context menu, which takes the touch away.
+      this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+      window.addEventListener('resize', () => this.measureScreen(), options);
+
+      const timer = setInterval(() => this.tick(), 1000);
+      return () => clearInterval(timer);
+    },
+
+    /** @param {PointerEvent} event */
+    down(event) {
+      if (event.target instanceof HTMLButtonElement) return;
+      const ring = document.createElement('span');
+      ring.className = 'probe__ring';
+      ring.dataset.kind = event.pointerType;
+      /** @type {HTMLElement} */ (this.querySelector('.probe__rings')).append(ring);
+      /** @type {Map<number, HTMLElement>} */ (this.rings).set(event.pointerId, ring);
+
+      this.kind = event.pointerType;
+      this.count();
+      this.place(event);
+      this.log(event);
+    },
+
+    /** @param {PointerEvent} event */
+    move(event) {
+      const samples = event.getCoalescedEvents ? event.getCoalescedEvents().length : 1;
+      this.samples += samples || 1;
+      if (!this.rings?.has(event.pointerId)) return;
+      this.place(event);
+      this.log(event);
+    },
+
+    /** @param {PointerEvent} event */
+    up(event) {
+      this.rings?.get(event.pointerId)?.remove();
+      this.rings?.delete(event.pointerId);
+      this.count();
+      this.log(event);
+    },
+
+    count() {
+      const active = this.rings?.size ?? 0;
+      if (active !== this.active) this.active = active;
+      if (active > this.peak) this.peak = active;
+    },
+
+    /** @param {PointerEvent} event */
+    place(event) {
+      const ring = this.rings?.get(event.pointerId);
+      if (!ring) return;
+
+      const reported = event.width > NO_GEOMETRY || event.height > NO_GEOMETRY;
+      if (event.pointerType === 'touch') this.noteContact(reported);
+      const w = reported ? event.width : RING;
+      const h = reported ? event.height : RING;
+
+      ring.style.width = `${w}px`;
+      ring.style.height = `${h}px`;
+      ring.style.translate = `${event.clientX - w / 2}px ${event.clientY - h / 2}px`;
+      ring.textContent = `${event.pointerId}`;
+      ring.title = `${event.pointerType} ${event.pointerId}: ${Math.round(event.width)} × ${Math.round(event.height)}, pressure ${event.pressure.toFixed(2)}`;
+      ring.dataset.size = reported ? `${Math.round(event.width)}×${Math.round(event.height)}` : '';
+    },
+
+    /** @param {boolean} reported */
+    noteContact(reported) {
+      if (reported) this.sizeSeen = true;
+      const contact = this.sizeSeen ? 'Reported' : 'Not reported (1 × 1)';
+      if (contact !== this.contact) this.contact = contact;
+    },
+
+    /** @param {PointerEvent} event */
+    log(event) {
+      if (!this.recording) return;
+      this.entries.push(...entriesOf(event, this.startedAt));
+    },
+
+    tick() {
+      if (this.samples !== this.rate) this.rate = this.samples;
+      this.samples = 0;
+      if (this.entries.length !== this.saved) this.saved = this.entries.length;
+    },
+
+    measureScreen() {
+      this.screenSize = `${screen.width} × ${screen.height} at ${devicePixelRatio}x`;
+      this.windowSize = `${innerWidth} × ${innerHeight}`;
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
+      if (!(button instanceof HTMLButtonElement)) return;
+      const action = button.dataset.action;
+
+      if (action === 'fullscreen') {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+      }
+      if (action === 'record') {
+        if (!this.recording) {
+          this.entries = [];
+          this.startedAt = performance.now();
+        }
+        this.recording = !this.recording;
+        this.saved = this.entries.length;
+      }
+      if (action === 'save' && this.entries.length) download(this.entries);
+      if (action === 'reset') this.reset();
+    },
+
+    reset() {
+      this.peak = this.active;
+      this.sizeSeen = false;
+      this.contact = 'No touch yet';
+      this.kind = 'None yet';
+      this.entries = [];
+      this.saved = 0;
+      for (const target of this.querySelectorAll('calibration-target')) {
+        /** @type {any} */ (target).reset();
+      }
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: fixed;
+    inset: 0;
+    display: block;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+    background: var(--table);
+  }
+  .probe__readout {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    translate: -50% 0;
+    z-index: 1000000;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--panel);
+    font-size: 0.9rem;
+  }
+  .probe__readout dl {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.15rem 1rem;
+    margin: 0 0 0.75rem;
+  }
+  .probe__readout dt {
+    color: var(--muted);
+  }
+  .probe__readout dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .probe__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .probe__actions button {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    font: inherit;
+  }
+  .probe__actions button[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .probe__rings {
+    position: absolute;
+    inset: 0;
+    z-index: 999999;
+    pointer-events: none;
+  }
+  .probe__ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .probe__ring[data-size]:not([data-size=''])::after {
+    content: attr(data-size);
+    position: absolute;
+    top: 100%;
+    font-weight: 400;
+    color: var(--muted);
+  }
+</style>
+
+<slot></slot>
+
+<section class="probe__readout" aria-label="Touch readout">
+  <dl>
+    <dt>Touch points now</dt>
+    <dd>${active}</dd>
+    <dt>Most at one time</dt>
+    <dd>${peak}</dd>
+    <dt>Browser limit</dt>
+    <dd>${limit} (navigator.maxTouchPoints)</dd>
+    <dt>Pointer type</dt>
+    <dd>${kind}</dd>
+    <dt>Contact size</dt>
+    <dd>${contact}</dd>
+    <dt>Input samples</dt>
+    <dd>${rate} per second, all pointers</dd>
+    <dt>Screen</dt>
+    <dd>${screenSize}</dd>
+    <dt>Window</dt>
+    <dd>${windowSize}</dd>
+  </dl>
+  <div class="probe__actions">
+    <button type="button" data-action="fullscreen">Full screen</button>
+    <button type="button" data-action="record" aria-pressed="${recording ? 'true' : 'false'}">Record</button>
+    <button type="button" data-action="save" disabled="${saved === 0}">Save ${saved} samples</button>
+    <button type="button" data-action="reset">Reset</button>
+  </div>
+</section>
+
+<div class="probe__rings" aria-hidden="true"></div>

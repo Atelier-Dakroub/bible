@@ -1,0 +1,34 @@
+<script server>
+  import genesis from '../data/kjv/GEN.json' with { type: 'json' };
+
+  // Five verses are enough text to see whether a turned, scaled card stays
+  // readable.
+  export default async () => ({ verses: genesis.chapters[0].verses.slice(0, 5) });
+</script>
+
+<title>Touch test</title>
+
+<main>
+  <h1 class="visually-hidden">Touch test</h1>
+  <touch-probe>
+    <calibration-target label="Top left" style="--x: 6%; --y: 9%"></calibration-target>
+    <calibration-target label="Top right" style="--x: 94%; --y: 9%"></calibration-target>
+    <calibration-target label="Center" style="--x: 50%; --y: 50%"></calibration-target>
+    <calibration-target label="Bottom left" style="--x: 6%; --y: 86%"></calibration-target>
+    <calibration-target label="Bottom right" style="--x: 94%; --y: 86%"></calibration-target>
+
+    <gesture-card x="0.3" y="0.62" angle="-4">
+      <article class="passage">
+        <h2 class="passage__heading">Genesis 1</h2>
+        <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
+      </article>
+    </gesture-card>
+
+    <gesture-card x="0.72" y="0.62" angle="6">
+      <article class="passage passage--small">
+        <h2 class="passage__heading">Two fingers</h2>
+        <p>Move, turn and scale this card. A third finger does nothing yet.</p>
+      </article>
+    </gesture-card>
+  </touch-probe>
+</main>

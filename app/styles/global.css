@@ -1,0 +1,103 @@
+/* Linked by every page. It goes through Vite, so nesting and @import work, and
+   the build hashes and compresses it. */
+
+:root {
+  color-scheme: light dark;
+  --text: #1d1b18;
+  --muted: #6b655c;
+  --table: #ece7de;
+  --panel: #fbf9f5;
+  --paper: #fffdf8;
+  --line: #c9c1b4;
+  --accent: #9a3b1b;
+  --on-accent: #fff;
+  --red-letter: #a3201a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --text: #ece6dc;
+    --muted: #a39b8e;
+    --table: #1b1a18;
+    --panel: #262421;
+    --paper: #2e2b27;
+    --line: #4a453e;
+    --accent: #f08a5d;
+    --on-accent: #1b1a18;
+    --red-letter: #ff8f84;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--table);
+  color: var(--text);
+  font: 16px/1.6 system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+.page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A passage on the table. Serif, because this is the text being read. */
+.passage {
+  width: 26rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.08);
+  font: 1.05rem/1.55 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.passage--small {
+  width: 18rem;
+}
+.passage__heading {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+.passage p,
+.verse__block {
+  margin: 0 0 0.4rem;
+}
+.verse__number {
+  margin-right: 0.2em;
+  font: 600 0.65em system-ui, sans-serif;
+  color: var(--muted);
+}
+.verse__block--d {
+  font-style: italic;
+  color: var(--muted);
+}
+.verse__block--q1 {
+  padding-left: 1.5em;
+  text-indent: -1em;
+}
+
+/* The KJV prints supplied words in italics, the divine name in small capitals
+   and, in red-letter editions, the words of Jesus in red. */
+.add {
+  font-style: italic;
+}
+.nd {
+  font-size: 0.85em;
+  letter-spacing: 0.04em;
+}
+.wj {
+  color: var(--red-letter);
+}
