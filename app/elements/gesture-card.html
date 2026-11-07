@@ -35,6 +35,11 @@
   // The card touched last goes on top. One counter for every card on the page.
   let top = 1;
 
+  // A card that a finger holds goes above everything else on the page,
+  // including a panel at the edge of the table, and comes down when it is let
+  // go. A panel sits between the two levels.
+  const HELD = 2000000;
+
   export const prototype = {
     /** @type {Matrix | null} */
     matrix: null,
@@ -101,8 +106,7 @@
         return;
       }
       points.set(pointerId, this.local(at));
-      top += 1;
-      this.style.zIndex = String(top);
+      this.style.zIndex = String(HELD);
     },
 
     /**
@@ -160,7 +164,10 @@
     release(event) {
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.delete(event.pointerId)) return;
-      if (points.size === 0) this.dispatchEvent(new CustomEvent('card-change', { bubbles: true }));
+      if (points.size > 0) return;
+      top += 1;
+      this.style.zIndex = String(top);
+      this.dispatchEvent(new CustomEvent('card-change', { bubbles: true }));
     },
 
     /** @param {MouseEvent} event */

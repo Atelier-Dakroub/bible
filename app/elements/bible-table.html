@@ -85,7 +85,9 @@
 
     paint() {
       const { x, y } = this.offset;
-      this.world().style.transform = `translate(${x}px, ${y}px)`;
+      const world = this.world();
+      world.style.left = `${x}px`;
+      world.style.top = `${y}px`;
       // The dot grid moves with the content, so a pan shows on an empty table.
       this.style.backgroundPosition = `${x}px ${y}px`;
     },
@@ -164,16 +166,20 @@
     background-image: radial-gradient(circle, var(--grid) 1.5px, transparent 1.6px);
     background-size: 48px 48px;
   }
-  /* The world has a transform, so it is a stacking context of its own: the
-     cards stack inside it, and the whole world stacks above the search panel.
-     A card pulled out of the list then lies on top of the list.
+  /* The world is moved with left and top, not a transform. A transform would
+     make it a stacking context, and then every card would stack with the
+     world as one layer. Without one, each card stacks against the search
+     panel on its own: a card at rest lies under the panel, so a pan slides it
+     beneath, and a card that a finger holds rises above it.
 
      The world covers the panel too, so it lets touches through, and only the
      cards take them. A touch on an empty part reaches the table and pans. */
   .table__world {
     position: absolute;
-    inset: 0;
-    z-index: 2;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
   }
   .table__world > * {
