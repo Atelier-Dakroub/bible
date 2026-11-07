@@ -1,28 +1,51 @@
 #!/bin/sh
 # Starts the table in the Linux VM: Chrome, full screen, inside cage.
 #
-#   table [url]
+#   table            opens /table on the Mac's dev server
+#   table /touch     opens another page of the app
+#   table <url>      opens any address
 #
 # Run it from a text console (sudo chvt 3, then log in), not from the desktop.
 # It needs cage and wlr-randr: sudo dnf install cage wlr-randr
 #
-# UTM's automatic resize can leave the VM's preferred mode a little smaller than
-# the panel, such as 3840 × 2020 on a 3840 × 2160 panel. UTM then centers the
-# picture between black bars, and every touch lands off by the height of a bar.
-# So the mode is set to the panel's native size before Chrome starts.
+# Alt + F4 (Option + F4 on a Mac keyboard) closes Chrome and ends cage. The
+# console comes back with its keyboard working.
 
-URL=${1:-http://192.168.64.1:1960/touch}
+SERVER=${TABLE_SERVER:-http://192.168.64.1:1960}
 MODE=${TABLE_MODE:-3840x2160}
 OUTPUT=${TABLE_OUTPUT:-Virtual-1}
+LOG=${TABLE_LOG:-$HOME/.cache/table.log}
+
+case ${1:-/table} in
+  /*) URL="$SERVER${1:-/table}" ;;
+  *) URL=$1 ;;
+esac
 
 # The virtual GPU's cursor plane draws the cursor upside down. This makes cage
 # draw it itself.
 export WLR_NO_HARDWARE_CURSORS=1
 
-exec cage -- sh -c '
+mkdir -p "$(dirname "$LOG")"
+echo "table: opening $URL. The log is in $LOG."
+
+# UTM's automatic resize can leave the VM's preferred mode a little smaller than
+# the panel, which puts black bars around the picture and moves every touch. So
+# the mode is set to the panel's native size before Chrome starts.
+cage -- sh -c '
   wlr-randr --output "$1" --mode "$2" || echo "table: could not set $1 to $2" >&2
   exec google-chrome \
     --user-data-dir="$HOME/.config/chrome-table" \
     --ozone-platform=wayland \
     --kiosk "$3"
-' table "$OUTPUT" "$MODE" "$URL"
+' table "$OUTPUT" "$MODE" "$URL" > "$LOG" 2>&1
+status=$?
+
+# A compositor that ends badly can leave the console's keyboard switched off,
+# and then no key works, not even the one that switches screens. This console
+# is the script's own terminal, so it can switch the keyboard back on.
+kbd_mode -u 2>/dev/null
+
+if [ "$status" -ne 0 ]; then
+  echo "table: cage ended with status $status. The last lines of $LOG:"
+  tail -n 5 "$LOG"
+fi

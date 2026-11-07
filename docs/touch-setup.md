@@ -68,12 +68,23 @@ In the VM, the Mac is the gateway of UTM's shared network, usually
    ```sh
    table
    ```
-   `table` opens `http://192.168.64.1:1960/touch`. Give it a different URL as
-   its argument.
+   `table` opens `/table` on the Mac's dev server. `table /touch` opens the
+   touch test, and a full URL opens any address. `cage` and Chrome write their
+   messages to `~/.cache/table.log`, not to the screen.
 4. Alt + F4 (Option + F4 on a Mac keyboard) closes Chrome, and `cage` exits.
-   `sudo chvt 2` goes back to the desktop.
+5. `sudo chvt 2 && exit` goes back to the desktop and logs out of the text
+   console.
+
+If the keyboard does nothing on a text console after `cage` ends, `cage` left
+the console's keyboard switched off. The script switches it back on after a
+normal exit. If it still happens, close that session from another machine:
+`loginctl list-sessions` shows its number, and `loginctl terminate-session
+<number>` closes it and restores the keyboard.
 
 What the script does, and why:
+
+- **It switches the console's keyboard back on when `cage` ends.** A
+  compositor that ends badly can leave it off, and then no key works.
 
 - **It sets the display to 3840 × 2160.** UTM's automatic resize can leave the
   VM's preferred mode smaller than the panel, for example 3840 × 2020. UTM then
