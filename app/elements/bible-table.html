@@ -19,7 +19,12 @@
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
-  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point): void, placeAt(at: Point): void, setMatrix(m: Matrix): void }} Card */
+  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void }} Card */
+
+  // A passage longer than this arrives small, in its short form, so a whole
+  // chapter does not cover the table. Two fingers make it large.
+  const LONG = 24;
+  const LONG_SCALE = 0.5;
 
   export const prototype = {
     /** @type {Point} */
@@ -96,9 +101,10 @@
     async place({ address, pointer }) {
       const card = await this.fetchCard(address);
       if (!card) return;
-      if (pointer?.down) card.hold(pointer.id, pointer);
-      else if (pointer) card.placeAt(pointer);
-      else card.placeAt(this.openSpot());
+      const scale = Number(card.dataset.verses) > LONG ? LONG_SCALE : 1;
+      if (pointer?.down) card.hold(pointer.id, pointer, scale);
+      else if (pointer) card.placeAt(pointer, scale);
+      else card.placeAt(this.openSpot(), scale);
       this.keep();
     },
 

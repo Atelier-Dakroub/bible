@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { passage, plainText, search } from '../app/data/bible.js';
+import { passage, plainText, preview, search } from '../app/data/bible.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 
@@ -72,4 +72,12 @@ test('a broken or old workspace reads as an empty table', () => {
   );
   assert.deepEqual(kept.offset, { x: 5, y: 6 });
   assert.deepEqual(kept.cards.map((card) => card.address), ['JHN.3.16']);
+});
+
+test('a preview cuts at a word and drops the paragraph marks', async () => {
+  const { verses } = await passage({ book: 'GEN', chapter: 1 });
+  const text = preview(verses, 40);
+  assert.equal(text, 'In the beginning God created the heaven …');
+  const { verses: esther } = await passage({ book: 'EST', chapter: 7, from: 7 });
+  assert.ok(!preview(esther).includes('¶'));
 });

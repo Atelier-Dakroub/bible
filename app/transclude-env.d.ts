@@ -47,8 +47,8 @@ type Matrix = {
 };
 type Card = HTMLElement & {
   matrix: Matrix;
-  hold(id: number, at: Point): void;
-  placeAt(at: Point): void;
+  hold(id: number, at: Point, scale?: number | undefined): void;
+  placeAt(at: Point, scale?: number | undefined): void;
   setMatrix(m: Matrix): void;
 };
 type Block = {
@@ -179,8 +179,8 @@ export type GestureCardMembers = {
   parent(): HTMLElement;
   press(event: PointerEvent): void;
   take(pointerId: number, at: Point): void;
-  hold(pointerId: number, at: Point): void;
-  placeAt(at: Point): void;
+  hold(pointerId: number, at: Point, scale?: number | undefined): void;
+  placeAt(at: Point, scale?: number | undefined): void;
   setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
@@ -201,6 +201,11 @@ export type KjvVerseProps = {
 /** Properties of `<passage-search>`, from its <script element> block. */
 export type PassageSearchProps = {};
 
+/** Internal state of `<passage-search>`, from its <script element> block. */
+export type PassageSearchState = {
+  collapsed: boolean;
+};
+
 /** Members of `<passage-search>`, from its `export const prototype`. */
 export type PassageSearchMembers = {
   timer: number;
@@ -219,6 +224,7 @@ export type PassageSearchMembers = {
   }: {
     signal: any;
   }): () => void;
+  setCollapsed(collapsed: boolean): void;
   queueSearch(): void;
   run(): Promise<void>;
   down(event: PointerEvent): void;
@@ -447,6 +453,8 @@ export type CardAddressData = {
   address: string;
   title: string;
   verses: Verse[];
+  opening: string;
+  count: string;
 };
 
 /** The `ctx` argument of `404`'s <script server> loader. */
@@ -481,7 +489,7 @@ declare global {
     "calibration-target": HTMLElement & CalibrationTargetProps & CalibrationTargetState & CalibrationTargetMembers;
     "gesture-card": HTMLElement & GestureCardProps & GestureCardMembers;
     "kjv-verse": HTMLElement;
-    "passage-search": HTMLElement & PassageSearchProps & PassageSearchMembers;
+    "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
     "svg-icon": HTMLElement;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;
   }

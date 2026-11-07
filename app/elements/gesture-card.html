@@ -5,12 +5,17 @@
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
 
+     Semantic zoom: the card sets data-zoom="far" when it is scaled below
+     FAR_BELOW, and "near" again above NEAR_ABOVE. The gap between the two keeps
+     a pinch near the line from flicking between forms. The content decides
+     what each form shows; for a passage, see .passage__short in global.css.
+
      Events, all bubbling:
        card-change  a gesture ended, so the position is worth keeping
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
-  import { clampScale, multiply, rotation, toCSS, translation } from '../lib/affine.js';
+  import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
   import { centroid, step } from '../lib/gesture.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -27,10 +32,24 @@
 
   const MIN_SCALE = 0.3;
   const MAX_SCALE = 6;
+  const FAR_BELOW = 0.55;
+  const NEAR_ABOVE = 0.65;
 
   // Where a finger holds a card that it pulled out of a list: near the top left,
   // on the heading, so the card hangs from the finger like a sheet of paper.
   const GRIP = { x: 48, y: 32 };
+
+  /**
+   * A card at `scale` with its grip on the point (x, y).
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {number} scale
+   * @returns {Matrix}
+   */
+  function gripAt(x, y, scale) {
+    return multiply(translation(x - GRIP.x * scale, y - GRIP.y * scale), scaleAbout(scale, { x: 0, y: 0 }));
+  }
 
   // The card touched last goes on top. One counter for every card on the page.
   let top = 1;
@@ -115,10 +134,11 @@
      *
      * @param {number} pointerId
      * @param {Point} at screen coordinates
+     * @param {number} [scale] the size to arrive at
      */
-    hold(pointerId, at) {
+    hold(pointerId, at, scale = 1) {
       const box = this.parent().getBoundingClientRect();
-      this.matrix = translation(at.x - box.left - GRIP.x, at.y - box.top - GRIP.y);
+      this.matrix = gripAt(at.x - box.left, at.y - box.top, scale);
       this.paint();
       this.take(pointerId, at);
     },
@@ -129,10 +149,11 @@
      * and its heading stays on the screen.
      *
      * @param {Point} at screen coordinates
+     * @param {number} [scale] the size to arrive at
      */
-    placeAt(at) {
+    placeAt(at, scale = 1) {
       const box = this.parent().getBoundingClientRect();
-      this.matrix = translation(at.x - box.left - GRIP.x, at.y - box.top - GRIP.y);
+      this.matrix = gripAt(at.x - box.left, at.y - box.top, scale);
       top += 1;
       this.style.zIndex = String(top);
       this.paint();
@@ -185,7 +206,12 @@
     },
 
     paint() {
-      this.style.transform = toCSS(/** @type {Matrix} */ (this.matrix));
+      const matrix = /** @type {Matrix} */ (this.matrix);
+      this.style.transform = toCSS(matrix);
+      const scale = scaleOf(matrix);
+      const far = this.dataset.zoom === 'far';
+      if (!far && scale < FAR_BELOW) this.dataset.zoom = 'far';
+      if (far && scale > NEAR_ABOVE) this.dataset.zoom = 'near';
     },
   };
 </script>

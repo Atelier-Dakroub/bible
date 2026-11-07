@@ -55,6 +55,24 @@ export function plainText(verse) {
     .join(' ');
 }
 
+/**
+ * The opening words of a passage, cut at a word near `limit` characters.
+ *
+ * @param {Verse[]} verses
+ * @param {number} [limit]
+ */
+export function preview(verses, limit = 90) {
+  const text = verses.map(plainText).join(' ').replace(/¶\s*/g, '');
+  if (text.length <= limit) return text;
+  const cut = text.lastIndexOf(' ', limit);
+  return `${text.slice(0, cut > 0 ? cut : limit).replace(/[,;:]$/, '')} …`;
+}
+
+/** @param {number} count */
+export function verseCount(count) {
+  return count === 1 ? '1 verse' : `${count} verses`;
+}
+
 /** @type {Promise<{ address: string, title: string, text: string }[]> | null} */
 let corpus = null;
 
@@ -120,10 +138,8 @@ export async function search(query, limit = 50) {
  */
 async function referenceResult(query, ref) {
   const { title, verses } = await passage(ref);
-  const preview = verses.slice(0, 2).map(plainText).join(' ');
-  const parts = [{ text: verses.length > 2 ? `${preview} …` : preview, hit: false }];
-  const count = verses.length === 1 ? '1 verse' : `${verses.length} verses`;
-  return { query, summary: `Passage, ${count}`, results: [{ address: toAddress(ref), title, parts }] };
+  const parts = [{ text: preview(verses, 200), hit: false }];
+  return { query, summary: `Passage, ${verseCount(verses.length)}`, results: [{ address: toAddress(ref), title, parts }] };
 }
 
 /**

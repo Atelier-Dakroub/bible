@@ -1,5 +1,5 @@
 <script server>
-  import { books, passage } from '../../data/bible.js';
+  import { books, passage, preview, verseCount } from '../../data/bible.js';
   import { parseAddress } from '../../lib/reference.js';
 
   // A card is a passage with an address of its own. The table asks for the
@@ -10,18 +10,30 @@
     const ref = parseAddress(params.address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
     const { title, verses } = await passage(ref);
-    return { address: params.address, title, verses };
+    return {
+      address: params.address,
+      title,
+      verses,
+      opening: preview(verses),
+      count: verseCount(verses.length),
+    };
   };
 </script>
 
 <title>Passage</title>
 
-<gesture-card id="card" fragment data-address="${address}" x="0.5" y="0.4">
+<gesture-card id="card" fragment data-address="${address}" data-verses="${verses.length}" x="0.5" y="0.4">
   <article class="passage">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
+    <!-- The short form, shown in place of the verses when the card is small.
+         See gesture-card's data-zoom. -->
+    <p class="passage__short">
+      <span class="passage__opening">${opening}</span>
+      <span class="passage__count">${count}</span>
+    </p>
     <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
   </article>
 </gesture-card>

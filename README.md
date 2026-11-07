@@ -9,6 +9,11 @@ sideways to put the passage on the table as a card. Cards move, turn and
 scale; a drag on the empty table pans everything, and the table has no edge.
 What is on the table is kept in the browser as addresses and positions.
 
+Cards zoom semantically: below about half size, a card shows its short form
+(heading, opening words, verse count), and a passage longer than 24 verses
+arrives in that form. The search panel collapses to one box: "Hide" and
+Escape close it, "Search" and "/" open it.
+
 `/touch` is the touch test page for the panel.
 
 ```sh

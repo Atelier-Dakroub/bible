@@ -10,13 +10,22 @@
 
      It sends `place` (bubbling) with { address, pointer }. The pointer object
      goes on changing until the card takes the finger, so the table always
-     reads where the finger is now. -->
+     reads where the finger is now.
+
+     The toggle collapses the panel to one small box and expands it again.
+     Escape in the field collapses it, and "/" anywhere expands it and puts the
+     cursor in the field. The panel remembers its state in this browser. -->
 
 <script element>
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
 
   // How far a finger moves before a press on a result is a drag, in CSS pixels.
   const SLOP = 16;
+  const COLLAPSED_KEY = 'bible.search.collapsed';
+
+  export const state = {
+    collapsed: false,
+  };
 
   export const prototype = {
     timer: 0,
@@ -28,6 +37,25 @@
     connected({ signal }) {
       const form = /** @type {HTMLFormElement} */ (this.querySelector('form'));
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+
+      try {
+        this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
+      } catch {
+        // No storage: the panel starts open.
+      }
+
+      this.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('[data-action="toggle"]')) this.setCollapsed(!this.collapsed);
+      }, { signal });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') this.setCollapsed(true);
+      }, { signal });
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== '/' || event.target instanceof HTMLInputElement) return;
+        event.preventDefault();
+        this.setCollapsed(false);
+      }, { signal });
 
       input.addEventListener('input', () => this.queueSearch(), { signal });
       form.addEventListener(
@@ -44,6 +72,19 @@
       this.addEventListener('pointercancel', (event) => this.cancel(event), { signal });
 
       return () => clearTimeout(this.timer);
+    },
+
+    /** @param {boolean} collapsed */
+    setCollapsed(collapsed) {
+      this.collapsed = collapsed;
+      try {
+        localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+      } catch {
+        // No storage: the state lasts until the page closes.
+      }
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      if (collapsed) input.blur();
+      else requestAnimationFrame(() => input.focus());
     },
 
     queueSearch() {
@@ -166,6 +207,23 @@
     padding: 0 1rem;
     font: inherit;
   }
+  .search__toggle {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    font: inherit;
+  }
+  /* Collapsed, the panel is one box around the toggle. */
+  :scope:state(collapsed) {
+    bottom: auto;
+    width: auto;
+  }
+  :scope:state(collapsed) form {
+    border-bottom: 0;
+  }
+  :scope:state(collapsed) form > :not(.search__toggle),
+  :scope:state(collapsed) .search__results {
+    display: none;
+  }
   .search__results {
     flex: 1;
     overflow-y: auto;
@@ -177,6 +235,12 @@
 </style>
 
 <form action="/search" role="search">
+  <button
+    type="button"
+    class="search__toggle"
+    data-action="toggle"
+    aria-expanded="${collapsed ? 'false' : 'true'}"
+  >${collapsed ? 'Search' : 'Hide'}</button>
   <input type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
   <button type="submit">Search</button>
 </form>

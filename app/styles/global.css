@@ -174,3 +174,33 @@ button {
   text-decoration-thickness: 2px;
   text-underline-offset: 0.2em;
 }
+
+/* Semantic zoom. A card scaled below about half size shows its short form:
+   the heading and the opening words, set larger so they stay readable at
+   that scale. The full verses come back when the card grows. */
+.passage__short {
+  display: none;
+  margin: 0;
+}
+gesture-card[data-zoom='far'] .passage__short {
+  display: block;
+  font-size: 1.6em;
+  line-height: 1.35;
+}
+gesture-card[data-zoom='far'] .passage__heading {
+  font-size: 2.2em;
+}
+gesture-card[data-zoom='far'] .passage__close {
+  font-size: 2.4em;
+  width: 5rem;
+  height: 5rem;
+}
+gesture-card[data-zoom='far'] kjv-verse {
+  display: none;
+}
+.passage__count {
+  display: block;
+  margin-top: 0.3em;
+  color: var(--muted);
+  font: 0.75em system-ui, sans-serif;
+}
