@@ -1,25 +1,33 @@
 <script server>
-  import { books, entityView, passage, preview, verseCount } from '../../data/bible.js';
+  import { books, entityView, parallel, preview, verseCount } from '../../data/bible.js';
   import { parseAddress } from '../../lib/reference.js';
 
   // A card is a passage with an address of its own. The table asks for the
   // `card` fragment and puts it down. Opened whole, it is a page with one card.
   export const prerender = false;
 
-  export default async ({ params }) => {
+  // `version` picks the text: kjv (the default), bsb, or both side by side.
+  const VERSIONS = ['kjv', 'bsb', 'both'];
+
+  export default async ({ params, url }) => {
+    const asked = new URL(url).searchParams.get('version') ?? 'kjv';
+    const version = VERSIONS.includes(asked) ? asked : 'kjv';
     // An address with a colon is an entity, such as person:david_994.
     if (params.address.includes(':')) {
       const entity = await entityView(params.address);
       if (!entity) return new Response('Nothing has that address.', { status: 404 });
-      return { address: params.address, title: entity.title, verses: [], opening: entity.facts.join(' · '), count: '', entity };
+      return { address: params.address, version, title: entity.title, verses: [], rows: [], opening: entity.facts.join(' · '), count: '', entity };
     }
     const ref = parseAddress(params.address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
-    const { title, verses } = await passage(ref);
+    const { title, rows } = await parallel(ref);
+    const verses = rows.map((row) => row.verse);
     return {
       address: params.address,
+      version,
       title,
       verses,
+      rows,
       opening: preview(verses),
       count: verseCount(verses.length),
       entity: null,
@@ -29,10 +37,15 @@
 
 <title>Passage</title>
 
-<gesture-card id="card" fragment data-address="${address}" data-verses="${verses.length}" x="0.5" y="0.4">
-  <article class="passage">
+<gesture-card id="card" fragment data-address="${address}" data-version="${version}" data-verses="${verses.length}" x="0.5" y="0.4">
+  <article class="passage passage--${version}">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
+      <div if="!entity" class="passage__versions" role="group" aria-label="Translation">
+        <button type="button" data-version="kjv" aria-pressed="${version === 'kjv' ? 'true' : 'false'}">KJV</button>
+        <button type="button" data-version="bsb" aria-pressed="${version === 'bsb' ? 'true' : 'false'}">BSB</button>
+        <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
+      </div>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
     <!-- The short form, shown in place of the verses when the card is small.
@@ -46,6 +59,27 @@
       <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </div>
-    <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
+    <!-- The KJV alone: its words have addresses, so highlights and links show. -->
+    <div if="version === 'kjv'" class="passage__text">
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
+    </div>
+    <!-- The BSB alone: plain text, with no word addresses. -->
+    <div if="version === 'bsb'" class="passage__text">
+      <div each="row of rows" class="bsb-verse">
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.n}</sup> ${block.text}</p>
+        <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.n}</sup> Not in the BSB's main text.</p>
+      </div>
+    </div>
+    <!-- Both, verse by verse: the KJV on the left, the BSB on the right. -->
+    <div if="version === 'both'" class="passage__parallel">
+      <p class="parallel__labels"><span>KJV</span><span>BSB</span></p>
+      <div each="row of rows" class="parallel__row">
+        <kjv-verse data-ref="${row.verse.id}" n="${row.verse.n}" blocks="${row.verse.blocks}"></kjv-verse>
+        <div class="bsb-verse">
+          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.n}</sup> ${block.text}</p>
+          <p if="!row.bsb.length" class="verse__missing">Not in the BSB's main text.</p>
+        </div>
+      </div>
+    </div>
   </article>
 </gesture-card>

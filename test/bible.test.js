@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { entityResults, passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
+import { entityResults, parallel, passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
 import { eastonFor, formatYear, timeline } from '../app/data/entities.js';
 import { ERAS, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
@@ -233,4 +233,19 @@ test('the time axis gives each era the same width, and is linear inside one', ()
   const middle = (ERAS[6].from + ERAS[6].to) / 2;
   assert.ok(Math.abs(positionOf(middle) - 6.5 / ERAS.length) < 1e-9);
   assert.equal(positionOf(500), 1);
+});
+
+test('the BSB sits beside the KJV verse by verse, and a verse it leaves out is empty', async () => {
+  const { rows } = await parallel({ book: 'MAT', chapter: 17, from: 20, to: 22 });
+  assert.deepEqual(rows.map((row) => row.verse.id), ['MAT.17.20', 'MAT.17.21', 'MAT.17.22']);
+  assert.equal(rows[1].bsb.length, 0);
+  assert.ok(rows[0].bsb.length > 0);
+  const psalm = await parallel({ book: 'PSA', chapter: 23, from: 1 });
+  assert.deepEqual(psalm.rows[0].bsb.map((block) => [block.style, block.numbered]), [['d', false], ['q1', true], ['q2', false]]);
+});
+
+test('a stored card keeps a known version and drops an unknown one', () => {
+  const matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const kept = parse(JSON.stringify({ cards: [{ address: 'JHN.3.16', matrix, version: 'both' }, { address: 'JHN.3.17', matrix, version: 'nope' }] }));
+  assert.deepEqual(kept.cards.map((card) => card.version), ['both', undefined]);
 });

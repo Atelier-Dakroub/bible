@@ -7,6 +7,7 @@ import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
 import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
+import { loaders as bsbLoaders } from './bsb/index.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor } from './entities.js';
@@ -96,6 +97,37 @@ export async function passage(ref) {
     title: formatReference(ref, books),
     verses: chosen.map((verse, i) => withWords(verse, codes[verse.id], names[i])),
   };
+}
+
+/** @typedef {{ style: string, text: string, numbered: boolean }} PlainBlock a block of the BSB */
+/** @typedef {{ verse: WordVerse, bsb: PlainBlock[] }} Row */
+
+/** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
+const bsbBooks = new Map();
+
+/**
+ * The passage in two translations, verse by verse: the KJV verse and the
+ * Berean Standard Bible's blocks for the same address. A verse the BSB leaves
+ * out has no blocks. The verse number goes on the first block that is not a
+ * psalm title.
+ *
+ * @param {Reference} ref
+ * @returns {Promise<{ title: string, rows: Row[] }>}
+ */
+export async function parallel(ref) {
+  let promise = bsbBooks.get(ref.book);
+  if (!promise) {
+    const load = bsbLoaders[/** @type {keyof typeof bsbLoaders} */ (ref.book)];
+    promise = load().then((module) => /** @type {Record<string, { style: string, text: string }[]>} */ (module.default));
+    bsbBooks.set(ref.book, promise);
+  }
+  const [{ title, verses }, bsb] = await Promise.all([passage(ref), promise]);
+  const rows = verses.map((verse) => {
+    const blocks = bsb[verse.id] ?? [];
+    const first = blocks.findIndex((block) => block.style !== 'd');
+    return { verse, bsb: blocks.map((block, i) => ({ ...block, numbered: i === first })) };
+  });
+  return { title, rows };
 }
 
 /** @type {Map<string, Promise<Record<string, string>>>} */

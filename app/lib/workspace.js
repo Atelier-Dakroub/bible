@@ -11,7 +11,7 @@
 /** @typedef {import('./affine.js').Matrix} Matrix */
 /** @typedef {import('./affine.js').Point} Point */
 /** @typedef {import('./words.js').Highlight} Highlight */
-/** @typedef {{ address: string, matrix: Matrix }} StoredCard */
+/** @typedef {{ address: string, matrix: Matrix, version?: string }} StoredCard `version` is kjv, bsb or both */
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[] }} Workspace */
 
@@ -39,7 +39,11 @@ export function parse(text) {
   if (!value || typeof value !== 'object') return empty();
 
   const offset = isPoint(value.offset) ? value.offset : { x: 0, y: 0 };
-  const cards = Array.isArray(value.cards) ? value.cards.filter(isCard) : [];
+  const cards = Array.isArray(value.cards)
+    ? value.cards.filter(isCard).map((/** @type {StoredCard} */ card) =>
+        ['kjv', 'bsb', 'both'].includes(String(card.version)) ? card : { address: card.address, matrix: card.matrix },
+      )
+    : [];
   const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isHighlight) : [];
   const links = Array.isArray(value.links)
     ? value.links.filter((/** @type {any} */ link) => isHighlight(link?.a) && isHighlight(link?.b))

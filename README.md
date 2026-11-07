@@ -49,6 +49,11 @@ Every date is Theographic's, which follows Floyd Nolen Jones's chronology, in
 the tradition of Ussher (creation 4004 BC, Exodus 1491 BC). The app says so
 wherever it shows a date. Other chronologies differ, and none is built in yet.
 
+Two translations: each passage card has KJV, BSB and Both buttons. Both puts
+the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
+verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
+links and word studies work on the KJV words; the BSB is plain text for now.
+
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
@@ -73,9 +78,10 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js` and `import-theographic.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js` and `import-bsb.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
+| `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -85,6 +91,19 @@ A wireframe for now: black boxes with thin gray lines, white text, and red only
 for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
+
+## The BSB data
+
+`app/data/bsb/<BOOK>.json` holds the Berean Standard Bible (public domain) by
+the KJV data's verse addresses: `{ "JHN.3.16": [{ "style": "p", "text": "For God so loved ..." }] }`.
+
+```sh
+node tools/import-bsb.js <usfm directory from eBible.org's engbsb_usfm.zip>
+```
+
+Footnotes, section headings and Strong's tags are left out. A psalm title
+joins verse 1, as in the KJV data. 31,086 verses; the 16 KJV verses with no
+BSB text have no entry.
 
 ## The entity data
 

@@ -195,7 +195,10 @@ gesture-card[data-zoom='far'] .passage__close {
   width: 5rem;
   height: 5rem;
 }
-gesture-card[data-zoom='far'] kjv-verse {
+gesture-card[data-zoom='far'] kjv-verse,
+gesture-card[data-zoom='far'] .passage__text,
+gesture-card[data-zoom='far'] .passage__parallel,
+gesture-card[data-zoom='far'] .passage__versions {
   display: none;
 }
 .passage__count {
@@ -312,4 +315,53 @@ gesture-card[data-zoom='far'] kjv-verse {
 .w[data-e] {
   text-decoration: underline dotted var(--line);
   text-underline-offset: 0.25em;
+}
+
+/* The translation switch on a card. */
+.passage__header {
+  flex-wrap: wrap;
+}
+.passage__versions {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+  margin-right: 1.5rem;
+}
+.passage__versions button {
+  min-height: 2rem;
+  padding: 0 0.5rem;
+  font: 0.75rem system-ui, sans-serif;
+}
+.passage__versions button[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--table);
+}
+
+/* Two translations, verse by verse. */
+.passage--both {
+  width: 48rem;
+}
+.parallel__labels,
+.parallel__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.parallel__labels {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font: 0.75rem system-ui, sans-serif;
+}
+.parallel__row {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--line);
+}
+.verse__missing {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.verse__block--q2 {
+  padding-left: 2.5em;
+  text-indent: -1em;
 }

@@ -52,6 +52,11 @@ type Place = {
   card: Element;
   box: DOMRect;
 };
+type StoredCard = {
+  address: string;
+  matrix: Matrix;
+  version?: string | undefined;
+};
 type Matrix = {
   a: number;
   b: number;
@@ -158,6 +163,15 @@ type Token = {
   s: string | null;
   e: string | null;
 };
+type Row = {
+  verse: WordVerse;
+  bsb: PlainBlock[];
+};
+type PlainBlock = {
+  style: string;
+  text: string;
+  numbered: boolean;
+};
 
 /** Properties of `<bible-table>`, from its <script element> block. */
 export type BibleTableProps = {};
@@ -234,8 +248,11 @@ export type BibleTableMembers = {
   drawSoon(): void;
   placesOf(span: Highlight): Place[];
   draw(): void;
-  restore(address: string, matrix: Matrix): Promise<void>;
-  fetchCard(address: string): Promise<Card | null>;
+  restore({
+    address, matrix, version
+  }: StoredCard): Promise<void>;
+  switchVersion(card: Card, version: string): Promise<void>;
+  fetchCard(address: string, version?: string | undefined, replacing?: Element | null | undefined): Promise<Card | null>;
   openSpot(): Point;
   keep(): void;
 };
@@ -624,15 +641,19 @@ export type CardAddressContext = {
 /** Data returned by `card-_address`'s <script server> block. */
 export type CardAddressData = __Shape<{
   address: string;
+  version: string;
   title: string;
   verses: never[];
+  rows: never[];
   opening: string;
   count: string;
   entity: EntityView;
 }> | __Shape<{
   address: string;
+  version: string;
   title: string;
   verses: WordVerse[];
+  rows: Row[];
   opening: string;
   count: string;
   entity: null;

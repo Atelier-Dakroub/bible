@@ -4,7 +4,8 @@
      everything on it together, and there is no edge.
 
      A card is a server fragment, /card/<address>?fragment=card, fetched when a
-     passage is placed. What is on the table is kept in this browser as
+     passage is placed. A card's version buttons (KJV, BSB, Both) fetch the
+     card again in that version and put it where the old one was. What is on the table is kept in this browser as
      addresses and positions (app/lib/workspace.js), and the cards are fetched
      again on the next visit.
 
@@ -51,6 +52,7 @@
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
   /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void }} Card */
+  /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
 
   // A passage longer than this arrives small, in its short form, so a whole
   // chapter does not cover the table. Two fingers make it large.
@@ -174,7 +176,7 @@
       this.highlights = workspace.highlights;
       this.links = workspace.links;
       this.paint();
-      for (const stored of workspace.cards) this.restore(stored.address, stored.matrix);
+      for (const stored of workspace.cards) this.restore(stored);
 
       const options = { signal };
       this.addEventListener('pointerdown', (event) => this.press(event), options);
@@ -182,6 +184,13 @@
       this.addEventListener('pointerup', (event) => this.release(event), options);
       this.addEventListener('pointercancel', (event) => this.release(event), options);
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+      this.addEventListener('click', (event) => {
+        const button = event.target instanceof Element ? event.target.closest('[data-version]') : null;
+        const card = button?.closest('gesture-card');
+        if (button instanceof HTMLElement && card && this.world().contains(card)) {
+          this.switchVersion(/** @type {Card} */ (card), button.dataset.version ?? 'kjv');
+        }
+      }, options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
@@ -384,13 +393,14 @@
       /** @type {Element[]} */
       const lines = [];
       for (const card of this.world().querySelectorAll('gesture-card')) {
-        const heading = (card.querySelector('.passage__heading') ?? card).getBoundingClientRect();
+        // From the card's edge, so the line does not cross its text.
+        const edgeBox = card.getBoundingClientRect();
         for (const id of cardEvents.get(card) ?? []) {
           const tick = strip.tickFor(id);
           if (!tick) continue;
           tick.classList.add('is-on-table');
           const box = tick.getBoundingClientRect();
-          if (box.width > 0) lines.push(line(heading, box, 'time'));
+          if (box.width > 0) lines.push(line(edgeBox, box, 'time'));
         }
       }
       return lines;
@@ -516,27 +526,47 @@
       svg.replaceChildren(...lines);
     },
 
-    /**
-     * @param {string} address
-     * @param {Matrix} matrix
-     */
-    async restore(address, matrix) {
-      const card = await this.fetchCard(address);
+    /** @param {StoredCard} stored */
+    async restore({ address, matrix, version }) {
+      const card = await this.fetchCard(address, version);
       card?.setMatrix(matrix);
     },
 
     /**
+     * Fetches the card again in another version and puts it in the old one's
+     * place, at the same position and on the same level.
+     *
+     * @param {Card} card
+     * @param {string} version
+     */
+    async switchVersion(card, version) {
+      const address = card.dataset.address;
+      if (!address || card.dataset.version === version) return;
+      const { matrix } = card;
+      const level = card.style.zIndex;
+      const next = await this.fetchCard(address, version, card);
+      if (!next) return;
+      next.setMatrix(matrix);
+      next.style.zIndex = level;
+      this.keep();
+    },
+
+    /**
      * @param {string} address
+     * @param {string} [version] kjv, bsb or both
+     * @param {Element | null} [replacing] a card to put this one in place of
      * @returns {Promise<Card | null>}
      */
-    async fetchCard(address) {
-      const response = await fetch(`/card/${encodeURIComponent(address)}?fragment=card`).catch(() => null);
+    async fetchCard(address, version = 'kjv', replacing = null) {
+      const query = new URLSearchParams({ version, fragment: 'card' });
+      const response = await fetch(`/card/${encodeURIComponent(address)}?${query}`).catch(() => null);
       if (!response?.ok) return null;
       const holder = document.createElement('template');
       holder.setHTMLUnsafe(await response.text());
       const card = holder.content.querySelector('gesture-card');
       if (!card) return null;
-      this.world().append(card);
+      if (replacing?.isConnected) replacing.replaceWith(card);
+      else this.world().append(card);
       paintWords(card, this.highlights, 'is-highlighted');
       this.paintStudy(card);
       this.loadEvents(card);
@@ -562,7 +592,7 @@
     keep() {
       const cards = [...this.world().querySelectorAll('gesture-card')].map((element) => {
         const card = /** @type {Card} */ (element);
-        return { address: card.dataset.address ?? '', matrix: card.matrix };
+        return { address: card.dataset.address ?? '', matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
       });
       save({
         offset: this.offset,
