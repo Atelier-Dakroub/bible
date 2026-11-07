@@ -1,6 +1,6 @@
 <script server>
-  import { timeline } from '../data/entities.js';
-  import { ERAS, positionOf, yearLabel } from '../lib/timeline.js';
+  import { timeline, world } from '../data/entities.js';
+  import { ERAS, packLanes, positionOf, yearLabel } from '../lib/timeline.js';
 
   // The timeline strip's ticks and era marks, placed on the axis here so the
   // strip arrives drawn.
@@ -12,6 +12,16 @@
       at: positionOf(event.start),
     })),
     eras: ERAS.map((era) => ({ name: era.name, label: yearLabel(era.from), at: positionOf(era.from) })),
+    regions: packLanes(
+      world.map((each) => ({
+        id: `world:${each.id}`,
+        name: each.name,
+        label: `${yearLabel(each.start)} to ${yearLabel(each.end)}`,
+        region: each.region,
+        start: each.start,
+        end: each.end,
+      })),
+    ),
   });
 </script>
 
@@ -44,6 +54,21 @@
           aria-label="${event.title}, ${event.label}"
           title="${event.title}, ${event.label}"
         ></button>
+      </div>
+      <div class="timeline__world" aria-label="World history">
+        <div each="region of regions" class="world__region">
+          <span class="world__name">${region.name}</span>
+          <div each="lane of region.lanes" class="world__lane">
+            <button
+              each="span of lane"
+              type="button"
+              class="world__span"
+              data-entity="${span.id}"
+              style="--at: ${span.at}; --width: ${span.width}"
+              title="${span.name}, ${span.label}"
+            >${span.name}</button>
+          </div>
+        </div>
       </div>
     </time-line>
   </bible-table>

@@ -1,0 +1,7 @@
+{
+  "name": "World history track",
+  "source": "Wikidata (https://www.wikidata.org), queried by tools/import-world.js",
+  "license": "CC0",
+  "dates": "Conventional scholarly dates as Wikidata records them: P580/P582, else P571/P576. Astronomical years.",
+  "queried": "2026-11-07"
+}

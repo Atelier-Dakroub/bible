@@ -45,3 +45,37 @@ export function positionOf(year, eras = ERAS) {
 export function yearLabel(year) {
   return year <= 0 ? `${1 - year} BC` : `AD ${year}`;
 }
+
+/**
+ * @typedef {{ id: string, name: string, label: string, region: string, start: number, end: number }} Span
+ * @typedef {Span & { at: number, width: number }} PlacedSpan
+ */
+
+/**
+ * The world-history spans, by region, packed into lanes so that no two spans
+ * in a lane overlap on the strip. Regions keep the order they first appear
+ * in; inside a region, spans go in by start.
+ *
+ * @param {Span[]} spans
+ * @param {Era[]} [eras]
+ * @returns {{ name: string, lanes: PlacedSpan[][] }[]}
+ */
+export function packLanes(spans, eras = ERAS) {
+  /** @type {Map<string, PlacedSpan[][]>} */
+  const regions = new Map();
+  const sorted = [...spans].sort((a, b) => a.start - b.start);
+  for (const region of new Set(spans.map((span) => span.region))) regions.set(region, []);
+  for (const span of sorted) {
+    const at = positionOf(span.start, eras);
+    const width = Math.max(positionOf(span.end, eras) - at, 0.002);
+    const lanes = /** @type {PlacedSpan[][]} */ (regions.get(span.region));
+    const placed = { ...span, at, width };
+    const lane = lanes.find((each) => {
+      const last = /** @type {PlacedSpan} */ (each.at(-1));
+      return last.at + last.width <= at;
+    });
+    if (lane) lane.push(placed);
+    else lanes.push([placed]);
+  }
+  return [...regions].map(([name, lanes]) => ({ name, lanes }));
+}

@@ -139,6 +139,18 @@ type Relation = {
     name: string;
   }[];
 };
+type PlacedSpan = Span & {
+  at: number;
+  width: number;
+};
+type Span = {
+  id: string;
+  name: string;
+  label: string;
+  region: string;
+  start: number;
+  end: number;
+};
 type WordVerse = {
   n: number;
   id: string;
@@ -397,6 +409,7 @@ export type TimeLineProps = {};
 /** Internal state of `<time-line>`, from its <script element> block. */
 export type TimeLineState = {
   collapsed: boolean;
+  world: boolean;
 };
 
 /** Members of `<time-line>`, from its `export const prototype`. */
@@ -405,7 +418,7 @@ export type TimeLineMembers = {
     signal
   }: {
     signal: any;
-  }): void;
+  }): () => void;
   tickFor(id: string): HTMLElement | null;
 };
 
@@ -551,6 +564,10 @@ export type TableData = {
     name: string;
     label: string;
     at: number;
+  }[];
+  regions: {
+    name: string;
+    lanes: PlacedSpan[][];
   }[];
 };
 

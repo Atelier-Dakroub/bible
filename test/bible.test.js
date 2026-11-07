@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { entityResults, parallel, passage, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
+import { entityResults, parallel, passage, worldResults, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
 import { eastonFor, formatYear, timeline } from '../app/data/entities.js';
-import { ERAS, positionOf } from '../app/lib/timeline.js';
+import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
@@ -248,4 +248,24 @@ test('a stored card keeps a known version and drops an unknown one', () => {
   const matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
   const kept = parse(JSON.stringify({ cards: [{ address: 'JHN.3.16', matrix, version: 'both' }, { address: 'JHN.3.17', matrix, version: 'nope' }] }));
   assert.deepEqual(kept.cards.map((card) => card.version), ['both', undefined]);
+});
+
+test('world spans pack into lanes that never overlap, region by region', () => {
+  const spans = [
+    { id: 'a', name: 'A', label: '', region: 'Egypt', start: -1500, end: -1000 },
+    { id: 'b', name: 'B', label: '', region: 'Egypt', start: -1200, end: -800 },
+    { id: 'c', name: 'C', label: '', region: 'Egypt', start: -900, end: -500 },
+    { id: 'd', name: 'D', label: '', region: 'Persia', start: -600, end: -300 },
+  ];
+  const regions = packLanes(spans);
+  assert.deepEqual(regions.map((region) => region.name), ['Egypt', 'Persia']);
+  assert.deepEqual(regions[0].lanes.map((lane) => lane.map((span) => span.id)), [['a', 'c'], ['b']]);
+});
+
+test('a world span lists the biblical events inside it, and names both chronologies', async () => {
+  const assyria = await worldResults('world:Q10914393');
+  assert.equal(assyria.entity?.title, 'Neo-Assyrian Empire');
+  assert.match(assyria.entity?.credit ?? '', /Wikidata.*Jones/s);
+  assert.ok(assyria.results.length > 0);
+  assert.match(assyria.summary, /biblical events? falls? in these years/);
 });

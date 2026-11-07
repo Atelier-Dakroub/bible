@@ -356,6 +356,7 @@
       const strip = this.querySelector('time-line');
       for (const tick of strip?.querySelectorAll('.is-shown') ?? []) tick.classList.remove('is-shown');
       if (entity.startsWith('event:')) /** @type {any} */ (strip)?.tickFor(entity)?.classList.add('is-shown');
+      if (entity.startsWith('world:')) /** @type {any} */ (strip)?.tickFor(entity)?.classList.add('is-shown');
     },
 
     /** @param {Element} root */

@@ -10,7 +10,7 @@ import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
-import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor } from './entities.js';
+import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
 /** @typedef {{ text: string, marks: string[] }} Run */
@@ -307,6 +307,7 @@ const CHRONOLOGY = "Dates follow Floyd Nolen Jones's chronology, in the traditio
  * @returns {Promise<EntityView | null>}
  */
 export async function entityView(id) {
+  if (id.startsWith('world:')) return worldView(id);
   const all = await entities();
   const found = all[id];
   if (!found) return null;
@@ -367,6 +368,58 @@ export async function entityView(id) {
     relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
     credit,
   };
+}
+
+/**
+ * A polity or period on the world-history track, as the search panel shows it.
+ *
+ * @param {string} id such as world:Q10914393
+ * @returns {EntityView | null}
+ */
+function worldView(id) {
+  const found = world.find((each) => `world:${each.id}` === id);
+  if (!found) return null;
+  return {
+    id,
+    kind: 'world',
+    title: found.name,
+    facts: ['World history', `${formatYear(found.start)} to ${formatYear(found.end)}`, found.region],
+    summary: '',
+    relations: [],
+    credit: `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
+  };
+}
+
+/**
+ * A world-history span and the biblical events that fall inside it, by
+ * Jones's dates. This is where the two chronologies meet.
+ *
+ * @param {string} id such as world:Q10914393
+ * @returns {Promise<Results>}
+ */
+export async function worldResults(id) {
+  const view = worldView(id);
+  const found = world.find((each) => `world:${each.id}` === id);
+  if (!view || !found) return answer({ summary: 'Nothing has that address.' });
+  const inside = timeline.filter((event) => event.start >= found.start && event.start <= found.end);
+  const all = await entities();
+  /** @type {Result[]} */
+  const results = [];
+  for (const event of inside.slice(0, 50)) {
+    const first = all[event.id]?.verses[0];
+    const ref = first ? parseAddress(first, books) : null;
+    if (!ref) continue;
+    const { verses } = await passage(ref);
+    results.push({
+      address: first,
+      title: `${event.title}, ${event.approx ? 'about ' : ''}${formatYear(event.start)}`,
+      parts: [{ text: preview(verses, 160), hit: false }],
+    });
+  }
+  const summary = inside.length
+    ? `${inside.length === 1 ? '1 biblical event falls' : `${inside.length} biblical events fall`} in these years, by Jones's dates.`
+    : "No biblical event falls in these years, by Jones's dates.";
+  return answer({ summary, results, entity: view });
 }
 
 /** @param {string} text such as 40Y or 7D */

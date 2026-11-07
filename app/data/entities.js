@@ -6,6 +6,7 @@
 
 import { loaders } from './entities/verses/index.js';
 import timeline from './entities/timeline.json' with { type: 'json' };
+import world from './world/polities.json' with { type: 'json' };
 
 /**
  * @typedef {{
@@ -14,7 +15,7 @@ import timeline from './entities/timeline.json' with { type: 'json' };
  * }} Entity
  */
 
-export { timeline };
+export { timeline, world };
 
 /** @type {Promise<Record<string, Entity>> | null} */
 let all = null;

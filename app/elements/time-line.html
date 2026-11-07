@@ -9,32 +9,64 @@
 
      The dates are Theographic's, which follow Floyd Nolen Jones's chronology;
      the strip says so. It collapses to one box, like the search panel, and
-     remembers its state in this browser. -->
+     remembers its state in this browser.
+
+     The World button shows the world-history lanes under the events: polities
+     and periods from Wikidata (data/world), with conventional scholarly dates
+     on the same axis. A tap on a span sends `show-entity` too, with a world:
+     id, and the panel lists the biblical events inside it.
+
+     It keeps --timeline-height on its parent up to date, so the search panel
+     can stop above it. -->
 
 <script element>
   export const state = {
     collapsed: false,
+    world: true,
   };
 
   const COLLAPSED_KEY = 'bible.timeline.collapsed';
+  const WORLD_KEY = 'bible.timeline.world';
+
+  /**
+   * @param {string} key
+   * @param {boolean} value
+   */
+  function remember(key, value) {
+    try {
+      localStorage.setItem(key, String(value));
+    } catch {
+      // No storage: the state lasts until the page closes.
+    }
+  }
 
   export const prototype = {
     connected({ signal }) {
       try {
         this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
+        this.world = localStorage.getItem(WORLD_KEY) !== 'false';
       } catch {
-        // No storage: the strip starts open.
+        // No storage: the strip starts open, with the world lanes.
       }
+
+      // The search panel stops above the strip, however tall the strip is.
+      const parent = /** @type {HTMLElement | null} */ (this.parentElement);
+      const measure = new ResizeObserver(() => {
+        parent?.style.setProperty('--timeline-height', `${this.offsetHeight}px`);
+        this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
+      });
+      measure.observe(this);
+
       this.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest('[data-action="toggle"]')) {
           this.collapsed = !this.collapsed;
-          try {
-            localStorage.setItem(COLLAPSED_KEY, String(this.collapsed));
-          } catch {
-            // No storage: the state lasts until the page closes.
-          }
-          this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
+          remember(COLLAPSED_KEY, this.collapsed);
+          return;
+        }
+        if (target?.closest('[data-action="world"]')) {
+          this.world = !this.world;
+          remember(WORLD_KEY, this.world);
           return;
         }
         const tick = target?.closest('[data-entity]');
@@ -42,6 +74,8 @@
           this.dispatchEvent(new CustomEvent('show-entity', { bubbles: true, detail: { id: tick.dataset.entity } }));
         }
       }, { signal });
+
+      return () => measure.disconnect();
     },
 
     /**
@@ -87,13 +121,78 @@
     font-size: 0.75rem;
   }
   :scope:state(collapsed) .timeline__note,
-  :scope:state(collapsed) .timeline__axis {
+  :scope:state(collapsed) .timeline__axis,
+  :scope:state(collapsed) .timeline__world,
+  :scope:state(collapsed) .timeline__world-toggle,
+  :scope:not(:state(world)) .timeline__world {
     display: none;
+  }
+  .timeline__world-toggle[aria-pressed='true'] {
+    background: var(--text);
+    color: var(--table);
+  }
+  /* The world lanes share the events' axis: the padding puts their left edge
+     where the axis starts, and the region names sit in that padding. The
+     small kingdoms of the Levant alone need eight lanes, so the band has a
+     fixed height and scrolls. */
+  .timeline__world {
+    max-height: 9rem;
+    margin: 0 1rem 0.75rem 1rem;
+    padding-left: 8rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  .world__region {
+    position: relative;
+    padding: 0.15rem 0;
+    border-top: 1px solid var(--line);
+  }
+  .world__name {
+    position: absolute;
+    left: -8rem;
+    top: 0.2rem;
+    color: var(--muted);
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+  .world__lane {
+    position: relative;
+    height: 1.1rem;
+  }
+  .world__span {
+    position: absolute;
+    top: 0.1rem;
+    left: calc(var(--at) * 100%);
+    width: calc(var(--width) * 100%);
+    min-width: 4px;
+    height: 0.9rem;
+    padding: 0 0.2rem;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font: 0.6rem/0.8rem system-ui, sans-serif;
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .world__span.is-shown {
+    background: var(--text);
+    color: var(--table);
   }
   .timeline__axis {
     position: relative;
     height: 4.5rem;
-    margin: 0 1rem 0.75rem;
+    margin: 0 1rem 0.75rem 9rem;
+  }
+  .timeline__axis::before {
+    content: 'Bible';
+    position: absolute;
+    right: calc(100% + 0.5rem);
+    bottom: 0;
+    color: var(--muted);
+    font-size: 0.65rem;
   }
   .timeline__era {
     position: absolute;
@@ -146,8 +245,14 @@
     data-action="toggle"
     aria-expanded="${collapsed ? 'false' : 'true'}"
   >${collapsed ? 'Timeline' : 'Hide'}</button>
+  <button
+    type="button"
+    class="timeline__world-toggle timeline__toggle"
+    data-action="world"
+    aria-pressed="${world ? 'true' : 'false'}"
+  >World</button>
   <p class="timeline__note">
-    Dates from Theographic, after Floyd Nolen Jones's chronology in the tradition of Ussher. Other chronologies differ. Each era has the same width.
+    Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
   </p>
 </div>
 <slot></slot>

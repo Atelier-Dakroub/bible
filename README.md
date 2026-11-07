@@ -45,9 +45,16 @@ timeline strip at the bottom shows 450 events on an axis of equal-width eras;
 the events that the cards on the table tell are marked, with a line from each
 card. A tap on a tick shows the event.
 
-Every date is Theographic's, which follows Floyd Nolen Jones's chronology, in
-the tradition of Ussher (creation 4004 BC, Exodus 1491 BC). The app says so
-wherever it shows a date. Other chronologies differ, and none is built in yet.
+The World button on the strip shows world history under the events: 48
+empires, kingdoms and periods in six regions, from Wikidata, on the same axis.
+A tap on one lists the biblical events that fall inside its years.
+
+Two chronologies sit on the strip, and the app names both wherever it shows a
+date. The biblical events are Theographic's, which follow Floyd Nolen Jones,
+in the tradition of Ussher (creation 4004 BC, Exodus 1491 BC). The world
+history is Wikidata's conventional scholarly dating (the Kingdom of Israel
+930–720 BC, where Jones puts the division of the kingdom in 975 BC). They can
+disagree, and the strip shows where.
 
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
@@ -78,10 +85,11 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `workspace.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js` and `import-bsb.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js` and `import-world.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
+| `app/data/world/` | The world-history track: polities and periods from Wikidata. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -91,6 +99,21 @@ A wireframe for now: black boxes with thin gray lines, white text, and red only
 for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
+
+## The world-history data
+
+`app/data/world/polities.json` lists the polities and periods on the
+timeline's world track, each with its Wikidata item, region and dates. The
+list itself is in `tools/import-world.js`; the script asks Wikidata for the
+dates:
+
+```sh
+node tools/import-world.js
+```
+
+It uses each item's start and end time (P580, P582), else its inception and
+dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
+makes network requests to query.wikidata.org.
 
 ## The BSB data
 

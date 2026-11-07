@@ -1,5 +1,5 @@
 <script server>
-  import { entityResults, referenceResults, search, wordResults } from '../data/bible.js';
+  import { entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
 
   export const prerender = false;
 
@@ -11,6 +11,7 @@
     const refs = params.get('refs');
     const word = params.get('word');
     const entity = params.get('entity');
+    if (entity?.startsWith('world:')) return worldResults(entity);
     if (entity) return entityResults(entity);
     if (word) return wordResults(word);
     return refs ? referenceResults(refs) : search(params.get('q') ?? '');

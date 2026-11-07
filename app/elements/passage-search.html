@@ -263,9 +263,9 @@
     padding: 0 1rem;
     font: inherit;
   }
-  /* Clear of the timeline strip while the strip is open. */
-  bible-table:has(time-line:not(:state(collapsed))) :scope {
-    bottom: 9.5rem;
+  /* Clear of the timeline strip, which sets its own height on the table. */
+  :scope {
+    bottom: calc(var(--timeline-height, 0px) + 2rem);
   }
   /* Collapsed, the panel is one box around the toggle. */
   :scope:state(collapsed) {

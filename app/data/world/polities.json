@@ -1,0 +1,386 @@
+[
+ {
+  "id": "Q187979",
+  "name": "Early Dynastic Egypt",
+  "label": "Early Dynastic Period of Egypt",
+  "region": "Egypt",
+  "start": -3099,
+  "end": -2685
+ },
+ {
+  "id": "Q177819",
+  "name": "Old Kingdom",
+  "label": "Old Kingdom of Egypt",
+  "region": "Egypt",
+  "start": -2706,
+  "end": -2215
+ },
+ {
+  "id": "Q191324",
+  "name": "Middle Kingdom",
+  "label": "Middle Kingdom of Egypt",
+  "region": "Egypt",
+  "start": -2039,
+  "end": -1781
+ },
+ {
+  "id": "Q206715",
+  "name": "Second Intermediate Period",
+  "label": "Second Intermediate Period of Egypt",
+  "region": "Egypt",
+  "start": -1781,
+  "end": -1569
+ },
+ {
+  "id": "Q180568",
+  "name": "New Kingdom",
+  "label": "Egyptian Empire",
+  "region": "Egypt",
+  "start": -1549,
+  "end": -1069
+ },
+ {
+  "id": "Q212728",
+  "name": "Third Intermediate Period",
+  "label": "Third Intermediate Period of Egypt",
+  "region": "Egypt",
+  "start": -1068,
+  "end": -663
+ },
+ {
+  "id": "Q621917",
+  "name": "Late Period",
+  "label": "Late Period of ancient Egypt",
+  "region": "Egypt",
+  "start": -663,
+  "end": -331
+ },
+ {
+  "id": "Q2320005",
+  "name": "Ptolemaic Kingdom",
+  "label": "Ptolemaic Kingdom",
+  "region": "Egypt",
+  "start": -304,
+  "end": -29
+ },
+ {
+  "id": "Q4461035",
+  "name": "Akkadian Empire",
+  "label": "Akkadian Empire",
+  "region": "Mesopotamia",
+  "start": -2333,
+  "end": -2082
+ },
+ {
+  "id": "Q723587",
+  "name": "Third Dynasty of Ur",
+  "label": "Third Dynasty of Ur",
+  "region": "Mesopotamia",
+  "start": -2111,
+  "end": -2003
+ },
+ {
+  "id": "Q733897",
+  "name": "Old Babylonian Empire",
+  "label": "Old Babylonian Empire",
+  "region": "Mesopotamia",
+  "start": -1829,
+  "end": -1749
+ },
+ {
+  "id": "Q12642600",
+  "name": "Middle Assyrian Empire",
+  "label": "Middle Assyrian Empire",
+  "region": "Mesopotamia",
+  "start": -1362,
+  "end": -911
+ },
+ {
+  "id": "Q10914393",
+  "name": "Neo-Assyrian Empire",
+  "label": "Neo-Assyrian Empire",
+  "region": "Mesopotamia",
+  "start": -910,
+  "end": -608
+ },
+ {
+  "id": "Q624887",
+  "name": "Neo-Babylonian Empire",
+  "label": "Neo-Babylonian Empire",
+  "region": "Mesopotamia",
+  "start": -625,
+  "end": -538
+ },
+ {
+  "id": "Q5406",
+  "name": "Hittites",
+  "label": "Hittites",
+  "region": "Levant and Anatolia",
+  "start": -1700,
+  "end": -1200
+ },
+ {
+  "id": "Q178665",
+  "name": "Mitanni",
+  "label": "Mitanni",
+  "region": "Levant and Anatolia",
+  "start": -1649,
+  "end": -1259
+ },
+ {
+  "id": "Q7185566",
+  "name": "Philistia",
+  "label": "Philistia",
+  "region": "Levant and Anatolia",
+  "start": -1174,
+  "end": -603
+ },
+ {
+  "id": "Q625649",
+  "name": "Aram-Damascus",
+  "label": "Aram-Damascus",
+  "region": "Levant and Anatolia",
+  "start": -1200,
+  "end": -733
+ },
+ {
+  "id": "Q230407",
+  "name": "Kingdom of Israel",
+  "label": "Kingdom of Israel",
+  "region": "Levant and Anatolia",
+  "start": -929,
+  "end": -719
+ },
+ {
+  "id": "Q48685",
+  "name": "Kingdom of Judah",
+  "label": "Kingdom of Judah",
+  "region": "Levant and Anatolia",
+  "start": -929,
+  "end": -585
+ },
+ {
+  "id": "Q208475",
+  "name": "Edom",
+  "label": "Edom",
+  "region": "Levant and Anatolia",
+  "start": -1300,
+  "end": -532
+ },
+ {
+  "id": "Q326304",
+  "name": "Moab",
+  "label": "Moab",
+  "region": "Levant and Anatolia",
+  "start": -1300,
+  "end": -399
+ },
+ {
+  "id": "Q473353",
+  "name": "Ammon",
+  "label": "Ammon",
+  "region": "Levant and Anatolia",
+  "start": -1029,
+  "end": -109
+ },
+ {
+  "id": "Q185068",
+  "name": "Urartu",
+  "label": "Urartu",
+  "region": "Levant and Anatolia",
+  "start": -860,
+  "end": -589
+ },
+ {
+  "id": "Q620765",
+  "name": "Lydia",
+  "label": "Lydia",
+  "region": "Levant and Anatolia",
+  "start": -1199,
+  "end": -545
+ },
+ {
+  "id": "Q10359001",
+  "name": "Hasmonean Judea",
+  "label": "Hasmonean Judea",
+  "region": "Levant and Anatolia",
+  "start": -139,
+  "end": -36
+ },
+ {
+  "id": "Q16000109",
+  "name": "Herodian Kingdom of Judea",
+  "label": "Herodian Kingdom of Judea",
+  "region": "Levant and Anatolia",
+  "start": -36,
+  "end": -3
+ },
+ {
+  "id": "Q128904",
+  "name": "Elam",
+  "label": "Elam",
+  "region": "Persia",
+  "start": -2699,
+  "end": -538
+ },
+ {
+  "id": "Q20437507",
+  "name": "Median Kingdom",
+  "label": "Median Kingdom",
+  "region": "Persia",
+  "start": -677,
+  "end": -549
+ },
+ {
+  "id": "Q389688",
+  "name": "Achaemenid Empire",
+  "label": "Achaemenid Empire",
+  "region": "Persia",
+  "start": -549,
+  "end": -329
+ },
+ {
+  "id": "Q93180",
+  "name": "Seleucid Empire",
+  "label": "Seleucid Empire",
+  "region": "Persia",
+  "start": -311,
+  "end": -62
+ },
+ {
+  "id": "Q1986139",
+  "name": "Parthian Empire",
+  "label": "Parthian Empire",
+  "region": "Persia",
+  "start": -246,
+  "end": 224
+ },
+ {
+  "id": "Q134178",
+  "name": "Minoan civilization",
+  "label": "Minoan civilization",
+  "region": "Greece and Rome",
+  "start": -3299,
+  "end": -1099
+ },
+ {
+  "id": "Q181264",
+  "name": "Mycenaean Greece",
+  "label": "Mycenaean Greece",
+  "region": "Greece and Rome",
+  "start": -1599,
+  "end": -1099
+ },
+ {
+  "id": "Q271834",
+  "name": "Archaic Greece",
+  "label": "Archaic Greece",
+  "region": "Greece and Rome",
+  "start": -800,
+  "end": -500
+ },
+ {
+  "id": "Q843745",
+  "name": "Classical Greece",
+  "label": "Classical Greece",
+  "region": "Greece and Rome",
+  "start": -489,
+  "end": -322
+ },
+ {
+  "id": "Q83958",
+  "name": "Macedonia",
+  "label": "Macedonia",
+  "region": "Greece and Rome",
+  "start": -807,
+  "end": -166
+ },
+ {
+  "id": "Q428995",
+  "name": "Hellenistic period",
+  "label": "Hellenistic period",
+  "region": "Greece and Rome",
+  "start": -322,
+  "end": -29
+ },
+ {
+  "id": "Q17167",
+  "name": "Roman Republic",
+  "label": "Roman Republic",
+  "region": "Greece and Rome",
+  "start": -508,
+  "end": -26
+ },
+ {
+  "id": "Q2277",
+  "name": "Roman Empire",
+  "label": "Roman Empire",
+  "region": "Greece and Rome",
+  "start": -26,
+  "end": 395
+ },
+ {
+  "id": "Q2429397",
+  "name": "Carthage",
+  "label": "Ancient Carthage",
+  "region": "Greece and Rome",
+  "start": -813,
+  "end": -145
+ },
+ {
+  "id": "Q42534",
+  "name": "Indus Valley Civilization",
+  "label": "Indus Valley Civilization",
+  "region": "Africa and Asia",
+  "start": -2999,
+  "end": -1799
+ },
+ {
+  "id": "Q241790",
+  "name": "Kingdom of Kush",
+  "label": "Kingdom of Kush",
+  "region": "Africa and Asia",
+  "start": -2179,
+  "end": 350
+ },
+ {
+  "id": "Q128938",
+  "name": "Shang dynasty",
+  "label": "Shang dynasty",
+  "region": "Africa and Asia",
+  "start": -1599,
+  "end": -1045
+ },
+ {
+  "id": "Q35216",
+  "name": "Zhou dynasty",
+  "label": "Zhou dynasty",
+  "region": "Africa and Asia",
+  "start": -1045,
+  "end": -255
+ },
+ {
+  "id": "Q62943",
+  "name": "Maurya Empire",
+  "label": "Maurya empire",
+  "region": "Africa and Asia",
+  "start": -321,
+  "end": -184
+ },
+ {
+  "id": "Q7183",
+  "name": "Qin dynasty",
+  "label": "Qin dynasty",
+  "region": "Africa and Asia",
+  "start": -220,
+  "end": -205
+ },
+ {
+  "id": "Q7209",
+  "name": "Han dynasty",
+  "label": "Han dynasty",
+  "region": "Africa and Asia",
+  "start": -205,
+  "end": 220
+ }
+]
