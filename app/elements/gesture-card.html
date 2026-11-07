@@ -3,7 +3,11 @@
 
      The card's position is a matrix in the coordinates of its offset parent,
      written as one CSS transform. Nothing else about the card changes during a
-     gesture, so a move costs a composite and no layout. -->
+     gesture, so a move costs a composite and no layout.
+
+     Events, all bubbling:
+       card-change  a gesture ended, so the position is worth keeping
+       card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
   import { clampScale, multiply, rotation, toCSS, translation } from '../lib/affine.js';
@@ -24,6 +28,10 @@
   const MIN_SCALE = 0.3;
   const MAX_SCALE = 6;
 
+  // Where a finger holds a card that it pulled out of a list: near the top left,
+  // on the heading, so the card hangs from the finger like a sheet of paper.
+  const GRIP = { x: 48, y: 32 };
+
   // The card touched last goes on top. One counter for every card on the page.
   let top = 1;
 
@@ -37,14 +45,15 @@
     frame: 0,
 
     connected({ signal }) {
-      const parent = /** @type {HTMLElement} */ (this.offsetParent ?? document.body);
+      const parent = this.parent();
       const start = translation(
         Number(this.x) * parent.clientWidth - this.offsetWidth / 2,
         Number(this.y) * parent.clientHeight - this.offsetHeight / 2,
       );
+      const half = { x: this.offsetWidth / 2, y: this.offsetHeight / 2 };
       const turn = multiply(
-        translation(this.offsetWidth / 2, this.offsetHeight / 2),
-        multiply(rotation((Number(this.angle) * Math.PI) / 180), translation(-this.offsetWidth / 2, -this.offsetHeight / 2)),
+        translation(half.x, half.y),
+        multiply(rotation((Number(this.angle) * Math.PI) / 180), translation(-half.x, -half.y)),
       );
       this.matrix = multiply(start, turn);
       this.points = new Map();
@@ -54,24 +63,81 @@
       this.addEventListener('pointermove', (event) => this.drag(event), { signal });
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
       this.addEventListener('pointercancel', (event) => this.release(event), { signal });
+      this.addEventListener('click', (event) => this.act(event), { signal });
     },
 
     disconnected() {
       cancelAnimationFrame(this.frame);
     },
 
+    /** @returns {HTMLElement} */
+    parent() {
+      return /** @type {HTMLElement} */ (this.offsetParent ?? document.body);
+    },
+
     /** @param {PointerEvent} event */
     press(event) {
+      // A button on the card is pressed, not dragged.
+      if (event.target instanceof Element && event.target.closest('button')) return;
+      this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * Adds a pointer to the gesture. `at` is in screen coordinates.
+     *
+     * @param {number} pointerId
+     * @param {Point} at
+     */
+    take(pointerId, at) {
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (points.size === 0) {
-        const parent = /** @type {HTMLElement} */ (this.offsetParent ?? document.body);
-        const box = parent.getBoundingClientRect();
+        const box = this.parent().getBoundingClientRect();
         this.origin = { x: box.left, y: box.top };
       }
-      this.setPointerCapture(event.pointerId);
-      points.set(event.pointerId, this.local(event));
+      // The pointer can end before a card that was fetched for it arrives.
+      try {
+        this.setPointerCapture(pointerId);
+      } catch {
+        return;
+      }
+      points.set(pointerId, this.local(at));
       top += 1;
       this.style.zIndex = String(top);
+    },
+
+    /**
+     * Puts the card under a finger that is still down and hands the finger to
+     * the card, so the drag goes on without a break.
+     *
+     * @param {number} pointerId
+     * @param {Point} at screen coordinates
+     */
+    hold(pointerId, at) {
+      const box = this.parent().getBoundingClientRect();
+      this.matrix = translation(at.x - box.left - GRIP.x, at.y - box.top - GRIP.y);
+      this.paint();
+      this.take(pointerId, at);
+    },
+
+    /**
+     * Puts the card down upright, at its own size, with its grip on the point.
+     * The grip is near the top, so a long passage hangs down from the point
+     * and its heading stays on the screen.
+     *
+     * @param {Point} at screen coordinates
+     */
+    placeAt(at) {
+      const box = this.parent().getBoundingClientRect();
+      this.matrix = translation(at.x - box.left - GRIP.x, at.y - box.top - GRIP.y);
+      top += 1;
+      this.style.zIndex = String(top);
+      this.paint();
+    },
+
+    /** @param {Matrix} matrix */
+    setMatrix(matrix) {
+      this.matrix = matrix;
+      this.paint();
     },
 
     /** @param {PointerEvent} event */
@@ -80,7 +146,7 @@
       if (!points.has(event.pointerId)) return;
 
       const after = new Map(points);
-      after.set(event.pointerId, this.local(event));
+      after.set(event.pointerId, this.local({ x: event.clientX, y: event.clientY }));
 
       const moved = multiply(step(points, after), /** @type {Matrix} */ (this.matrix));
       this.matrix = clampScale(moved, MIN_SCALE, MAX_SCALE, centroid(after));
@@ -92,13 +158,23 @@
 
     /** @param {PointerEvent} event */
     release(event) {
-      this.points?.delete(event.pointerId);
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (!points.delete(event.pointerId)) return;
+      if (points.size === 0) this.dispatchEvent(new CustomEvent('card-change', { bubbles: true }));
     },
 
-    /** @param {PointerEvent} event */
-    local(event) {
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('[data-action="close"]') : null;
+      if (!button) return;
+      this.dispatchEvent(new CustomEvent('card-remove', { bubbles: true }));
+      this.remove();
+    },
+
+    /** @param {Point} at screen coordinates */
+    local(at) {
       const origin = this.origin ?? { x: 0, y: 0 };
-      return { x: event.clientX - origin.x, y: event.clientY - origin.y };
+      return { x: at.x - origin.x, y: at.y - origin.y };
     },
 
     paint() {

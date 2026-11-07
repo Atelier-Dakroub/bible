@@ -1,0 +1,174 @@
+<!-- The table: an infinite surface that holds the cards.
+
+     The table never turns or scales. Fingers on an empty part of it pan
+     everything on it together, and there is no edge.
+
+     A card is a server fragment, /card/<address>?fragment=card, fetched when a
+     passage is placed. What is on the table is kept in this browser as
+     addresses and positions (app/lib/workspace.js), and the cards are fetched
+     again on the next visit.
+
+     It listens for `place` from a search panel inside it:
+       detail.address  the passage
+       detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
+
+<script element>
+  import { pan } from '../lib/gesture.js';
+  import { load, save } from '../lib/workspace.js';
+
+  /** @typedef {import('../lib/affine.js').Matrix} Matrix */
+  /** @typedef {import('../lib/affine.js').Point} Point */
+  /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
+  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point): void, placeAt(at: Point): void, setMatrix(m: Matrix): void }} Card */
+
+  export const prototype = {
+    /** @type {Point} */
+    offset: { x: 0, y: 0 },
+    /** @type {Map<number, Point> | null} */
+    fingers: null,
+    frame: 0,
+
+    connected({ signal }) {
+      this.fingers = new Map();
+      const workspace = load();
+      this.offset = workspace.offset;
+      this.paint();
+      for (const stored of workspace.cards) this.restore(stored.address, stored.matrix);
+
+      const options = { signal };
+      this.addEventListener('pointerdown', (event) => this.press(event), options);
+      this.addEventListener('pointermove', (event) => this.drag(event), options);
+      this.addEventListener('pointerup', (event) => this.release(event), options);
+      this.addEventListener('pointercancel', (event) => this.release(event), options);
+      this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+      this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('card-change', () => this.keep(), options);
+      // The card removes itself after the event, so keep what is left a moment later.
+      this.addEventListener('card-remove', () => queueMicrotask(() => this.keep()), options);
+    },
+
+    disconnected() {
+      cancelAnimationFrame(this.frame);
+    },
+
+    /** @returns {HTMLElement} */
+    world() {
+      return /** @type {HTMLElement} */ (this.querySelector('.table__world'));
+    },
+
+    /** @param {PointerEvent} event */
+    press(event) {
+      // Only the empty table pans. A card or the search panel has its own gestures.
+      if (event.target !== this && event.target !== this.world()) return;
+      this.setPointerCapture(event.pointerId);
+      this.fingers?.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /** @param {PointerEvent} event */
+    drag(event) {
+      const fingers = /** @type {Map<number, Point>} */ (this.fingers);
+      if (!fingers.has(event.pointerId)) return;
+      const after = new Map(fingers);
+      after.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const moved = pan(fingers, after);
+      this.offset = { x: this.offset.x + moved.x, y: this.offset.y + moved.y };
+      this.fingers = after;
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => this.paint());
+    },
+
+    /** @param {PointerEvent} event */
+    release(event) {
+      const fingers = /** @type {Map<number, Point>} */ (this.fingers);
+      if (fingers.delete(event.pointerId) && fingers.size === 0) this.keep();
+    },
+
+    paint() {
+      const { x, y } = this.offset;
+      this.world().style.transform = `translate(${x}px, ${y}px)`;
+      // The dot grid moves with the content, so a pan shows on an empty table.
+      this.style.backgroundPosition = `${x}px ${y}px`;
+    },
+
+    /**
+     * @param {{ address: string, pointer: Pull | null }} detail
+     */
+    async place({ address, pointer }) {
+      const card = await this.fetchCard(address);
+      if (!card) return;
+      if (pointer?.down) card.hold(pointer.id, pointer);
+      else if (pointer) card.placeAt(pointer);
+      else card.placeAt(this.openSpot());
+      this.keep();
+    },
+
+    /**
+     * @param {string} address
+     * @param {Matrix} matrix
+     */
+    async restore(address, matrix) {
+      const card = await this.fetchCard(address);
+      card?.setMatrix(matrix);
+    },
+
+    /**
+     * @param {string} address
+     * @returns {Promise<Card | null>}
+     */
+    async fetchCard(address) {
+      const response = await fetch(`/card/${encodeURIComponent(address)}?fragment=card`).catch(() => null);
+      if (!response?.ok) return null;
+      const holder = document.createElement('template');
+      holder.setHTMLUnsafe(await response.text());
+      const card = holder.content.querySelector('gesture-card');
+      if (!card) return null;
+      this.world().append(card);
+      await customElements.whenDefined('gesture-card');
+      return /** @type {Card} */ (card);
+    },
+
+    /**
+     * Where a tapped result goes: near the top, right of the search panel, and
+     * a step lower and further right each time, so cards placed one after
+     * another do not cover each other's headings.
+     *
+     * @returns {Point}
+     */
+    openSpot() {
+      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
+      const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
+      return { x: (panel?.right ?? 0) + 96 + step * 72, y: 96 + step * 72 };
+    },
+
+    keep() {
+      const cards = [...this.world().querySelectorAll('gesture-card')].map((element) => {
+        const card = /** @type {Card} */ (element);
+        return { address: card.dataset.address ?? '', matrix: card.matrix };
+      });
+      save({ offset: this.offset, cards: cards.filter((card) => card.address && card.matrix) });
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: fixed;
+    inset: 0;
+    display: block;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+    background-color: var(--table);
+    background-image: radial-gradient(circle, var(--grid) 1.5px, transparent 1.6px);
+    background-size: 48px 48px;
+  }
+  .table__world {
+    position: absolute;
+    inset: 0;
+  }
+</style>
+
+<div class="table__world"></div>
+<slot></slot>

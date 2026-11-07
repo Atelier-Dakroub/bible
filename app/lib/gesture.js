@@ -50,3 +50,26 @@ export function centroid(points) {
   const count = points.size || 1;
   return { x: x / count, y: y / count };
 }
+
+/**
+ * How far the fingers moved together between two frames: the mean of the
+ * moves of the pointers in both. The table pans by this, and never turns or
+ * scales, so the rest of the motion is ignored.
+ *
+ * @param {Map<number, Point>} before
+ * @param {Map<number, Point>} after
+ * @returns {Point}
+ */
+export function pan(before, after) {
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const [id, point] of after) {
+    const start = before.get(id);
+    if (!start) continue;
+    x += point.x - start.x;
+    y += point.y - start.y;
+    count += 1;
+  }
+  return count ? { x: x / count, y: y / count } : { x: 0, y: 0 };
+}

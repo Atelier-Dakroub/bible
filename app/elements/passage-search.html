@@ -1,0 +1,183 @@
+<!-- The search panel at the edge of the table.
+
+     It works as a plain form: with no script, a search opens /search. With the
+     script, the results arrive in place as the reader types, from the same
+     page's `results` fragment.
+
+     A result goes onto the table two ways. A tap places it beside the panel.
+     A drag out to the side pulls a card out under the finger, and the finger
+     keeps the card. A drag up or down scrolls the list instead.
+
+     It sends `place` (bubbling) with { address, pointer }. The pointer object
+     goes on changing until the card takes the finger, so the table always
+     reads where the finger is now. -->
+
+<script element>
+  /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
+
+  // How far a finger moves before a press on a result is a drag, in CSS pixels.
+  const SLOP = 16;
+
+  export const prototype = {
+    timer: 0,
+    /** @type {AbortController | null} */
+    request: null,
+    /** @type {{ address: string, start: { x: number, y: number }, pull: Pull, out: boolean } | null} */
+    press: null,
+
+    connected({ signal }) {
+      const form = /** @type {HTMLFormElement} */ (this.querySelector('form'));
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+
+      input.addEventListener('input', () => this.queueSearch(), { signal });
+      form.addEventListener(
+        'submit',
+        (event) => {
+          event.preventDefault();
+          this.run();
+        },
+        { signal },
+      );
+      this.addEventListener('pointerdown', (event) => this.down(event), { signal });
+      this.addEventListener('pointermove', (event) => this.move(event), { signal });
+      this.addEventListener('pointerup', (event) => this.up(event), { signal });
+      this.addEventListener('pointercancel', (event) => this.cancel(event), { signal });
+
+      return () => clearTimeout(this.timer);
+    },
+
+    queueSearch() {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.run(), 150);
+    },
+
+    async run() {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      this.request?.abort();
+      const request = new AbortController();
+      this.request = request;
+
+      const query = new URLSearchParams({ q: input.value, fragment: 'results' });
+      const response = await fetch(`/search?${query}`, { signal: request.signal }).catch(() => null);
+      if (!response?.ok || request.signal.aborted) return;
+      const text = await response.text();
+      if (request.signal.aborted) return;
+      /** @type {HTMLElement} */ (this.querySelector('.search__results')).setHTMLUnsafe(text);
+    },
+
+    /** @param {PointerEvent} event */
+    down(event) {
+      const item = event.target instanceof Element ? event.target.closest('[data-address]') : null;
+      if (!(item instanceof HTMLElement)) return;
+      this.press = {
+        address: item.dataset.address ?? '',
+        start: { x: event.clientX, y: event.clientY },
+        pull: { id: event.pointerId, x: event.clientX, y: event.clientY, down: true },
+        out: false,
+      };
+    },
+
+    /** @param {PointerEvent} event */
+    move(event) {
+      const press = this.press;
+      if (!press || press.pull.id !== event.pointerId) return;
+      press.pull.x = event.clientX;
+      press.pull.y = event.clientY;
+      if (press.out) return;
+
+      const dx = event.clientX - press.start.x;
+      const dy = event.clientY - press.start.y;
+      if (Math.hypot(dx, dy) < SLOP) return;
+      // Sideways pulls a card out. Up or down is the list scrolling, and the
+      // browser takes that gesture and cancels the pointer.
+      if (Math.abs(dx) < Math.abs(dy)) {
+        this.press = null;
+        return;
+      }
+      press.out = true;
+      this.send(press.address, press.pull);
+    },
+
+    /** @param {PointerEvent} event */
+    up(event) {
+      const press = this.press;
+      if (!press || press.pull.id !== event.pointerId) return;
+      press.pull.down = false;
+      if (!press.out) this.send(press.address, null);
+      this.press = null;
+    },
+
+    /** @param {PointerEvent} event */
+    cancel(event) {
+      if (this.press?.pull.id !== event.pointerId) return;
+      this.press.pull.down = false;
+      this.press = null;
+    },
+
+    /**
+     * @param {string} address
+     * @param {Pull | null} pointer
+     */
+    send(address, pointer) {
+      this.dispatchEvent(new CustomEvent('place', { bubbles: true, detail: { address, pointer } }));
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: absolute;
+    top: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 1000000;
+    display: flex;
+    flex-direction: column;
+    width: 26rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  form {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+  input {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--table);
+    color: inherit;
+    font: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  input::placeholder {
+    color: var(--muted);
+  }
+  button[type='submit'] {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    font: inherit;
+  }
+  .search__results {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Vertical swipes scroll the list. Sideways moves reach the script, which
+       pulls a card out. */
+    touch-action: pan-y;
+  }
+</style>
+
+<form action="/search" role="search">
+  <input type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
+  <button type="submit">Search</button>
+</form>
+<div class="search__results"></div>

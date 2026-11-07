@@ -27,6 +27,16 @@ type __CookieOptions = {
 };
 
 // Declared by the app, in the file each was written in.
+type Point = {
+  x: number;
+  y: number;
+};
+type Pull = {
+  id: number;
+  x: number;
+  y: number;
+  down: boolean;
+};
 type Matrix = {
   a: number;
   b: number;
@@ -35,9 +45,11 @@ type Matrix = {
   e: number;
   f: number;
 };
-type Point = {
-  x: number;
-  y: number;
+type Card = HTMLElement & {
+  matrix: Matrix;
+  hold(id: number, at: Point): void;
+  placeAt(at: Point): void;
+  setMatrix(m: Matrix): void;
 };
 type Block = {
   style: string;
@@ -47,6 +59,12 @@ type Block = {
 type Run = {
   text: string;
   marks: string[];
+};
+type Pull_2 = {
+  id: number;
+  x: number;
+  y: number;
+  down: boolean;
 };
 type LogEntry = {
   t: number;
@@ -58,6 +76,61 @@ type LogEntry = {
   w: number;
   h: number;
   pressure: number;
+};
+type Result = {
+  address: string;
+  title: string;
+  parts: Part[];
+};
+type Part = {
+  text: string;
+  hit: boolean;
+};
+type Verse = {
+  n: number;
+  id: string;
+  org?: string | undefined;
+  blocks: Block_2[];
+};
+type Block_2 = {
+  style: string;
+  numbered?: boolean | undefined;
+  runs: Run_2[];
+};
+type Run_2 = {
+  text: string;
+  marks: string[];
+};
+
+/** Properties of `<bible-table>`, from its <script element> block. */
+export type BibleTableProps = {};
+
+/** Members of `<bible-table>`, from its `export const prototype`. */
+export type BibleTableMembers = {
+  offset: Point;
+  fingers: Map<number, Point> | null;
+  frame: number;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  disconnected(): void;
+  world(): HTMLElement;
+  press(event: PointerEvent): void;
+  drag(event: PointerEvent): void;
+  release(event: PointerEvent): void;
+  paint(): void;
+  place({
+    address, pointer
+  }: {
+    address: string;
+    pointer: Pull | null;
+  }): Promise<void>;
+  restore(address: string, matrix: Matrix): Promise<void>;
+  fetchCard(address: string): Promise<Card | null>;
+  openSpot(): Point;
+  keep(): void;
 };
 
 /** Properties of `<calibration-target>`, from its <script element> block. */
@@ -103,10 +176,16 @@ export type GestureCardMembers = {
     signal: any;
   }): void;
   disconnected(): void;
+  parent(): HTMLElement;
   press(event: PointerEvent): void;
+  take(pointerId: number, at: Point): void;
+  hold(pointerId: number, at: Point): void;
+  placeAt(at: Point): void;
+  setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
-  local(event: PointerEvent): {
+  act(event: MouseEvent): void;
+  local(at: Point): {
     x: number;
     y: number;
   };
@@ -117,6 +196,36 @@ export type GestureCardMembers = {
 export type KjvVerseProps = {
   n: number;
   blocks: Block[];
+};
+
+/** Properties of `<passage-search>`, from its <script element> block. */
+export type PassageSearchProps = {};
+
+/** Members of `<passage-search>`, from its `export const prototype`. */
+export type PassageSearchMembers = {
+  timer: number;
+  request: AbortController | null;
+  press: {
+    address: string;
+    start: {
+      x: number;
+      y: number;
+    };
+    pull: Pull_2;
+    out: boolean;
+  } | null;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): () => void;
+  queueSearch(): void;
+  run(): Promise<void>;
+  down(event: PointerEvent): void;
+  move(event: PointerEvent): void;
+  up(event: PointerEvent): void;
+  cancel(event: PointerEvent): void;
+  send(address: string, pointer: Pull_2 | null): void;
 };
 
 /** Properties of `<svg-icon>`, from its <script element> block. */
@@ -149,7 +258,7 @@ export type TouchProbeMembers = {
   entries: LogEntry[];
   startedAt: number;
   samples: number;
-  sizeSeen: boolean;
+  sizes: Set<string>;
   connected({
     signal
   }: {
@@ -160,7 +269,7 @@ export type TouchProbeMembers = {
   up(event: PointerEvent): void;
   count(): void;
   place(event: PointerEvent): void;
-  noteContact(reported: boolean): void;
+  noteContact(event: PointerEvent, reported: boolean): void;
   log(event: PointerEvent): void;
   tick(): void;
   measureScreen(): void;
@@ -194,6 +303,62 @@ export type RootLayoutContext = {
 /** Data returned by `root/_layout.html`. */
 export type RootLayoutData = {};
 
+/** The `ctx` argument of `search`'s <script server> loader. */
+export type SearchContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `search`'s <script server> block. */
+export type SearchData = {
+  query: string;
+  summary: string;
+  results: Result[];
+};
+
+/** The `ctx` argument of `table`'s <script server> loader. */
+export type TableContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `table`'s <script server> block. */
+export type TableData = {};
+
 /** The `ctx` argument of `touch`'s <script server> loader. */
 export type TouchContext = {
   url: string;
@@ -219,43 +384,8 @@ export type TouchContext = {
 
 /** Data returned by `touch`'s <script server> block. */
 export type TouchData = {
-  verses: {
-    n: number;
-    id: string;
-    org: string;
-    blocks: {
-      style: string;
-      runs: {
-        text: string;
-        marks: string[];
-      }[];
-      numbered: boolean;
-    }[];
-  }[] | ({
-    n: number;
-    id: string;
-    blocks: {
-      style: string;
-      runs: {
-        text: string;
-        marks: string[];
-      }[];
-      numbered: boolean;
-    }[];
-    org?: undefined;
-  } | {
-    n: number;
-    id: string;
-    org: string;
-    blocks: {
-      style: string;
-      runs: {
-        text: string;
-        marks: never[];
-      }[];
-      numbered: boolean;
-    }[];
-  })[];
+  title: string;
+  verses: Verse[];
 };
 
 /** The `ctx` argument of `index`'s <script server> loader. */
@@ -283,6 +413,41 @@ export type IndexContext = {
 
 /** Data returned by `index`'s <script server> block. */
 export type IndexData = {};
+
+/** Route params for `/card/:address`. */
+export type CardAddressParams = { address: string };
+
+/** The `ctx` argument of `card-_address`'s <script server> loader. */
+export type CardAddressContext = {
+  url: string;
+  params: {
+    address: string
+  };
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `card-_address`'s <script server> block. */
+export type CardAddressData = {
+  address: string;
+  title: string;
+  verses: Verse[];
+};
 
 /** The `ctx` argument of `404`'s <script server> loader. */
 export type _404Context = {
@@ -312,9 +477,11 @@ export type _404Data = {};
 
 declare global {
   interface HTMLElementTagNameMap {
+    "bible-table": HTMLElement & BibleTableProps & BibleTableMembers;
     "calibration-target": HTMLElement & CalibrationTargetProps & CalibrationTargetState & CalibrationTargetMembers;
     "gesture-card": HTMLElement & GestureCardProps & GestureCardMembers;
     "kjv-verse": HTMLElement;
+    "passage-search": HTMLElement & PassageSearchProps & PassageSearchMembers;
     "svg-icon": HTMLElement;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;
   }

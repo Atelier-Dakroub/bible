@@ -36,6 +36,10 @@ export default {
   // environment: this file is yours, so where the secret lives is your decision.
   cookieSecret: globalThis.process?.env?.COOKIE_SECRET ?? null,
 
+  // Cards arrive on the table as fragments, and a card is a custom element.
+  // This defines and styles an element that a fetched fragment brings in.
+  watchElements: true,
+
   outDir: 'dist',
   typesFile: 'app/transclude-env.d.ts',
 };

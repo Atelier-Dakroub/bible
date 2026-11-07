@@ -1,0 +1,31 @@
+<script server>
+  import { search } from '../data/bible.js';
+
+  export const prerender = false;
+
+  export default async ({ url }) => search(new URL(url).searchParams.get('q') ?? '');
+</script>
+
+<title>Search</title>
+
+<main class="page">
+  <h1>Search</h1>
+  <form action="/search" role="search">
+    <input type="search" name="q" value="${query}" aria-label="Search the text" />
+    <button type="submit">Search</button>
+  </form>
+
+  <div id="results" fragment class="results">
+    <p if="summary" class="results__summary">${summary}</p>
+    <ol class="results__list">
+      <li each="result of results">
+        <button type="button" class="result" data-address="${result.address}">
+          <span class="result__title">${result.title}</span>
+          <span class="result__text"
+            ><template each="part of result.parts"><mark if="part.hit">${part.text}</mark><span else>${part.text}</span></template
+          ></span>
+        </button>
+      </li>
+    </ol>
+  </div>
+</main>

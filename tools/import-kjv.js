@@ -93,6 +93,16 @@ const provenance = {
 };
 
 await writeFile(path.join(out, 'books.json'), JSON.stringify(index, null, 2) + '\n');
+
+// One loader per book, each a static import, so a bundler can follow every
+// path and a server loads a book only when something asks for it.
+const loaderLines = books.map(
+  (book) => `  '${book.id}': () => import('./${book.id}.json', { with: { type: 'json' } }),`,
+);
+await writeFile(
+  path.join(out, 'index.js'),
+  ['// Written by tools/import-kjv.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+);
 await writeFile(path.join(out, 'source.json'), JSON.stringify(provenance, null, 2) + '\n');
 
 console.log(

@@ -1,0 +1,27 @@
+<script server>
+  import { books, passage } from '../../data/bible.js';
+  import { parseAddress } from '../../lib/reference.js';
+
+  // A card is a passage with an address of its own. The table asks for the
+  // `card` fragment and puts it down. Opened whole, it is a page with one card.
+  export const prerender = false;
+
+  export default async ({ params }) => {
+    const ref = parseAddress(params.address, books);
+    if (!ref) return new Response('No passage has that address.', { status: 404 });
+    const { title, verses } = await passage(ref);
+    return { address: params.address, title, verses };
+  };
+</script>
+
+<title>Passage</title>
+
+<gesture-card id="card" fragment data-address="${address}" x="0.5" y="0.4">
+  <article class="passage">
+    <header class="passage__header">
+      <h2 class="passage__heading">${title}</h2>
+      <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
+    </header>
+    <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
+  </article>
+</gesture-card>

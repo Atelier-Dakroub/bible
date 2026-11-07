@@ -1,9 +1,9 @@
 <script server>
-  import genesis from '../data/kjv/GEN.json' with { type: 'json' };
+  import { passage } from '../data/bible.js';
 
   // Five verses are enough text to see whether a turned, scaled card stays
   // readable.
-  export default async () => ({ verses: genesis.chapters[0].verses.slice(0, 5) });
+  export default async () => passage({ book: 'GEN', chapter: 1, from: 1, to: 5 });
 </script>
 
 <title>Touch test</title>
