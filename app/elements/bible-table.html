@@ -166,11 +166,18 @@
   }
   /* The world has a transform, so it is a stacking context of its own: the
      cards stack inside it, and the whole world stacks above the search panel.
-     A card pulled out of the list then lies on top of the list. */
+     A card pulled out of the list then lies on top of the list.
+
+     The world covers the panel too, so it lets touches through, and only the
+     cards take them. A touch on an empty part reaches the table and pans. */
   .table__world {
     position: absolute;
     inset: 0;
     z-index: 2;
+    pointer-events: none;
+  }
+  .table__world > * {
+    pointer-events: auto;
   }
 </style>
 
