@@ -20,10 +20,12 @@ and the `cage` compositor. All 10 touch points work.
 4. Before the first boot, open the VM settings:
    - **Input**: set **USB Sharing** on, and set USB support to **USB 3.0 (XHCI)**.
    - **Display**: select a `virtio-gpu-gl` card if UTM offers it.
-5. Install Linux, then install Chrome (or Chromium) and `cage`:
+5. Install Linux, then install Chrome (or Chromium), `cage` and `wlr-randr`:
    ```sh
-   sudo dnf install cage
+   sudo dnf install cage wlr-randr
    ```
+6. Copy [`tools/vm/table`](../tools/vm/table) to `~/bin/table` in the VM. It
+   starts Chrome in `cage` at the panel's native resolution.
 
 ## 2. Connect the panel
 
@@ -62,21 +64,24 @@ In the VM, the Mac is the gateway of UTM's shared network, usually
    sudo chvt 3
    ```
 2. At the `login:` prompt, log in.
-3. Start Chrome:
+3. Start the table:
    ```sh
-   WLR_NO_HARDWARE_CURSORS=1 cage -- google-chrome \
-     --user-data-dir=$HOME/.config/chrome-table \
-     --ozone-platform=wayland --kiosk \
-     http://192.168.64.1:1960/touch
+   table
    ```
+   `table` opens `http://192.168.64.1:1960/touch`. Give it a different URL as
+   its argument.
 4. Alt + F4 (Option + F4 on a Mac keyboard) closes Chrome, and `cage` exits.
    `sudo chvt 2` goes back to the desktop.
 
-Why each part is there:
+What the script does, and why:
 
+- **It sets the display to 3840 × 2160.** UTM's automatic resize can leave the
+  VM's preferred mode smaller than the panel, for example 3840 × 2020. UTM then
+  centers the picture between black bars, and touches near the top and bottom
+  land off by up to the height of a bar. `TABLE_MODE` and `TABLE_OUTPUT`
+  change the mode and the output name.
 - **`WLR_NO_HARDWARE_CURSORS=1`**: without it, the cursor is drawn upside
-  down. The cursor plane of the virtual GPU and `cage` do not agree on the
-  orientation. This makes `cage` draw the cursor itself.
+  down. This makes `cage` draw the cursor itself.
 - **`--user-data-dir`**: without it, an instance of Chrome that already runs
   on the desktop receives the page, and the page opens there, not in `cage`.
 - **`--ozone-platform=wayland`**: Chrome talks to `cage` directly, with no X11
@@ -94,7 +99,9 @@ Why each part is there:
 | Gestures | Move, turn and scale the two cards | The card stays under the fingers |
 
 If all five crosshairs show about the same large offset, the VM screen does
-not cover the full panel. Go back to step 2.3.
+not cover the full panel. Go back to step 2.3. If the offsets in Y are large at
+the top and small at the bottom, the picture has black bars: the **Screen** line
+then shows less than the panel's resolution.
 
 Contact size decides whether the app can reject a resting palm. A panel that
 reports 1 × 1 for every touch gives no size, and palm rejection then needs a

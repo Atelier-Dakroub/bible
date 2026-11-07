@@ -1,0 +1,28 @@
+#!/bin/sh
+# Starts the table in the Linux VM: Chrome, full screen, inside cage.
+#
+#   table [url]
+#
+# Run it from a text console (sudo chvt 3, then log in), not from the desktop.
+# It needs cage and wlr-randr: sudo dnf install cage wlr-randr
+#
+# UTM's automatic resize can leave the VM's preferred mode a little smaller than
+# the panel, such as 3840 × 2020 on a 3840 × 2160 panel. UTM then centers the
+# picture between black bars, and every touch lands off by the height of a bar.
+# So the mode is set to the panel's native size before Chrome starts.
+
+URL=${1:-http://192.168.64.1:1960/touch}
+MODE=${TABLE_MODE:-3840x2160}
+OUTPUT=${TABLE_OUTPUT:-Virtual-1}
+
+# The virtual GPU's cursor plane draws the cursor upside down. This makes cage
+# draw it itself.
+export WLR_NO_HARDWARE_CURSORS=1
+
+exec cage -- sh -c '
+  wlr-randr --output "$1" --mode "$2" || echo "table: could not set $1 to $2" >&2
+  exec google-chrome \
+    --user-data-dir="$HOME/.config/chrome-table" \
+    --ozone-platform=wayland \
+    --kiosk "$3"
+' table "$OUTPUT" "$MODE" "$URL"
