@@ -164,9 +164,13 @@
     background-image: radial-gradient(circle, var(--grid) 1.5px, transparent 1.6px);
     background-size: 48px 48px;
   }
+  /* The world has a transform, so it is a stacking context of its own: the
+     cards stack inside it, and the whole world stacks above the search panel.
+     A card pulled out of the list then lies on top of the list. */
   .table__world {
     position: absolute;
     inset: 0;
+    z-index: 2;
   }
 </style>
 
