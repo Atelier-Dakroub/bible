@@ -215,6 +215,7 @@ export type BibleTableMembers = {
     signal: any;
   }): void;
   disconnected(): void;
+  measure(signal: AbortSignal): void;
   guardPalms(signal: AbortSignal): void;
   world(): HTMLElement;
   press(event: PointerEvent): void;

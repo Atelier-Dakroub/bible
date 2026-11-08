@@ -39,6 +39,10 @@
      hand. Its touches are stopped before any card or panel sees them, and
      any of them that a card had already taken is cancelled.
 
+     With ?perf in the address, a readout in the corner shows the time
+     between frames and the time the line layer takes, for measuring on the
+     panel.
+
      The map is a card too (map:near-east). Its places that the cards on the
      table name are labelled, with a thin line to each card that names them,
      and the place on show in the panel is marked. A tap on a place shows it.
@@ -87,6 +91,22 @@
   const cardNamed = new WeakMap();
 
   const MAP = 'map:near-east';
+
+  // A card's verses by id. A card's text never changes, so this is built once.
+  /** @type {WeakMap<Element, Map<string, Element>>} */
+  const verseIndexes = new WeakMap();
+
+  /** @param {Element} card */
+  function versesOfCard(card) {
+    let found = verseIndexes.get(card);
+    if (!found) {
+      found = new Map(
+        [...card.querySelectorAll('kjv-verse[data-ref]')].map((verse) => [/** @type {HTMLElement} */ (verse).dataset.ref ?? '', verse]),
+      );
+      verseIndexes.set(card, found);
+    }
+    return found;
+  }
 
   // The cross-references of each card's verses, fetched once per card.
   /** @type {WeakMap<Element, Record<string, [string, number][]>>} */
@@ -193,6 +213,7 @@
 
       const options = { signal };
       this.guardPalms(signal);
+      if (new URL(location.href).searchParams.has('perf')) this.measure(signal);
       this.addEventListener('pointerdown', (event) => this.press(event), options);
       this.addEventListener('pointermove', (event) => this.drag(event), options);
       this.addEventListener('pointerup', (event) => this.release(event), options);
@@ -231,6 +252,42 @@
     disconnected() {
       cancelAnimationFrame(this.frame);
       cancelAnimationFrame(this.lineFrame);
+    },
+
+    /**
+     * The frame-time readout. It shows, for the last second, the mean and the
+     * worst time between frames, and the mean time draw() took.
+     *
+     * @param {AbortSignal} signal
+     */
+    measure(signal) {
+      const readout = document.createElement('output');
+      readout.className = 'table__perf';
+      this.append(readout);
+      /** @type {number[]} */
+      const gaps = [];
+      /** @type {number[]} */
+      const draws = [];
+      const draw = this.draw.bind(this);
+      this.draw = () => {
+        const start = performance.now();
+        draw();
+        draws.push(performance.now() - start);
+      };
+      let last = performance.now();
+      const tick = (/** @type {number} */ now) => {
+        gaps.push(now - last);
+        last = now;
+        if (!signal.aborted) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      const mean = (/** @type {number[]} */ list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : 0);
+      const timer = setInterval(() => {
+        readout.textContent = `frame ${mean(gaps).toFixed(1)} ms, worst ${Math.max(0, ...gaps).toFixed(1)} ms · lines ${mean(draws).toFixed(1)} ms × ${draws.length}`;
+        gaps.length = 0;
+        draws.length = 0;
+      }, 1000);
+      signal.addEventListener('abort', () => clearInterval(timer));
     },
 
     /**
@@ -533,19 +590,34 @@
     timeLines() {
       const strip = /** @type {any} */ (this.querySelector('time-line'));
       if (!strip) return [];
-      for (const tick of strip.querySelectorAll('.is-on-table')) tick.classList.remove('is-on-table');
+      const cards = [...this.world().querySelectorAll('gesture-card')];
+
+      // Every class change first, then every measurement: a measurement after
+      // a change forces the browser to work out the styles again.
+      /** @type {Set<string>} */
+      const told = new Set();
+      for (const card of cards) {
+        for (const id of cardNamed.get(card) ?? []) if (id.startsWith('event:')) told.add(id);
+      }
+      for (const tick of strip.querySelectorAll('.is-on-table')) {
+        if (!told.has(tick.dataset.entity)) tick.classList.remove('is-on-table');
+      }
+      for (const id of told) strip.tickFor(id)?.classList.add('is-on-table');
+
+      /** @type {Map<string, DOMRect>} */
+      const ticks = new Map();
+      for (const id of told) {
+        const box = strip.tickFor(id)?.getBoundingClientRect();
+        if (box && box.width > 0) ticks.set(id, box);
+      }
       /** @type {Element[]} */
       const lines = [];
-      for (const card of this.world().querySelectorAll('gesture-card')) {
+      for (const card of cards) {
+        const events = (cardNamed.get(card) ?? []).filter((id) => ticks.has(id));
+        if (!events.length) continue;
         // From the card's edge, so the line does not cross its text.
         const edgeBox = card.getBoundingClientRect();
-        for (const id of (cardNamed.get(card) ?? []).filter((each) => each.startsWith('event:'))) {
-          const tick = strip.tickFor(id);
-          if (!tick) continue;
-          tick.classList.add('is-on-table');
-          const box = tick.getBoundingClientRect();
-          if (box.width > 0) lines.push(line(edgeBox, box, 'time'));
-        }
+        for (const id of events) lines.push(line(edgeBox, /** @type {DOMRect} */ (ticks.get(id)), 'time'));
       }
       return lines;
     },
@@ -581,34 +653,55 @@
      */
     referenceLines() {
       const cards = [...this.world().querySelectorAll('gesture-card')];
-      /** @type {Map<string, Element>[]} each card's verses by id */
-      const verseMaps = cards.map((card) => new Map(
-        [...card.querySelectorAll('kjv-verse[data-ref]')].map((verse) => [/** @type {HTMLElement} */ (verse).dataset.ref ?? '', verse]),
-      ));
+
+      // Where each verse is on the table: one index for the whole frame, so a
+      // reference finds its target cards in one lookup.
+      /** @type {Map<string, { card: Element, verse: Element }[]>} */
+      const where = new Map();
+      for (const card of cards) {
+        for (const [id, verse] of versesOfCard(card)) {
+          const list = where.get(id);
+          if (list) list.push({ card, verse });
+          else where.set(id, [{ card, verse }]);
+        }
+      }
+
+      // Each verse is measured once per frame, however many lines it has.
+      /** @type {Map<Element, DOMRect>} */
+      const boxes = new Map();
+      /** @param {Element} card @param {Element} verse */
+      const boxOf = (card, verse) => {
+        let box = boxes.get(verse);
+        if (!box) {
+          box = this.verseBox(card, verse);
+          boxes.set(verse, box);
+        }
+        return box;
+      };
+
       const seen = new Set();
       /** @type {Element[]} */
       const lines = [];
-      cards.forEach((card, i) => {
+      for (const card of cards) {
         const refs = references.get(card);
-        if (!refs) return;
+        if (!refs) continue;
+        const own = versesOfCard(card);
         for (const [fromId, list] of Object.entries(refs)) {
-          const from = verseMaps[i].get(fromId);
+          const from = own.get(fromId);
           if (!from) continue;
           for (const [target] of list) {
             for (const toId of versesOf(target)) {
-              cards.forEach((other, j) => {
-                if (j === i) return;
-                const to = verseMaps[j].get(toId);
-                if (!to) return;
-                const key = [`${i}:${fromId}`, `${j}:${toId}`].sort().join('|');
-                if (seen.has(key)) return;
+              for (const { card: other, verse: to } of where.get(toId) ?? []) {
+                if (other === card) continue;
+                const key = fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
+                if (seen.has(key)) continue;
                 seen.add(key);
-                lines.push(line(this.verseBox(card, from), this.verseBox(other, to), 'ref'));
-              });
+                lines.push(line(boxOf(card, from), boxOf(other, to), 'ref'));
+              }
             }
           }
         }
-      });
+      }
       return lines;
     },
 
@@ -799,6 +892,18 @@
   .table__lines .same {
     stroke: var(--muted);
     stroke-dasharray: 6 6;
+  }
+  .table__perf {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 3000000;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--table);
+    color: var(--text);
+    font: 0.75rem ui-monospace, monospace;
+    pointer-events: none;
   }
   .table__lines .place {
     stroke: var(--line);
