@@ -81,6 +81,10 @@ normal exit. If it still happens, close that session from another machine:
 `loginctl list-sessions` shows its number, and `loginctl terminate-session
 <number>` closes it and restores the keyboard.
 
+`TABLE_FLAGS` adds Chrome flags, for example to try GPU settings:
+`TABLE_FLAGS="--use-angle=gl" table chrome://gpu`. See
+[panel-session.md](panel-session.md).
+
 What the script does, and why:
 
 - **It switches the console's keyboard back on when `cage` ends.** A

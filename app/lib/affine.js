@@ -107,6 +107,24 @@ export function similarity(p1, p2, q1, q2) {
   };
 }
 
+/**
+ * The matrix that undoes `m`: a point on the screen back to the card.
+ *
+ * @param {Matrix} m
+ * @returns {Matrix}
+ */
+export function invert(m) {
+  const det = m.a * m.d - m.b * m.c;
+  return {
+    a: m.d / det,
+    b: -m.b / det,
+    c: -m.c / det,
+    d: m.a / det,
+    e: (m.c * m.f - m.d * m.e) / det,
+    f: (m.b * m.e - m.a * m.f) / det,
+  };
+}
+
 /** @param {Matrix} m */
 export function scaleOf(m) {
   return Math.hypot(m.a, m.b);

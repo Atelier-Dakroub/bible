@@ -3,7 +3,10 @@
 #
 #   table            opens /table on the Mac's dev server
 #   table /touch     opens another page of the app
-#   table <url>      opens any address
+#   table <url>      opens any address, such as chrome://gpu
+#
+# TABLE_FLAGS adds Chrome flags, to try GPU settings:
+#   TABLE_FLAGS="--use-angle=gl" table chrome://gpu
 #
 # Run it from a text console (sudo chvt 3, then log in), not from the desktop.
 # It needs cage and wlr-randr: sudo dnf install cage wlr-randr
@@ -15,6 +18,7 @@ SERVER=${TABLE_SERVER:-http://192.168.64.1:1960}
 MODE=${TABLE_MODE:-3840x2160}
 OUTPUT=${TABLE_OUTPUT:-Virtual-1}
 LOG=${TABLE_LOG:-$HOME/.cache/table.log}
+FLAGS=${TABLE_FLAGS:-}
 
 case ${1:-/table} in
   /*) URL="$SERVER${1:-/table}" ;;
@@ -26,18 +30,20 @@ esac
 export WLR_NO_HARDWARE_CURSORS=1
 
 mkdir -p "$(dirname "$LOG")"
-echo "table: opening $URL. The log is in $LOG."
+echo "table: opening $URL${FLAGS:+ with $FLAGS}. The log is in $LOG."
 
 # UTM's automatic resize can leave the VM's preferred mode a little smaller than
 # the panel, which puts black bars around the picture and moves every touch. So
 # the mode is set to the panel's native size before Chrome starts.
 cage -- sh -c '
   wlr-randr --output "$1" --mode "$2" || echo "table: could not set $1 to $2" >&2
+  url=$3
+  shift 3
   exec google-chrome \
     --user-data-dir="$HOME/.config/chrome-table" \
     --ozone-platform=wayland \
-    --kiosk "$3"
-' table "$OUTPUT" "$MODE" "$URL" > "$LOG" 2>&1
+    --kiosk "$@" "$url"
+' table "$OUTPUT" "$MODE" "$URL" $FLAGS > "$LOG" 2>&1
 status=$?
 
 # A compositor that ends badly can leave the console's keyboard switched off,
