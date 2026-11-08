@@ -34,6 +34,11 @@
      table tell, from Theographic's verse links, and a thin line joins each
      card to its events. A tap on a tick shows the event.
 
+     A palm guard (app/lib/palm.js) sits in front of everything on the table:
+     a group of touches that land together and close together is a resting
+     hand. Its touches are stopped before any card or panel sees them, and
+     any of them that a card had already taken is cancelled.
+
      The map is a card too (map:near-east). Its places that the cards on the
      table name are labelled, with a thin line to each card that names them,
      and the place on show in the panel is marked. A tap on a place shows it.
@@ -48,6 +53,7 @@
 
 <script element>
   import { pan } from '../lib/gesture.js';
+  import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../lib/links.js';
   import { covers, paintWords, toggle, wordAt, wordKey } from '../lib/words.js';
   import { load, save } from '../lib/workspace.js';
@@ -186,6 +192,7 @@
       for (const stored of workspace.cards) this.restore(stored);
 
       const options = { signal };
+      this.guardPalms(signal);
       this.addEventListener('pointerdown', (event) => this.press(event), options);
       this.addEventListener('pointermove', (event) => this.drag(event), options);
       this.addEventListener('pointerup', (event) => this.release(event), options);
@@ -224,6 +231,48 @@
     disconnected() {
       cancelAnimationFrame(this.frame);
       cancelAnimationFrame(this.lineFrame);
+    },
+
+    /**
+     * Stops a resting palm's touches in the capture phase, before any card or
+     * panel inside the table hears them.
+     *
+     * @param {AbortSignal} signal
+     */
+    guardPalms(signal) {
+      const guard = createPalmGuard();
+      /** @type {Map<number, EventTarget>} where each touch went down */
+      const targets = new Map();
+      const capture = { signal, capture: true };
+
+      this.addEventListener('pointerdown', (event) => {
+        if (event.pointerType !== 'touch' || !event.isTrusted) return;
+        if (event.target) targets.set(event.pointerId, event.target);
+        const rejected = guard.down({ id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp });
+        for (const id of rejected) {
+          if (id === event.pointerId) continue;
+          // A touch of the palm that something already took: take it back.
+          targets.get(id)?.dispatchEvent(new PointerEvent('pointercancel', { pointerId: id, pointerType: 'touch', bubbles: true }));
+        }
+        if (rejected.includes(event.pointerId)) {
+          event.stopPropagation();
+          event.preventDefault();
+        }
+      }, capture);
+
+      /** @param {PointerEvent} event */
+      const follow = (event) => {
+        if (event.pointerType !== 'touch' || !event.isTrusted) return;
+        const palm = guard.isRejected(event.pointerId);
+        if (event.type !== 'pointermove') {
+          guard.up(event.pointerId);
+          targets.delete(event.pointerId);
+        }
+        if (palm) event.stopPropagation();
+      };
+      for (const type of ['pointermove', 'pointerup', 'pointercancel']) {
+        this.addEventListener(type, (event) => follow(/** @type {PointerEvent} */ (event)), capture);
+      }
     },
 
     /** @returns {HTMLElement} */

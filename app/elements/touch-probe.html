@@ -6,10 +6,15 @@
      the samples back as a JSON file.
 
      The children go in the slot: calibration targets and cards. Their pointer
-     events bubble here, so the rings show touches on them too. -->
+     events bubble here, so the rings show touches on them too.
+
+     The palm guard of the table (app/lib/palm.js) runs here too, but only to
+     show what it would do: a touch it would reject gets a dashed ring, and
+     the readout counts them. That is how its numbers get tuned on the panel. -->
 
 <script element>
   import { download, entriesOf } from '../lib/pointer-log.js';
+  import { createPalmGuard } from '../lib/palm.js';
 
   /** @typedef {import('../lib/pointer-log.js').LogEntry} LogEntry */
 
@@ -24,6 +29,7 @@
     windowSize: '',
     recording: false,
     saved: 0,
+    palms: 0,
   };
 
   // The spec says a pointer with no contact geometry reports 1 × 1.
@@ -40,10 +46,13 @@
     samples: 0,
     /** @type {Set<string>} every contact size seen, as "w × h" */
     sizes: new Set(),
+    /** @type {ReturnType<typeof createPalmGuard> | null} */
+    guard: null,
 
     connected({ signal }) {
       this.rings = new Map();
       this.sizes = new Set();
+      this.guard = createPalmGuard();
       this.entries = [];
       this.limit = navigator.maxTouchPoints;
       this.measureScreen();
@@ -75,6 +84,11 @@
       this.count();
       this.place(event);
       this.log(event);
+
+      if (event.pointerType !== 'touch') return;
+      const palm = this.guard?.down({ id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp }) ?? [];
+      for (const id of palm) this.rings?.get(id)?.setAttribute('data-palm', '');
+      if (palm.length) this.palms += palm.length;
     },
 
     /** @param {PointerEvent} event */
@@ -88,6 +102,7 @@
 
     /** @param {PointerEvent} event */
     up(event) {
+      this.guard?.up(event.pointerId);
       this.rings?.get(event.pointerId)?.remove();
       this.rings?.delete(event.pointerId);
       this.count();
@@ -176,6 +191,7 @@
 
     reset() {
       this.peak = this.active;
+      this.palms = 0;
       this.sizes = new Set();
       this.contact = 'No touch yet';
       this.kind = 'None yet';
@@ -255,6 +271,9 @@
     font-weight: 600;
     color: var(--accent);
   }
+  .probe__ring[data-palm] {
+    border-style: dashed;
+  }
   .probe__ring[data-size]:not([data-size=''])::after {
     content: attr(data-size);
     position: absolute;
@@ -278,6 +297,8 @@
     <dd>${kind}</dd>
     <dt>Contact size</dt>
     <dd>${contact}</dd>
+    <dt>Palm touches</dt>
+    <dd>${palms} rejected</dd>
     <dt>Input samples</dt>
     <dd>${rate} per second, all pointers</dd>
     <dt>Screen</dt>

@@ -16,6 +16,10 @@
      Escape in the field collapses it, and "/" anywhere expands it and puts the
      cursor in the field. The panel remembers its state in this browser.
 
+     A finger on the field opens the on-screen keyboard (touch-keys), because
+     the kiosk has no keyboard; a mouse or a real keyboard does not. Done or
+     Escape closes it.
+
      showReferences(address) lists the cross-references of one verse in place
      of search results, from the same `results` fragment. showWord(address)
      shows a word study: the word's Strong's entry and the verses that use it.
@@ -36,6 +40,7 @@
 
   export const state = {
     collapsed: false,
+    keys: false,
   };
 
   export const prototype = {
@@ -73,7 +78,16 @@
         }
       }, { signal });
       input.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') this.setCollapsed(true);
+        if (event.key === 'Escape') {
+          if (this.keys) this.keys = false;
+          else this.setCollapsed(true);
+        }
+      }, { signal });
+      input.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'touch') this.keys = true;
+      }, { signal });
+      this.addEventListener('keys-done', () => {
+        this.keys = false;
       }, { signal });
       document.addEventListener('keydown', (event) => {
         if (event.key !== '/' || event.target instanceof HTMLInputElement) return;
@@ -280,7 +294,9 @@
     border-bottom: 0;
   }
   :scope:state(collapsed) form > :not(.search__toggle),
-  :scope:state(collapsed) .search__results {
+  :scope:state(collapsed) .search__results,
+  :scope:state(collapsed) touch-keys,
+  :scope:not(:state(keys)) touch-keys {
     display: none;
   }
   .search__results {
@@ -300,7 +316,8 @@
     data-action="toggle"
     aria-expanded="${collapsed ? 'false' : 'true'}"
   >${collapsed ? 'Search' : 'Hide'}</button>
-  <input type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
+  <input id="search-field" type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
   <button type="submit">Search</button>
 </form>
+<touch-keys for="search-field"></touch-keys>
 <div class="search__results"></div>

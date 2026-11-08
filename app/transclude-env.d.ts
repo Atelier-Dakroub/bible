@@ -103,6 +103,12 @@ type LogEntry = {
   h: number;
   pressure: number;
 };
+type Contact = {
+  id: number;
+  x: number;
+  y: number;
+  t: number;
+};
 type Result = {
   address: string;
   title: string;
@@ -209,6 +215,7 @@ export type BibleTableMembers = {
     signal: any;
   }): void;
   disconnected(): void;
+  guardPalms(signal: AbortSignal): void;
   world(): HTMLElement;
   press(event: PointerEvent): void;
   drag(event: PointerEvent): void;
@@ -369,6 +376,7 @@ export type PassageSearchProps = {};
 /** Internal state of `<passage-search>`, from its <script element> block. */
 export type PassageSearchState = {
   collapsed: boolean;
+  keys: boolean;
 };
 
 /** Members of `<passage-search>`, from its `export const prototype`. */
@@ -428,6 +436,26 @@ export type TimeLineMembers = {
   tickFor(id: string): HTMLElement | null;
 };
 
+/** Properties of `<touch-keys>`, from its <script element> block. */
+export type TouchKeysProps = {
+  for: string;
+};
+
+/** Internal state of `<touch-keys>`, from its <script element> block. */
+export type TouchKeysState = {
+  shift: boolean;
+};
+
+/** Members of `<touch-keys>`, from its `export const prototype`. */
+export type TouchKeysMembers = {
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  press(event: PointerEvent): void;
+};
+
 /** Properties of `<touch-probe>`, from its <script element> block. */
 export type TouchProbeProps = {};
 
@@ -443,6 +471,7 @@ export type TouchProbeState = {
   windowSize: string;
   recording: boolean;
   saved: number;
+  palms: number;
 };
 
 /** Members of `<touch-probe>`, from its `export const prototype`. */
@@ -452,6 +481,11 @@ export type TouchProbeMembers = {
   startedAt: number;
   samples: number;
   sizes: Set<string>;
+  guard: {
+    down(contact: Contact): number[];
+    isRejected(id: number): boolean;
+    up(id: number): void;
+  } | null;
   connected({
     signal
   }: {
@@ -740,6 +774,7 @@ declare global {
     "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
     "svg-icon": HTMLElement;
     "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;
+    "touch-keys": HTMLElement & TouchKeysProps & TouchKeysState & TouchKeysMembers;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;
   }
 }
