@@ -765,6 +765,7 @@ export type TableMenuMembers = {
   }: {
     signal: any;
   }): void;
+  closeSheets(): void;
   act(event: MouseEvent): void;
   send(type: string, detail?: object | undefined): void;
   setHistory(canUndo: boolean, canRedo: boolean): void;

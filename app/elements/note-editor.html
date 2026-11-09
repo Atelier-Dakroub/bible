@@ -2,7 +2,9 @@
 
      edit(id, text) opens it on a note. Each change sends `note-text` (bubbling)
      with { id, text }, so the note card shows the words as they come. Done,
-     the keyboard's Done, or Escape closes it and sends `note-done` with { id }.
+     the keyboard's Done, Escape, or a tap outside it (and outside the note
+     being written) closes it and sends `note-done` with { id }. A resting
+     palm does not close it (see table-menu).
 
      A real keyboard types into the field as usual. -->
 
@@ -24,6 +26,16 @@
         if (event.key === 'Escape') this.close();
       }, { signal });
       this.addEventListener('keys-done', () => this.close(), { signal });
+      document.addEventListener('pointerdown', (event) => {
+        if (!this.open || !(event.target instanceof Element)) return;
+        if (this.contains(event.target)) return;
+        // A tap on the note being written goes on writing it.
+        const card = event.target.closest('gesture-card[data-kind="note"]');
+        if (card instanceof HTMLElement && card.dataset.note === this.note) return;
+        setTimeout(() => {
+          if (!event.defaultPrevented) this.close();
+        });
+      }, { signal, capture: true });
       this.addEventListener('click', (event) => {
         if (event.target instanceof Element && event.target.closest('[data-action="done"]')) this.close();
       }, { signal });

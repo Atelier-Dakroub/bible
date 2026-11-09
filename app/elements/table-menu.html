@@ -8,6 +8,11 @@
      The reading sheet: the reader's settings (reading-settings): theme,
      paper, text size, line spacing, and what the text shows.
 
+     A tap or a click outside the menu closes the open sheet, as Escape does.
+     A resting palm does not: the table's palm guard marks its touches (it
+     prevents their default), and the menu looks once the touch has gone
+     through the table.
+
      The marks sheet: rule marks (app/lib/rules.js), words marked on every
      card by what they are. It offers the words of Christ, the supplied words,
      the divine name and every person, place or group, and lists the rules
@@ -64,6 +69,19 @@
     rules: [],
 
     connected({ signal }) {
+      document.addEventListener('pointerdown', (event) => {
+        if (!this.open && !this.marks && !this.reading) return;
+        if (event.target instanceof Node && this.contains(event.target)) return;
+        // After the event has gone through: the palm guard runs later in the
+        // same dispatch, and a palm's touch arrives with its default
+        // prevented.
+        setTimeout(() => {
+          if (!event.defaultPrevented) this.closeSheets();
+        });
+      }, { signal, capture: true });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') this.closeSheets();
+      }, { signal });
       try {
         const pen = localStorage.getItem(PEN_KEY);
         if (pen) this.pen = pen;
@@ -114,6 +132,14 @@
         event.preventDefault();
         this.send(event.shiftKey ? 'table-redo' : 'table-undo');
       }, { signal });
+    },
+
+    /** Closes whichever sheet is open. */
+    closeSheets() {
+      this.open = false;
+      this.marks = false;
+      this.reading = false;
+      this.keys = false;
     },
 
     /** @param {MouseEvent} event */

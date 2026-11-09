@@ -246,7 +246,11 @@ new one, and the mark itself is not shown. A chapter opens with an initial in
 lapis. A highlight is a wash under the words.
 
 The Reading button in the table's menu opens the reader's settings
-(`reading-settings`), as `/design` does: Day, Night, or as
+(`reading-settings`), as `/design` does. They are tiles that show what they
+do: each theme and paper in its own colors, five letters for the text sizes,
+drawn lines for the spacing and the layout, and a sample of each thing the
+text shows. A tap outside a sheet of the menu, or outside the note editor,
+closes it (a resting palm does not), and so does Escape. The settings are: Day, Night, or as
 the computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
 and red letters, verse numbers, initials and paragraphs on or off. The

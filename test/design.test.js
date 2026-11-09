@@ -19,7 +19,21 @@ function tokens(selector, side) {
   assert.ok(at >= 0, `no rule for ${selector}`);
   const body = css.slice(at, css.indexOf('}', at));
   const pairs = [...body.matchAll(/--([\w-]+):\s*light-dark\((#[0-9a-f]{3,6}),\s*(#[0-9a-f]{3,6})\);/gi)];
-  return Object.fromEntries(pairs.map((m) => [m[1], m[2 + side]]));
+  const found = Object.fromEntries(pairs.map((m) => [m[1], m[2 + side]]));
+  // A token can name another: --paper: var(--paper-soft).
+  for (const m of body.matchAll(/--([\w-]+):\s*var\(--([\w-]+)\);/g)) found[m[1]] = `var:${m[2]}`;
+  return found;
+}
+
+/** Each token as a color, with its var() names followed. @param {Record<string, string>} palette */
+function resolved(palette) {
+  return Object.fromEntries(
+    Object.entries(palette).map(([key, value]) => {
+      let color = value;
+      while (color?.startsWith('var:')) color = palette[color.slice(4)];
+      return [key, color];
+    }),
+  );
 }
 
 const SOFT = ":root[data-paper='soft']";
@@ -28,9 +42,9 @@ const settings = Object.fromEntries(
   /** @type {[string, 0 | 1][]} */ ([['day', 0], ['night', 1]]).flatMap(([theme, side]) => {
     const bright = tokens(':root', side);
     return [
-      [`${theme}, bright`, bright],
-      [`${theme}, soft`, { ...bright, ...tokens(SOFT, side) }],
-      [`${theme}, lamp`, { ...bright, ...tokens(LAMP, side) }],
+      [`${theme}, bright`, resolved(bright)],
+      [`${theme}, soft`, resolved({ ...bright, ...tokens(SOFT, side) })],
+      [`${theme}, lamp`, resolved({ ...bright, ...tokens(LAMP, side) })],
     ];
   }),
 );

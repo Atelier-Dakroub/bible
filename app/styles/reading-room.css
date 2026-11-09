@@ -124,8 +124,12 @@
    the pigments made light; no pure black, so it is not cold. */
 :root {
   color-scheme: light;
+  /* The three papers, named, so the reading settings can show each one. */
+  --paper-bright: light-dark(#fcf9f2, #302a24);
+  --paper-soft: light-dark(#f2ecdf, #2a251f);
+  --paper-lamp: light-dark(#e6dcc8, #231f1a);
   --desk: light-dark(#e4ddcf, #1f1b17);
-  --paper: light-dark(#fcf9f2, #302a24);
+  --paper: var(--paper-bright);
   --ink: light-dark(#2a231d, #efe7d8);
   --ink-soft: light-dark(#574c42, #d2c8b6);
   --edge: light-dark(#b9ad97, #685f52);
@@ -158,7 +162,7 @@
 }
 :root[data-paper='soft'] {
   --desk: light-dark(#d8cfbe, #1b1814);
-  --paper: light-dark(#f2ecdf, #2a251f);
+  --paper: var(--paper-soft);
   --tint: light-dark(#e6dece, #352f28);
   --sea: light-dark(#d5dddc, #222b2a);
   --on-pigment: light-dark(#f2ecdf, #1b1814);
@@ -167,7 +171,7 @@
    it, so the text keeps its contrast. */
 :root[data-paper='lamp'] {
   --desk: light-dark(#c9bea8, #161411);
-  --paper: light-dark(#e6dcc8, #231f1a);
+  --paper: var(--paper-lamp);
   --ink: light-dark(#1c1713, #efe7d8);
   --ink-soft: light-dark(#43392f, #d2c8b6);
   --edge: light-dark(#a59880, #685f52);
