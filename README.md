@@ -237,7 +237,8 @@ makes network requests to query.wikidata.org.
 `/design` shows the next design system with real content: cards, panels, a
 map, the timeline and a word study. `app/styles/reading-room.css` holds it,
 scoped to `.rr` until each part of the table moves over. The settings at the
-top of the page are the reader's own (`reading-settings`): Day or Night,
+top of the page are the reader's own (`reading-settings`): Day, Night, or as
+the computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
 three text typefaces and two interface typefaces, and red letters, verse
 numbers, initials and paragraphs on or off. The browser keeps them.

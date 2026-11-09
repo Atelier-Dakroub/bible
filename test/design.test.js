@@ -7,24 +7,33 @@ import { contrast } from '../app/lib/apca.js';
 // checks what the page shows.
 const css = readFileSync(new URL('../app/styles/reading-room.css', import.meta.url), 'utf8');
 
-/** @param {string} selector */
-function tokens(selector) {
+/**
+ * The colors a rule sets, for day or for night: each token is
+ * light-dark(day, night).
+ *
+ * @param {string} selector
+ * @param {0 | 1} side 0 for day, 1 for night
+ */
+function tokens(selector, side) {
   const at = css.indexOf(`${selector} {`);
   assert.ok(at >= 0, `no rule for ${selector}`);
   const body = css.slice(at, css.indexOf('}', at));
-  return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*(#[0-9a-f]{3,6});/gi)].map((m) => [m[1], m[2]]));
+  const pairs = [...body.matchAll(/--([\w-]+):\s*light-dark\((#[0-9a-f]{3,6}),\s*(#[0-9a-f]{3,6})\);/gi)];
+  return Object.fromEntries(pairs.map((m) => [m[1], m[2 + side]]));
 }
 
-const day = tokens('.rr');
-const night = { ...day, ...tokens(":root[data-theme='night'] .rr") };
-const settings = {
-  'day, bright': day,
-  'day, soft': { ...day, ...tokens(":root[data-paper='soft'] .rr") },
-  'day, lamp': { ...day, ...tokens(":root[data-paper='lamp'] .rr") },
-  'night, bright': night,
-  'night, soft': { ...night, ...tokens(":root[data-theme='night'][data-paper='soft'] .rr") },
-  'night, lamp': { ...night, ...tokens(":root[data-theme='night'][data-paper='lamp'] .rr") },
-};
+const SOFT = ":root[data-paper='soft'] .rr";
+const LAMP = ":root[data-paper='lamp'] .rr";
+const settings = Object.fromEntries(
+  /** @type {[string, 0 | 1][]} */ ([['day', 0], ['night', 1]]).flatMap(([theme, side]) => {
+    const bright = tokens('.rr', side);
+    return [
+      [`${theme}, bright`, bright],
+      [`${theme}, soft`, { ...bright, ...tokens(SOFT, side) }],
+      [`${theme}, lamp`, { ...bright, ...tokens(LAMP, side) }],
+    ];
+  }),
+);
 
 // What each token is, and the APCA contrast it needs on the paper.
 const NEEDS = {

@@ -25,12 +25,33 @@
       document.addEventListener('reading-change', () => this.paint(), { signal });
     },
 
+    /**
+     * A token as the color it is now. A token holds light-dark(), which only
+     * a color property resolves, so a hidden probe takes the color and the
+     * browser gives it back as rgb().
+     *
+     * @param {HTMLElement} probe
+     * @param {string} token
+     */
+    resolve(probe, token) {
+      probe.style.color = `var(${token})`;
+      return getComputedStyle(probe).color;
+    },
+
+    /** @param {string} rgb such as rgb(42, 35, 29) */
+    hex(rgb) {
+      const parts = (rgb.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      return `#${parts.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')}`;
+    },
+
     paint() {
-      const style = getComputedStyle(this);
-      const paper = style.getPropertyValue('--paper').trim();
+      const probe = document.createElement('span');
+      probe.hidden = true;
+      this.append(probe);
+      const paper = this.resolve(probe, '--paper');
       this.replaceChildren(
         ...TOKENS.map(({ token, name, use, needs }) => {
-          const color = style.getPropertyValue(token).trim();
+          const color = this.resolve(probe, token);
           const lc = Math.round(Math.abs(contrast(color, paper)));
           const swatch = document.createElement('div');
           swatch.className = 'swatch';
@@ -44,7 +65,7 @@
           what.textContent = use;
           const value = document.createElement('div');
           value.className = 'swatch__lc';
-          value.textContent = `${color} · Lc ${lc}${lc >= needs ? '' : ` (needs ${needs})`}`;
+          value.textContent = `${this.hex(color)} · Lc ${lc}${lc >= needs ? '' : ` (needs ${needs})`}`;
           swatch.append(chip, title, what, value);
           return swatch;
         }),

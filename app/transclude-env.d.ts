@@ -542,6 +542,8 @@ export type ContrastChartMembers = {
   }: {
     signal: any;
   }): void;
+  resolve(probe: HTMLElement, token: string): string;
+  hex(rgb: string): string;
   paint(): void;
 };
 

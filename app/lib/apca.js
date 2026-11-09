@@ -13,11 +13,23 @@
 const TRC = 2.4;
 const [R, G, B] = [0.2126729, 0.7151522, 0.072175];
 
-/** @param {string} hex such as #a1271b */
-function luminance(hex) {
-  const value = hex.replace('#', '');
+/**
+ * The red, green and blue of a color, each 0 to 1.
+ *
+ * @param {string} color #a1271b, #abc, or rgb(161, 39, 27) as a browser
+ *   gives a computed color
+ */
+function channels(color) {
+  const rgb = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(color);
+  if (rgb) return [rgb[1], rgb[2], rgb[3]].map((n) => Number(n) / 255);
+  const value = color.trim().replace('#', '');
   const full = value.length === 3 ? [...value].map((c) => c + c).join('') : value;
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255);
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255);
+}
+
+/** @param {string} color */
+function luminance(color) {
+  const [r, g, b] = channels(color);
   const y = R * r ** TRC + G * g ** TRC + B * b ** TRC;
   return y > 0.022 ? y : y + (0.022 - y) ** 1.414;
 }
@@ -25,8 +37,8 @@ function luminance(hex) {
 /**
  * The APCA lightness contrast of text on a background.
  *
- * @param {string} text a hex color
- * @param {string} background a hex color
+ * @param {string} text a color, as hex or rgb()
+ * @param {string} background a color, as hex or rgb()
  */
 export function contrast(text, background) {
   const t = luminance(text);

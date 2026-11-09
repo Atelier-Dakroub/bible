@@ -273,7 +273,7 @@
     padding: 0.5rem 0.6rem;
     border-radius: var(--radius-small);
     background: var(--paper);
-    box-shadow: 0 1px 3px rgb(var(--shadow) / 0.12);
+    box-shadow: 0 1px 3px var(--shade-near);
     font: 0.55rem/1.4 var(--sans);
   }
   .swatch__chip {
@@ -331,6 +331,20 @@
 </style>
 
 <main class="rr design">
+  <!-- The reader's settings, applied before the page paints, so it does not
+       show the default first (reading-settings applies them again). -->
+  <script>
+    try {
+      const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
+      const keys = ['theme', 'paper', 'size', 'leading', 'serif', 'sans', 'red', 'numbers', 'initials', 'layout'];
+      for (const key of keys) {
+        const value = settings[key];
+        if (typeof value === 'string' && /^[a-z0-9-]{1,20}$/.test(value)) document.documentElement.dataset[key] = value;
+      }
+    } catch {
+      // No storage: the defaults hold.
+    }
+  </script>
   <header class="design__head">
     <p class="rr-kicker">Design system</p>
     <h1>The reading room</h1>

@@ -12,7 +12,7 @@
    its look until each part moves over.
 
    The reader sets these on <html> (reading-settings):
-     data-theme     day (the default) or night
+     data-theme     day (the default), night, or system: as the computer is
      data-paper     bright (the default), soft or lamp: how bright the paper
                     is, for a dim room
      data-size      1 to 5, the size of the Bible text (3 is the default)
@@ -206,28 +206,46 @@
 
 /* ---- Tokens ----------------------------------------------------------- */
 
-/* Day, bright paper: the default. */
-.rr {
+/* Each color is light-dark(day, night), so one rule serves both themes, and
+   the theme is only the color scheme: Day is light, Night is dark, and System
+   follows the computer, which can turn dark at evening. Day is the default. */
+:root:has(.rr) {
   color-scheme: light;
-  --desk: #e4ddcf;
-  --paper: #fcf9f2;
-  --ink: #2a231d;
-  --ink-soft: #574c42;
-  --edge: #b9ad97;
-  --rubric: #931f14;
-  --lapis: #1d4580;
-  --verdigris: #1f5a4a;
-  --ochre: #724a0c;
-  --purple: #5d356b;
-  --slate: #3f4b58;
+}
+:root[data-theme='night']:has(.rr) {
+  color-scheme: dark;
+}
+:root[data-theme='system']:has(.rr) {
+  color-scheme: light dark;
+}
+
+/* Bright paper: the default. Night is walnut and warm charcoal, ivory text,
+   the pigments made light; no pure black, so it is not cold. */
+.rr {
+  --desk: light-dark(#e4ddcf, #1f1b17);
+  --paper: light-dark(#fcf9f2, #302a24);
+  --ink: light-dark(#2a231d, #efe7d8);
+  --ink-soft: light-dark(#574c42, #d2c8b6);
+  --edge: light-dark(#b9ad97, #685f52);
+  --rubric: light-dark(#931f14, #ffc6ba);
+  --lapis: light-dark(#1d4580, #b9cff3);
+  --verdigris: light-dark(#1f5a4a, #a6dcc8);
+  --ochre: light-dark(#724a0c, #f0c986);
+  --purple: light-dark(#5d356b, #dfc0ea);
+  --slate: light-dark(#3f4b58, #c3cfdc);
   /* Fills: a quiet ground for a chip or a pressed button, the sea on a map,
      and the wash of a highlight. Text on them is ink, checked too. */
-  --tint: #efe8da;
-  --sea: #dfe6e6;
-  --wash: #f4e2a8;
-  /* Text on a pigment, such as a tab. */
-  --on-pigment: #fcf9f2;
-  --shadow: 42 35 29;
+  --tint: light-dark(#efe8da, #3b342c);
+  --sea: light-dark(#dfe6e6, #26302f);
+  --wash: light-dark(#f4e2a8, #5b4a22);
+  /* Text on a pigment, such as a pressed button. */
+  --on-pigment: light-dark(#fcf9f2, #1f1b17);
+  /* Shadows: warm and soft by day; deeper at night, where a card also has
+     a full edge, since a shadow shows less on a dark desk. */
+  --shade-near: light-dark(rgb(42 35 29 / 0.12), rgb(0 0 0 / 0.4));
+  --shade-far: light-dark(rgb(42 35 29 / 0.1), rgb(0 0 0 / 0.35));
+  --shade-held: light-dark(rgb(42 35 29 / 0.2), rgb(0 0 0 / 0.5));
+  --card-edge: light-dark(rgb(185 173 151 / 0.55), #685f52);
 
   --serif: 'Literata', Georgia, serif;
   --sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
@@ -237,66 +255,30 @@
   --radius-small: 4px;
 }
 :root[data-paper='soft'] .rr {
-  --desk: #d8cfbe;
-  --paper: #f2ecdf;
-  --tint: #e6dece;
-  --sea: #d5dddc;
-  --on-pigment: #f2ecdf;
+  --desk: light-dark(#d8cfbe, #1b1814);
+  --paper: light-dark(#f2ecdf, #2a251f);
+  --tint: light-dark(#e6dece, #352f28);
+  --sea: light-dark(#d5dddc, #222b2a);
+  --on-pigment: light-dark(#f2ecdf, #1b1814);
 }
-/* Lamp: paper that is dim, for a dark room. The inks go darker with it, so
-   the text keeps its contrast. */
+/* Lamp: paper that is dim, for a dark room. By day the inks go darker with
+   it, so the text keeps its contrast. */
 :root[data-paper='lamp'] .rr {
-  --desk: #c9bea8;
-  --paper: #e6dcc8;
-  --ink: #1c1713;
-  --ink-soft: #43392f;
-  --edge: #a59880;
-  --rubric: #70130b;
-  --lapis: #163a6e;
-  --verdigris: #134236;
-  --ochre: #563606;
-  --purple: #4c2a58;
-  --slate: #323c47;
-  --tint: #dbd0ba;
-  --sea: #cbd2cf;
-  --wash: #e3cf8f;
-  --on-pigment: #e6dcc8;
-}
-
-/* Night: walnut and warm charcoal, ivory text, the pigments made light. No
-   pure black, so it is not cold. */
-:root[data-theme='night'] .rr {
-  color-scheme: dark;
-  --desk: #1f1b17;
-  --paper: #302a24;
-  --ink: #efe7d8;
-  --ink-soft: #d2c8b6;
-  --edge: #685f52;
-  --rubric: #ffc6ba;
-  --lapis: #b9cff3;
-  --verdigris: #a6dcc8;
-  --ochre: #f0c986;
-  --purple: #dfc0ea;
-  --slate: #c3cfdc;
-  --tint: #3b342c;
-  --sea: #26302f;
-  --wash: #5b4a22;
-  --on-pigment: #1f1b17;
-  --shadow: 0 0 0;
-}
-:root[data-theme='night'][data-paper='soft'] .rr {
-  --desk: #1b1814;
-  --paper: #2a251f;
-  --tint: #352f28;
-  --sea: #222b2a;
-  --on-pigment: #1b1814;
-}
-:root[data-theme='night'][data-paper='lamp'] .rr {
-  --desk: #161411;
-  --paper: #231f1a;
-  --tint: #2e2923;
-  --sea: #1c2423;
-  --on-pigment: #161411;
+  --desk: light-dark(#c9bea8, #161411);
+  --paper: light-dark(#e6dcc8, #231f1a);
+  --ink: light-dark(#1c1713, #efe7d8);
+  --ink-soft: light-dark(#43392f, #d2c8b6);
+  --edge: light-dark(#a59880, #685f52);
+  --rubric: light-dark(#70130b, #ffc6ba);
+  --lapis: light-dark(#163a6e, #b9cff3);
+  --verdigris: light-dark(#134236, #a6dcc8);
+  --ochre: light-dark(#563606, #f0c986);
+  --purple: light-dark(#4c2a58, #dfc0ea);
+  --slate: light-dark(#323c47, #c3cfdc);
+  --tint: light-dark(#dbd0ba, #2e2923);
+  --sea: light-dark(#cbd2cf, #1c2423);
+  --wash: light-dark(#e3cf8f, #5b4a22);
+  --on-pigment: light-dark(#e6dcc8, #161411);
 }
 
 :root[data-size='1'] .rr { --read-scale: 0.875; }
@@ -316,6 +298,9 @@
   background: var(--desk);
   color: var(--ink);
   font: 0.75rem/1.5 var(--sans);
+  /* While a font loads, or if it fails, the fallback is set to the same
+     x-height, so the text does not jump when the font arrives. */
+  font-size-adjust: from-font;
   -webkit-font-smoothing: antialiased;
 }
 .rr :focus-visible {
@@ -412,25 +397,18 @@
 .rr-card {
   --kind: var(--lapis);
   position: relative;
-  border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+  border: 1px solid var(--card-edge);
   border-top: 0.3rem solid var(--kind);
   border-radius: var(--radius);
   background: var(--paper);
   box-shadow:
-    0 1px 2px rgb(var(--shadow) / 0.12),
-    0 6px 18px rgb(var(--shadow) / 0.1);
-}
-:root[data-theme='night'] .rr-card {
-  border-color: var(--edge);
-  border-top-color: var(--kind);
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.4),
-    0 8px 24px rgb(0 0 0 / 0.35);
+    0 1px 2px var(--shade-near),
+    0 6px 18px var(--shade-far);
 }
 .rr-card.is-held {
   box-shadow:
-    0 2px 4px rgb(var(--shadow) / 0.14),
-    0 18px 40px rgb(var(--shadow) / 0.2);
+    0 2px 4px var(--shade-near),
+    0 18px 40px var(--shade-held);
 }
 .rr-card--person { --kind: var(--ochre); }
 .rr-card--place { --kind: var(--verdigris); }
@@ -754,7 +732,7 @@
   border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
   border-radius: var(--radius);
   background: var(--paper);
-  box-shadow: 0 2px 10px rgb(var(--shadow) / 0.1);
+  box-shadow: 0 2px 10px var(--shade-far);
 }
 .rr-toolbar {
   display: flex;

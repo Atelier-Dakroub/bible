@@ -1,7 +1,12 @@
 <!-- The reader's settings: theme, paper, text size, line spacing, typefaces,
      and what the text shows. Each is an attribute on <html> that the
      stylesheet reads (styles/reading-room.css), and the browser keeps them
-     for the next visit.
+     for the next visit. A page that uses them also applies them in a small
+     inline script before it paints (see routes/design.html), so the page
+     does not flash the default first; this element applies them again.
+
+     Theme: Day, Night, or As the computer, which follows the computer's own
+     light or dark setting and changes with it.
 
      It sends `reading-change` (bubbling) after each change, with the
      settings as detail, so a view that measures text can measure again. -->
@@ -13,7 +18,7 @@
   // <html>, so the stylesheet's plain rules are the default look.
   /** @type {Record<string, string[]>} */
   const SETTINGS = {
-    theme: ['day', 'night'],
+    theme: ['day', 'night', 'system'],
     paper: ['bright', 'soft', 'lamp'],
     size: ['3', '1', '2', '4', '5'],
     leading: ['normal', 'compact', 'loose'],
@@ -50,6 +55,19 @@
       apply(load());
       this.paint();
       this.addEventListener('click', (event) => this.act(event), { signal });
+      // A change in another tab or window is a change here too.
+      addEventListener('storage', (event) => {
+        if (event.key !== KEY) return;
+        apply(load());
+        this.paint();
+        this.dispatchEvent(new CustomEvent('reading-change', { bubbles: true, detail: this.current() }));
+      }, { signal });
+      // As the computer: the page follows by itself (CSS), but the colors
+      // that are measured, such as the contrast chart's, need to hear it.
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (document.documentElement.dataset.theme !== 'system') return;
+        this.dispatchEvent(new CustomEvent('reading-change', { bubbles: true, detail: this.current() }));
+      }, { signal });
     },
 
     /** The settings now, each with its value or its default. */
@@ -148,6 +166,7 @@
   <div class="rr-segments" role="group" aria-label="Theme">
     <button type="button" data-set="theme" data-value="day">Day</button>
     <button type="button" data-set="theme" data-value="night">Night</button>
+    <button type="button" data-set="theme" data-value="system">As the computer</button>
   </div>
 </div>
 
