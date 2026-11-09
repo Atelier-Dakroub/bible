@@ -232,12 +232,21 @@ It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
 
-## The reading room (the design system to come)
+## The reading room (the design system)
 
-`/design` shows the next design system with real content: cards, panels, a
-map, the timeline and a word study. `app/styles/reading-room.css` holds it,
-scoped to `.rr` until each part of the table moves over. The settings at the
-top of the page are the reader's own (`reading-settings`): Day, Night, or as
+Every page is in the reading room: warm paper cards on a linen desk,
+Literata for the text, Atkinson Hyperlegible Next for the interface, and a
+colored tab on each card for its kind. `app/styles/reading-room.css` holds
+its tokens, on `:root`; the older names the table's parts use (`--text`,
+`--muted`, `--line`) point to them (`app/styles/global.css`). `/design` shows
+the whole system with real content, and its settings beside the page.
+
+The KJV runs in paragraphs: a verse that starts with the KJV's ¶ starts a
+new one, and the mark itself is not shown. A chapter opens with an initial in
+lapis. A highlight is a wash under the words.
+
+The Reading button in the table's menu opens the reader's settings
+(`reading-settings`), as `/design` does: Day, Night, or as
 the computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
 and red letters, verse numbers, initials and paragraphs on or off. The

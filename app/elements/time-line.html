@@ -110,8 +110,10 @@
     bottom: 1rem;
     z-index: 1000000;
     display: block;
-    border: 1px solid var(--line);
-    background: var(--surface);
+    border: 1px solid var(--card-edge);
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: 0 2px 12px var(--shade-far);
   }
   :scope:state(collapsed) {
     right: auto;
@@ -139,10 +141,6 @@
   :scope:not(:state(world)) .timeline__world {
     display: none;
   }
-  .timeline__world-toggle[aria-pressed='true'] {
-    background: var(--text);
-    color: var(--table);
-  }
   /* The world lanes share the events' axis: the padding puts their left edge
      where the axis starts, and the region names sit in that padding. The
      small kingdoms of the Levant alone need eight lanes, so the band has a
@@ -158,7 +156,7 @@
   .world__region {
     position: relative;
     padding: 0.15rem 0;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid color-mix(in srgb, var(--edge) 50%, transparent);
   }
   .world__name {
     position: absolute;
@@ -181,17 +179,23 @@
     height: 0.9rem;
     padding: 0 0.2rem;
     overflow: hidden;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--text);
-    font: 0.6rem/0.8rem system-ui, sans-serif;
+    border: 0;
+    border-radius: 3px;
+    /* A thin paper edge on the right parts two spans that touch. */
+    box-shadow: inset -1px 0 0 var(--paper);
+    background: color-mix(in srgb, var(--purple) 14%, var(--paper));
+    color: var(--ink);
+    font: 0.6rem/0.9rem var(--sans);
     text-align: start;
     white-space: nowrap;
     cursor: pointer;
   }
+  .world__span:hover {
+    background: color-mix(in srgb, var(--purple) 24%, var(--paper));
+  }
   .world__span.is-shown {
-    background: var(--text);
-    color: var(--table);
+    background: var(--lapis);
+    color: var(--on-pigment);
   }
   .timeline__axis {
     position: relative;
@@ -212,8 +216,8 @@
     bottom: 0;
     left: calc(var(--at) * 100%);
     padding-left: 0.3rem;
-    border-left: 1px solid var(--line);
-    color: var(--muted);
+    border-left: 1px solid var(--edge);
+    color: var(--ink-soft);
     font-size: 0.7rem;
     line-height: 1.3;
     white-space: nowrap;
@@ -241,12 +245,12 @@
     bottom: 0;
     width: 2px;
     height: 0.8rem;
-    background: var(--muted);
+    background: var(--purple);
   }
   .timeline__tick.is-on-table::before,
   .timeline__tick.is-shown::before {
     height: 1.8rem;
-    background: var(--text);
+    background: var(--lapis);
   }
 </style>
 

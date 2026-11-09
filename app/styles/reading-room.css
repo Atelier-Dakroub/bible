@@ -8,9 +8,9 @@
      the museum    cards and panels: a colored tab for each kind, object
                    labels, "See also" (the card catalogue, signage, Encarta)
 
-   It applies inside .rr, a whole page (/design), and inside .rr-scope, a
-   part of a page that is not yet in it, such as the map card on the black
-   table. The table moves over one part at a time.
+   Its tokens are on :root, so every page is in it. The old names that the
+   parts of the table use (--text, --muted, --line and the rest) point to
+   these tokens (styles/global.css).
 
    The reader sets these on <html> (reading-settings):
      data-theme     day (the default), night, or system: as the computer is
@@ -113,30 +113,17 @@
 /* Each color is light-dark(day, night), so one rule serves both themes, and
    the theme is only the color scheme: Day is light, Night is dark, and System
    follows the computer, which can turn dark at evening. Day is the default. */
-:root:has(.rr) {
-  color-scheme: light;
-}
-:root[data-theme='night']:has(.rr) {
+:root[data-theme='night'] {
   color-scheme: dark;
 }
-:root[data-theme='system']:has(.rr) {
-  color-scheme: light dark;
-}
-/* A part of a page that is not yet in the reading room, such as the map
-   card on the black table, takes the scheme on itself. */
-.rr-scope {
-  color-scheme: light;
-}
-:root[data-theme='night'] .rr-scope {
-  color-scheme: dark;
-}
-:root[data-theme='system'] .rr-scope {
+:root[data-theme='system'] {
   color-scheme: light dark;
 }
 
 /* Bright paper: the default. Night is walnut and warm charcoal, ivory text,
    the pigments made light; no pure black, so it is not cold. */
-:is(.rr, .rr-scope) {
+:root {
+  color-scheme: light;
   --desk: light-dark(#e4ddcf, #1f1b17);
   --paper: light-dark(#fcf9f2, #302a24);
   --ink: light-dark(#2a231d, #efe7d8);
@@ -169,7 +156,7 @@
   --radius: 6px;
   --radius-small: 4px;
 }
-:root[data-paper='soft'] :is(.rr, .rr-scope) {
+:root[data-paper='soft'] {
   --desk: light-dark(#d8cfbe, #1b1814);
   --paper: light-dark(#f2ecdf, #2a251f);
   --tint: light-dark(#e6dece, #352f28);
@@ -178,7 +165,7 @@
 }
 /* Lamp: paper that is dim, for a dark room. By day the inks go darker with
    it, so the text keeps its contrast. */
-:root[data-paper='lamp'] :is(.rr, .rr-scope) {
+:root[data-paper='lamp'] {
   --desk: light-dark(#c9bea8, #161411);
   --paper: light-dark(#e6dcc8, #231f1a);
   --ink: light-dark(#1c1713, #efe7d8);
@@ -196,12 +183,12 @@
   --on-pigment: light-dark(#e6dcc8, #161411);
 }
 
-:root[data-size='1'] :is(.rr, .rr-scope) { --read-scale: 0.875; }
-:root[data-size='2'] :is(.rr, .rr-scope) { --read-scale: 1; }
-:root[data-size='4'] :is(.rr, .rr-scope) { --read-scale: 1.25; }
-:root[data-size='5'] :is(.rr, .rr-scope) { --read-scale: 1.4; }
-:root[data-leading='compact'] :is(.rr, .rr-scope) { --leading: 1.45; }
-:root[data-leading='loose'] :is(.rr, .rr-scope) { --leading: 1.8; }
+:root[data-size='1'] { --read-scale: 0.875; }
+:root[data-size='2'] { --read-scale: 1; }
+:root[data-size='4'] { --read-scale: 1.25; }
+:root[data-size='5'] { --read-scale: 1.4; }
+:root[data-leading='compact'] { --leading: 1.45; }
+:root[data-leading='loose'] { --leading: 1.8; }
 
 /* ---- Base ------------------------------------------------------------- */
 
@@ -221,40 +208,48 @@
   font-size-adjust: from-font;
   -webkit-font-smoothing: antialiased;
 }
-:is(.rr, .rr-scope) :focus-visible {
+:focus-visible {
   outline: 2px solid var(--lapis);
   outline-offset: 2px;
 }
-:is(.rr, .rr-scope) a {
+a {
   color: var(--lapis);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
 }
 
 /* Buttons are quiet: a thin edge, a text label, and a pressed state in
-   lapis. */
-:is(.rr, .rr-scope) button {
-  min-height: 2rem;
-  padding: 0 0.7rem;
+   lapis. The look is global; the size belongs to each part, and to .rr (the
+   /design page). */
+button {
   border: 1px solid var(--edge);
   border-radius: var(--radius-small);
   background: var(--paper);
   color: var(--ink);
-  font: 500 0.7rem/1 var(--sans);
+  font-family: var(--sans);
+  font-weight: 500;
   cursor: pointer;
 }
-:is(.rr, .rr-scope) button:hover {
+.rr button {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+button:hover {
   background: var(--tint);
 }
-:is(.rr, .rr-scope) button[aria-pressed='true'] {
+button[aria-pressed='true'] {
   border-color: var(--lapis);
   background: var(--lapis);
   color: var(--on-pigment);
 }
-:is(.rr, .rr-scope) button:disabled {
-  color: var(--ink-soft);
-  opacity: 0.6;
+button:disabled {
+  color: color-mix(in srgb, var(--ink-soft) 55%, var(--paper));
   cursor: default;
+}
+button:disabled:hover {
+  background: var(--paper);
 }
 /* Buttons that are one choice: joined into one bar. */
 .rr-segments {
@@ -273,8 +268,8 @@
   border-radius: 0 var(--radius-small) var(--radius-small) 0;
 }
 
-:is(.rr, .rr-scope) input[type='search'],
-:is(.rr, .rr-scope) input[type='text'] {
+input[type='search'],
+input[type='text'] {
   min-height: 2rem;
   padding: 0 0.6rem;
   border: 1px solid var(--edge);
@@ -559,7 +554,7 @@
    the hill shade, gray with 50% as flat ground, laid on with soft light so
    it darkens the slopes away from the light and lightens those toward it,
    on light paper and on dark. */
-:is(.rr, .rr-scope) {
+:root {
   --relief-ink: light-dark(#8a6a3a, #c9a77a);
 }
 .rr-defs {

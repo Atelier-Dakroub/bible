@@ -14,10 +14,11 @@
      removes the span and paints every card again.
 
      Lines (app/lib/links.js), drawn in one SVG layer over the resting cards:
-       solid white   a link the reader drew between two spans
-       dashed gray   the same highlighted words, shown on more than one card
-       dotted gray   a cross-reference (OpenBible.info) from a verse on one
+       solid ink     a link the reader drew between two spans
+       dashed        the same highlighted words, shown on more than one card
+       dotted        a cross-reference (OpenBible.info) from a verse on one
                      card to a verse on another
+     (the colors of every kind of line are in the style below)
 
      A tap on a word studies it in the search panel: its Strong's entry and
      the verses that use the same original word. A tap on a word with no
@@ -430,6 +431,9 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
+      // A new text size or line spacing changes the size of the cards, so the
+      // lines between them move.
+      this.addEventListener('reading-change', () => this.drawSoon(), options);
       this.addEventListener('toggle-map', () => this.toggleCard(MAP), options);
       this.addEventListener('toggle-books', () => this.toggleCard(BOOKS), options);
       this.addEventListener('show-on-map', (event) => this.showOnMap(/** @type {CustomEvent} */ (event).detail.ids), options);
@@ -1872,7 +1876,7 @@
     user-select: none;
     -webkit-user-select: none;
     overscroll-behavior: none;
-    background: var(--table);
+    background: var(--desk);
     cursor: grab;
   }
   :scope.is-panning {
@@ -1907,18 +1911,25 @@
     pointer-events: none;
     overflow: visible;
   }
+  /* The lines between things on the table:
+       link    a link the reader drew: ink, solid
+       same    the same words on two cards: soft ink, dashed
+       place   a card to a place on the map: verdigris, dashed
+       time    a card to its event on the timeline: purple
+       ref     a cross-reference: soft ink, dotted
+       guide   a snap guide: lapis, dotted */
   .table__lines line {
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
   }
   .table__lines .link {
-    stroke: var(--text);
+    stroke: var(--ink);
   }
   .table__arrow {
-    fill: var(--text);
+    fill: var(--ink);
   }
-  /* A link's label: a small box at the middle of its line, at the same level
-     as the lines. A plain link says "link" in gray; a typed one in white. */
+  /* A link's label: a small chip at the middle of its line, at the same level
+     as the lines. A plain link says "link" softly; a typed one in lapis. */
   .table__labels {
     position: absolute;
     inset: 0;
@@ -1931,20 +1942,21 @@
     left: 0;
     min-width: 2.75rem;
     min-height: 2.2rem;
-    padding: 0 0.5rem;
-    border: 1px solid var(--line);
-    background: var(--table);
-    color: var(--muted);
-    font: 0.7rem system-ui, sans-serif;
+    padding: 0 0.6rem;
+    border: 1px solid var(--edge);
+    border-radius: 1.1rem;
+    background: var(--paper);
+    color: var(--ink-soft);
+    font: 500 0.6rem var(--sans);
     pointer-events: auto;
     cursor: pointer;
   }
   .table__label.is-typed {
-    border-color: var(--text);
-    color: var(--text);
+    border-color: var(--lapis);
+    color: var(--lapis);
   }
   .table__lines .same {
-    stroke: var(--muted);
+    stroke: var(--ink-soft);
     stroke-dasharray: 6 6;
   }
   .table__perf {
@@ -1953,28 +1965,29 @@
     left: 50%;
     z-index: 3000000;
     padding: 0.25rem 0.5rem;
-    border: 1px solid var(--line);
-    background: var(--table);
-    color: var(--text);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-small);
+    background: var(--paper);
+    color: var(--ink);
     font: 0.75rem ui-monospace, monospace;
     pointer-events: none;
   }
   .table__lines .place {
-    stroke: var(--line);
+    stroke: var(--verdigris);
     stroke-width: 1;
     stroke-dasharray: 3 3;
   }
   .table__lines .time {
-    stroke: var(--line);
+    stroke: color-mix(in srgb, var(--purple) 70%, transparent);
     stroke-width: 1;
   }
   .table__lines .guide {
-    stroke: var(--text);
+    stroke: var(--lapis);
     stroke-width: 1;
     stroke-dasharray: 2 4;
   }
   .table__lines .ref {
-    stroke: var(--muted);
+    stroke: var(--ink-soft);
     stroke-dasharray: 1 6;
     stroke-linecap: round;
   }

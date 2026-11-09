@@ -177,7 +177,7 @@
     </div>
     <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA). Modern shores: ancient ones differed in places.</p>
   </article>
-  <article else class="passage passage--${kind === 'passage' ? version : kind}">
+  <article else class="passage passage--${kind === 'passage' ? version : kind} ${entity ? 'kind--' + entity.kind : ''}">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
       <div if="kind === 'passage'" class="passage__versions" role="group" aria-label="Translation">
@@ -243,11 +243,11 @@
     </div>
     <!-- A phrase: only the words of the span, which keep their addresses. -->
     <div if="kind === 'phrase'" class="passage__text">
-      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
     </div>
     <!-- The KJV alone: its words have addresses, so highlights and links show. -->
     <div if="kind === 'passage' && version === 'kjv'" class="passage__text">
-      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
     </div>
     <!-- The BSB alone: plain text, with no word addresses. -->
     <div if="kind === 'passage' && version === 'bsb'" class="passage__text">

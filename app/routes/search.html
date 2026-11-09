@@ -43,9 +43,12 @@
           <dd><button each="item of relation.items" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
         </template>
       </dl>
-      <button if="entity && entity.mapped" type="button" class="results__switch" data-show-map="${entity ? entity.id : ''}">Show on the map</button>
-      <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
-      <button if="landscape" type="button" class="results__switch result--pull" data-address="${landscape}">Where, chapter by chapter</button>
+      <!-- The actions on the entry, side by side, as many to a row as fit. -->
+      <div class="results__actions">
+        <button if="entity && entity.mapped" type="button" class="results__switch" data-show-map="${entity ? entity.id : ''}">Show on the map</button>
+        <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
+        <button if="landscape" type="button" class="results__switch result--pull" data-address="${landscape}">Where, chapter by chapter</button>
+      </div>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </section>
     <section if="dictionary" class="entity" aria-label="${dictionary ? dictionary.term : ''}">
@@ -76,8 +79,10 @@
         <text x="660" y="86" class="stats__axis" text-anchor="end">Revelation</text>
       </svg>
       <p class="stats__most">${stats ? stats.most : ''}</p>
-      <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
-      <button if="stats" type="button" class="results__switch result--pull" data-address="${stats ? stats.landscape : ''}">Where, chapter by chapter</button>
+      <div class="results__actions">
+        <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
+        <button if="stats" type="button" class="results__switch result--pull" data-address="${stats ? stats.landscape : ''}">Where, chapter by chapter</button>
+      </div>
     </section>
     <!-- The passage guide. The notes on the passage are in the browser: the
          panel fills in .guide__notes. -->

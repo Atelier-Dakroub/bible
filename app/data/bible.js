@@ -24,7 +24,7 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /** @typedef {{ text: string, w: number, s: string | null, e: string | null, d: boolean }} Token `s` is the word's Strong's number, `e` the entity it names, `d` true where a parallel translation does not share the word */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
-/** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter */
+/** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string, paragraph?: boolean }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter; `paragraph` is true where the KJV starts a paragraph (¶) */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
@@ -314,7 +314,12 @@ export function withWords(verse, codes = '', names = new Map()) {
       return { ...run, tokens };
     }),
   }));
-  return { ...verse, blocks };
+  // The KJV starts a paragraph with ¶. The verse says so instead, and the
+  // mark itself is left out of the words: the page shows the paragraph.
+  const first = blocks[0]?.runs[0]?.tokens;
+  const paragraph = Boolean(first?.length && first[0].w === 0 && first[0].text.trim() === '¶');
+  if (paragraph && first) first.shift();
+  return { ...verse, blocks, paragraph };
 }
 
 /**
@@ -669,7 +674,9 @@ export function plainText(verse) {
   return verse.blocks
     .map((block) => block.runs.map((run) => run.text).join(''))
     .filter(Boolean)
-    .join(' ');
+    .join(' ')
+    // The KJV's paragraph mark is not a word: a page shows it as a paragraph.
+    .replace(/¶\s*/g, '');
 }
 
 /**

@@ -271,6 +271,7 @@ type WordVerse = {
   id: string;
   blocks: WordBlock[];
   label?: string | undefined;
+  paragraph?: boolean | undefined;
 };
 type WordBlock = {
   style: string;
@@ -752,6 +753,7 @@ export type TableMenuState = {
   name: string;
   snap: boolean;
   marks: boolean;
+  reading: boolean;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */

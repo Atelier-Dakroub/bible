@@ -4,63 +4,38 @@
 /* Linked by every page. It goes through Vite, so nesting and @import work, and
    the build hashes and compresses it. */
 
-/* A wireframe: black boxes with thin gray lines, white text, and red only for
-   the words of Christ. No rounded corners, no shadows, no fills, no texture.
-
-   Every text color is checked with APCA (0.0.98G) on black:
-
-     text     #ffffff   Lc 108   everything that is read
-     muted    #cccccc   Lc 76    verse numbers, summaries, labels
-     red      #ffbcbc   Lc 76    the words of Christ
-     line     #5a5a5a   Lc 18    box edges: not text, so Lc 15 is the floor
-
-   Lc 75 is the APCA minimum for body text, and the words of Christ are body
-   text. A red that dark readers see as red is too dark to reach it on black,
-   so this red is light. A change to any value here needs the check again. */
-
+/* The colors, type and shapes are the reading room's (styles/reading-room.css,
+   where every color is checked with APCA). The names below are the older
+   ones that the parts of the table were written with; each points to a
+   reading-room token, so a part follows the theme and the paper setting. */
 :root {
-  color-scheme: dark;
-  --table: #000000;
-  --surface: #000000;
-  --text: #ffffff;
-  --muted: #cccccc;
-  --line: #5a5a5a;
-  --red-letter: #ffbcbc;
+  --table: var(--desk);
+  --surface: var(--paper);
+  --text: var(--ink);
+  --muted: var(--ink-soft);
+  --line: var(--edge);
+  --red-letter: var(--rubric);
   /* The toolbars at the edges of the table (search, menu, timeline, note
      editor) share one size: the same space inside a bar and between its
      buttons, and the same button. */
   --bar-padding: 0.5rem;
-  --bar-gap: 0.5rem;
+  --bar-gap: 0.4rem;
   --control-height: 2.75rem;
   --control-padding: 0 1rem;
-  --control-font: 16px/1.6 system-ui, sans-serif;
+  --control-font: 500 16px/1.6 var(--sans);
   /* The older names, for the touch test elements. */
-  --panel: var(--surface);
-  --paper: var(--surface);
-  --accent: var(--text);
-  --on-accent: var(--table);
+  --panel: var(--paper);
+  --accent: var(--lapis);
+  --on-accent: var(--on-pigment);
 }
 
 body {
   margin: 0;
-  background: var(--table);
-  color: var(--text);
-  font: 16px/1.6 system-ui, sans-serif;
-}
-
-a {
-  color: inherit;
-}
-
-button {
-  border: 1px solid var(--line);
-  border-radius: 0;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-button:disabled {
-  cursor: default;
+  background: var(--desk);
+  color: var(--ink);
+  font: 16px/1.6 var(--sans);
+  font-size-adjust: from-font;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Cursors are for a mouse or a trackpad. After a touch the table hides them
@@ -69,11 +44,6 @@ button:disabled {
 :root[data-input='touch'],
 :root[data-input='touch'] * {
   cursor: none !important;
-}
-
-:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
 }
 
 .page {
@@ -91,29 +61,91 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* A passage on the table. Serif, because this is the text being read. */
+/* A card on the table: paper, with a soft shadow and a tab in the pigment
+   of its kind, as a guide card in a catalogue drawer (styles/reading-room.css
+   .rr-card). A card a hand holds lifts. The text is Literata at the reader's
+   size and line spacing. */
 .passage {
+  --kind: var(--lapis);
   width: 26rem;
-  padding: 1.25rem 1.5rem;
-  border: 1px solid var(--line);
+  padding: 0.9rem 1.25rem 1.1rem;
+  border: 1px solid var(--card-edge);
+  border-top: 0.3rem solid var(--kind);
+  border-radius: var(--radius);
   background: var(--paper);
-  font: 1.05rem/1.55 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  box-shadow:
+    0 1px 2px var(--shade-near),
+    0 6px 18px var(--shade-far);
+  font: calc(1rem * var(--read-scale)) / var(--leading) var(--serif);
+  font-optical-sizing: auto;
+  text-wrap: pretty;
 }
+gesture-card.is-held > .passage,
+gesture-card.is-held > .rr-card {
+  box-shadow:
+    0 2px 4px var(--shade-near),
+    0 18px 40px var(--shade-held);
+}
+.passage--note { --kind: var(--ink-soft); }
+.kind--person { --kind: var(--ochre); }
+.kind--place { --kind: var(--verdigris); }
+.kind--group { --kind: var(--slate); }
+.kind--event,
+.kind--world { --kind: var(--purple); }
 .passage--small {
   width: 18rem;
 }
 .passage__heading {
   margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  font: 600 1.4rem/1.15 var(--serif);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 .passage p,
 .verse__block {
   margin: 0 0 0.4rem;
 }
+/* The verse number, small and soft, raised as a Bible prints it. */
 .verse__number {
-  margin-right: 0.2em;
-  font: 600 0.65em system-ui, sans-serif;
-  color: var(--muted);
+  margin-right: 0.15em;
+  color: var(--ink-soft);
+  font: 600 0.55em/1 var(--sans);
+  font-variant-numeric: lining-nums;
+}
+:root[data-numbers='off'] .verse__number {
+  display: none;
+}
+/* Paragraphs: the verses run on, and a verse that starts a paragraph (the
+   KJV's ¶) starts a new one. Poetry keeps its lines. Verse by verse (the
+   reading setting) puts each verse on a line of its own. Both translations
+   side by side stay verse by verse. */
+:root:not([data-layout='verses']) .passage__text kjv-verse {
+  display: inline;
+}
+:root:not([data-layout='verses']) .passage__text kjv-verse .verse__block--p {
+  display: inline;
+}
+:root:not([data-layout='verses']) .passage__text kjv-verse .verse__block--p::after {
+  content: ' ';
+}
+:root:not([data-layout='verses']) .passage__text kjv-verse[data-paragraph]::before {
+  content: '';
+  display: block;
+  margin-top: 0.6em;
+}
+/* An initial at a chapter's start, in lapis, two lines deep: the blue of the
+   red-and-blue initials of manuscripts; red stays for the words of Christ.
+   The initial marks the first verse, so its number goes. ::first-letter
+   needs a block, and in running paragraphs the verse is inline, so the
+   initial is the text block's own first letter. */
+:root:not([data-initials='off']) .passage--kjv .passage__text:has(> kjv-verse[data-ref$='.1']:first-child)::first-letter {
+  initial-letter: 2;
+  margin-right: 0.1em;
+  color: var(--lapis);
+  font-weight: 600;
+}
+:root:not([data-initials='off']) .passage--kjv .passage__text kjv-verse[data-ref$='.1']:first-child .verse__block:first-child .verse__number {
+  display: none;
 }
 .verse__block--d {
   font-style: italic;
@@ -134,7 +166,10 @@ button:disabled {
   letter-spacing: 0.04em;
 }
 .wj {
-  color: var(--red-letter);
+  color: var(--rubric);
+}
+:root[data-red='off'] .wj {
+  color: inherit;
 }
 
 .passage__header {
@@ -152,8 +187,9 @@ button:disabled {
   margin: -0.75rem -1rem 0 0;
   border: 0;
   background: none;
-  color: var(--muted);
-  font: 1.4rem/1 system-ui, sans-serif;
+  border-radius: var(--radius-small);
+  color: var(--ink-soft);
+  font: 1.4rem/1 var(--sans);
   cursor: pointer;
 }
 
@@ -171,9 +207,10 @@ button:disabled {
 .result {
   display: block;
   width: 100%;
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem 0.8rem;
   border: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid color-mix(in srgb, var(--edge) 50%, transparent);
+  border-radius: 0;
   background: none;
   color: inherit;
   text-align: start;
@@ -182,12 +219,12 @@ button:disabled {
 }
 .result__title {
   display: block;
-  font-weight: 600;
-  font-size: 0.9rem;
+  color: var(--lapis);
+  font: 600 0.7rem/1.4 var(--sans);
 }
 .result__text {
   display: block;
-  font: 0.95rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font: calc(0.85rem * var(--read-scale)) / 1.45 var(--serif);
 }
 /* A search hit is underlined: a fill would be decoration. */
 .result mark {
@@ -228,24 +265,23 @@ gesture-card[data-zoom='far'] .passage__versions {
   display: block;
   margin-top: 0.3em;
   color: var(--muted);
-  font: 0.75em system-ui, sans-serif;
+  font: 0.75em var(--sans);
 }
 
-/* Highlights come in three styles, which differ in shape and not in color
-   (app/lib/words.js STYLES).
-     inverse    black on white, or black on the light red for the words of
-                Christ. APCA: black on white Lc 106, black on #ffbcbc Lc 77.
+/* Highlights come in three styles (app/lib/words.js STYLES).
+     inverse    a wash under the words, as a reader's pencil (the name is
+                the old one: it was black on white)
      underline  a double line under the words
      box        a thin box around the whole span
-   A marking in progress is inverse, so the hand sees the words as it goes. */
-.w[data-mark='inverse'],
-.w.is-marking {
-  background-color: var(--text);
-  color: var(--table);
+   A marking in progress is a lapis wash, the color of what is chosen, so the
+   hand sees the words as it goes. Text on either wash keeps Lc 75. */
+.w[data-mark='inverse'] {
+  background-color: var(--wash);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
-.wj .w[data-mark='inverse'],
-.wj .w.is-marking {
-  background-color: var(--red-letter);
+.w.is-marking {
+  background-color: color-mix(in srgb, var(--lapis) 22%, var(--paper));
 }
 .w[data-mark='underline'] {
   text-decoration: underline double;
@@ -285,28 +321,32 @@ gesture-card[data-zoom='far'] .passage__versions {
 kjv-verse.is-quoted {
   margin-left: -0.75rem;
   padding-left: calc(0.75rem - 2px);
-  border-left: 2px solid var(--muted);
+  border-left: 2px solid var(--ochre);
+}
+/* In running paragraphs, a quoted verse has a faint ochre ground instead. */
+:root:not([data-layout='verses']) .passage__text kjv-verse.is-quoted {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--ochre) 12%, var(--paper));
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* The tools under a passage's heading: step, sync, copy. */
 .passage__tools {
   display: flex;
-  gap: 0.25rem;
-  margin: 0 0 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.7rem;
 }
 .passage__tools button {
   min-height: 2rem;
   padding: 0 0.6rem;
   white-space: nowrap;
-  font: 0.75rem system-ui, sans-serif;
+  font: 0.75rem var(--sans);
 }
-.passage__tools button:disabled {
-  color: var(--line);
-}
-.passage__tools [aria-pressed='true'] {
-  background: var(--text);
-  color: var(--table);
-}
+
 /* In the short form the tools stay, set larger to stay usable at that
    scale: a long chapter arrives small, and Back and Next must still work. */
 gesture-card[data-zoom='far'] .passage__tools {
@@ -329,12 +369,11 @@ gesture-card[data-zoom='far'] .passage__tools button {
 /* A note: the reader's words in the sans-serif, the quotes in the text face. */
 .passage--note {
   width: 22rem;
-  border-style: dashed;
 }
 .note__text {
   min-height: 2.75rem;
   margin: 0 0 0.6rem;
-  font: 1rem/1.45 system-ui, sans-serif;
+  font: 1rem/1.45 var(--serif);
   white-space: pre-wrap;
   cursor: text;
 }
@@ -353,7 +392,7 @@ gesture-card[data-zoom='far'] .passage__tools button {
   justify-content: space-between;
   margin: 0;
   color: var(--muted);
-  font: 0.75rem system-ui, sans-serif;
+  font: 0.75rem var(--sans);
 }
 .note__unquote {
   width: 2.2rem;
@@ -361,11 +400,11 @@ gesture-card[data-zoom='far'] .passage__tools button {
   border: 0;
   background: none;
   color: var(--muted);
-  font: 1rem/1 system-ui, sans-serif;
+  font: 1rem/1 var(--sans);
 }
 .note__hint {
   color: var(--muted);
-  font: 0.8rem/1.4 system-ui, sans-serif;
+  font: 0.8rem/1.4 var(--sans);
 }
 gesture-card[data-zoom='far'] .note__quote,
 gesture-card[data-zoom='far'] .note__hint {
@@ -384,15 +423,14 @@ gesture-card[data-zoom='far'] .note__text {
   margin: 0 0 0.3rem;
 }
 .entry__lemma {
-  font-size: 2rem;
-  line-height: 1.2;
+  font: 2rem/1.2 var(--serif);
 }
 .entry__name {
   color: var(--muted);
   font-size: 0.85rem;
 }
 .entry__def {
-  font: 1rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font: calc(0.85rem * var(--read-scale)) / 1.5 var(--serif);
 }
 .entry__kjv {
   font-size: 0.9rem;
@@ -403,7 +441,7 @@ gesture-card[data-zoom='far'] .note__text {
   min-height: 2.75rem;
   margin: 0.75rem;
   padding: 0 0.75rem;
-  font: inherit;
+  font: 500 16px/1.3 var(--sans);
   text-align: start;
 }
 
@@ -422,6 +460,8 @@ gesture-card[data-zoom='far'] .note__text {
 .entity p {
   margin: 0 0 0.4rem;
 }
+/* An entry reads as a museum label: the name, a line of small capitals that
+   says what it is, then the text. */
 .entity__title {
   display: block;
   width: 100%;
@@ -429,12 +469,18 @@ gesture-card[data-zoom='far'] .note__text {
   border: 0;
   background: none;
   color: inherit;
-  font: 600 1.4rem/1.25 system-ui, sans-serif;
+  font: 600 1.4rem/1.2 var(--serif);
+  letter-spacing: -0.01em;
   text-align: start;
 }
+.entity__title:hover {
+  background: none;
+}
 .entity__facts {
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font: 600 0.55rem/1.4 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 /* Credits are small: they are there to be found, not read first. */
 .entity__credit,
@@ -449,16 +495,18 @@ gesture-card[data-zoom='far'] .note__text {
   margin: 0.5rem 0;
 }
 .entity__summary {
-  font: 0.95rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font: calc(0.8rem * var(--read-scale)) / 1.55 var(--serif);
   white-space: pre-line;
 }
 .entity__relations {
   margin: 0.5rem 0;
 }
 .entity__relations dt {
-  margin-top: 0.4rem;
-  color: var(--muted);
-  font-size: 0.8rem;
+  margin-top: 0.6rem;
+  color: var(--ink-soft);
+  font: 600 0.55rem/1.4 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .entity__relations dd {
   display: flex;
@@ -466,18 +514,25 @@ gesture-card[data-zoom='far'] .note__text {
   gap: 0.3rem;
   margin: 0.2rem 0 0;
 }
+/* A link to another entry: a chip, as on the museum label. */
 .entity__link {
   min-height: 2.2rem;
-  padding: 0 0.6rem;
-  font: 0.85rem system-ui, sans-serif;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 1.1rem;
+  background: var(--tint);
+  font: 500 0.65rem var(--sans);
+}
+.entity__link:hover {
+  background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
 }
 .entity-card .entity__summary {
-  font-size: 1rem;
+  font-size: calc(0.9rem * var(--read-scale));
 }
 
 /* A word that names a person, place or group: a tap shows it. */
 .w[data-e] {
-  text-decoration: underline dotted var(--line);
+  text-decoration: underline dotted var(--edge);
   text-underline-offset: 0.25em;
 }
 
@@ -494,12 +549,9 @@ gesture-card[data-zoom='far'] .note__text {
 .passage__versions button {
   min-height: 2rem;
   padding: 0 0.5rem;
-  font: 0.75rem system-ui, sans-serif;
+  font: 0.75rem var(--sans);
 }
-.passage__versions button[aria-pressed='true'] {
-  background: var(--text);
-  color: var(--table);
-}
+
 
 /* Two translations, verse by verse. */
 .passage--both {
@@ -514,7 +566,7 @@ gesture-card[data-zoom='far'] .note__text {
 .parallel__labels {
   margin: 0 0 0.4rem;
   color: var(--muted);
-  font: 0.75rem system-ui, sans-serif;
+  font: 0.75rem var(--sans);
 }
 .parallel__row {
   padding: 0.3rem 0;
@@ -720,7 +772,7 @@ gesture-card[data-zoom='far'] .note__text {
   display: none;
   margin: 0 0 0.4rem;
   color: var(--muted);
-  font: 0.75rem/1.4 system-ui, sans-serif;
+  font: 0.75rem/1.4 var(--sans);
 }
 gesture-card[data-compare] .parallel__legend {
   display: block;
@@ -734,10 +786,7 @@ gesture-card[data-compare] .bsb__d {
 .result--pull {
   cursor: grab;
 }
-.results__switch[aria-pressed='true'] {
-  outline: 2px solid var(--text);
-  outline-offset: -2px;
-}
+
 
 /* Word statistics in a word study. */
 .stats {
@@ -757,12 +806,12 @@ gesture-card[data-compare] .bsb__d {
   margin: 0 0 0.6rem;
   padding: 0;
   list-style: none;
-  font: 0.95rem/1.4 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font: 0.95rem/1.4 var(--serif);
 }
 .stats__count,
 .stats__more {
   color: var(--muted);
-  font: 0.75rem system-ui, sans-serif;
+  font: 0.75rem var(--sans);
 }
 .stats__bars {
   display: block;
@@ -771,7 +820,7 @@ gesture-card[data-compare] .bsb__d {
   margin: 0.4rem 0;
 }
 .stats__bars rect {
-  fill: var(--text);
+  fill: var(--lapis);
 }
 .stats__divide {
   stroke: var(--line);
@@ -780,11 +829,29 @@ gesture-card[data-compare] .bsb__d {
 }
 .stats__axis {
   fill: var(--muted);
-  font: 20px system-ui, sans-serif;
+  font: 20px var(--sans);
 }
 .stats__most {
   color: var(--muted);
   font-size: 0.85rem;
+}
+/* Actions on an entry or a word study: side by side, as many to a row as
+   fit, each as wide as its label and growing to fill the row. */
+.results__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.results__actions:has(button) {
+  margin: 0.6rem 0;
+}
+.results__actions .results__switch,
+.entity .results__actions .results__switch,
+.stats .results__actions .results__switch {
+  flex: 1 1 auto;
+  width: auto;
+  margin: 0;
+  text-align: center;
 }
 .stats .results__switch,
 .guide .results__switch {
@@ -799,8 +866,10 @@ gesture-card[data-compare] .bsb__d {
 }
 .guide__heading {
   margin: 1rem 0 0.3rem;
-  color: var(--muted);
-  font: 600 0.8rem system-ui, sans-serif;
+  color: var(--ink-soft);
+  font: 600 0.55rem/1.4 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .guide__none {
   margin: 0 0 0.4rem;
@@ -818,11 +887,12 @@ gesture-card[data-compare] .bsb__d {
 /* The landscape: a row per book, a cell per chapter. The SVG's units are
    about pixels at the card's own size. */
 .passage--landscape {
+  --kind: var(--purple);
   width: 64rem;
 }
 .landscape__summary {
   color: var(--muted);
-  font: 0.8rem/1.4 system-ui, sans-serif;
+  font: 0.8rem/1.4 var(--sans);
 }
 .landscape__svg {
   display: block;
@@ -832,12 +902,11 @@ gesture-card[data-compare] .bsb__d {
 }
 .landscape__svg text {
   fill: var(--muted);
-  font: 13px system-ui, sans-serif;
+  font: 13px var(--sans);
 }
 .landscape__svg .landscape__group {
-  fill: var(--text);
-  font-weight: 600;
-  font-size: 15px;
+  fill: var(--ink);
+  font: 600 15px var(--serif);
 }
 .landscape__cell {
   fill: none;
@@ -849,15 +918,15 @@ gesture-card[data-compare] .bsb__d {
   cursor: pointer;
 }
 .landscape--books .landscape__cell {
-  stroke: var(--muted);
+  stroke: var(--ink-soft);
 }
 .landscape__mark {
-  fill: var(--text);
+  fill: var(--lapis);
   pointer-events: none;
 }
 @media (hover: hover) {
   .landscape__cell:hover {
-    stroke: var(--text);
+    stroke: var(--lapis);
   }
 }
 gesture-card[data-zoom='far'] .landscape__summary {

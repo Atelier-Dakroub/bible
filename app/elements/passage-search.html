@@ -326,24 +326,26 @@
     display: flex;
     flex-direction: column;
     width: 26rem;
-    border: 1px solid var(--line);
-    background: var(--surface);
+    border: 1px solid var(--card-edge);
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: 0 2px 12px var(--shade-far);
     overflow: hidden;
   }
   form {
     display: flex;
     gap: var(--bar-gap);
     padding: var(--bar-padding);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
   }
   input {
     flex: 1;
     min-width: 0;
     min-height: var(--control-height);
     padding: 0 0.75rem;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: var(--table);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-small);
+    background: var(--paper);
     color: inherit;
     font: inherit;
     user-select: text;
