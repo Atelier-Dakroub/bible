@@ -839,6 +839,13 @@
         this.editNote(note.dataset.note ?? '');
         return;
       }
+      // A word of the Hebrew or the Greek: study its Strong's number. The
+      // study underlines the KJV words that render it on every card.
+      const orig = element?.closest('[data-orig-s]');
+      if (orig instanceof HTMLElement && orig.dataset.origS) {
+        panel?.searchFor(orig.dataset.origS);
+        return;
+      }
       const place = element?.closest('[data-place]');
       if (place instanceof Element) {
         panel?.showEntity(place.getAttribute('data-place'));
@@ -1202,6 +1209,11 @@
         const word = /** @type {HTMLElement} */ (element);
         const same = (this.studied && word.dataset.s === this.studied) || (this.shown && word.dataset.e === this.shown);
         word.classList.toggle('is-studied', Boolean(same));
+      }
+      // The Hebrew and Greek words with the Strong's number being studied.
+      for (const element of root.querySelectorAll('[data-orig-s]')) {
+        const word = /** @type {HTMLElement} */ (element);
+        word.classList.toggle('is-studied', Boolean(this.studied) && word.dataset.origS === this.studied);
       }
     },
 

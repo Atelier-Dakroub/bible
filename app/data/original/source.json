@@ -1,0 +1,6 @@
+{
+  "name": "STEPBible Translators Amalgamated Hebrew OT (TAHOT) and Greek NT (TAGNT), with the morphology code expansions (TEHMC, TEGMC)",
+  "source": "https://github.com/STEPBible/STEPBible-Data",
+  "license": "CC BY 4.0. Data created by STEPBible.org based on work at Tyndale House, Cambridge.",
+  "note": "Hebrew: the Leningrad text with the Qere. Greek: the Textus Receptus, the text the KJV translated; flag 1 marks a word the Nestle-Aland text does not have."
+}

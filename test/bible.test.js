@@ -288,3 +288,25 @@ test('a place on the map offers it; a person does not', async () => {
   const david = await entityResults('person:david_994');
   assert.equal(david.entity?.mapped, false);
 });
+
+test('a passage in its original language lines up with the KJV', async () => {
+  const { original, books, passage } = await import('../app/data/bible.js');
+  const { parseAddress } = await import('../app/lib/reference.js');
+  const genesis = await original(/** @type {any} */ (parseAddress('GEN.1.1', books)));
+  assert.equal(genesis.language, 'hebrew');
+  const words = genesis.verses[0].words;
+  assert.equal(words.length, 7);
+  assert.equal(words[2].s, 'H430');
+  assert.match(words[1].grammar, /^Verb · Qal · Perfect/);
+  // Every Strong's number of the KJV verse is on a word of the Hebrew.
+  const kjv = (await passage(/** @type {any} */ (parseAddress('GEN.1.1', books)))).verses[0];
+  const codes = kjv.blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens.map((token) => token.s))).filter(Boolean);
+  for (const code of codes) assert.ok(words.some((word) => word.s === code), code);
+  // The Greek is the Textus Receptus: 1 John 5:7 has the words the critical text does not.
+  const john = await original(/** @type {any} */ (parseAddress('1JN.5.7', books)));
+  assert.equal(john.language, 'greek');
+  assert.ok(john.verses[0].words.some((word) => word.tr && /father/i.test(word.gloss)));
+  // Verses numbered as the KJV numbers them.
+  const philippians = await original(/** @type {any} */ (parseAddress('PHP.1.16', books)));
+  assert.match(philippians.verses[0].words.map((word) => word.gloss).join(' '), /selfish ambition/);
+});

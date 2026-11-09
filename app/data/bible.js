@@ -8,6 +8,7 @@ import { loaders } from './kjv/index.js';
 import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
+import { loaders as originalLoaders } from './original/index.js';
 import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
@@ -181,6 +182,83 @@ export async function phrase(range) {
 
 /** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
 const bsbBooks = new Map();
+
+// ---- The original languages (tools/import-original.js) ----
+
+/**
+ * A word of the Hebrew or Greek text, as a card shows it.
+ *
+ * @typedef {{
+ *   text: string, translit: string, gloss: string, s: string,
+ *   code: string, grammar: string, tr: boolean
+ * }} OriginalWord `s` is the Strong's number, written as the KJV data writes it, so the KJV words that render it can be found; `code` is STEPBible's grammar code and `grammar` the same in words; `tr` is true for a Greek word of the Textus Receptus that the Nestle-Aland text does not have
+ */
+/** @typedef {{ id: string, label: string, words: OriginalWord[] }} OriginalVerse */
+
+/** @type {Map<string, Promise<Record<string, (string | number)[][]>>>} */
+const originalBooks = new Map();
+/** @type {Promise<Record<string, string>> | null} */
+let grammarCodes = null;
+
+/**
+ * A grammar code in words. A Hebrew word can be several parts (and/ the/
+ * earth: HC/Td/Ncfsa): each part is named, with the language once.
+ *
+ * @param {string} code
+ * @param {Record<string, string>} codes
+ */
+function grammarIn(code, codes) {
+  if (codes[code]) return codes[code];
+  const language = /^[HA]/.test(code) ? code[0] : '';
+  if (!language) return '';
+  return code
+    .slice(1)
+    .split('/')
+    .filter(Boolean)
+    .map((part) => codes[`${language}${part}`] ?? part)
+    .join(' + ');
+}
+
+/**
+ * A passage in its original language: the Hebrew (with Aramaic in Daniel and
+ * Ezra) for the Old Testament, the Greek the KJV translated for the New.
+ * Verses are numbered as the KJV numbers them.
+ *
+ * @param {Reference} ref
+ * @returns {Promise<{ title: string, language: 'hebrew' | 'greek', verses: OriginalVerse[] }>}
+ */
+export async function original(ref) {
+  let book = originalBooks.get(ref.book);
+  if (!book) {
+    const load = originalLoaders[/** @type {keyof typeof originalLoaders} */ (ref.book)];
+    book = load().then((module) => /** @type {Record<string, (string | number)[][]>} */ (module.default));
+    originalBooks.set(ref.book, book);
+  }
+  grammarCodes ??= import('./original/grammar.json', { with: { type: 'json' } }).then((module) => module.default);
+  const [words, codes] = await Promise.all([book, grammarCodes]);
+  const covered = versesIn(ref, books);
+  const language = index.findIndex((entry) => entry.id === 'MAT') <= index.findIndex((entry) => entry.id === ref.book) ? 'greek' : 'hebrew';
+  return {
+    title: formatReference(ref, books),
+    language,
+    verses: covered.map(([chapter, n]) => {
+      const id = `${ref.book}.${chapter}.${n}`;
+      return {
+        id,
+        label: chapter !== ref.chapter && n === 1 ? `${chapter}:1` : String(n),
+        words: (words[id] ?? []).map(([text, translit, gloss, s, code, tr]) => ({
+          text: String(text),
+          translit: String(translit),
+          gloss: String(gloss),
+          s: String(s),
+          code: String(code),
+          grammar: grammarIn(String(code), codes),
+          tr: tr === 1,
+        })),
+      };
+    }),
+  };
+}
 
 /**
  * The passage in two translations, verse by verse: the KJV verse and the

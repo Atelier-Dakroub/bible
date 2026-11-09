@@ -1,5 +1,5 @@
 <script server>
-  import { books, entityView, parallel, phrase, preview, verseCount } from '../../data/bible.js';
+  import { books, entityView, original, parallel, phrase, preview, verseCount } from '../../data/bible.js';
   import { mapOf } from '../../data/entities.js';
   import { landscape } from '../../data/study.js';
   import { parseAddress, stepAddress } from '../../lib/reference.js';
@@ -20,8 +20,9 @@
   //                             `quotes` names the spans it quotes
   export const prerender = false;
 
-  // `version` picks the text: kjv (the default), bsb, or both side by side.
-  const VERSIONS = ['kjv', 'bsb', 'both'];
+  // `version` picks the text: kjv (the default), bsb, both side by side, the
+  // original (Hebrew or Greek), or the original word by word (interlinear).
+  const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear'];
   const NOTE = /^note:([a-z0-9]{1,40})$/i;
   const MAX_QUOTES = 20;
 
@@ -37,7 +38,8 @@
    *   note: string, back: string, next: string,
    *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[],
    *   landscape: import('../../data/study.js').Landscape | null,
-   *   shade: Box, levant: Box, levantClip: Box
+   *   shade: Box, levant: Box, levantClip: Box,
+   *   source: Awaited<ReturnType<typeof original>> | null
    * }} Card
    */
 
@@ -47,7 +49,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -99,11 +101,14 @@
 
     const ref = parseAddress(address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
-    const { title, rows } = await parallel(ref);
+    const [{ title, rows }, source] = await Promise.all([
+      parallel(ref),
+      version === 'original' || version === 'interlinear' ? original(ref) : null,
+    ]);
     const verses = rows.map((row) => row.verse);
     const back = stepAddress(address, -1, books) ?? '';
     const next = stepAddress(address, 1, books) ?? '';
-    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next });
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source });
   };
 </script>
 
@@ -184,6 +189,8 @@
         <button type="button" data-version="kjv" aria-pressed="${version === 'kjv' ? 'true' : 'false'}">KJV</button>
         <button type="button" data-version="bsb" aria-pressed="${version === 'bsb' ? 'true' : 'false'}">BSB</button>
         <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
+        <button type="button" data-version="original" aria-pressed="${version === 'original' ? 'true' : 'false'}" title="The Hebrew or the Greek">Original</button>
+        <button type="button" data-version="interlinear" aria-pressed="${version === 'interlinear' ? 'true' : 'false'}" title="The Hebrew or the Greek, word by word, with the English and the grammar">Word by word</button>
       </div>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
@@ -255,6 +262,34 @@
         <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> ${block.text}</p>
         <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.label}</sup> Not in the BSB's main text.</p>
       </div>
+    </div>
+    <!-- The original language: the Hebrew, right to left, with the Aramaic
+         of Daniel and Ezra, or the Greek the KJV translated (the Textus
+         Receptus). A tap on a word studies its Strong's number, and the KJV
+         words on every card that render it are underlined: that is how the
+         two line up. A Greek word the Nestle-Aland text does not have is
+         marked. -->
+    <div if="kind === 'passage' && version === 'original' && source" class="passage__original original--${source ? source.language : ''}" lang="${source && source.language === 'hebrew' ? 'hbo' : 'grc'}" dir="${source && source.language === 'hebrew' ? 'rtl' : 'ltr'}">
+      <span each="verse of source ? source.verses : []" class="original__verse" data-ref="${verse.id}"><sup class="verse__number">${verse.label}</sup> <template each="word of verse.words"><span class="orig ${word.tr ? 'orig--tr' : ''}" data-orig-s="${word.s}" title="${word.translit} · ${word.gloss}${word.tr ? ' · not in the Nestle-Aland text' : ''}">${word.text}</span>${word.text.endsWith('־') ? '' : ' '}</template></span>
+      <p class="entity__credit" lang="en" dir="ltr">STEPBible.org, from Tyndale House, Cambridge (CC BY 4.0). Tap a word to study it.</p>
+    </div>
+    <!-- Word by word: each word of the original over its transliteration,
+         its English, its grammar and its Strong's number, in the order of
+         the original (right to left for the Hebrew). -->
+    <div if="kind === 'passage' && version === 'interlinear' && source" class="passage__interlinear original--${source ? source.language : ''}" lang="${source && source.language === 'hebrew' ? 'hbo' : 'grc'}" dir="${source && source.language === 'hebrew' ? 'rtl' : 'ltr'}">
+      <section each="verse of source ? source.verses : []" class="inter__verse" data-ref="${verse.id}">
+        <p class="inter__ref" dir="ltr">${verse.label}</p>
+        <ol class="inter__words">
+          <li each="word of verse.words" class="inter__word ${word.tr ? 'orig--tr' : ''}" data-orig-s="${word.s}">
+            <span class="inter__text">${word.text}</span>
+            <span class="inter__translit" lang="en" dir="ltr">${word.translit}</span>
+            <span class="inter__gloss" lang="en" dir="ltr">${word.gloss}</span>
+            <span class="inter__grammar" lang="en" dir="ltr">${word.grammar}</span>
+            <span class="inter__code" lang="en" dir="ltr">${word.s}${word.tr ? ' · TR only' : ''}</span>
+          </li>
+        </ol>
+      </section>
+      <p class="entity__credit" lang="en" dir="ltr">Hebrew and Greek: STEPBible.org, from Tyndale House, Cambridge (CC BY 4.0). The Greek is the Textus Receptus, which the KJV translated.</p>
     </div>
     <!-- Both, verse by verse: the KJV on the left, the BSB on the right. -->
     <div if="kind === 'passage' && version === 'both'" class="passage__parallel">

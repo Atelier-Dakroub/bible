@@ -553,6 +553,112 @@ gesture-card[data-zoom='far'] .note__text {
 }
 
 
+/* The original languages. The Hebrew reads right to left, larger than the
+   English, as its vowels and accents sit above and below the letters. A
+   word takes a tap: it studies the word, and the KJV words that render it
+   are underlined on every card. A Greek word that only the Textus Receptus
+   has (not the Nestle-Aland text) has a dotted ochre line under it. */
+.passage--original {
+  width: 30rem;
+}
+.passage--interlinear {
+  width: 52rem;
+}
+.passage__original {
+  line-height: 2;
+}
+.original--hebrew {
+  font-family: var(--hebrew);
+  font-size: calc(1.35rem * var(--read-scale));
+}
+.original--greek {
+  font-family: var(--greek);
+  font-size: calc(1.05rem * var(--read-scale));
+}
+.original__verse .verse__number {
+  margin: 0 0.1em;
+}
+:root[data-layout='verses'] .original__verse {
+  display: block;
+}
+.orig {
+  border-radius: 3px;
+  cursor: pointer;
+}
+.orig:hover {
+  background: var(--tint);
+}
+.orig.is-studied,
+.inter__word.is-studied .inter__text {
+  text-decoration: underline;
+  text-decoration-color: var(--lapis);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+.orig--tr:not(.inter__word),
+.inter__word.orig--tr .inter__text {
+  text-decoration: underline dotted var(--ochre);
+  text-underline-offset: 0.3em;
+}
+/* Word by word: a stack for each word, as many to a row as fit. */
+.inter__verse {
+  padding: 0.5rem 0 0.6rem;
+  border-top: 1px solid color-mix(in srgb, var(--edge) 50%, transparent);
+}
+.inter__ref {
+  margin: 0 0 0.3rem;
+  color: var(--ink-soft);
+  font: 600 0.55rem/1 var(--sans);
+  text-align: start;
+}
+.inter__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inter__word {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.1rem;
+  max-width: 8.5rem;
+  padding: 0.25rem 0.4rem 0.3rem;
+  border-radius: var(--radius-small);
+  text-align: center;
+  cursor: pointer;
+}
+.inter__word:hover {
+  background: var(--tint);
+}
+.inter__text {
+  line-height: 1.5;
+}
+.original--hebrew .inter__text {
+  font-size: 1.45rem;
+}
+.original--greek .inter__text {
+  font-size: 1.15rem;
+}
+.inter__translit {
+  color: var(--ink-soft);
+  font: italic 0.55rem/1.3 var(--sans);
+}
+.inter__gloss {
+  color: var(--ink);
+  font: 600 0.62rem/1.3 var(--sans);
+}
+.inter__grammar {
+  color: var(--ink-soft);
+  font: 0.5rem/1.3 var(--sans);
+}
+.inter__code {
+  color: var(--lapis);
+  font: 600 0.5rem/1.3 var(--sans);
+}
+
 /* Two translations, verse by verse. */
 .passage--both {
   width: 48rem;

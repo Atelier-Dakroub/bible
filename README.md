@@ -232,6 +232,35 @@ It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
 
+## The original languages
+
+A passage card has two more versions beside KJV, BSB and Both:
+
+- **Original:** the Hebrew (with the Aramaic of Daniel and Ezra), right to
+  left, or the Greek, as running text.
+- **Word by word:** each word of the original over its transliteration, its
+  English, its grammar in words and its Strong's number.
+
+A tap on a Hebrew or Greek word studies its Strong's number, and the KJV
+words on every card that render it are underlined: that is how the original
+and the KJV line up. The Hebrew is the Leningrad text with the Qere; the
+Greek is the Textus Receptus, the text the KJV translated, and a word the
+Nestle-Aland text does not have has a dotted ochre line. Verses are numbered
+as the KJV numbers them.
+
+The data is STEPBible's Translators Amalgamated Hebrew OT and Greek NT, with
+its grammar code lists (CC BY 4.0, from Tyndale House, Cambridge), built
+into `app/data/original` by:
+
+```sh
+node tools/import-original.js <directory with the TAHOT, TAGNT, TEHMC and TEGMC files>
+```
+
+The files are in https://github.com/STEPBible/STEPBible-Data ("Translators
+Amalgamated OT+NT" and "Morphology codes"). The fonts are Ezra SIL for
+Hebrew and Gentium Plus for Greek (SIL Open Font License), in
+`app/public/fonts`.
+
 ## The research trail
 
 The search panel keeps a trail of what you looked at (`app/lib/trail.js`):
