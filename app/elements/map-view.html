@@ -1,0 +1,477 @@
+<!-- The map's frame. The map moves and zooms inside it, and the card stays
+     where it is. Outside the frame (the heading, the credit), a hand still
+     moves the card.
+
+     Inside the frame:
+       one finger, or the mouse   moves the map
+       two fingers                zoom the map, about their middle
+       the wheel, or two fingers on a trackpad   move the map
+       a pinch on the trackpad, or Control (or Command) and the wheel
+                                  zoom the map, about the pointer
+       a tap on a place           shows it (the table hears `card-tap`)
+       + and -, Whole map         the buttons in the corner
+     With the focus on the frame (Tab): the arrow keys move the map, + and -
+     zoom it, and 0 shows the whole map.
+
+     Names by level (lib/map.js nameLevels): at the whole map, only the most
+     named places have their names on show. Each closer level shows more, as
+     far as there is room. Places that a card on the table names, and the one
+     on show, always have their names. The dots, names and lines keep their
+     size at every zoom; only the distances grow. The scale bar in the corner
+     gives the distance.
+
+     The view is { x, y, w } in map units (lib/map.js). The table keeps it
+     with the workspace. Events, all bubbling:
+       card-paint   the view changed, so the lines to the places move too
+       card-tap     a tap: detail { target }
+       map-change   a change of the view is done, so the table keeps it -->
+
+<script element>
+  import { HEIGHT, KM_PER_UNIT, LEVELS, MAX_ZOOM, WIDTH, fitView, levelOf, moveView, nameLevels, scaleBar, wholeMap, zoomOf } from '../lib/map.js';
+
+  /** @typedef {import('../lib/map.js').View} View */
+  /** @typedef {{ x: number, y: number }} Point */
+
+  // A tap is short and still, as on a card.
+  const TAP_MS = 350;
+  const STILL_PX = 10;
+  // How far one press of a key or a button zooms, and how far a key moves.
+  const KEY_ZOOM = 1.5;
+  const BUTTON_ZOOM = 2;
+  const KEY_MOVE = 0.2;
+  // How long a glide to a new view takes.
+  const GLIDE_MS = 280;
+  // How long after the last wheel or key the change counts as done.
+  const SETTLE_MS = 400;
+  // The gap from a dot to its name, in pixels.
+  const GAP = 8;
+
+  /**
+   * The middle of the first two points, and how far apart they are.
+   *
+   * @param {Map<number, Point>} points
+   * @param {number[]} ids
+   */
+  function spanOf(points, ids) {
+    const list = ids.map((id) => /** @type {Point} */ (points.get(id)));
+    const middle = {
+      x: list.reduce((sum, point) => sum + point.x, 0) / list.length,
+      y: list.reduce((sum, point) => sum + point.y, 0) / list.length,
+    };
+    const apart = list.length === 2 ? Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) : 0;
+    return { middle, apart };
+  }
+
+  export const prototype = {
+    /** @type {View | null} */
+    view: null,
+    /** @type {Map<number, Point> | null} pointer id to position, on screen */
+    points: null,
+    /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
+    tap: null,
+    /** how many pixels a map unit is at a zoom of 1, at the card's own size */
+    pixels: 0,
+    /** the size of a name, in pixels */
+    font: 18,
+    level: -1,
+    settleTimer: 0,
+    glideFrame: 0,
+
+    connected({ signal }) {
+      this.view ??= wholeMap();
+      this.points = new Map();
+      if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
+      this.addEventListener('pointerdown', (event) => this.press(event), { signal });
+      this.addEventListener('pointermove', (event) => this.drag(event), { signal });
+      this.addEventListener('pointerup', (event) => this.release(event), { signal });
+      this.addEventListener('pointercancel', (event) => this.release(event), { signal });
+      this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
+      this.addEventListener('keydown', (event) => this.key(event), { signal });
+      this.addEventListener('click', (event) => this.act(event), { signal });
+      this.trackpad(signal);
+      const observer = new ResizeObserver(() => this.measure());
+      observer.observe(this);
+      signal.addEventListener('abort', () => observer.disconnect());
+    },
+
+    disconnected() {
+      cancelAnimationFrame(this.glideFrame);
+      clearTimeout(this.settleTimer);
+    },
+
+    /** @returns {SVGSVGElement | null} */
+    svg() {
+      return this.querySelector('svg');
+    },
+
+    /** The places, the most named first. */
+    places() {
+      return /** @type {SVGGElement[]} */ ([...this.querySelectorAll('.map__place')]).reverse();
+    },
+
+    /**
+     * Reads the frame's size and works out at which level each place is
+     * named. The size changes only when the page's type size does.
+     */
+    measure() {
+      const svg = this.svg();
+      if (!svg || !svg.clientWidth) return;
+      const pixels = svg.clientWidth / WIDTH;
+      if (pixels === this.pixels) return;
+      this.pixels = pixels;
+      const places = this.places();
+      const sample = places[0]?.querySelector('text');
+      const font = sample ? parseFloat(getComputedStyle(sample).fontSize) || 18 : 18;
+      this.font = font;
+      const levels = nameLevels(
+        places.map((place) => ({
+          x: Number(place.dataset.x),
+          y: Number(place.dataset.y),
+          chars: (place.textContent ?? '').trim().length,
+        })),
+        pixels,
+        { font, gap: GAP },
+      );
+      places.forEach((place, i) => {
+        place.dataset.level = String(levels[i]);
+      });
+      this.level = -1;
+      this.paint();
+    },
+
+    /**
+     * Names the places of the level. The places that a card names, and the
+     * one on show, always have their names (the table marks them); a name of
+     * the level that one of those would cover waits for a closer level.
+     */
+    relabel() {
+      const unit = (this.pixels || 1) * LEVELS[Math.max(0, this.level)];
+      const font = this.font;
+      /** @param {SVGGElement} place */
+      const box = (place) => {
+        const x = Number(place.dataset.x);
+        const y = Number(place.dataset.y);
+        const chars = (place.textContent ?? '').trim().length;
+        return {
+          left: x - GAP / unit,
+          // A name on show is bold, and wider.
+          right: x + (GAP + chars * font * 0.62 + GAP) / unit,
+          top: y - (font * 0.8) / unit,
+          bottom: y + (font * 0.5) / unit,
+        };
+      };
+      const places = this.places();
+      const always = places.filter((place) => place.classList.contains('is-on-table') || place.classList.contains('is-shown'));
+      const taken = always.map(box);
+      for (const place of places) {
+        let named = Number(place.dataset.level) <= this.level && !always.includes(place);
+        if (named && taken.length) {
+          const b = box(place);
+          named = taken.every((o) => b.right <= o.left || b.left >= o.right || b.bottom <= o.top || b.top >= o.bottom);
+        }
+        place.classList.toggle('is-named', named);
+      }
+    },
+
+    /**
+     * Shows a view, kept inside the map.
+     *
+     * @param {View} view
+     */
+    setView(view) {
+      cancelAnimationFrame(this.glideFrame);
+      this.view = moveView(view, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
+      this.paint();
+    },
+
+    /**
+     * Glides to a view.
+     *
+     * @param {View} target
+     * @returns {Promise<void>}
+     */
+    glideTo(target) {
+      cancelAnimationFrame(this.glideFrame);
+      const from = /** @type {View} */ (this.view);
+      const to = moveView(target, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const start = performance.now();
+      return new Promise((resolve) => {
+        const frame = (/** @type {number} */ now) => {
+          const t = reduced ? 1 : Math.min(1, (now - start) / GLIDE_MS);
+          const eased = 1 - (1 - t) ** 3;
+          // The width changes by a constant factor each frame, so the zoom
+          // looks even; the middle moves in a line.
+          const w = from.w * (to.w / from.w) ** eased;
+          const ratio = HEIGHT / WIDTH;
+          const a = { x: from.x + from.w / 2, y: from.y + (from.w * ratio) / 2 };
+          const b = { x: to.x + to.w / 2, y: to.y + (to.w * ratio) / 2 };
+          const middle = { x: a.x + (b.x - a.x) * eased, y: a.y + (b.y - a.y) * eased };
+          this.view = { x: middle.x - w / 2, y: middle.y - (w * ratio) / 2, w };
+          this.paint();
+          if (t < 1) this.glideFrame = requestAnimationFrame(frame);
+          else {
+            this.view = to;
+            this.paint();
+            this.settle(0);
+            resolve();
+          }
+        };
+        this.glideFrame = requestAnimationFrame(frame);
+      });
+    },
+
+    /**
+     * Glides to a view that shows the places.
+     *
+     * @param {string[]} ids
+     */
+    fit(ids) {
+      const points = ids.flatMap((id) => {
+        const place = this.querySelector(`[data-place="${CSS.escape(id)}"]`);
+        return place instanceof SVGElement ? [{ x: Number(place.dataset.x), y: Number(place.dataset.y) }] : [];
+      });
+      return points.length ? this.glideTo(fitView(points)) : Promise.resolve();
+    },
+
+    /**
+     * True when the place is inside the view.
+     *
+     * @param {string} id
+     */
+    shows(id) {
+      const place = this.querySelector(`[data-place="${CSS.escape(id)}"]`);
+      const view = this.view;
+      if (!(place instanceof SVGElement) || !view) return false;
+      const x = Number(place.dataset.x);
+      const y = Number(place.dataset.y);
+      return x >= view.x && x <= view.x + view.w && y >= view.y && y <= view.y + (view.w * HEIGHT) / WIDTH;
+    },
+
+    /**
+     * A point on the screen as a fraction of the frame's width, from the
+     * frame's top left corner. It holds however the card is turned or
+     * scaled.
+     *
+     * @param {Point} at
+     */
+    fraction(at) {
+      const svg = this.svg();
+      const view = /** @type {View} */ (this.view);
+      const matrix = svg?.getScreenCTM();
+      if (!matrix) return { x: 0, y: 0 };
+      const point = new DOMPoint(at.x, at.y).matrixTransform(matrix.inverse());
+      return { x: (point.x - view.x) / view.w, y: (point.y - view.y) / view.w };
+    },
+
+    paint() {
+      const svg = this.svg();
+      const view = /** @type {View} */ (this.view);
+      if (!svg) return;
+      const zoom = zoomOf(view);
+      svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${(view.w * HEIGHT) / WIDTH}`);
+      // The dots and names are drawn in pixels, inside a group scaled back by
+      // the size of a map unit.
+      const unit = (this.pixels || svg.clientWidth / WIDTH || 1) * zoom;
+      this.style.setProperty('--map-unit', String(unit));
+
+      const level = levelOf(zoom);
+      if (level !== this.level) {
+        this.level = level;
+        this.relabel();
+      }
+
+      const bar = scaleBar(unit / KM_PER_UNIT);
+      const line = /** @type {HTMLElement | null} */ (this.querySelector('.map__bar'));
+      const label = this.querySelector('.map__km');
+      if (line) line.style.width = `${bar.px}px`;
+      if (label) label.textContent = bar.label;
+
+      const closer = this.querySelector('[data-map="in"]');
+      const further = this.querySelector('[data-map="out"]');
+      const whole = this.querySelector('[data-map="all"]');
+      closer?.toggleAttribute('disabled', view.w <= WIDTH / MAX_ZOOM + 0.01);
+      further?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
+      whole?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
+
+      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+    },
+
+    /**
+     * Tells the table, a moment after the last change, that the view is worth
+     * keeping.
+     *
+     * @param {number} [wait]
+     */
+    settle(wait = SETTLE_MS) {
+      clearTimeout(this.settleTimer);
+      this.settleTimer = setTimeout(() => this.dispatchEvent(new Event('map-change', { bubbles: true })), wait);
+    },
+
+    /** @param {PointerEvent} event */
+    press(event) {
+      // A button in the frame is pressed, not dragged; the card leaves it too.
+      if (event.target instanceof Element && event.target.closest('button')) return;
+      // The frame's gestures are the map's, not the card's.
+      event.stopPropagation();
+      try {
+        this.setPointerCapture(event.pointerId);
+      } catch {
+        return;
+      }
+      cancelAnimationFrame(this.glideFrame);
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      this.tap = points.size === 0
+        ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target }
+        : null;
+      points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      this.classList.add('is-moving');
+    },
+
+    /** @param {PointerEvent} event */
+    drag(event) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (!points.has(event.pointerId)) return;
+      event.stopPropagation();
+      const tap = this.tap;
+      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
+
+      const after = new Map(points);
+      after.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const ids = [...after.keys()].slice(0, 2);
+      const before = spanOf(points, ids);
+      const now = spanOf(after, ids);
+      const factor = before.apart > 0 && now.apart > 0 ? now.apart / before.apart : 1;
+      this.view = moveView(/** @type {View} */ (this.view), this.fraction(before.middle), this.fraction(now.middle), factor);
+      this.points = after;
+      this.paint();
+    },
+
+    /** @param {PointerEvent} event */
+    release(event) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (!points.delete(event.pointerId)) return;
+      event.stopPropagation();
+      const tap = this.tap;
+      this.tap = null;
+      if (tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS) {
+        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
+      }
+      if (points.size > 0) return;
+      this.classList.remove('is-moving');
+      this.settle(0);
+    },
+
+    /** @param {WheelEvent} event */
+    wheel(event) {
+      event.stopPropagation();
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
+      const at = { x: event.clientX, y: event.clientY };
+      const view = /** @type {View} */ (this.view);
+      cancelAnimationFrame(this.glideFrame);
+      if (event.ctrlKey || event.metaKey) {
+        const here = this.fraction(at);
+        this.view = moveView(view, here, here, Math.exp((-event.deltaY * unit) / 200));
+      } else {
+        const to = this.fraction({ x: at.x - event.deltaX * unit, y: at.y - event.deltaY * unit });
+        this.view = moveView(view, this.fraction(at), to, 1);
+      }
+      this.paint();
+      this.settle();
+    },
+
+    /**
+     * Safari's pinch on the trackpad, as on the table, but for the map.
+     *
+     * @param {AbortSignal} signal
+     */
+    trackpad(signal) {
+      /** @type {{ at: Point, scale: number } | null} */
+      let gesture = null;
+      /** @param {any} event */
+      const start = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        gesture = { at: { x: event.clientX, y: event.clientY }, scale: 1 };
+      };
+      /** @param {any} event */
+      const change = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        if (!gesture) return;
+        const here = this.fraction(gesture.at);
+        this.view = moveView(/** @type {View} */ (this.view), here, here, event.scale / gesture.scale);
+        gesture.scale = event.scale;
+        this.paint();
+      };
+      /** @param {any} event */
+      const end = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        gesture = null;
+        this.settle(0);
+      };
+      this.addEventListener('gesturestart', start, { signal });
+      this.addEventListener('gesturechange', change, { signal });
+      this.addEventListener('gestureend', end, { signal });
+    },
+
+    /**
+     * Zooms about the middle of the frame.
+     *
+     * @param {number} factor
+     */
+    zoomBy(factor) {
+      const middle = { x: 0.5, y: HEIGHT / WIDTH / 2 };
+      return this.glideTo(moveView(/** @type {View} */ (this.view), middle, middle, factor));
+    },
+
+    /** @param {KeyboardEvent} event */
+    key(event) {
+      if (event.target !== this || event.metaKey || event.ctrlKey || event.altKey) return;
+      const middle = { x: 0.5, y: HEIGHT / WIDTH / 2 };
+      const step = KEY_MOVE * (HEIGHT / WIDTH);
+      const moves = /** @type {Record<string, [number, number]>} */ ({
+        ArrowLeft: [step, 0],
+        ArrowRight: [-step, 0],
+        ArrowUp: [0, step],
+        ArrowDown: [0, -step],
+      });
+      const move = moves[event.key];
+      if (move) {
+        this.glideTo(moveView(/** @type {View} */ (this.view), middle, { x: middle.x + move[0], y: middle.y + move[1] }, 1));
+      } else if (event.key === '+' || event.key === '=') this.zoomBy(KEY_ZOOM);
+      else if (event.key === '-' || event.key === '_') this.zoomBy(1 / KEY_ZOOM);
+      else if (event.key === '0') this.glideTo(wholeMap());
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('[data-map]') : null;
+      if (!(button instanceof HTMLElement)) return;
+      const what = button.dataset.map;
+      if (what === 'in') this.zoomBy(BUTTON_ZOOM);
+      else if (what === 'out') this.zoomBy(1 / BUTTON_ZOOM);
+      else if (what === 'all') this.glideTo(wholeMap());
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    touch-action: none;
+    cursor: grab;
+  }
+  :scope.is-moving {
+    cursor: grabbing;
+  }
+</style>
+
+<slot></slot>

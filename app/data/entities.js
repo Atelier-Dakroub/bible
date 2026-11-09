@@ -20,7 +20,7 @@ export { timeline, world };
 /**
  * The base map, with a marker for every place that has coordinates on it.
  *
- * @returns {Promise<{ width: number, height: number, land: string[], lakes: string[], rivers: string[], places: { id: string, name: string, x: string, y: string }[] }>}
+ * @returns {Promise<{ width: number, height: number, land: string[], lakes: string[], rivers: string[], places: { id: string, name: string, x: string, y: string, verses: number }[] }>}
  */
 export async function mapOf() {
   const [{ default: base }, { onMap, project }, known] = await Promise.all([
@@ -32,8 +32,11 @@ export async function mapOf() {
     .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
     .map(([id, place]) => {
       const { x, y } = project(place.lon, place.lat);
-      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1) };
-    });
+      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1), verses: place.verses.length };
+    })
+    // The least named first, so the most named are drawn on top. The map
+    // names the most named first (lib/map.js nameLevels).
+    .sort((a, b) => a.verses - b.verses || b.name.localeCompare(a.name));
   return { width: base.width, height: base.height, land: base.land, lakes: base.lakes, rivers: base.rivers, places };
 }
 

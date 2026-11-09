@@ -89,9 +89,28 @@ table as a card, from Italy to Persia. Every place with coordinates is a dot
 (1,257 of them). The places that the cards on the table name are labelled,
 with a dashed line to each card that names them. A place's entry in the
 search panel has a Show on the map button, and a tap on a place on the map
-shows it. Pinch the map card to zoom in (or Control + wheel); its lines stay one pixel wide. The
-coastlines are modern; ancient ones differed in places, such as the head of
-the Persian Gulf.
+shows it. The coastlines are modern; ancient ones differed in places, such
+as the head of the Persian Gulf.
+
+The map zooms inside its frame, and the card stays where it is (the heading
+and the credit still move the card):
+
+| Inside the frame | Does |
+| --- | --- |
+| one finger, or a mouse drag | moves the map |
+| two fingers | zoom about their middle, up to 16 times |
+| the wheel, or two fingers on a trackpad | moves the map |
+| a pinch on the trackpad, or Control and the wheel | zooms about the pointer |
+| +, − and Whole map, in the corner | zoom about the middle, or show all of it |
+| the arrow keys, + and −, and 0, with the focus on the frame | the same |
+
+At the whole map, only the most named places have names (about 40). Each
+closer level (2, 4, 8 and 16 times) names more, as far as there is room, so
+names never cover each other. The places that a card names, and the one on
+show, always have their names. The dots, names and lines keep their size at
+every zoom, and a scale bar gives the distance. Show on the map zooms to fit
+the places. The workspace keeps the view; Undo leaves it, as it leaves the
+pan of the table.
 
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
@@ -175,7 +194,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | Path | What it holds |
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
-| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
+| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |

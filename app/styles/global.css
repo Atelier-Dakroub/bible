@@ -531,11 +531,17 @@ gesture-card[data-zoom='far'] .note__text {
 .passage--map {
   width: 44rem;
 }
+.map__view {
+  border: 1px solid var(--line);
+}
+.map__view:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .map__svg {
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--line);
 }
 .map__land,
 .map__lake {
@@ -549,6 +555,12 @@ gesture-card[data-zoom='far'] .note__text {
   stroke: var(--muted);
   stroke-width: 0.75;
   vector-effect: non-scaling-stroke;
+}
+/* The dots and names are in pixels: the group is scaled back by the size of
+   a map unit (map-view sets --map-unit), so they keep their size at every
+   zoom. */
+.map__mark {
+  transform: scale(calc(1 / var(--map-unit, 1)));
 }
 .map__place circle {
   fill: var(--line);
@@ -572,19 +584,65 @@ gesture-card[data-zoom='far'] .note__text {
 .map__place text {
   display: none;
   fill: var(--text);
-  font: 18px system-ui, sans-serif;
+  font: 0.75rem system-ui, sans-serif;
+  /* A black edge keeps a name readable where it crosses a coast. */
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.map__place.is-named circle {
+  fill: var(--muted);
+}
+.map__place.is-named text,
+.map__place.is-on-table text,
+.map__place.is-shown text {
+  display: inline;
 }
 .map__place.is-on-table circle,
 .map__place.is-shown circle {
   r: 6px;
   fill: var(--text);
 }
-.map__place.is-on-table text,
-.map__place.is-shown text {
-  display: inline;
-}
 .map__place.is-shown text {
   font-weight: 700;
+}
+/* The zoom buttons and the scale bar sit on the map, on the page's black so
+   the coast does not run through them. */
+.map__zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+}
+.map__zoom button {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0 0.6rem;
+  font: 0.75rem system-ui, sans-serif;
+}
+.map__zoom button:disabled {
+  color: var(--line);
+}
+.map__scale {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.2rem 0.4rem;
+  background: var(--surface);
+  color: var(--muted);
+  font: 0.6rem system-ui, sans-serif;
+  pointer-events: none;
+}
+.map__bar {
+  height: 0.4rem;
+  border: 1px solid var(--muted);
+  border-top: 0;
 }
 gesture-card[data-zoom='far'] .map {
   display: block;

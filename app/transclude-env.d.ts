@@ -80,6 +80,18 @@ type Pull = {
   y: number;
   down: boolean;
 };
+type MapView = HTMLElement & {
+  view: View | null;
+  setView(view: View): void;
+  fit(ids: string[]): Promise<void>;
+  shows(id: string): boolean;
+  relabel(): void;
+};
+type View = {
+  x: number;
+  y: number;
+  w: number;
+};
 type Place = {
   card: Element;
   box: DOMRect;
@@ -91,6 +103,11 @@ type StoredCard = {
   version?: string | undefined;
   sync?: boolean | undefined;
   compare?: boolean | undefined;
+  view?: {
+    x: number;
+    y: number;
+    w: number;
+  } | undefined;
 };
 type FetchOptions = {
   version?: string | undefined;
@@ -128,6 +145,10 @@ type Run = {
     e: string | null;
     d: boolean;
   }[];
+};
+type Point_2 = {
+  x: number;
+  y: number;
 };
 type Pull_2 = {
   id: number;
@@ -422,6 +443,7 @@ export type BibleTableMembers = {
     entity: string;
   }): void;
   mapCard(): Element | null;
+  mapView(card?: Element | null | undefined): MapView | null;
   toggleCard(address: string): Promise<void>;
   openMap(): Promise<void>;
   showOnMap(ids: string): Promise<void>;
@@ -443,7 +465,7 @@ export type BibleTableMembers = {
     typed: boolean;
   }[]): void;
   restore({
-    id, address, matrix, version, sync, compare
+    id, address, matrix, version, sync, compare, view
   }: StoredCard): Promise<void>;
   switchVersion(card: Card, version: string): Promise<void>;
   replaceCard(card: Card, address: string, version: string): Promise<Card | null>;
@@ -595,6 +617,55 @@ export type GestureCardMembers = {
 export type KjvVerseProps = {
   n: string;
   blocks: Block[];
+};
+
+/** Properties of `<map-view>`, from its <script element> block. */
+export type MapViewProps = {};
+
+/** Members of `<map-view>`, from its `export const prototype`. */
+export type MapViewMembers = {
+  view: View | null;
+  points: Map<number, Point_2> | null;
+  tap: {
+    id: number;
+    x: number;
+    y: number;
+    t: number;
+    target: EventTarget | null;
+  } | null;
+  pixels: number;
+  font: number;
+  level: number;
+  settleTimer: number;
+  glideFrame: number;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  disconnected(): void;
+  svg(): SVGSVGElement | null;
+  places(): SVGGElement[];
+  measure(): void;
+  relabel(): void;
+  setView(view: View): void;
+  glideTo(target: View): Promise<void>;
+  fit(ids: string[]): Promise<void>;
+  shows(id: string): boolean;
+  fraction(at: Point_2): {
+    x: number;
+    y: number;
+  };
+  paint(): void;
+  settle(wait?: number | undefined): void;
+  press(event: PointerEvent): void;
+  drag(event: PointerEvent): void;
+  release(event: PointerEvent): void;
+  wheel(event: WheelEvent): void;
+  trackpad(signal: AbortSignal): void;
+  zoomBy(factor: number): Promise<void>;
+  key(event: KeyboardEvent): void;
+  act(event: MouseEvent): void;
 };
 
 /** Properties of `<note-editor>`, from its <script element> block. */
@@ -1012,6 +1083,7 @@ export type CardAddressData = {
       name: string;
       x: string;
       y: string;
+      verses: number;
     }[];
   } | null;
   note: string;
@@ -1057,6 +1129,7 @@ declare global {
     "calibration-target": HTMLElement & CalibrationTargetProps & CalibrationTargetState & CalibrationTargetMembers;
     "gesture-card": HTMLElement & GestureCardProps & GestureCardMembers;
     "kjv-verse": HTMLElement;
+    "map-view": HTMLElement & MapViewProps & MapViewMembers;
     "note-editor": HTMLElement & NoteEditorProps & NoteEditorState & NoteEditorMembers;
     "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
     "svg-icon": HTMLElement;

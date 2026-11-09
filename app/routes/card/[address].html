@@ -125,18 +125,31 @@
       <span class="passage__opening">${opening}</span>
       <span class="passage__count">${count}</span>
     </p>
-    <!-- The map: modern coastlines, every mapped place as a dot. The table
-         labels the places that the cards on it name, and the one on show. -->
+    <!-- The map: modern coastlines, every mapped place as a dot. It moves and
+         zooms inside its frame (map-view), and names more places closer in.
+         The table labels the places that the cards on it name, and the one
+         on show. The dots and names are in pixels, in a group that the
+         frame scales back by the size of a map unit. -->
     <div if="map" class="map">
-      <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
-        <path each="d of map ? map.land : []" d="${d}" class="map__land"></path>
-        <path each="d of map ? map.lakes : []" d="${d}" class="map__lake"></path>
-        <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
-        <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" transform="translate(${place.x} ${place.y})">
-          <circle r="2.5"></circle>
-          <text x="8" y="6">${place.name}</text>
-        </g>
-      </svg>
+      <map-view class="map__view">
+        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
+          <path each="d of map ? map.land : []" d="${d}" class="map__land"></path>
+          <path each="d of map ? map.lakes : []" d="${d}" class="map__lake"></path>
+          <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
+          <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
+            <g class="map__mark">
+              <circle r="4"></circle>
+              <text x="8" y="6">${place.name}</text>
+            </g>
+          </g>
+        </svg>
+        <div class="map__zoom" role="group" aria-label="Zoom the map">
+          <button type="button" data-map="in" aria-label="Zoom in">+</button>
+          <button type="button" data-map="out" aria-label="Zoom out" disabled>−</button>
+          <button type="button" data-map="all" disabled>Whole map</button>
+        </div>
+        <p class="map__scale"><span class="map__bar"></span><span class="map__km"></span></p>
+      </map-view>
       <p class="entity__credit">Base map: Natural Earth (public domain), with modern coastlines. Places: Theographic (CC BY-SA).</p>
     </div>
     <!-- The landscape: a row per book, a cell per chapter. A tap on a cell

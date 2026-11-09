@@ -16,7 +16,7 @@
 /** @typedef {import('./affine.js').Point} Point */
 /** @typedef {import('./words.js').Highlight} Highlight */
 /** @typedef {import('./links.js').Span} Span */
-/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean }} StoredCard `version` is kjv, bsb or both; `compare` marks the differences in both */
+/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean, view?: { x: number, y: number, w: number } }} StoredCard `version` is kjv, bsb or both; `compare` marks the differences in both; `view` is the part of the map in the map card's frame (lib/map.js) */
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ id: string, text: string, quotes: Span[] }} Note */
 /** @typedef {import('./rules.js').Rule} Rule */
@@ -81,6 +81,10 @@ function fromValue(value) {
         if (VERSIONS.includes(String(card.version))) stored.version = card.version;
         if (card.sync === true) stored.sync = true;
         if (card.compare === true) stored.compare = true;
+        const view = card.view;
+        if (view && [view.x, view.y, view.w].every((n) => typeof n === 'number' && Number.isFinite(n)) && view.w > 0) {
+          stored.view = { x: view.x, y: view.y, w: view.w };
+        }
         return stored;
       })
     : [];

@@ -46,6 +46,8 @@
      The map is a card too (map:near-east). Its places that the cards on the
      table name are labelled, with a thin line to each card that names them,
      and the place on show in the panel is marked. A tap on a place shows it.
+     The map moves and zooms inside its frame (map-view); a line goes only to
+     a place inside the view, and Show on the map zooms to fit the places.
      A card sends `card-link` when a marking finger leaves it and lifts. The
      other end is the highlight under the finger, or, on words with no
      highlight, the whole passage of that card. Drawing a link again removes
@@ -113,6 +115,7 @@
 <script element>
   import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
+  import { WIDTH } from '../lib/map.js';
   import { nextStyle, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { createPalmGuard } from '../lib/palm.js';
@@ -123,6 +126,7 @@
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
+  /** @typedef {HTMLElement & { view: import('../lib/map.js').View | null, setView(view: import('../lib/map.js').View): void, fit(ids: string[]): Promise<void>, shows(id: string): boolean, relabel(): void }} MapView */
   /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void, zoomAt(at: Point, factor: number): void, turnAt(at: Point, radians: number): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
@@ -200,6 +204,8 @@
   const cardNamed = new WeakMap();
 
   const MAP = 'map:near-east';
+  /** @param {number} n a map unit, kept to a tenth */
+  const round = (n) => Math.round(n * 10) / 10;
   const BOOKS = 'landscape:books';
   // The space between cards that are put down in a row.
   const ROW_GAP = 24;
@@ -410,6 +416,9 @@
       this.addEventListener('workspace-import', (event) => this.importFile(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
+      // A move of the map inside its frame is kept, but is not a step to undo,
+      // as a pan of the table is not.
+      this.addEventListener('map-change', () => this.keep(false), options);
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
@@ -1009,6 +1018,17 @@
     },
 
     /**
+     * The frame of the map card, or null.
+     *
+     * @param {Element | null} [card]
+     * @returns {MapView | null}
+     */
+    mapView(card = this.mapCard()) {
+      const view = card?.querySelector('map-view');
+      return view && typeof (/** @type {any} */ (view).fit) === 'function' ? /** @type {MapView} */ (view) : null;
+    },
+
+    /**
      * Puts a card down, or takes it away when it is on the table: the map,
      * or the landscape of the books.
      *
@@ -1060,6 +1080,8 @@
       this.shownPlaces = new Set(list);
       this.paintMap();
       this.raise(map);
+      await customElements.whenDefined('map-view');
+      await this.mapView()?.fit(list);
 
       const boxes = list
         .map((id) => map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect())
@@ -1113,6 +1135,7 @@
         marker.classList.toggle('is-on-table', named.has(id));
         marker.classList.toggle('is-shown', id === this.shown || this.shownPlaces.has(id ?? ''));
       }
+      this.mapView(map)?.relabel();
       this.drawSoon();
     },
 
@@ -1131,7 +1154,9 @@
         const places = (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'));
         if (!places.length) continue;
         const edgeBox = card.getBoundingClientRect();
+        const frame = this.mapView(map);
         for (const id of places) {
+          if (frame && !frame.shows(id)) continue;
           const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
           if (!dot) continue;
           const box = dot.getBoundingClientRect();
@@ -1413,9 +1438,13 @@
     },
 
     /** @param {StoredCard} stored */
-    async restore({ id, address, matrix, version, sync, compare }) {
+    async restore({ id, address, matrix, version, sync, compare, view }) {
       const card = await this.fetchCard(address, { version, id, sync, compare });
       card?.setMatrix(matrix);
+      if (card && view) {
+        await customElements.whenDefined('map-view');
+        this.mapView(card)?.setView(view);
+      }
     },
 
     /**
@@ -1668,6 +1697,8 @@
         const stored = { id: card.dataset.id ?? newId('c'), address, matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
         if (card.dataset.sync !== undefined) stored.sync = true;
         if (card.dataset.compare !== undefined && stored.version === 'both') stored.compare = true;
+        const view = address === MAP ? this.mapView(card)?.view : null;
+        if (view && view.w < WIDTH) stored.view = { x: round(view.x), y: round(view.y), w: round(view.w) };
         return [stored];
       });
       return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules };
@@ -1743,6 +1774,9 @@
           card.setMatrix(stored.matrix);
           this.setSync(card, Boolean(stored.sync));
           this.setCompare(card, Boolean(stored.compare));
+          // A workspace that is opened brings its view of the map; an undo
+          // leaves the view as it is, as it leaves the pan of the table.
+          if (record) this.mapView(card)?.setView(stored.view ?? { x: 0, y: 0, w: WIDTH });
           // A note's quotes can differ between the two states.
           if (card.dataset.kind === 'note') waits.push(this.replaceCard(card, stored.address, 'kjv'));
         }
