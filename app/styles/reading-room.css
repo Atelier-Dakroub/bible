@@ -1,0 +1,767 @@
+/* The reading room: the design system that follows the black wireframe.
+
+   Three sources, each with its own job:
+     the book      the Bible text: a book serif, wide margins, red rubrics,
+                   initials, notes in the margin
+     the atlas     maps, the timeline and charts: flat color, pictograms
+                   (Isotype, Herbert Bayer)
+     the museum    cards and panels: a colored tab for each kind, object
+                   labels, "See also" (the card catalogue, signage, Encarta)
+
+   For now it applies inside .rr only (the /design page), so the table keeps
+   its look until each part moves over.
+
+   The reader sets these on <html> (reading-settings):
+     data-theme     day (the default) or night
+     data-paper     bright (the default), soft or lamp: how bright the paper
+                    is, for a dim room
+     data-size      1 to 5, the size of the Bible text (3 is the default)
+     data-leading   compact, normal (the default) or loose
+     data-serif     literata (the default), source-serif or newsreader
+     data-sans      atkinson (the default) or source-sans
+     data-red       off: the words of Christ in the text color
+     data-numbers   off: no verse numbers
+     data-initials  off: no initial at a chapter's start
+
+   Colors: the scribe's pigments. Lamp black for the text; vermilion only for
+   the rubric (the words of Christ); lapis for links and the selection; and
+   one pigment for each kind of thing, the same on a tab, a dot on the map
+   and a band on the timeline:
+     person ochre, place verdigris, group slate, event and era purple,
+     passage lapis.
+
+   Every text color is checked with APCA (lib/apca.js, test/design.test.js)
+   on the paper of each of the six settings:
+     ink      Lc 85 to 99   the Bible text and everything that is read
+     rubric   Lc 76 to 85   the words of Christ: body text, so 75 at least
+     soft     Lc 70 to 85   labels, notes, verse numbers
+     pigments Lc 71 to 88   labels and links in a kind's color
+     edge     Lc 17 to 40   lines: not text, so Lc 15 is the floor (night
+                            cards also have a shadow) */
+
+/* The fonts: all under the SIL Open Font License (app/public/fonts/*-OFL.txt),
+   from Fontsource. Latin, and extended Latin for transliteration, loaded only
+   when a page uses a letter from it. The serifs have optical sizes, so a
+   heading and a footnote each get the cut drawn for their size. */
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/literata-latin-standard-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/literata-latin-ext-standard-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/literata-latin-standard-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/literata-latin-ext-standard-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('/fonts/source-serif-4-latin-standard-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('/fonts/source-serif-4-latin-ext-standard-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('/fonts/source-serif-4-latin-standard-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('/fonts/source-serif-4-latin-ext-standard-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-latin-standard-normal.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-latin-ext-standard-normal.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-latin-standard-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-latin-ext-standard-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  src: url('/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  src: url('/fonts/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  src: url('/fonts/atkinson-hyperlegible-next-latin-wght-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  src: url('/fonts/atkinson-hyperlegible-next-latin-ext-wght-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/source-sans-3-latin-wght-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/source-sans-3-latin-ext-wght-normal.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/source-sans-3-latin-wght-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/source-sans-3-latin-ext-wght-italic.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---- Tokens ----------------------------------------------------------- */
+
+/* Day, bright paper: the default. */
+.rr {
+  color-scheme: light;
+  --desk: #e4ddcf;
+  --paper: #fcf9f2;
+  --ink: #2a231d;
+  --ink-soft: #574c42;
+  --edge: #b9ad97;
+  --rubric: #931f14;
+  --lapis: #1d4580;
+  --verdigris: #1f5a4a;
+  --ochre: #724a0c;
+  --purple: #5d356b;
+  --slate: #3f4b58;
+  /* Fills: a quiet ground for a chip or a pressed button, the sea on a map,
+     and the wash of a highlight. Text on them is ink, checked too. */
+  --tint: #efe8da;
+  --sea: #dfe6e6;
+  --wash: #f4e2a8;
+  /* Text on a pigment, such as a tab. */
+  --on-pigment: #fcf9f2;
+  --shadow: 42 35 29;
+
+  --serif: 'Literata', Georgia, serif;
+  --sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --read-scale: 1.125;
+  --leading: 1.6;
+  --radius: 6px;
+  --radius-small: 4px;
+}
+:root[data-paper='soft'] .rr {
+  --desk: #d8cfbe;
+  --paper: #f2ecdf;
+  --tint: #e6dece;
+  --sea: #d5dddc;
+  --on-pigment: #f2ecdf;
+}
+/* Lamp: paper that is dim, for a dark room. The inks go darker with it, so
+   the text keeps its contrast. */
+:root[data-paper='lamp'] .rr {
+  --desk: #c9bea8;
+  --paper: #e6dcc8;
+  --ink: #1c1713;
+  --ink-soft: #43392f;
+  --edge: #a59880;
+  --rubric: #70130b;
+  --lapis: #163a6e;
+  --verdigris: #134236;
+  --ochre: #563606;
+  --purple: #4c2a58;
+  --slate: #323c47;
+  --tint: #dbd0ba;
+  --sea: #cbd2cf;
+  --wash: #e3cf8f;
+  --on-pigment: #e6dcc8;
+}
+
+/* Night: walnut and warm charcoal, ivory text, the pigments made light. No
+   pure black, so it is not cold. */
+:root[data-theme='night'] .rr {
+  color-scheme: dark;
+  --desk: #1f1b17;
+  --paper: #302a24;
+  --ink: #efe7d8;
+  --ink-soft: #d2c8b6;
+  --edge: #685f52;
+  --rubric: #ffc6ba;
+  --lapis: #b9cff3;
+  --verdigris: #a6dcc8;
+  --ochre: #f0c986;
+  --purple: #dfc0ea;
+  --slate: #c3cfdc;
+  --tint: #3b342c;
+  --sea: #26302f;
+  --wash: #5b4a22;
+  --on-pigment: #1f1b17;
+  --shadow: 0 0 0;
+}
+:root[data-theme='night'][data-paper='soft'] .rr {
+  --desk: #1b1814;
+  --paper: #2a251f;
+  --tint: #352f28;
+  --sea: #222b2a;
+  --on-pigment: #1b1814;
+}
+:root[data-theme='night'][data-paper='lamp'] .rr {
+  --desk: #161411;
+  --paper: #231f1a;
+  --tint: #2e2923;
+  --sea: #1c2423;
+  --on-pigment: #161411;
+}
+
+:root[data-size='1'] .rr { --read-scale: 0.875; }
+:root[data-size='2'] .rr { --read-scale: 1; }
+:root[data-size='4'] .rr { --read-scale: 1.25; }
+:root[data-size='5'] .rr { --read-scale: 1.4; }
+:root[data-leading='compact'] .rr { --leading: 1.45; }
+:root[data-leading='loose'] .rr { --leading: 1.8; }
+:root[data-serif='source-serif'] .rr { --serif: 'Source Serif 4', Georgia, serif; }
+:root[data-serif='newsreader'] .rr { --serif: 'Newsreader', Georgia, serif; }
+:root[data-sans='source-sans'] .rr { --sans: 'Source Sans 3', system-ui, sans-serif; }
+
+/* ---- Base ------------------------------------------------------------- */
+
+.rr {
+  min-height: 100vh;
+  background: var(--desk);
+  color: var(--ink);
+  font: 0.75rem/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.rr :focus-visible {
+  outline: 2px solid var(--lapis);
+  outline-offset: 2px;
+}
+.rr a {
+  color: var(--lapis);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+/* Buttons are quiet: a thin edge, a text label, and a pressed state in
+   lapis. */
+.rr button {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 0.7rem/1 var(--sans);
+  cursor: pointer;
+}
+.rr button:hover {
+  background: var(--tint);
+}
+.rr button[aria-pressed='true'] {
+  border-color: var(--lapis);
+  background: var(--lapis);
+  color: var(--on-pigment);
+}
+.rr button:disabled {
+  color: var(--ink-soft);
+  opacity: 0.6;
+  cursor: default;
+}
+/* Buttons that are one choice: joined into one bar. */
+.rr-segments {
+  display: inline-flex;
+}
+.rr-segments button {
+  border-radius: 0;
+}
+.rr-segments button + button {
+  margin-left: -1px;
+}
+.rr-segments button:first-child {
+  border-radius: var(--radius-small) 0 0 var(--radius-small);
+}
+.rr-segments button:last-child {
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+}
+
+.rr input[type='search'],
+.rr input[type='text'] {
+  min-height: 2rem;
+  padding: 0 0.6rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  color: var(--ink);
+  font: 0.75rem var(--sans);
+}
+
+/* A label in small capitals, as on a museum label or an atlas. */
+.rr-kicker {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 600 0.55rem/1.3 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A pictogram for a kind: its pigment, at the size of the text. */
+.rr-pictogram {
+  display: inline-flex;
+  font-size: 1.1em;
+  vertical-align: -0.2em;
+}
+.rr-pictogram--person { color: var(--ochre); }
+.rr-pictogram--place { color: var(--verdigris); }
+.rr-pictogram--group { color: var(--slate); }
+.rr-pictogram--event,
+.rr-pictogram--era { color: var(--purple); }
+.rr-pictogram--passage { color: var(--lapis); }
+.rr-pictogram--note { color: var(--ink-soft); }
+
+/* ---- Cards ------------------------------------------------------------ */
+
+/* A card is paper on the desk: a small radius, a soft warm shadow, and a
+   tab in its kind's pigment, as a guide card in a catalogue drawer. A card a
+   hand holds lifts: a deeper shadow. */
+.rr-card {
+  --kind: var(--lapis);
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+  border-top: 0.3rem solid var(--kind);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow:
+    0 1px 2px rgb(var(--shadow) / 0.12),
+    0 6px 18px rgb(var(--shadow) / 0.1);
+}
+:root[data-theme='night'] .rr-card {
+  border-color: var(--edge);
+  border-top-color: var(--kind);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 8px 24px rgb(0 0 0 / 0.35);
+}
+.rr-card.is-held {
+  box-shadow:
+    0 2px 4px rgb(var(--shadow) / 0.14),
+    0 18px 40px rgb(var(--shadow) / 0.2);
+}
+.rr-card--person { --kind: var(--ochre); }
+.rr-card--place { --kind: var(--verdigris); }
+.rr-card--group { --kind: var(--slate); }
+.rr-card--event,
+.rr-card--era { --kind: var(--purple); }
+.rr-card--note { --kind: var(--ink-soft); }
+
+.rr-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem 0.4rem;
+}
+.rr-card__titles {
+  flex: 1;
+  min-width: 0;
+}
+.rr-card__kind {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--kind);
+}
+.rr-card__kind .rr-kicker {
+  color: var(--kind);
+}
+.rr-card__title {
+  margin: 0.15rem 0 0;
+  font: 600 1.4rem/1.15 var(--serif);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.rr-card__close {
+  min-width: 2rem;
+  font-size: 1rem !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--ink-soft) !important;
+}
+.rr-card__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0 1rem 0.6rem;
+}
+.rr-card__body {
+  padding: 0.2rem 1rem 1rem;
+}
+.rr-card__foot {
+  margin: 0;
+  padding: 0.5rem 1rem 0.7rem;
+  border-top: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
+  color: var(--ink-soft);
+  font: 0.5rem/1.4 var(--sans);
+}
+
+/* ---- The book: the Bible text ----------------------------------------- */
+
+/* The text column, with a margin on the right for notes, as a study Bible's
+   outer margin or the gloss around a medieval page. */
+.rr-text {
+  padding-right: 8.5rem;
+  font: 400 calc(1rem * var(--read-scale)) / var(--leading) var(--serif);
+  font-optical-sizing: auto;
+  hanging-punctuation: first;
+  text-wrap: pretty;
+}
+.rr-text p {
+  margin: 0 0 0.6em;
+}
+/* An initial at a chapter's start, in lapis, two lines deep: the blue of the
+   red-and-blue initials of manuscripts. Red stays for the rubric alone. */
+.rr-text .rr-initial::first-letter {
+  initial-letter: 2;
+  margin-right: 0.12em;
+  color: var(--lapis);
+  font-weight: 600;
+}
+:root[data-initials='off'] .rr-text .rr-initial::first-letter {
+  initial-letter: normal;
+  margin: 0;
+  color: inherit;
+  font-weight: inherit;
+}
+.rr-verse-number {
+  margin-right: 0.15em;
+  color: var(--ink-soft);
+  font: 600 0.55em/1 var(--sans);
+  vertical-align: 0.5em;
+  font-variant-numeric: lining-nums;
+}
+:root[data-numbers='off'] .rr-verse-number {
+  display: none;
+}
+/* The words of Christ: the rubric. */
+.rr-text .wj {
+  color: var(--rubric);
+}
+:root[data-red='off'] .rr-text .wj {
+  color: inherit;
+}
+/* The words the translators supplied, in italic, as the KJV prints them. */
+.rr-text .add {
+  font-style: italic;
+}
+/* The divine name, in small capitals. */
+.rr-text .nd {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+/* Each verse on a line of its own, as most Bibles print them. */
+:root[data-layout='verses'] .rr-text .rr-verse {
+  display: block;
+}
+/* A note in the margin: it floats out into the right margin beside the line
+   it belongs to (the sidenote of Tufte, and of the glossed page). */
+.rr-margin {
+  float: right;
+  clear: right;
+  width: 7.5rem;
+  margin: 0.3em -8.5rem 0.4em 0;
+  color: var(--ink-soft);
+  font: 0.6rem/1.4 var(--sans);
+}
+.rr-margin b {
+  color: var(--ink);
+  font-weight: 600;
+}
+/* A highlight: a wash under the words, as a reader's pencil. */
+.rr-text mark {
+  border-radius: 2px;
+  background: var(--wash);
+  color: inherit;
+  box-decoration-break: clone;
+}
+
+/* ---- The museum: object labels and lists ------------------------------ */
+
+.rr-label__line {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font: 0.6rem/1.4 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.rr-label__text {
+  margin: 0.5rem 0 0;
+  font: calc(0.8rem * var(--read-scale)) / 1.55 var(--serif);
+}
+.rr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.6rem;
+  padding: 0 0.6rem;
+  border-radius: 1rem;
+  background: var(--tint);
+  color: var(--ink);
+  font: 0.6rem var(--sans);
+}
+.rr-see-also {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  font: 0.65rem/1.4 var(--sans);
+}
+.rr-see-also li {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--edge) 50%, transparent);
+}
+.rr-see-also li::before {
+  content: '→';
+  color: var(--ink-soft);
+}
+
+/* A list of results in a panel. */
+.rr-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rr-result {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.55rem 0.8rem;
+  border-top: 1px solid color-mix(in srgb, var(--edge) 50%, transparent);
+}
+.rr-result__ref {
+  color: var(--lapis);
+  font: 600 0.6rem var(--sans);
+}
+.rr-result__text {
+  font: calc(0.75rem * var(--read-scale)) / 1.45 var(--serif);
+}
+
+/* ---- The atlas: map, timeline and charts ------------------------------ */
+
+.rr-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-small);
+  background: var(--sea);
+}
+.rr-map__land {
+  fill: var(--paper);
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.rr-map__lake {
+  fill: var(--sea);
+  stroke: var(--ink-soft);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+.rr-map__river {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lapis) 55%, var(--sea));
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* The map's sizes are in map units, set on each element by the page, so the
+   rules here leave the font size alone. */
+.rr-map__place circle {
+  fill: var(--verdigris);
+  stroke: var(--paper);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.rr-map__place text {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-linejoin: round;
+}
+/* Water is named in italic capitals, letterspaced, as an atlas names it. */
+.rr-map__water {
+  fill: color-mix(in srgb, var(--lapis) 75%, var(--sea));
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.rr-timeline {
+  display: grid;
+  gap: 0.3rem;
+}
+.rr-timeline__eras {
+  display: flex;
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+.rr-era {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  background: color-mix(in srgb, var(--purple) 12%, var(--paper));
+  font: 0.55rem/1.3 var(--sans);
+}
+.rr-era:nth-child(even) {
+  background: color-mix(in srgb, var(--purple) 22%, var(--paper));
+}
+.rr-era b {
+  display: block;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.rr-era span {
+  color: var(--ink-soft);
+}
+.rr-timeline__ticks {
+  position: relative;
+  height: 1.6rem;
+  border-bottom: 1px solid var(--edge);
+}
+.rr-tick {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  height: 0.8rem;
+  background: var(--purple);
+}
+.rr-tick.is-shown {
+  height: 1.4rem;
+  background: var(--lapis);
+}
+
+/* A bar chart, such as where a word occurs. */
+.rr-bars rect {
+  fill: var(--lapis);
+}
+.rr-bars rect.is-quiet {
+  fill: color-mix(in srgb, var(--lapis) 35%, var(--paper));
+}
+.rr-bars text {
+  fill: var(--ink-soft);
+  font: 0.5rem var(--sans);
+}
+
+/* ---- Panels and bars -------------------------------------------------- */
+
+/* A panel at the edge of the table, and a toolbar: paper, as the cards, but
+   square to the edge of the screen. */
+.rr-panel {
+  border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: 0 2px 10px rgb(var(--shadow) / 0.1);
+}
+.rr-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.45rem;
+}
+.rr-toolbar__gap {
+  flex: 1;
+}

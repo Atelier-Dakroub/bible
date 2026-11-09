@@ -1,0 +1,60 @@
+<!-- The pigments of the reading room, each with its APCA contrast on the
+     paper of the setting now chosen (lib/apca.js). It reads the colors from
+     the page's own tokens, so it shows what the page shows, and it measures
+     again when a reading setting changes. -->
+
+<script element>
+  import { contrast } from '../lib/apca.js';
+
+  // Each token, what it is for, and the contrast it needs.
+  const TOKENS = [
+    { token: '--ink', name: 'Lamp black', use: 'The text', needs: 75 },
+    { token: '--rubric', name: 'Vermilion', use: 'The words of Christ', needs: 75 },
+    { token: '--ink-soft', name: 'Soft ink', use: 'Labels, notes', needs: 60 },
+    { token: '--lapis', name: 'Lapis', use: 'Links, passages', needs: 60 },
+    { token: '--ochre', name: 'Ochre', use: 'People', needs: 60 },
+    { token: '--verdigris', name: 'Verdigris', use: 'Places', needs: 60 },
+    { token: '--slate', name: 'Slate', use: 'Groups', needs: 60 },
+    { token: '--purple', name: 'Tyrian purple', use: 'Events, eras', needs: 60 },
+    { token: '--edge', name: 'Edge', use: 'Lines', needs: 15 },
+  ];
+
+  export const prototype = {
+    connected({ signal }) {
+      this.paint();
+      document.addEventListener('reading-change', () => this.paint(), { signal });
+    },
+
+    paint() {
+      const style = getComputedStyle(this);
+      const paper = style.getPropertyValue('--paper').trim();
+      this.replaceChildren(
+        ...TOKENS.map(({ token, name, use, needs }) => {
+          const color = style.getPropertyValue(token).trim();
+          const lc = Math.round(Math.abs(contrast(color, paper)));
+          const swatch = document.createElement('div');
+          swatch.className = 'swatch';
+          const chip = document.createElement('div');
+          chip.className = 'swatch__chip';
+          chip.style.background = color;
+          const title = document.createElement('div');
+          title.className = 'swatch__name';
+          title.textContent = name;
+          const what = document.createElement('div');
+          what.textContent = use;
+          const value = document.createElement('div');
+          value.className = 'swatch__lc';
+          value.textContent = `${color} · Lc ${lc}${lc >= needs ? '' : ` (needs ${needs})`}`;
+          swatch.append(chip, title, what, value);
+          return swatch;
+        }),
+      );
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    display: grid;
+  }
+</style>

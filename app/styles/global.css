@@ -1,3 +1,6 @@
+/* The reading room, the design system that follows this one (/design). */
+@import './reading-room.css';
+
 /* Linked by every page. It goes through Vite, so nesting and @import work, and
    the build hashes and compresses it. */
 

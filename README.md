@@ -194,8 +194,8 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | Path | What it holds |
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
-| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `pointer-log.js`. |
+| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
@@ -231,6 +231,28 @@ node tools/import-world.js
 It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
+
+## The reading room (the design system to come)
+
+`/design` shows the next design system with real content: cards, panels, a
+map, the timeline and a word study. `app/styles/reading-room.css` holds it,
+scoped to `.rr` until each part of the table moves over. The settings at the
+top of the page are the reader's own (`reading-settings`): Day or Night,
+Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
+three text typefaces and two interface typefaces, and red letters, verse
+numbers, initials and paragraphs on or off. The browser keeps them.
+
+The colors are manuscript pigments, and each kind of thing has one: ochre
+for people, verdigris for places, slate for groups, purple for events and
+eras, lapis for passages and links. Vermilion is for the words of Christ
+alone. `test/design.test.js` checks every color with APCA (`app/lib/apca.js`)
+on the paper of all six settings.
+
+The fonts are in `app/public/fonts`, Latin and extended Latin only, each with
+its SIL Open Font License: Literata, Source Serif 4 and Newsreader for the
+text; Atkinson Hyperlegible Next and Source Sans 3 for the interface. They
+came from Fontsource on npm (version 5.3). The pictograms are in
+`app/icons/kinds`.
 
 ## The map data
 

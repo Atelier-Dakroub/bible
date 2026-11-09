@@ -173,14 +173,14 @@ type Contact = {
   y: number;
   t: number;
 };
+type Part = {
+  text: string;
+  hit: boolean;
+};
 type Result = {
   address: string;
   title: string;
   parts: Part[];
-};
-type Part = {
-  text: string;
-  hit: boolean;
 };
 type Entry = {
   code: string;
@@ -532,6 +532,19 @@ export type CalibrationTargetMembers = {
   reset(): void;
 };
 
+/** Properties of `<contrast-chart>`, from its <script element> block. */
+export type ContrastChartProps = {};
+
+/** Members of `<contrast-chart>`, from its `export const prototype`. */
+export type ContrastChartMembers = {
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  paint(): void;
+};
+
 /** Properties of `<gesture-card>`, from its <script element> block. */
 export type GestureCardProps = {
   x: number;
@@ -737,6 +750,23 @@ export type PassageSearchMembers = {
   send(address: string, pointer: Pull_2 | null): void;
 };
 
+/** Properties of `<reading-settings>`, from its <script element> block. */
+export type ReadingSettingsProps = {};
+
+/** Members of `<reading-settings>`, from its `export const prototype`. */
+export type ReadingSettingsMembers = {
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  current(): {
+    [k: string]: string;
+  };
+  act(event: MouseEvent): void;
+  paint(): void;
+};
+
 /** Properties of `<svg-icon>`, from its <script element> block. */
 export type SvgIconProps = {
   library: string;
@@ -889,6 +919,171 @@ export type RootLayoutContext = {
 
 /** Data returned by `root/_layout.html`. */
 export type RootLayoutData = {};
+
+/** The `ctx` argument of `design`'s <script server> loader. */
+export type DesignContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `design`'s <script server> block. */
+export type DesignData = {
+  opening: {
+    title: string;
+    verses: {
+      label: string;
+      note: string;
+      noteRef: string;
+      runs: {
+        marks: string;
+        parts: {
+          text: string;
+          mark: boolean;
+        }[];
+      }[];
+      paragraph: boolean;
+    }[];
+    paragraphs: {
+      verses: {
+        label: string;
+        note: string;
+        noteRef: string;
+        runs: {
+          marks: string;
+          parts: {
+            text: string;
+            mark: boolean;
+          }[];
+        }[];
+        paragraph: boolean;
+      }[];
+      initial: boolean;
+    }[];
+  };
+  red: {
+    title: string;
+    verses: {
+      label: string;
+      note: string;
+      noteRef: string;
+      runs: {
+        marks: string;
+        parts: {
+          text: string;
+          mark: boolean;
+        }[];
+      }[];
+      paragraph: boolean;
+    }[];
+    paragraphs: {
+      verses: {
+        label: string;
+        note: string;
+        noteRef: string;
+        runs: {
+          marks: string;
+          parts: {
+            text: string;
+            mark: boolean;
+          }[];
+        }[];
+        paragraph: boolean;
+      }[];
+      initial: boolean;
+    }[];
+  };
+  place: {
+    title: string;
+    kicker: string;
+    where: string;
+    summary: string;
+    partOf: {
+      id: string;
+      name: string;
+    }[];
+    seeAlso: {
+      name: string;
+    }[];
+  };
+  person: {
+    title: string;
+    kicker: string;
+    summary: string;
+  };
+  results: {
+    title: string;
+    parts: Part[];
+  }[];
+  word: {
+    summary: string;
+    renderings: {
+      text: string;
+      count: number;
+    }[];
+    bars: {
+      id: string;
+      title: string;
+      x: number;
+      y: number;
+      height: number;
+    }[];
+  } | null;
+  map: {
+    viewBox: string;
+    land: string[];
+    lakes: string[];
+    rivers: string[];
+    places: {
+      id: string;
+      name: string;
+      x: string;
+      y: string;
+      verses: number;
+      r: number;
+      dx: number;
+      dy: number;
+    }[];
+    font: number;
+    halo: number;
+    sea: {
+      x: number;
+      y: number;
+    };
+    salt: {
+      x: number;
+      y: number;
+    };
+  };
+  eras: {
+    name: string;
+    label: string;
+  }[];
+  ticks: {
+    at: string;
+    shown: boolean;
+  }[];
+  kinds: {
+    name: string;
+    label: string;
+  }[];
+};
 
 /** The `ctx` argument of `search`'s <script server> loader. */
 export type SearchContext = {
@@ -1127,11 +1322,13 @@ declare global {
   interface HTMLElementTagNameMap {
     "bible-table": HTMLElement & BibleTableProps & BibleTableMembers;
     "calibration-target": HTMLElement & CalibrationTargetProps & CalibrationTargetState & CalibrationTargetMembers;
+    "contrast-chart": HTMLElement & ContrastChartProps & ContrastChartMembers;
     "gesture-card": HTMLElement & GestureCardProps & GestureCardMembers;
     "kjv-verse": HTMLElement;
     "map-view": HTMLElement & MapViewProps & MapViewMembers;
     "note-editor": HTMLElement & NoteEditorProps & NoteEditorState & NoteEditorMembers;
     "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
+    "reading-settings": HTMLElement & ReadingSettingsProps & ReadingSettingsMembers;
     "svg-icon": HTMLElement;
     "table-menu": HTMLElement & TableMenuProps & TableMenuState & TableMenuMembers;
     "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;

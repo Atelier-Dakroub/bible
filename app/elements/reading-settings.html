@@ -1,0 +1,214 @@
+<!-- The reader's settings: theme, paper, text size, line spacing, typefaces,
+     and what the text shows. Each is an attribute on <html> that the
+     stylesheet reads (styles/reading-room.css), and the browser keeps them
+     for the next visit.
+
+     It sends `reading-change` (bubbling) after each change, with the
+     settings as detail, so a view that measures text can measure again. -->
+
+<script element>
+  const KEY = 'bible.reading';
+
+  // Each setting, its values, and its default. The default is left off
+  // <html>, so the stylesheet's plain rules are the default look.
+  /** @type {Record<string, string[]>} */
+  const SETTINGS = {
+    theme: ['day', 'night'],
+    paper: ['bright', 'soft', 'lamp'],
+    size: ['3', '1', '2', '4', '5'],
+    leading: ['normal', 'compact', 'loose'],
+    serif: ['literata', 'source-serif', 'newsreader'],
+    sans: ['atkinson', 'source-sans'],
+    red: ['on', 'off'],
+    numbers: ['on', 'off'],
+    initials: ['on', 'off'],
+    layout: ['paragraphs', 'verses'],
+  };
+
+  /** @returns {Record<string, string>} */
+  function load() {
+    try {
+      const value = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+      return value && typeof value === 'object' ? value : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** @param {Record<string, string>} settings */
+  function apply(settings) {
+    const root = document.documentElement;
+    for (const [name, values] of Object.entries(SETTINGS)) {
+      const value = settings[name];
+      if (values.includes(value) && value !== values[0]) root.dataset[name] = value;
+      else delete root.dataset[name];
+    }
+  }
+
+  export const prototype = {
+    connected({ signal }) {
+      apply(load());
+      this.paint();
+      this.addEventListener('click', (event) => this.act(event), { signal });
+    },
+
+    /** The settings now, each with its value or its default. */
+    current() {
+      const root = document.documentElement;
+      return Object.fromEntries(Object.entries(SETTINGS).map(([name, values]) => [name, root.dataset[name] ?? values[0]]));
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('button[data-set]') : null;
+      if (!(button instanceof HTMLElement)) return;
+      const name = button.dataset.set ?? '';
+      const values = SETTINGS[name];
+      if (!values) return;
+      const settings = this.current();
+      const now = settings[name];
+      if (button.dataset.step) {
+        // Text size steps up or down, and stops at the ends.
+        const next = Math.min(5, Math.max(1, Number(now) + Number(button.dataset.step)));
+        settings[name] = String(next);
+      } else {
+        settings[name] = button.dataset.value ?? values[0];
+      }
+      apply(settings);
+      try {
+        localStorage.setItem(KEY, JSON.stringify(settings));
+      } catch {
+        // A private window keeps nothing; the setting holds for this visit.
+      }
+      this.paint();
+      this.dispatchEvent(new CustomEvent('reading-change', { bubbles: true, detail: settings }));
+    },
+
+    paint() {
+      const settings = this.current();
+      for (const button of this.querySelectorAll('button[data-set][data-value]')) {
+        const element = /** @type {HTMLElement} */ (button);
+        element.setAttribute('aria-pressed', String(settings[element.dataset.set ?? ''] === element.dataset.value));
+      }
+      const size = this.querySelector('.reading__size');
+      if (size) size.textContent = `${settings.size} of 5`;
+      for (const button of this.querySelectorAll('button[data-step]')) {
+        const element = /** @type {HTMLButtonElement} */ (button);
+        const step = Number(element.dataset.step);
+        element.disabled = (step < 0 && settings.size === '1') || (step > 0 && settings.size === '5');
+      }
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1rem;
+    align-items: center;
+  }
+  /* In a narrow column, each name goes above its buttons. */
+  @container (max-width: 26rem) {
+    :scope {
+      grid-template-columns: 1fr;
+      gap: 0.2rem;
+    }
+    .reading__name:not(:first-child) {
+      margin-top: 0.5rem;
+    }
+  }
+  .reading__name {
+    margin: 0;
+    font: 600 0.6rem var(--sans);
+    color: var(--ink-soft);
+  }
+  .reading__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  /* Each typeface's button is set in that typeface. */
+  .reading__face--literata { font-family: 'Literata', serif !important; }
+  .reading__face--source-serif { font-family: 'Source Serif 4', serif !important; }
+  .reading__face--newsreader { font-family: 'Newsreader', serif !important; }
+  .reading__face--atkinson { font-family: 'Atkinson Hyperlegible Next', sans-serif !important; }
+  .reading__face--source-sans { font-family: 'Source Sans 3', sans-serif !important; }
+  .reading__size {
+    min-width: 3.5rem;
+    text-align: center;
+    font: 0.65rem var(--sans);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<p class="reading__name">Theme</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Theme">
+    <button type="button" data-set="theme" data-value="day">Day</button>
+    <button type="button" data-set="theme" data-value="night">Night</button>
+  </div>
+</div>
+
+<p class="reading__name">Paper</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Paper brightness">
+    <button type="button" data-set="paper" data-value="bright">Bright</button>
+    <button type="button" data-set="paper" data-value="soft">Soft</button>
+    <button type="button" data-set="paper" data-value="lamp">Lamp</button>
+  </div>
+</div>
+
+<p class="reading__name">Text size</p>
+<div class="reading__row">
+  <button type="button" data-set="size" data-step="-1" aria-label="Smaller text">A−</button>
+  <span class="reading__size" aria-live="polite"></span>
+  <button type="button" data-set="size" data-step="1" aria-label="Larger text">A+</button>
+</div>
+
+<p class="reading__name">Line spacing</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Line spacing">
+    <button type="button" data-set="leading" data-value="compact">Compact</button>
+    <button type="button" data-set="leading" data-value="normal">Normal</button>
+    <button type="button" data-set="leading" data-value="loose">Loose</button>
+  </div>
+</div>
+
+<p class="reading__name">Text typeface</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Text typeface">
+    <button type="button" data-set="serif" data-value="literata" class="reading__face--literata">Literata</button>
+    <button type="button" data-set="serif" data-value="source-serif" class="reading__face--source-serif">Source Serif</button>
+    <button type="button" data-set="serif" data-value="newsreader" class="reading__face--newsreader">Newsreader</button>
+  </div>
+</div>
+
+<p class="reading__name">Interface typeface</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Interface typeface">
+    <button type="button" data-set="sans" data-value="atkinson" class="reading__face--atkinson">Atkinson Hyperlegible</button>
+    <button type="button" data-set="sans" data-value="source-sans" class="reading__face--source-sans">Source Sans</button>
+  </div>
+</div>
+
+<p class="reading__name">The text</p>
+<div class="reading__row">
+  <div class="rr-segments" role="group" aria-label="Words of Christ in red">
+    <button type="button" data-set="red" data-value="on">Red letters</button>
+    <button type="button" data-set="red" data-value="off">Black letters</button>
+  </div>
+  <div class="rr-segments" role="group" aria-label="Verse numbers">
+    <button type="button" data-set="numbers" data-value="on">Verse numbers</button>
+    <button type="button" data-set="numbers" data-value="off">None</button>
+  </div>
+  <div class="rr-segments" role="group" aria-label="Initials">
+    <button type="button" data-set="initials" data-value="on">Initials</button>
+    <button type="button" data-set="initials" data-value="off">None</button>
+  </div>
+  <div class="rr-segments" role="group" aria-label="Layout">
+    <button type="button" data-set="layout" data-value="paragraphs">Paragraphs</button>
+    <button type="button" data-set="layout" data-value="verses">Verse by verse</button>
+  </div>
+</div>
