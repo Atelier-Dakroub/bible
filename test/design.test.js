@@ -22,11 +22,11 @@ function tokens(selector, side) {
   return Object.fromEntries(pairs.map((m) => [m[1], m[2 + side]]));
 }
 
-const SOFT = ":root[data-paper='soft'] .rr";
-const LAMP = ":root[data-paper='lamp'] .rr";
+const SOFT = ":root[data-paper='soft'] :is(.rr, .rr-scope)";
+const LAMP = ":root[data-paper='lamp'] :is(.rr, .rr-scope)";
 const settings = Object.fromEntries(
   /** @type {[string, 0 | 1][]} */ ([['day', 0], ['night', 1]]).flatMap(([theme, side]) => {
-    const bright = tokens('.rr', side);
+    const bright = tokens(':is(.rr, .rr-scope)', side);
     return [
       [`${theme}, bright`, bright],
       [`${theme}, soft`, { ...bright, ...tokens(SOFT, side) }],

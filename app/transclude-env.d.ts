@@ -291,49 +291,6 @@ type Token = {
   e: string | null;
   d: boolean;
 };
-type PlainBlock = {
-  style: string;
-  text: string;
-  numbered: boolean;
-  parts: {
-    text: string;
-    d: boolean;
-  }[];
-};
-type Landscape = {
-  title: string;
-  summary: string;
-  subject: string;
-  mode: string;
-  width: number;
-  height: number;
-  groups: Group[];
-  credit: string;
-};
-type Group = {
-  label: string;
-  y: number;
-  rows: Row[];
-};
-type Row = {
-  name: string;
-  y: number;
-  cells: Cell[];
-  marks: Mark[];
-  end: number;
-  total: string;
-};
-type Cell = {
-  address: string;
-  title: string;
-  x: number;
-  w: number;
-};
-type Mark = {
-  x: number;
-  y: number;
-  size: number;
-};
 
 /** Properties of `<bible-table>`, from its <script element> block. */
 export type BibleTableProps = {};
@@ -653,6 +610,9 @@ export type MapViewMembers = {
   level: number;
   settleTimer: number;
   glideFrame: number;
+  drawn: View | null;
+  quick: boolean;
+  drawTimer: number;
   connected({
     signal
   }: {
@@ -660,6 +620,8 @@ export type MapViewMembers = {
   }): void;
   disconnected(): void;
   svg(): SVGSVGElement | null;
+  begin(): void;
+  end(): void;
   places(): SVGGElement[];
   measure(): void;
   relabel(): void;
@@ -672,6 +634,7 @@ export type MapViewMembers = {
     y: number;
   };
   paint(): void;
+  paintControls(unit: number): void;
   settle(wait?: number | undefined): void;
   press(event: PointerEvent): void;
   drag(event: PointerEvent): void;
@@ -1051,6 +1014,7 @@ export type DesignData = {
     viewBox: string;
     land: string[];
     lakes: string[];
+    clip: string;
     rivers: string[];
     places: {
       id: string;
@@ -1092,6 +1056,7 @@ export type DesignData = {
     viewBox: string;
     land: string[];
     lakes: string[];
+    clip: string;
     rivers: string[];
     places: {
       id: string;
@@ -1317,41 +1282,7 @@ export type CardAddressContext = {
 
 /** Data returned by `card-_address`'s <script server> block. */
 export type CardAddressData = {
-  kind: string;
-  address: string;
-  version: string;
-  title: string;
-  verses: WordVerse[];
-  rows: {
-    verse: WordVerse;
-    bsb: PlainBlock[];
-  }[];
-  opening: string;
-  count: string;
-  entity: EntityView | null;
-  map: {
-    width: number;
-    height: number;
-    land: string[];
-    lakes: string[];
-    rivers: string[];
-    places: {
-      id: string;
-      name: string;
-      x: string;
-      y: string;
-      verses: number;
-    }[];
-  } | null;
-  note: string;
-  back: string;
-  next: string;
-  quotes: {
-    title: string;
-    address: string;
-    verses: WordVerse[];
-  }[];
-  landscape: Landscape | null;
+  [x: string]: any;
 };
 
 /** The `ctx` argument of `404`'s <script server> loader. */

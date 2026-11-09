@@ -36,6 +36,21 @@
 </style>
 
 <main>
+  <!-- The reader's settings (reading-settings, on /design), applied before the
+       page paints. They reach the parts of the table that are in the reading
+       room so far: the map card. The same script is in routes/design.html. -->
+  <script>
+    try {
+      const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
+      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout'];
+      for (const key of keys) {
+        const value = settings[key];
+        if (typeof value === 'string' && /^[a-z0-9-]{1,20}$/.test(value)) document.documentElement.dataset[key] = value;
+      }
+    } catch {
+      // No storage: the defaults hold.
+    }
+  </script>
   <h1 class="visually-hidden">Table</h1>
   <bible-table>
     <passage-search></passage-search>

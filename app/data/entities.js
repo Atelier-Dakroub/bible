@@ -18,13 +18,34 @@ import world from './world/polities.json' with { type: 'json' };
 export { timeline, world };
 
 /**
+ * @typedef {{
+ *   width: number, height: number,
+ *   land: string[], lakes: string[], rivers: string[],
+ *   coast: { land: string, lakes: string, landDetail: string, lakesDetail: string },
+ *   relief: {
+ *     bands: { n: number, d: string }[],
+ *     levant: { n: number, d: string }[],
+ *     shades: Record<string, { x: number, y: number, w: number, h: number }>
+ *   },
+ *   places: { id: string, name: string, x: string, y: string, verses: number }[]
+ * }} BaseMap
+ */
+
+/**
  * The base map, with a marker for every place that has coordinates on it.
  *
- * @returns {Promise<{ width: number, height: number, land: string[], lakes: string[], rivers: string[], places: { id: string, name: string, x: string, y: string, verses: number }[] }>}
+ * `land`, `lakes` and `rivers` are lists of paths. `coast` has the land and
+ * the lakes as one path each (for a clip and an outline), for the whole map
+ * and for a close view. `relief` is tools/import-relief.js's output: the
+ * land at or above each height, for the whole map and, sharper, for the
+ * Levant, and where the hill shade images go.
+ *
+ * @returns {Promise<BaseMap>}
  */
 export async function mapOf() {
-  const [{ default: base }, { onMap, project }, known] = await Promise.all([
+  const [{ default: base }, { default: relief }, { onMap, project }, known] = await Promise.all([
     import('./map/near-east.json', { with: { type: 'json' } }),
+    import('./map/relief.json', { with: { type: 'json' } }),
     import('../lib/map.js'),
     entities(),
   ]);
@@ -37,7 +58,25 @@ export async function mapOf() {
     // The least named first, so the most named are drawn on top. The map
     // names the most named first (lib/map.js nameLevels).
     .sort((a, b) => a.verses - b.verses || b.name.localeCompare(a.name));
-  return { width: base.width, height: base.height, land: base.land, lakes: base.lakes, rivers: base.rivers, places };
+  return {
+    width: base.width,
+    height: base.height,
+    land: base.land,
+    lakes: base.lakes,
+    rivers: base.rivers,
+    coast: {
+      land: base.land.join(''),
+      lakes: base.lakes.join(''),
+      landDetail: (base.landDetail ?? base.land).join(''),
+      lakesDetail: (base.lakesDetail ?? base.lakes).join(''),
+    },
+    relief: {
+      bands: relief.bands.map((d, n) => ({ n, d })),
+      levant: relief.levant.bands.map((d, n) => ({ n, d })),
+      shades: relief.shades,
+    },
+    places,
+  };
 }
 
 /** @type {Promise<Record<string, Entity>> | null} */

@@ -115,8 +115,11 @@
       const k = view.w / 1000;
       return {
         viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
-        land: map.land,
-        lakes: map.lakes,
+        // The close view has GSHHG's close coast; the whole map, the coast
+        // simplified to about 2 km.
+        land: close ? [map.coast.landDetail] : map.land,
+        lakes: close ? [map.coast.lakesDetail] : map.lakes,
+        clip: close ? 'rr-land-detail' : 'rr-land',
         rivers: map.rivers,
         places: candidates.filter((_, i) => levels[i] === 0).map((place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
         font: 13 * k,
@@ -171,7 +174,7 @@
       // The Levant: from the coast of Lebanon to the Negeb.
       israel: atlas([33.9, 33.4, 37.4, 30.7], [
         { x: 34.45, y: 32.75, label: 'The Great Sea' },
-        { x: 35.62, y: 31.1, label: 'Salt Sea', size: 0.8 },
+        { x: 35.5, y: 31.47, label: 'Salt Sea', size: 0.7 },
       ], true),
       // The whole map: from Italy to Persia.
       world: atlas([8, 46, 62, 18], [
@@ -524,6 +527,7 @@
       <svg class="rr-defs" width="0" height="0" aria-hidden="true">
         <defs>
           <clipPath id="rr-land"><path each="d of world.land" d="${d}"></path></clipPath>
+          <clipPath id="rr-land-detail"><path each="d of israel.land" d="${d}"></path></clipPath>
           <path each="band of relief" id="${band.id}" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke"></path>
         </defs>
       </svg>
@@ -539,7 +543,7 @@
             <path each="d of world.land" d="${d}" class="rr-map__land"></path>
             <!-- The clip makes the group a layer of its own, so the hill shade
                  blends only with what is inside it: the paper goes in first. -->
-            <g class="rr-relief" clip-path="url(#rr-land)">
+            <g class="rr-relief" clip-path="url(#${world.clip})">
               <rect x="0" y="0" width="1600" height="978" class="rr-relief__ground"></rect>
               <use each="band of world.relief" href="#${band.id}" class="rr-relief__band rr-relief__band--${band.n}"></use>
               <image href="${world.shade.href}" x="${world.shade.x}" y="${world.shade.y}" width="${world.shade.w}" height="${world.shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
@@ -554,7 +558,7 @@
             </g>
           </svg>
         </div>
-        <p class="rr-card__foot">Base map: Natural Earth (public domain). Relief: ETOPO 2022, NOAA NCEI. Places: Theographic (CC BY-SA).</p>
+        <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA).</p>
       </article>
 
       <article class="rr-card rr-card--place design__wide">
@@ -569,7 +573,7 @@
             <path each="d of israel.land" d="${d}" class="rr-map__land"></path>
             <!-- The clip makes the group a layer of its own, so the hill shade
                  blends only with what is inside it: the paper goes in first. -->
-            <g class="rr-relief" clip-path="url(#rr-land)">
+            <g class="rr-relief" clip-path="url(#${israel.clip})">
               <rect x="0" y="0" width="1600" height="978" class="rr-relief__ground"></rect>
               <use each="band of israel.relief" href="#${band.id}" class="rr-relief__band rr-relief__band--${band.n}"></use>
               <image href="${israel.shade.href}" x="${israel.shade.x}" y="${israel.shade.y}" width="${israel.shade.w}" height="${israel.shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
@@ -584,7 +588,7 @@
             </g>
           </svg>
         </div>
-        <p class="rr-card__foot">Base map: Natural Earth (public domain). Relief: ETOPO 2022, NOAA NCEI. Places: Theographic (CC BY-SA).</p>
+        <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA).</p>
       </article>
 
       <article class="rr-card rr-card--era design__wide">

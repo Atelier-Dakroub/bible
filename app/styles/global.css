@@ -530,15 +530,18 @@ gesture-card[data-zoom='far'] .note__text {
   text-indent: -1em;
 }
 
-/* The map card. Lines keep one pixel at any scale. */
-.passage--map {
+/* The map card, in the reading room (styles/reading-room.css): a paper card
+   on the table, with the relief of an atlas. Lines keep their width at any
+   zoom. */
+.map-card {
   width: 44rem;
 }
 .map__view {
-  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--sea);
 }
 .map__view:focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--lapis);
   outline-offset: 2px;
 }
 .map__svg {
@@ -546,18 +549,41 @@ gesture-card[data-zoom='far'] .note__text {
   width: 100%;
   height: auto;
 }
-.map__land,
-.map__lake {
+/* The contour at the edge of each height. */
+.map__band {
+  stroke: light-dark(
+    color-mix(in srgb, var(--relief-ink) 45%, var(--paper)),
+    color-mix(in srgb, var(--relief-ink) 32%, var(--paper))
+  );
+  stroke-width: 0.6;
+}
+.map__coast {
   fill: none;
-  stroke: var(--text);
+  stroke: var(--ink-soft);
   stroke-width: 1;
+}
+.map__lake {
+  fill: var(--sea);
+  stroke: var(--ink-soft);
+  stroke-width: 0.75;
   vector-effect: non-scaling-stroke;
 }
 .map__river {
   fill: none;
-  stroke: var(--muted);
-  stroke-width: 0.75;
+  stroke: color-mix(in srgb, var(--lapis) 55%, var(--sea));
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+/* Whole or close: map-view sets data-detail closer than DETAIL_ZOOM. */
+.map__coast--detail,
+.map__lake--detail,
+.map__view[data-detail] .map__coast--whole,
+.map__view[data-detail] .map__lake--whole {
+  display: none;
+}
+.map__view[data-detail] .map__coast--detail,
+.map__view[data-detail] .map__lake--detail {
+  display: inline;
 }
 /* The dots and names are in pixels: the group is scaled back by the size of
    a map unit (map-view sets --map-unit), so they keep their size at every
@@ -566,7 +592,7 @@ gesture-card[data-zoom='far'] .note__text {
   transform: scale(calc(1 / var(--map-unit, 1)));
 }
 .map__place circle {
-  fill: var(--line);
+  fill: color-mix(in srgb, var(--verdigris) 45%, var(--paper));
   /* A wide clear edge around each dot, so a mouse can hit it as well as a
      finger. A transparent stroke still takes the pointer. */
   stroke: transparent;
@@ -575,43 +601,48 @@ gesture-card[data-zoom='far'] .note__text {
 .map__place {
   cursor: pointer;
 }
+.map__place text {
+  display: none;
+  fill: var(--ink);
+  font: 600 0.65rem var(--sans);
+  /* A paper edge keeps a name readable where it crosses a coast or a
+     contour. */
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
 /* With a mouse, the name shows under the pointer. */
 @media (hover: hover) {
   .map__place:hover text {
     display: inline;
   }
   .map__place:hover circle {
-    fill: var(--text);
+    fill: var(--verdigris);
   }
 }
-.map__place text {
-  display: none;
-  fill: var(--text);
-  font: 0.75rem system-ui, sans-serif;
-  /* A black edge keeps a name readable where it crosses a coast. */
-  paint-order: stroke;
-  stroke: var(--surface);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
 .map__place.is-named circle {
-  fill: var(--muted);
+  fill: var(--verdigris);
 }
 .map__place.is-named text,
 .map__place.is-on-table text,
 .map__place.is-shown text {
   display: inline;
 }
-.map__place.is-on-table circle,
+.map__place.is-on-table circle {
+  r: 6px;
+  fill: var(--verdigris);
+}
+/* The place on show: lapis, the color of what is chosen. */
 .map__place.is-shown circle {
   r: 6px;
-  fill: var(--text);
+  fill: var(--lapis);
 }
 .map__place.is-shown text {
+  fill: var(--lapis);
   font-weight: 700;
 }
-/* The zoom buttons and the scale bar sit on the map, on the page's black so
-   the coast does not run through them. */
+/* The zoom buttons and the scale bar sit on the map. */
 .map__zoom {
   position: absolute;
   top: 0.5rem;
@@ -621,12 +652,13 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__zoom button {
   min-width: 2rem;
-  min-height: 2rem;
-  padding: 0 0.6rem;
-  font: 0.75rem system-ui, sans-serif;
+  box-shadow: 0 1px 3px var(--shade-near);
 }
+/* A disabled button on the map stays opaque, so the map does not show
+   through its label. */
 .map__zoom button:disabled {
-  color: var(--line);
+  opacity: 1;
+  color: color-mix(in srgb, var(--ink-soft) 55%, var(--paper));
 }
 .map__scale {
   position: absolute;
@@ -636,19 +668,17 @@ gesture-card[data-zoom='far'] .note__text {
   align-items: center;
   gap: 0.5rem;
   margin: 0;
-  padding: 0.2rem 0.4rem;
-  background: var(--surface);
-  color: var(--muted);
-  font: 0.6rem system-ui, sans-serif;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--ink-soft);
+  font: 0.55rem var(--sans);
   pointer-events: none;
 }
 .map__bar {
   height: 0.4rem;
-  border: 1px solid var(--muted);
+  border: 1px solid var(--ink-soft);
   border-top: 0;
-}
-gesture-card[data-zoom='far'] .map {
-  display: block;
 }
 
 /* Rule marks (app/lib/rules.js): words marked on every card by what they

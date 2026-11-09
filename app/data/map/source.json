@@ -2,5 +2,11 @@
   "name": "Natural Earth, 1:10 million",
   "source": "https://github.com/nvkelso/natural-earth-vector (ne_10m_land, ne_10m_lakes, ne_10m_rivers_lake_centerlines)",
   "license": "Public domain.",
-  "note": "Modern coastlines and rivers. Ancient coastlines differed in places, such as the head of the Persian Gulf."
+  "note": "Modern coastlines and rivers. Ancient coastlines differed in places, such as the head of the Persian Gulf.",
+  "coast": {
+    "name": "GSHHG 2.3.7, full resolution",
+    "source": "https://www.soest.hawaii.edu/pwessel/gshhg/ (gshhg-shp-2.3.7.zip: GSHHS_shp/f/GSHHS_f_L1 and L2)",
+    "license": "GNU Lesser General Public License, version 3 or later (GSHHG-LICENSE.txt).",
+    "note": "Coastlines and lakes. The rivers stay Natural Earth's. Modern shores: ancient ones differed in places."
+  }
 }

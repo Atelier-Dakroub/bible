@@ -25,6 +25,7 @@
   const NOTE = /^note:([a-z0-9]{1,40})$/i;
   const MAX_QUOTES = 20;
 
+  /** @typedef {{ x: number, y: number, w: number, h: number }} Box */
   /**
    * @typedef {{
    *   kind: string, address: string, version: string, title: string,
@@ -35,7 +36,8 @@
    *   map: Awaited<ReturnType<typeof mapOf>> | null,
    *   note: string, back: string, next: string,
    *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[],
-   *   landscape: import('../../data/study.js').Landscape | null
+   *   landscape: import('../../data/study.js').Landscape | null,
+   *   shade: Box, levant: Box, levantClip: Box
    * }} Card
    */
 
@@ -43,7 +45,9 @@
    * @param {Partial<Card> & { kind: string, address: string, version: string, title: string }} fields
    * @returns {Card}
    */
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, ...fields });
+  /** A box on the map, for the cards that have no map. */
+  const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -54,7 +58,13 @@
 
     // The map of the biblical world.
     if (address === 'map:near-east') {
-      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map: await mapOf() });
+      const map = await mapOf();
+      const levant = map.relief.shades['hillshade-levant'] ?? NO_BOX;
+      // The Levant's relief closes its contours at the edge of its box; the
+      // clip is a little inside, so those edges do not show.
+      const inset = 0.6;
+      const levantClip = { x: levant.x + inset, y: levant.y + inset, w: levant.w - 2 * inset, h: levant.h - 2 * inset };
+      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map, shade: map.relief.shades.hillshade ?? NO_BOX, levant, levantClip });
     }
 
     // The whole Bible, one cell per chapter.
@@ -100,7 +110,74 @@
 <title>Passage</title>
 
 <gesture-card id="card" fragment data-address="${address}" data-kind="${kind}" data-version="${version}" data-verses="${verses.length}" data-note="${note}" data-subject="${landscape ? landscape.subject : ''}" x="0.5" y="0.4">
-  <article class="passage passage--${kind === 'passage' ? version : kind}">
+  <!-- The map, in the reading room (styles/reading-room.css): paper land
+       tinted by height, with contours and a hill shade lit from the
+       northwest; a pale, flat sea; places in verdigris. It moves and zooms
+       inside its frame (map-view), and names more places closer in. Closer
+       than DETAIL_ZOOM (map-view), it draws the close coast, and the Levant
+       has its own sharper relief at every zoom. The table labels the places
+       that the cards on it name, and the one on show. The dots and names are
+       in pixels, in a group that the frame scales back by the size of a map
+       unit.
+
+       The coast is drawn once for each level of detail, in <defs>: the clip
+       of the relief and the outline both use it. -->
+  <article if="map" class="rr-scope rr-card rr-card--place map-card">
+    <header class="rr-card__head">
+      <div class="rr-card__titles">
+        <p class="rr-card__kind"><span class="rr-pictogram rr-pictogram--place"><svg-icon library="kinds" name="place"></svg-icon></span><span class="rr-kicker">Map</span></p>
+        <h2 class="rr-card__title passage__heading">${title}</h2>
+      </div>
+      <button type="button" class="rr-card__close" data-action="close" aria-label="Remove the map from the table">×</button>
+    </header>
+    <div class="rr-card__body">
+      <map-view class="map__view">
+        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
+          <defs>
+            <path id="map-land" d="${map ? map.coast.land : ''}" vector-effect="non-scaling-stroke"></path>
+            <path id="map-land-detail" d="${map ? map.coast.landDetail : ''}" vector-effect="non-scaling-stroke"></path>
+            <clipPath id="map-clip-land"><use href="#map-land"></use></clipPath>
+            <clipPath id="map-clip-land-detail"><use href="#map-land-detail"></use></clipPath>
+            <clipPath id="map-clip-levant"><rect x="${levantClip.x}" y="${levantClip.y}" width="${levantClip.w}" height="${levantClip.h}"></rect></clipPath>
+          </defs>
+          <!-- The land: its paper, its height and its shade, clipped to the
+               coast. The clip makes this a layer of its own, so the shade
+               blends only with what is inside it. -->
+          <g class="map__relief" clip-path="url(#map-clip-land)">
+            <rect x="0" y="0" width="${map ? map.width : 0}" height="${map ? map.height : 0}" class="rr-relief__ground"></rect>
+            <path each="band of map ? map.relief.bands : []" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
+            <image href="/map/hillshade.png" x="${shade.x}" y="${shade.y}" width="${shade.w}" height="${shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+            <!-- The Levant, sharper, over the whole map's relief: its ground
+                 covers what is under it, so the two shades do not add. -->
+            <g clip-path="url(#map-clip-levant)">
+              <rect x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" class="rr-relief__ground"></rect>
+              <path each="band of map ? map.relief.levant : []" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
+              <image href="/map/hillshade-levant.png" x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+            </g>
+          </g>
+          <use href="#map-land" class="map__coast map__coast--whole"></use>
+          <use href="#map-land-detail" class="map__coast map__coast--detail"></use>
+          <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
+          <path d="${map ? map.coast.lakes : ''}" class="map__lake map__lake--whole"></path>
+          <path d="${map ? map.coast.lakesDetail : ''}" class="map__lake map__lake--detail"></path>
+          <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
+            <g class="map__mark">
+              <circle r="4"></circle>
+              <text x="8" y="6">${place.name}</text>
+            </g>
+          </g>
+        </svg>
+        <div class="map__zoom" role="group" aria-label="Zoom the map">
+          <button type="button" data-map="in" aria-label="Zoom in">+</button>
+          <button type="button" data-map="out" aria-label="Zoom out" disabled>−</button>
+          <button type="button" data-map="all" disabled>Whole map</button>
+        </div>
+        <p class="map__scale"><span class="map__bar"></span><span class="map__km"></span></p>
+      </map-view>
+    </div>
+    <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA). Modern shores: ancient ones differed in places.</p>
+  </article>
+  <article else class="passage passage--${kind === 'passage' ? version : kind}">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
       <div if="kind === 'passage'" class="passage__versions" role="group" aria-label="Translation">
@@ -125,33 +202,6 @@
       <span class="passage__opening">${opening}</span>
       <span class="passage__count">${count}</span>
     </p>
-    <!-- The map: modern coastlines, every mapped place as a dot. It moves and
-         zooms inside its frame (map-view), and names more places closer in.
-         The table labels the places that the cards on it name, and the one
-         on show. The dots and names are in pixels, in a group that the
-         frame scales back by the size of a map unit. -->
-    <div if="map" class="map">
-      <map-view class="map__view">
-        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
-          <path each="d of map ? map.land : []" d="${d}" class="map__land"></path>
-          <path each="d of map ? map.lakes : []" d="${d}" class="map__lake"></path>
-          <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
-          <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
-            <g class="map__mark">
-              <circle r="4"></circle>
-              <text x="8" y="6">${place.name}</text>
-            </g>
-          </g>
-        </svg>
-        <div class="map__zoom" role="group" aria-label="Zoom the map">
-          <button type="button" data-map="in" aria-label="Zoom in">+</button>
-          <button type="button" data-map="out" aria-label="Zoom out" disabled>−</button>
-          <button type="button" data-map="all" disabled>Whole map</button>
-        </div>
-        <p class="map__scale"><span class="map__bar"></span><span class="map__km"></span></p>
-      </map-view>
-      <p class="entity__credit">Base map: Natural Earth (public domain), with modern coastlines. Places: Theographic (CC BY-SA).</p>
-    </div>
     <!-- The landscape: a row per book, a cell per chapter. A tap on a cell
          puts the chapter on the table. -->
     <div if="landscape" class="landscape">

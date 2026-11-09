@@ -20,6 +20,17 @@
      size at every zoom; only the distances grow. The scale bar in the corner
      gives the distance.
 
+     Closer than DETAIL_ZOOM, the frame sets data-detail: the card then
+     draws the close coast and lakes (GSHHG at about 150 m), and clips the
+     relief to that coast. Further out, the coast simplified to about 2 km is
+     lighter to draw and as good at that size.
+
+     Speed: the relief is heavy to draw, so while a hand, the wheel or a glide
+     moves the map, the frame moves a picture of it (a CSS transform of the
+     map as last drawn, which the browser does not draw again), and draws it
+     again, sharp and with its names placed, when the movement stops. During
+     the movement the names grow and shrink with the picture.
+
      The view is { x, y, w } in map units (lib/map.js). The table keeps it
      with the workspace. Events, all bubbling:
        card-paint   the view changed, so the lines to the places move too
@@ -45,6 +56,10 @@
   const SETTLE_MS = 400;
   // The gap from a dot to its name, in pixels.
   const GAP = 8;
+  // From this zoom on, the close coast.
+  const DETAIL_ZOOM = 3;
+  // How long after the last wheel event the map is drawn again.
+  const WHEEL_DRAW_MS = 160;
 
   /**
    * The middle of the first two points, and how far apart they are.
@@ -76,11 +91,27 @@
     level: -1,
     settleTimer: 0,
     glideFrame: 0,
+    /** @type {View | null} the view the map was last drawn at */
+    drawn: null,
+    /** whether the map is moving, and shown as a picture until it stops */
+    quick: false,
+    drawTimer: 0,
 
     connected({ signal }) {
       this.view ??= wholeMap();
       this.points = new Map();
       if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
+      // A frame of the frame's own: an empty SVG over it whose units are
+      // fractions of its width, so a point on the screen converts to the
+      // frame however the card is turned or scaled, and whatever the map's
+      // transform is.
+      if (!this.querySelector('.map__probe')) {
+        const probe = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        probe.setAttribute('class', 'map__probe');
+        probe.setAttribute('viewBox', `0 0 1 ${HEIGHT / WIDTH}`);
+        probe.setAttribute('aria-hidden', 'true');
+        this.prepend(probe);
+      }
       this.addEventListener('pointerdown', (event) => this.press(event), { signal });
       this.addEventListener('pointermove', (event) => this.drag(event), { signal });
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
@@ -97,11 +128,29 @@
     disconnected() {
       cancelAnimationFrame(this.glideFrame);
       clearTimeout(this.settleTimer);
+      clearTimeout(this.drawTimer);
     },
 
     /** @returns {SVGSVGElement | null} */
     svg() {
-      return this.querySelector('svg');
+      return this.querySelector('svg:not(.map__probe)');
+    },
+
+    /** The map starts to move: show it as a picture until it stops. */
+    begin() {
+      clearTimeout(this.drawTimer);
+      if (this.quick) return;
+      this.quick = true;
+      this.classList.add('is-quick');
+    },
+
+    /** The map stops: draw it again, sharp. */
+    end() {
+      clearTimeout(this.drawTimer);
+      if (!this.quick) return;
+      this.quick = false;
+      this.classList.remove('is-quick');
+      this.paint();
     },
 
     /** The places, the most named first. */
@@ -181,6 +230,8 @@
     setView(view) {
       cancelAnimationFrame(this.glideFrame);
       this.view = moveView(view, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
+      this.quick = false;
+      this.classList.remove('is-quick');
       this.paint();
     },
 
@@ -196,6 +247,7 @@
       const to = moveView(target, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const start = performance.now();
+      this.begin();
       return new Promise((resolve) => {
         const frame = (/** @type {number} */ now) => {
           const t = reduced ? 1 : Math.min(1, (now - start) / GLIDE_MS);
@@ -212,7 +264,7 @@
           if (t < 1) this.glideFrame = requestAnimationFrame(frame);
           else {
             this.view = to;
-            this.paint();
+            this.end();
             this.settle(0);
             resolve();
           }
@@ -256,18 +308,37 @@
      * @param {Point} at
      */
     fraction(at) {
-      const svg = this.svg();
-      const view = /** @type {View} */ (this.view);
-      const matrix = svg?.getScreenCTM();
+      const probe = /** @type {SVGSVGElement | null} */ (this.querySelector('.map__probe'));
+      const matrix = probe?.getScreenCTM();
       if (!matrix) return { x: 0, y: 0 };
       const point = new DOMPoint(at.x, at.y).matrixTransform(matrix.inverse());
-      return { x: (point.x - view.x) / view.w, y: (point.y - view.y) / view.w };
+      return { x: point.x, y: point.y };
     },
 
+    /**
+     * Shows the view: while the map moves, as a picture of the map as last
+     * drawn, moved and scaled to the view; when it stops, drawn again.
+     */
     paint() {
       const svg = this.svg();
       const view = /** @type {View} */ (this.view);
       if (!svg) return;
+      const drawn = this.drawn;
+      if (this.quick && drawn) {
+        // The transform that takes the map as drawn to the view: a map point
+        // p is at (p - drawn) * W / drawn.w in the frame, and should be at
+        // (p - view) * W / view.w.
+        const width = svg.clientWidth;
+        const scale = drawn.w / view.w;
+        const dx = ((drawn.x - view.x) * width) / view.w;
+        const dy = ((drawn.y - view.y) * width) / view.w;
+        svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+        this.paintControls((this.pixels || width / WIDTH || 1) * zoomOf(view));
+        this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+        return;
+      }
+      this.drawn = { ...view };
+      svg.style.transform = '';
       const zoom = zoomOf(view);
       svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${(view.w * HEIGHT) / WIDTH}`);
       // The dots and names are drawn in pixels, inside a group scaled back by
@@ -275,26 +346,37 @@
       const unit = (this.pixels || svg.clientWidth / WIDTH || 1) * zoom;
       this.style.setProperty('--map-unit', String(unit));
 
+      const detail = zoom >= DETAIL_ZOOM;
+      if (detail !== this.hasAttribute('data-detail')) {
+        this.toggleAttribute('data-detail', detail);
+        this.querySelector('.map__relief')?.setAttribute('clip-path', `url(#${detail ? 'map-clip-land-detail' : 'map-clip-land'})`);
+      }
+
       const level = levelOf(zoom);
       if (level !== this.level) {
         this.level = level;
         this.relabel();
       }
 
+      this.paintControls(unit);
+      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+    },
+
+    /**
+     * The scale bar and the zoom buttons, for the view.
+     *
+     * @param {number} unit how many pixels a map unit is now
+     */
+    paintControls(unit) {
+      const view = /** @type {View} */ (this.view);
       const bar = scaleBar(unit / KM_PER_UNIT);
       const line = /** @type {HTMLElement | null} */ (this.querySelector('.map__bar'));
       const label = this.querySelector('.map__km');
       if (line) line.style.width = `${bar.px}px`;
       if (label) label.textContent = bar.label;
-
-      const closer = this.querySelector('[data-map="in"]');
-      const further = this.querySelector('[data-map="out"]');
-      const whole = this.querySelector('[data-map="all"]');
-      closer?.toggleAttribute('disabled', view.w <= WIDTH / MAX_ZOOM + 0.01);
-      further?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
-      whole?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
-
-      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+      this.querySelector('[data-map="in"]')?.toggleAttribute('disabled', view.w <= WIDTH / MAX_ZOOM + 0.01);
+      this.querySelector('[data-map="out"]')?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
+      this.querySelector('[data-map="all"]')?.toggleAttribute('disabled', view.w >= WIDTH - 0.01);
     },
 
     /**
@@ -326,6 +408,7 @@
         : null;
       points.set(event.pointerId, { x: event.clientX, y: event.clientY });
       this.classList.add('is-moving');
+      this.begin();
     },
 
     /** @param {PointerEvent} event */
@@ -359,6 +442,7 @@
       }
       if (points.size > 0) return;
       this.classList.remove('is-moving');
+      this.end();
       this.settle(0);
     },
 
@@ -370,6 +454,8 @@
       const at = { x: event.clientX, y: event.clientY };
       const view = /** @type {View} */ (this.view);
       cancelAnimationFrame(this.glideFrame);
+      this.begin();
+      this.drawTimer = setTimeout(() => this.end(), WHEEL_DRAW_MS);
       if (event.ctrlKey || event.metaKey) {
         const here = this.fraction(at);
         this.view = moveView(view, here, here, Math.exp((-event.deltaY * unit) / 200));
@@ -394,6 +480,7 @@
         event.stopPropagation();
         event.preventDefault();
         gesture = { at: { x: event.clientX, y: event.clientY }, scale: 1 };
+        this.begin();
       };
       /** @param {any} event */
       const change = (event) => {
@@ -410,6 +497,7 @@
         event.stopPropagation();
         event.preventDefault();
         gesture = null;
+        this.end();
         this.settle(0);
       };
       this.addEventListener('gesturestart', start, { signal });
@@ -471,6 +559,22 @@
   }
   :scope.is-moving {
     cursor: grabbing;
+  }
+  /* The map moves as a picture from the corner of the frame; while it moves,
+     it has a layer of its own, so the browser does not draw it again. */
+  svg {
+    transform-origin: 0 0;
+  }
+  :scope.is-quick svg {
+    will-change: transform;
+  }
+  .map__probe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
   }
 </style>
 

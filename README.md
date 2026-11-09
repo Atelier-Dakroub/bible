@@ -201,12 +201,12 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-map.js` and `import-relief.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-map.js`, `import-coast.js` and `import-relief.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
-| `app/data/map/` | The base map, from Natural Earth, and the relief, from ETOPO 2022. |
+| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -269,7 +269,24 @@ Modern reservoirs, such as Lake Nasser, are left out. The place markers come
 from the entity data at request time.
 
 
-The relief (`/design` shows it): `app/data/map/relief.json` holds, for each
+The coast and lakes are GSHHG's (full resolution, LGPL; the notice is in
+`app/data/map/GSHHG-LICENSE.txt`), at two levels of detail: simplified to
+about 2 km for the whole map, and to about 150 m for a close view. Natural
+Earth still gives the rivers, and its list of natural lakes decides which of
+GSHHG's lakes stay (a reservoir such as Lake Nasser does not). Run the Natural
+Earth import first, then the coast:
+
+```sh
+node tools/import-map.js <Natural Earth GeoJSON directory>
+node tools/import-coast.js <directory with GSHHS_f_L1.shp and GSHHS_f_L2.shp>
+```
+
+The map card is in the reading room's style. It draws the close coast from
+a zoom of 3, and the Levant always has its sharper relief. While the map
+moves, the frame moves a picture of it and draws it again when it stops,
+so a pinch stays at the screen's frame rate.
+
+The relief: `app/data/map/relief.json` holds, for each
 of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or
 above it as one path; its edge is the contour line. `app/public/map/` holds
 two hill shades, lit from the northwest: one of the whole map, and a sharper
