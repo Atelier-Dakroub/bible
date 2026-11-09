@@ -38,7 +38,7 @@ words keep their addresses, so a dashed line joins the quote to the
 highlight it came from. A verse that a note quotes has a gray line down its
 left side on the other cards.
 
-Passage cards step through the text: Back and Next go to the passage before
+Passage cards step through the text: ‹ and ›, beside the heading, go to the passage before
 or after, the same size. Sync joins cards: when one synced card steps, the
 others go to the same passage, each in its own translation, for example the
 KJV and the BSB of one chapter. Copy puts the words of the card and their
