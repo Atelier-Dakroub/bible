@@ -251,14 +251,14 @@
   }
   form {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.75rem;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
     border-bottom: 1px solid var(--line);
   }
   input {
     flex: 1;
     min-width: 0;
-    min-height: 2.75rem;
+    min-height: var(--control-height);
     padding: 0 0.75rem;
     border: 1px solid var(--line);
     border-radius: 0;
@@ -271,15 +271,11 @@
   input::placeholder {
     color: var(--muted);
   }
-  button[type='submit'] {
-    min-height: 2.75rem;
-    padding: 0 1rem;
-    font: inherit;
-  }
+  button[type='submit'],
   .search__toggle {
-    min-height: 2.75rem;
-    padding: 0 1rem;
-    font: inherit;
+    min-height: var(--control-height);
+    padding: var(--control-padding);
+    font: var(--control-font);
   }
   /* Clear of the timeline strip, which sets its own height on the table. */
   :scope {

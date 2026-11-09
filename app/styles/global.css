@@ -23,6 +23,14 @@
   --muted: #cccccc;
   --line: #5a5a5a;
   --red-letter: #ffbcbc;
+  /* The toolbars at the edges of the table (search, menu, timeline, note
+     editor) share one size: the same space inside a bar and between its
+     buttons, and the same button. */
+  --bar-padding: 0.5rem;
+  --bar-gap: 0.5rem;
+  --control-height: 2.75rem;
+  --control-padding: 0 1rem;
+  --control-font: 16px/1.6 system-ui, sans-serif;
   /* The older names, for the touch test elements. */
   --panel: var(--surface);
   --paper: var(--surface);

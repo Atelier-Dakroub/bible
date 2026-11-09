@@ -204,28 +204,27 @@
     flex-direction: column;
     align-items: end;
     max-height: calc(100% - var(--timeline-height, 0px) - 3rem);
-    font: 0.85rem system-ui, sans-serif;
+    font: var(--control-font);
   }
   .menu__bar {
     display: flex;
-    gap: 0.25rem;
-    padding: 0.25rem;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
     border: 1px solid var(--line);
     background: var(--surface);
   }
   .menu__bar button,
   .menu__sheet button {
-    min-height: 2.75rem;
-    padding: 0 0.75rem;
-    font: inherit;
+    min-height: var(--control-height);
+    padding: var(--control-padding);
+    font: var(--control-font);
   }
   .menu__bar button:disabled {
     color: var(--line);
   }
   .menu__pens {
     display: flex;
-    gap: 0.25rem;
-    margin: 0 0.25rem;
+    gap: var(--bar-gap);
   }
   .menu__pens button[aria-pressed='true'],
   .menu__bar [aria-expanded='true'] {
@@ -263,20 +262,20 @@
   }
   .menu__heading {
     margin: 0;
-    padding: 0.75rem 0.75rem 0;
+    padding: var(--bar-padding) var(--bar-padding) 0;
     color: var(--muted);
     font-size: 0.8rem;
     font-weight: 400;
   }
   .menu__save {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem 0.75rem;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
   }
   .menu__save input {
     flex: 1;
     min-width: 0;
-    min-height: 2.75rem;
+    min-height: var(--control-height);
     padding: 0 0.75rem;
     border: 1px solid var(--line);
     border-radius: 0;
@@ -316,18 +315,18 @@
     color: var(--muted);
   }
   .menu__none {
-    padding: 0.75rem;
+    padding: var(--bar-padding);
     color: var(--muted);
   }
   .menu__actions {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.75rem;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
   }
   .menu__status {
     display: block;
     min-height: 1.2rem;
-    padding: 0 0.75rem 0.75rem;
+    padding: 0 var(--bar-padding) var(--bar-padding);
     color: var(--muted);
   }
   .menu__file {
