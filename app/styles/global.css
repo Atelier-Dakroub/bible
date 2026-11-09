@@ -282,6 +282,7 @@ kjv-verse.is-quoted {
 .passage__tools button {
   min-height: 2rem;
   padding: 0 0.6rem;
+  white-space: nowrap;
   font: 0.75rem system-ui, sans-serif;
 }
 .passage__tools button:disabled {
@@ -291,8 +292,16 @@ kjv-verse.is-quoted {
   background: var(--text);
   color: var(--table);
 }
+/* In the short form the tools stay, set larger to stay usable at that
+   scale: a long chapter arrives small, and Back and Next must still work. */
 gesture-card[data-zoom='far'] .passage__tools {
-  display: none;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+gesture-card[data-zoom='far'] .passage__tools button {
+  min-height: 4rem;
+  padding: 0 1.2rem;
+  font-size: 1.5rem;
 }
 
 /* A phrase card is narrower: it holds a few words. */
