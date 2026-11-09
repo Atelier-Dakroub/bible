@@ -117,6 +117,13 @@ Mouse, trackpad and keyboard: everything the hands do has another way.
 
 Marking with the keyboard alone is not there yet.
 
+Snapping: a card that a hand or a mouse holds snaps upright when it is within
+5° of upright (or of a quarter turn), and to full size within 4%. An upright
+card lines up with the edges and middles of the other upright cards, or sits
+one gap (1rem) beside them, within 12 px, and dotted guides show where.
+Snap in the menu turns it off and on. With a mouse, hold Command or Control
+while you drag to move freely. The wheel and the keys do not snap.
+
 `/touch` is the touch test page for the panel.
 
 ```sh
@@ -133,7 +140,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `pointer-log.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
 | `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |

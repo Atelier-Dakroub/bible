@@ -10,6 +10,7 @@
      The menu only asks. It sends these events (bubbling), and the table does
      the work, then calls refresh() with a message to show:
        table-undo, table-redo, note-new
+       snap-change      detail { on }, whether held cards snap
        pen-change       detail { style }, one of words.js STYLES
        workspace-save   detail { name }
        workspace-open   detail { name }
@@ -30,9 +31,11 @@
     canUndo: false,
     canRedo: false,
     name: '',
+    snap: true,
   };
 
   const PEN_KEY = 'bible.pen';
+  const SNAP_KEY = 'bible.snap';
 
   export const prototype = {
     /** the name whose Delete was pressed once, waiting for the second press */
@@ -45,7 +48,15 @@
       } catch {
         // No storage: the default style.
       }
-      queueMicrotask(() => this.send('pen-change', { style: this.pen }));
+      try {
+        this.snap = localStorage.getItem(SNAP_KEY) !== 'false';
+      } catch {
+        // No storage: snapping is on.
+      }
+      queueMicrotask(() => {
+        this.send('pen-change', { style: this.pen });
+        this.send('snap-change', { on: this.snap });
+      });
 
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('keys-done', () => {
@@ -91,6 +102,15 @@
       if (action === 'undo') this.send('table-undo');
       if (action === 'redo') this.send('table-redo');
       if (action === 'note') this.send('note-new');
+      if (action === 'snap') {
+        this.snap = !this.snap;
+        try {
+          localStorage.setItem(SNAP_KEY, String(this.snap));
+        } catch {
+          // No storage: the choice lasts until the page closes.
+        }
+        this.send('snap-change', { on: this.snap });
+      }
       if (action === 'pen') {
         this.pen = button.dataset.pen ?? 'inverse';
         try {
@@ -226,6 +246,7 @@
     display: flex;
     gap: var(--bar-gap);
   }
+  .menu__bar [data-action='snap'][aria-pressed='true'],
   .menu__pens button[aria-pressed='true'],
   .menu__bar [aria-expanded='true'] {
     outline: 2px solid var(--text);
@@ -338,6 +359,7 @@
   <button type="button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
   <button type="button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
   <button type="button" data-action="note">Note</button>
+  <button type="button" data-action="snap" aria-pressed="${snap ? 'true' : 'false'}" title="Held cards snap upright, to full size, and into line with other cards. Hold Command or Control to drag freely.">Snap</button>
   <div class="menu__pens" role="group" aria-label="Style of new highlights">
     <button type="button" class="pen--inverse" data-action="pen" data-pen="inverse" aria-pressed="${pen === 'inverse' ? 'true' : 'false'}" aria-label="Inverse"><span>Aa</span></button>
     <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>

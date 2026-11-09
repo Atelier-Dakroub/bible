@@ -25,6 +25,14 @@
        [ and ]             turn it
        Delete, Backspace   take it off the table (Undo brings it back)
 
+     Snapping (app/lib/snap.js): while a hand or a mouse holds the card, it
+     stands upright near upright, takes full size near full size, and lines
+     up with the other cards near their edges. It sends `card-guides` with
+     { guides } in the parent's coordinates, so the table can draw where it
+     lines up, and an empty list when it lets go. Command or Control held
+     during a drag moves the card freely, and data-snap="off" on an ancestor
+     turns snapping off. The wheel and the keys do not snap.
+
      Semantic zoom: the card sets data-zoom="far" when it is scaled below
      FAR_BELOW, and "near" again above NEAR_ABOVE. The gap between the two keeps
      a pinch near the line from flicking between forms. The content decides
@@ -43,6 +51,7 @@
   import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
   import { centroid, step } from '../lib/gesture.js';
   import { paintWords, span, wordAt } from '../lib/words.js';
+  import { boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -112,6 +121,12 @@
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
     tap: null,
     settleTimer: 0,
+    /** @type {Matrix | null} what the fingers ask for, before the snap */
+    raw: null,
+    /** @type {import('../lib/snap.js').Box[] | null} the other cards, measured once per gesture */
+    others: null,
+    /** whether guides are on show */
+    guiding: false,
 
     connected({ signal }) {
       const parent = this.parent();
@@ -348,6 +363,8 @@
       if (points.size === 0) {
         const box = this.parent().getBoundingClientRect();
         this.origin = { x: box.left, y: box.top };
+        this.raw = this.matrix;
+        this.others = null;
       }
       // The pointer can end before a card that was fetched for it arrives.
       try {
@@ -418,8 +435,11 @@
       const after = new Map(points);
       after.set(event.pointerId, this.local({ x: event.clientX, y: event.clientY }));
 
-      const moved = multiply(step(points, after), /** @type {Matrix} */ (this.matrix));
-      this.matrix = clampScale(moved, MIN_SCALE, MAX_SCALE, centroid(after));
+      const moved = multiply(step(points, after), /** @type {Matrix} */ (this.raw ?? this.matrix));
+      const about = centroid(after);
+      this.raw = clampScale(moved, MIN_SCALE, MAX_SCALE, about);
+      this.matrix = this.snaps(event) ? this.snapped(this.raw, about) : this.raw;
+      if (!this.snaps(event)) this.showGuides([]);
       this.points = after;
 
       cancelAnimationFrame(this.frame);
@@ -441,9 +461,57 @@
         this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
       }
       if (points.size > 0) return;
+      this.raw = null;
+      this.others = null;
+      this.showGuides([]);
       top += 1;
       this.style.zIndex = String(top);
       this.dispatchEvent(new CustomEvent('card-change', { bubbles: true }));
+    },
+
+    /**
+     * Whether this move snaps: not with Command or Control held, and not
+     * where snapping is off.
+     *
+     * @param {PointerEvent} event
+     */
+    snaps(event) {
+      return !event.metaKey && !event.ctrlKey && !this.closest('[data-snap="off"]');
+    },
+
+    /**
+     * The matrix to show for what the fingers ask for.
+     *
+     * @param {Matrix} raw
+     * @param {Point} about the fingers' middle, in the parent's coordinates
+     * @returns {Matrix}
+     */
+    snapped(raw, about) {
+      const turned = snapTurnAndScale(raw, about);
+      if (!isUpright(turned)) {
+        this.showGuides([]);
+        return turned;
+      }
+      this.others ??= this.otherBoxes();
+      const { dx, dy, guides } = snapBox(boxOf(turned, this.offsetWidth, this.offsetHeight), this.others);
+      this.showGuides(guides);
+      return { ...turned, e: turned.e + dx, f: turned.f + dy };
+    },
+
+    /** The boxes of the other upright cards beside this one. */
+    otherBoxes() {
+      return [...(this.parentElement?.children ?? [])].flatMap((element) => {
+        const card = /** @type {HTMLElement & { matrix?: Matrix | null }} */ (element);
+        if (card === this || card.localName !== 'gesture-card' || !card.matrix || !isUpright(card.matrix)) return [];
+        return [boxOf(card.matrix, card.offsetWidth, card.offsetHeight)];
+      });
+    },
+
+    /** @param {import('../lib/snap.js').Guide[]} guides */
+    showGuides(guides) {
+      if (!guides.length && !this.guiding) return;
+      this.guiding = guides.length > 0;
+      this.dispatchEvent(new CustomEvent('card-guides', { bubbles: true, detail: { guides } }));
     },
 
     /** @param {MouseEvent} event */

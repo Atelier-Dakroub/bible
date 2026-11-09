@@ -84,6 +84,10 @@
                                              scale the card under the pointer
        turn two fingers on the trackpad      turn the card (Safari only)
        arrow keys, with no card in focus     pan the table
+
+     Snapping (gesture-card): a held card snaps upright, to full size, and
+     into line with the other cards, and the table draws the guides it sends.
+     The menu's Snap button turns it off and on, as data-snap="off" here.
      The wheel is left alone over the panels, which scroll their own lists.
      The cards have their own keys (gesture-card).
 
@@ -303,6 +307,8 @@
     /** @type {HTMLButtonElement[]} the link labels, kept and moved, not made again each frame */
     labels: [],
     keepTimer: 0,
+    /** @type {import('../lib/snap.js').Guide[]} where a held card lines up, in the world's coordinates */
+    guides: [],
 
     connected({ signal }) {
       this.fingers = new Map();
@@ -348,6 +354,14 @@
         this.pen = /** @type {CustomEvent} */ (event).detail.style;
       }, options);
       this.addEventListener('note-new', () => this.newNote(), options);
+      this.addEventListener('card-guides', (event) => {
+        this.guides = /** @type {CustomEvent} */ (event).detail.guides;
+        this.drawSoon();
+      }, options);
+      this.addEventListener('snap-change', (event) => {
+        if (/** @type {CustomEvent} */ (event).detail.on) delete this.dataset.snap;
+        else this.dataset.snap = 'off';
+      }, options);
       this.addEventListener('note-text', (event) => this.noteText(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('note-done', () => this.keep(), options);
       this.addEventListener('workspace-save', (event) => this.saveAs(/** @type {CustomEvent} */ (event).detail.name), options);
@@ -1061,6 +1075,20 @@
       }
       this.placeLabels(labels);
 
+      // Where a held card lines up with others: thin lines across both.
+      if (this.guides.length) {
+        const world = this.world().getBoundingClientRect();
+        for (const guide of this.guides) {
+          const element = document.createElementNS(SVG, 'line');
+          element.setAttribute('class', 'guide');
+          element.setAttribute('x1', String(guide.x1 + world.left));
+          element.setAttribute('y1', String(guide.y1 + world.top));
+          element.setAttribute('x2', String(guide.x2 + world.left));
+          element.setAttribute('y2', String(guide.y2 + world.top));
+          lines.push(element);
+        }
+      }
+
       // A link being drawn follows the finger.
       if (this.pending) {
         const finger = new DOMRect(this.pending.x, this.pending.y, 0, 0);
@@ -1596,6 +1624,11 @@
   .table__lines .time {
     stroke: var(--line);
     stroke-width: 1;
+  }
+  .table__lines .guide {
+    stroke: var(--text);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
   }
   .table__lines .ref {
     stroke: var(--muted);

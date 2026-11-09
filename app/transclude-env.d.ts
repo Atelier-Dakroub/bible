@@ -46,6 +46,12 @@ type Note = {
   text: string;
   quotes: Highlight[];
 };
+type Guide = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+};
 type Card = HTMLElement & {
   matrix: Matrix;
   hold(id: number, at: Point, scale?: number | undefined): void;
@@ -91,6 +97,12 @@ type Workspace = {
   highlights: Highlight[];
   links: Link[];
   notes: Note[];
+};
+type Box = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
 };
 type Block = {
   style: string;
@@ -237,6 +249,7 @@ export type BibleTableMembers = {
   name: string;
   labels: HTMLButtonElement[];
   keepTimer: number;
+  guides: Guide[];
   connected({
     signal
   }: {
@@ -413,6 +426,9 @@ export type GestureCardMembers = {
     target: EventTarget | null;
   } | null;
   settleTimer: number;
+  raw: Matrix | null;
+  others: Box[] | null;
+  guiding: boolean;
   connected({
     signal
   }: {
@@ -447,6 +463,10 @@ export type GestureCardMembers = {
   setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
+  snaps(event: PointerEvent): boolean;
+  snapped(raw: Matrix, about: Point): Matrix;
+  otherBoxes(): Box[];
+  showGuides(guides: Guide[]): void;
   act(event: MouseEvent): void;
   local(at: Point): {
     x: number;
@@ -539,6 +559,7 @@ export type TableMenuState = {
   canUndo: boolean;
   canRedo: boolean;
   name: string;
+  snap: boolean;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */
