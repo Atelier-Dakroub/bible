@@ -89,7 +89,7 @@ table as a card, from Italy to Persia. Every place with coordinates is a dot
 (1,257 of them). The places that the cards on the table name are labelled,
 with a dashed line to each card that names them. A place's entry in the
 search panel has a Show on the map button, and a tap on a place on the map
-shows it. Pinch the map card to zoom in; its lines stay one pixel wide. The
+shows it. Pinch the map card to zoom in (or Control + wheel); its lines stay one pixel wide. The
 coastlines are modern; ancient ones differed in places, such as the head of
 the Persian Gulf.
 
@@ -102,6 +102,20 @@ Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
 arrives in that form. The search panel collapses to one box: "Hide" and
 Escape close it, "Search" and "/" open it.
+
+Mouse, trackpad and keyboard: everything the hands do has another way.
+
+| To | Touch | Mouse or trackpad | Keyboard |
+| --- | --- | --- | --- |
+| Pan the table | Drag the empty table | Drag the empty table, or scroll | Arrow keys (Shift: further) |
+| Move a card | Drag it | Drag it | Tab to it, then the arrow keys |
+| Scale a card | Pinch it | Pinch on the trackpad, or Control + wheel | `+` and `-` |
+| Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari) | `[` and `]` |
+| Mark words | Hold the card, run a finger over them | Option + drag over them | — |
+| Remove a card | × | × | Delete |
+| Undo, Redo | Undo, Redo | Undo, Redo | Command-Z, Shift-Command-Z |
+
+Marking with the keyboard alone is not there yet.
 
 `/touch` is the touch test page for the panel.
 

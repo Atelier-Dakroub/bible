@@ -46,6 +46,22 @@ type Note = {
   text: string;
   quotes: Highlight[];
 };
+type Card = HTMLElement & {
+  matrix: Matrix;
+  hold(id: number, at: Point, scale?: number | undefined): void;
+  placeAt(at: Point, scale?: number | undefined): void;
+  setMatrix(m: Matrix): void;
+  zoomAt(at: Point, factor: number): void;
+  turnAt(at: Point, radians: number): void;
+};
+type Matrix = {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+};
 type Pull = {
   id: number;
   x: number;
@@ -62,20 +78,6 @@ type StoredCard = {
   matrix: Matrix;
   version?: string | undefined;
   sync?: boolean | undefined;
-};
-type Matrix = {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  f: number;
-};
-type Card = HTMLElement & {
-  matrix: Matrix;
-  hold(id: number, at: Point, scale?: number | undefined): void;
-  placeAt(at: Point, scale?: number | undefined): void;
-  setMatrix(m: Matrix): void;
 };
 type FetchOptions = {
   version?: string | undefined;
@@ -234,6 +236,7 @@ export type BibleTableMembers = {
   later: boolean | null;
   name: string;
   labels: HTMLButtonElement[];
+  keepTimer: number;
   connected({
     signal
   }: {
@@ -242,6 +245,12 @@ export type BibleTableMembers = {
   disconnected(): void;
   measure(signal: AbortSignal): void;
   guardPalms(signal: AbortSignal): void;
+  cardAt(target: EventTarget | null): Card | null;
+  overPanel(target: EventTarget | null): boolean;
+  wheel(event: WheelEvent): void;
+  trackpad(signal: AbortSignal): void;
+  panKey(event: KeyboardEvent): void;
+  keepSoon(): void;
   world(): HTMLElement;
   press(event: PointerEvent): void;
   drag(event: PointerEvent): void;
@@ -403,12 +412,27 @@ export type GestureCardMembers = {
     t: number;
     target: EventTarget | null;
   } | null;
+  settleTimer: number;
   connected({
     signal
   }: {
     signal: any;
   }): void;
   disconnected(): void;
+  transformBy(change: Matrix, about: Point): void;
+  parentPoint(at: Point): {
+    x: number;
+    y: number;
+  };
+  zoomAt(at: Point, factor: number): void;
+  turnAt(at: Point, radians: number): void;
+  moveBy(dx: number, dy: number): void;
+  middle(): {
+    x: number;
+    y: number;
+  };
+  settle(): void;
+  key(event: KeyboardEvent): void;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
   held(now: number): boolean;

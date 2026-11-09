@@ -521,6 +521,22 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__place circle {
   fill: var(--line);
+  /* A wide clear edge around each dot, so a mouse can hit it as well as a
+     finger. A transparent stroke still takes the pointer. */
+  stroke: transparent;
+  stroke-width: 14;
+}
+.map__place {
+  cursor: pointer;
+}
+/* With a mouse, the name shows under the pointer. */
+@media (hover: hover) {
+  .map__place:hover text {
+    display: inline;
+  }
+  .map__place:hover circle {
+    fill: var(--text);
+  }
 }
 .map__place text {
   display: none;

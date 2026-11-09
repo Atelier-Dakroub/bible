@@ -78,6 +78,15 @@
      on step together: when one steps, the others go to the same passage.
      Copy puts the card's words and reference on the clipboard.
 
+     A mouse, a trackpad and a keyboard work too:
+       wheel, or two fingers on a trackpad   pan the table
+       pinch on a trackpad, or Control (or Command) and the wheel
+                                             scale the card under the pointer
+       turn two fingers on the trackpad      turn the card (Safari only)
+       arrow keys, with no card in focus     pan the table
+     The wheel is left alone over the panels, which scroll their own lists.
+     The cards have their own keys (gesture-card).
+
      It listens for `place` from a search panel inside it:
        detail.address  the passage
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
@@ -93,7 +102,7 @@
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
-  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void }} Card */
+  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void, zoomAt(at: Point, factor: number): void, turnAt(at: Point, radians: number): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
   /** @typedef {import('../lib/workspace.js').Note} Note */
@@ -293,6 +302,7 @@
     name: '',
     /** @type {HTMLButtonElement[]} the link labels, kept and moved, not made again each frame */
     labels: [],
+    keepTimer: 0,
 
     connected({ signal }) {
       this.fingers = new Map();
@@ -327,6 +337,10 @@
       this.addEventListener('pointerup', (event) => this.release(event), options);
       this.addEventListener('pointercancel', (event) => this.release(event), options);
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+      // Not passive: a pinch must not zoom the whole page.
+      this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
+      this.trackpad(signal);
+      document.addEventListener('keydown', (event) => this.panKey(event), options);
       this.addEventListener('click', (event) => this.clicked(event), options);
       this.addEventListener('table-undo', () => this.undo(), options);
       this.addEventListener('table-redo', () => this.redo(), options);
@@ -454,6 +468,110 @@
       for (const type of ['pointermove', 'pointerup', 'pointercancel']) {
         this.addEventListener(type, (event) => follow(/** @type {PointerEvent} */ (event)), capture);
       }
+    },
+
+    /**
+     * The card under the pointer, or null over the empty table or a panel.
+     *
+     * @param {EventTarget | null} target
+     * @returns {Card | null}
+     */
+    cardAt(target) {
+      const card = target instanceof Element ? target.closest('gesture-card') : null;
+      return card && this.world().contains(card) ? /** @type {Card} */ (/** @type {unknown} */ (card)) : null;
+    },
+
+    /**
+     * True over a panel at the edge of the table, which scrolls by itself.
+     *
+     * @param {EventTarget | null} target
+     */
+    overPanel(target) {
+      return target instanceof Element && Boolean(target.closest('passage-search, table-menu, note-editor, time-line'));
+    },
+
+    /** @param {WheelEvent} event */
+    wheel(event) {
+      if (this.overPanel(event.target)) return;
+      event.preventDefault();
+      // Lines, pages and pixels: a mouse wheel can count in lines.
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
+      const dx = event.deltaX * unit;
+      const dy = event.deltaY * unit;
+      const card = this.cardAt(event.target);
+
+      // A pinch on a trackpad comes as a wheel with Control held.
+      if (event.ctrlKey || event.metaKey) {
+        if (card) card.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp(-dy / 200));
+        return;
+      }
+      this.offset = { x: this.offset.x - dx, y: this.offset.y - dy };
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => this.paint());
+      this.keepSoon();
+    },
+
+    /**
+     * Safari sends a pinch and a turn on the trackpad as gesture events,
+     * with the scale and the turn since the gesture began.
+     *
+     * @param {AbortSignal} signal
+     */
+    trackpad(signal) {
+      /** @type {{ card: Card, at: Point, scale: number, rotation: number } | null} */
+      let gesture = null;
+      /** @param {any} event */
+      const start = (event) => {
+        event.preventDefault();
+        const card = this.cardAt(event.target);
+        gesture = card ? { card, at: { x: event.clientX, y: event.clientY }, scale: 1, rotation: 0 } : null;
+      };
+      /** @param {any} event */
+      const change = (event) => {
+        event.preventDefault();
+        if (!gesture) return;
+        gesture.card.zoomAt(gesture.at, event.scale / gesture.scale);
+        gesture.card.turnAt(gesture.at, ((event.rotation - gesture.rotation) * Math.PI) / 180);
+        gesture.scale = event.scale;
+        gesture.rotation = event.rotation;
+      };
+      /** @param {any} event */
+      const end = (event) => {
+        event.preventDefault();
+        gesture = null;
+      };
+      this.addEventListener('gesturestart', start, { signal });
+      this.addEventListener('gesturechange', change, { signal });
+      this.addEventListener('gestureend', end, { signal });
+    },
+
+    /**
+     * Arrow keys pan the table when nothing has the focus.
+     *
+     * @param {KeyboardEvent} event
+     */
+    panKey(event) {
+      if (event.target !== document.body && event.target !== this) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const step = event.shiftKey ? 400 : 80;
+      const moves = /** @type {Record<string, [number, number]>} */ ({
+        ArrowLeft: [step, 0],
+        ArrowRight: [-step, 0],
+        ArrowUp: [0, step],
+        ArrowDown: [0, -step],
+      });
+      const move = moves[event.key];
+      if (!move) return;
+      event.preventDefault();
+      this.offset = { x: this.offset.x + move[0], y: this.offset.y + move[1] };
+      this.paint();
+      this.keepSoon();
+    },
+
+    /** Keeps the table once a run of wheel or key pans stops. */
+    keepSoon() {
+      clearTimeout(this.keepTimer);
+      this.keepTimer = setTimeout(() => this.keep(), 400);
     },
 
     /** @returns {HTMLElement} */

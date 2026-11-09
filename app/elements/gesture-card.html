@@ -15,6 +15,16 @@
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
 
+     A mouse, a trackpad and a keyboard do the same. One button moves the card.
+     The table turns a pinch on the trackpad, or Control and the wheel, into
+     zoomAt(), and Safari's trackpad turn into turnAt(). Option (Alt) and a
+     drag on the words marks them, the way the second hand does. A card takes
+     the focus with Tab or a click, and then:
+       arrow keys          move it (with Shift, further)
+       + and -             scale it
+       [ and ]             turn it
+       Delete, Backspace   take it off the table (Undo brings it back)
+
      Semantic zoom: the card sets data-zoom="far" when it is scaled below
      FAR_BELOW, and "near" again above NEAR_ABOVE. The gap between the two keeps
      a pinch near the line from flicking between forms. The content decides
@@ -55,6 +65,13 @@
   const STILL_PX = 10;
   // A tap is short and still. Anything longer or further is a move.
   const TAP_MS = 350;
+  // The keyboard's steps.
+  const KEY_STEP = 20;
+  const KEY_STEP_LONG = 100;
+  const KEY_SCALE = 1.1;
+  const KEY_TURN = Math.PI / 12;
+  // How long after the last wheel, gesture or key the change counts as done.
+  const SETTLE_MS = 400;
 
   // Where a finger holds a card that it pulled out of a list: near the top left,
   // on the heading, so the card hangs from the finger like a sheet of paper.
@@ -94,6 +111,7 @@
     marking: null,
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
     tap: null,
+    settleTimer: 0,
 
     connected({ signal }) {
       const parent = this.parent();
@@ -115,10 +133,106 @@
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
       this.addEventListener('pointercancel', (event) => this.release(event), { signal });
       this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('keydown', (event) => this.key(event), { signal });
+      if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
     },
 
     disconnected() {
       cancelAnimationFrame(this.frame);
+      clearTimeout(this.settleTimer);
+    },
+
+    /**
+     * Changes the card by `change`, a matrix in the parent's coordinates, and
+     * keeps its scale inside the limits, about `about`.
+     *
+     * @param {Matrix} change
+     * @param {Point} about in the parent's coordinates
+     */
+    transformBy(change, about) {
+      this.matrix = clampScale(multiply(change, /** @type {Matrix} */ (this.matrix)), MIN_SCALE, MAX_SCALE, about);
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => this.paint());
+      this.settle();
+    },
+
+    /** @param {Point} at screen coordinates */
+    parentPoint(at) {
+      const box = this.parent().getBoundingClientRect();
+      return { x: at.x - box.left, y: at.y - box.top };
+    },
+
+    /**
+     * Scales the card about a point on the screen, which stays where it is.
+     *
+     * @param {Point} at screen coordinates
+     * @param {number} factor
+     */
+    zoomAt(at, factor) {
+      const about = this.parentPoint(at);
+      this.transformBy(scaleAbout(factor, about), about);
+    },
+
+    /**
+     * Turns the card about a point on the screen.
+     *
+     * @param {Point} at screen coordinates
+     * @param {number} radians
+     */
+    turnAt(at, radians) {
+      const about = this.parentPoint(at);
+      const turn = multiply(translation(about.x, about.y), multiply(rotation(radians), translation(-about.x, -about.y)));
+      this.transformBy(turn, about);
+    },
+
+    /**
+     * @param {number} dx
+     * @param {number} dy
+     */
+    moveBy(dx, dy) {
+      const box = this.getBoundingClientRect();
+      this.transformBy(translation(dx, dy), this.parentPoint({ x: box.left + box.width / 2, y: box.top + box.height / 2 }));
+    },
+
+    /** The middle of the card on the screen. */
+    middle() {
+      const box = this.getBoundingClientRect();
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    },
+
+    /**
+     * A change from a wheel, a trackpad or a key is done when nothing more
+     * comes for a moment. Then the card rises and the table keeps it.
+     */
+    settle() {
+      clearTimeout(this.settleTimer);
+      this.settleTimer = setTimeout(() => {
+        this.dispatchEvent(new CustomEvent('card-change', { bubbles: true }));
+      }, SETTLE_MS);
+    },
+
+    /** @param {KeyboardEvent} event */
+    key(event) {
+      // Keys typed into a field on the card are the field's.
+      if (event.target !== this || event.metaKey || event.ctrlKey) return;
+      const far = event.shiftKey ? KEY_STEP_LONG : KEY_STEP;
+      const moves = /** @type {Record<string, [number, number]>} */ ({
+        ArrowLeft: [-far, 0],
+        ArrowRight: [far, 0],
+        ArrowUp: [0, -far],
+        ArrowDown: [0, far],
+      });
+      const move = moves[event.key];
+      if (move) this.moveBy(move[0], move[1]);
+      else if (event.key === '+' || event.key === '=') this.zoomAt(this.middle(), KEY_SCALE);
+      else if (event.key === '-' || event.key === '_') this.zoomAt(this.middle(), 1 / KEY_SCALE);
+      else if (event.key === ']') this.turnAt(this.middle(), KEY_TURN);
+      else if (event.key === '[') this.turnAt(this.middle(), -KEY_TURN);
+      else if (event.key === 'Delete' || event.key === 'Backspace') {
+        this.dispatchEvent(new CustomEvent('card-remove', { bubbles: true }));
+        this.remove();
+      } else return;
+      event.preventDefault();
     },
 
     /** @returns {HTMLElement} */
@@ -133,7 +247,10 @@
       if (this.marking) return;
 
       const word = event.target instanceof Element ? wordAt(event.target) : null;
-      if (word && this.held(event.timeStamp)) {
+      // A mouse or a pen has one point, so Option (Alt) stands in for the
+      // hand that holds the card.
+      const alone = event.pointerType !== 'touch' && event.altKey && this.points?.size === 0;
+      if (word && (alone || this.held(event.timeStamp))) {
         this.startMarking(event.pointerId, word);
         return;
       }
