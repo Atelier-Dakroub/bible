@@ -54,6 +54,18 @@ button {
   border-radius: 0;
   background: var(--surface);
   color: var(--text);
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+
+/* Cursors are for a mouse or a trackpad. After a touch the table hides them
+   (bible-table sets data-input), so no arrow sits under the fingers; the
+   next move of a mouse brings them back. */
+:root[data-input='touch'],
+:root[data-input='touch'] * {
+  cursor: none !important;
 }
 
 :focus-visible {
@@ -372,8 +384,7 @@ gesture-card[data-zoom='far'] .note__text {
   font-size: 2rem;
   line-height: 1.2;
 }
-.entry__name,
-.entry__credit {
+.entry__name {
   color: var(--muted);
   font-size: 0.85rem;
 }
@@ -418,10 +429,21 @@ gesture-card[data-zoom='far'] .note__text {
   font: 600 1.4rem/1.25 system-ui, sans-serif;
   text-align: start;
 }
-.entity__facts,
-.entity__credit {
+.entity__facts {
   color: var(--muted);
   font-size: 0.85rem;
+}
+/* Credits are small: they are there to be found, not read first. */
+.entity__credit,
+.entry__credit {
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+/* Inside an entity, a full-width button lines up with the text. */
+.entity .results__switch {
+  width: 100%;
+  margin: 0.5rem 0;
 }
 .entity__summary {
   font: 0.95rem/1.45 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;

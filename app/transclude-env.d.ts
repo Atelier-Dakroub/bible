@@ -311,6 +311,8 @@ export type BibleTableMembers = {
   mapCard(): Element | null;
   toggleMap(): Promise<void>;
   openMap(): Promise<void>;
+  showOnMap(id: string): Promise<void>;
+  glide(dx: number, dy: number): void;
   paintMap(): void;
   placeLines(): Element[];
   paintStudy(root: Element): void;

@@ -347,6 +347,15 @@
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
       this.trackpad(signal);
       document.addEventListener('keydown', (event) => this.panKey(event), options);
+      // The cursor shows for a mouse or a trackpad and hides after a touch,
+      // so the panel shows no arrow under the fingers. global.css reads it.
+      /** @param {PointerEvent} event */
+      const input = (event) => {
+        const kind = event.pointerType === 'touch' || event.pointerType === 'pen' ? 'touch' : 'mouse';
+        if (document.documentElement.dataset.input !== kind) document.documentElement.dataset.input = kind;
+      };
+      document.addEventListener('pointerdown', input, { signal, capture: true });
+      document.addEventListener('pointermove', input, { signal, capture: true, passive: true });
       this.addEventListener('click', (event) => this.clicked(event), options);
       this.addEventListener('table-undo', () => this.undo(), options);
       this.addEventListener('table-redo', () => this.redo(), options);
@@ -383,7 +392,7 @@
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
       this.addEventListener('toggle-map', () => this.toggleMap(), options);
-      this.addEventListener('show-on-map', () => this.openMap(), options);
+      this.addEventListener('show-on-map', (event) => this.showOnMap(/** @type {CustomEvent} */ (event).detail.id), options);
       // The card removes itself after the event, so keep what is left a moment
       // later. A note goes with its card; undo brings both back.
       this.addEventListener('card-remove', (event) => {
@@ -599,6 +608,7 @@
       if (event.target !== this && event.target !== this.world()) return;
       this.setPointerCapture(event.pointerId);
       this.fingers?.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      this.classList.add('is-panning');
     },
 
     /** @param {PointerEvent} event */
@@ -617,7 +627,10 @@
     /** @param {PointerEvent} event */
     release(event) {
       const fingers = /** @type {Map<number, Point>} */ (this.fingers);
-      if (fingers.delete(event.pointerId) && fingers.size === 0) this.keep();
+      if (fingers.delete(event.pointerId) && fingers.size === 0) {
+        this.classList.remove('is-panning');
+        this.keep();
+      }
     },
 
     paint() {
@@ -811,6 +824,54 @@
       const panel = this.querySelector('passage-search')?.getBoundingClientRect();
       card.placeAt({ x: (panel?.right ?? 0) + 80, y: 80 });
       this.keep();
+    },
+
+    /**
+     * Puts the map on the table if it is not there, brings it to the top,
+     * marks the place, and pans the table so the place is in the open part
+     * of the screen: right of the search panel, above the timeline.
+     *
+     * @param {string} id a place id, such as place:damascus_310
+     */
+    async showOnMap(id) {
+      await this.openMap();
+      const map = this.mapCard();
+      if (!(map instanceof HTMLElement)) return;
+      this.shown = id;
+      this.paintMap();
+      const levels = [...this.world().querySelectorAll('gesture-card')].map((card) => Number(/** @type {HTMLElement} */ (card).style.zIndex) || 0);
+      map.style.zIndex = String(Math.max(0, ...levels.filter((level) => level < 1000000)) + 1);
+
+      const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
+      const box = (dot ?? map).getBoundingClientRect();
+      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
+      const strip = this.querySelector('time-line')?.getBoundingClientRect();
+      const left = panel ? panel.right : 0;
+      const bottom = strip ? strip.top : innerHeight;
+      const target = { x: (left + innerWidth) / 2, y: bottom / 2 };
+      this.glide(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2));
+    },
+
+    /**
+     * Pans the table by (dx, dy) over a third of a second, easing out.
+     *
+     * @param {number} dx
+     * @param {number} dy
+     */
+    glide(dx, dy) {
+      const from = { ...this.offset };
+      const start = performance.now();
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const length = reduced ? 0 : 320;
+      const frame = (/** @type {number} */ now) => {
+        const t = length ? Math.min(1, (now - start) / length) : 1;
+        const eased = 1 - (1 - t) ** 3;
+        this.offset = { x: from.x + dx * eased, y: from.y + dy * eased };
+        this.paint();
+        if (t < 1) requestAnimationFrame(frame);
+        else this.keep(false);
+      };
+      requestAnimationFrame(frame);
     },
 
     /**
@@ -1534,6 +1595,10 @@
     -webkit-user-select: none;
     overscroll-behavior: none;
     background: var(--table);
+    cursor: grab;
+  }
+  :scope.is-panning {
+    cursor: grabbing;
   }
   /* The world is moved with left and top, not a transform. A transform would
      make it a stacking context, and then every card would stack with the

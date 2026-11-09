@@ -374,6 +374,7 @@
       }
       points.set(pointerId, this.local(at));
       this.style.zIndex = String(HELD);
+      this.classList.add('is-held');
       this.still = points.size === 1 ? { ...at, t: performance.now() } : null;
     },
 
@@ -461,6 +462,7 @@
         this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
       }
       if (points.size > 0) return;
+      this.classList.remove('is-held');
       this.raw = null;
       this.others = null;
       this.showGuides([]);
@@ -551,6 +553,10 @@
     user-select: none;
     -webkit-user-select: none;
     cursor: grab;
+  }
+  /* A card a hand or the mouse holds. */
+  :scope.is-held {
+    cursor: grabbing;
   }
 </style>
 
