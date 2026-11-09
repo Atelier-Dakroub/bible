@@ -67,8 +67,8 @@ test('the table pans by the mean move of the fingers in both frames', () => {
 });
 
 test('a broken or old workspace reads as an empty table', () => {
-  assert.deepEqual(parse(null), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [] });
-  assert.deepEqual(parse('not json'), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [] });
+  assert.deepEqual(parse(null), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [] });
+  assert.deepEqual(parse('not json'), { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [] });
   const kept = parse(
     JSON.stringify({
       offset: { x: 5, y: 6 },

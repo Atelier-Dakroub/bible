@@ -208,17 +208,139 @@ gesture-card[data-zoom='far'] .passage__versions {
   font: 0.75em system-ui, sans-serif;
 }
 
-/* Highlights are inverse: black on white, or black on the light red for the
-   words of Christ. APCA: black on white Lc 106, black on #ffbcbc Lc 77. A
-   marking in progress looks the same, so the hand sees the result as it goes. */
-.w.is-highlighted,
+/* Highlights come in three styles, which differ in shape and not in color
+   (app/lib/words.js STYLES).
+     inverse    black on white, or black on the light red for the words of
+                Christ. APCA: black on white Lc 106, black on #ffbcbc Lc 77.
+     underline  a double line under the words
+     box        a thin box around the whole span
+   A marking in progress is inverse, so the hand sees the words as it goes. */
+.w[data-mark='inverse'],
 .w.is-marking {
   background: var(--text);
   color: var(--table);
 }
-.wj .w.is-highlighted,
+.wj .w[data-mark='inverse'],
 .wj .w.is-marking {
   background: var(--red-letter);
+}
+.w[data-mark='underline'] {
+  text-decoration: underline double;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.w[data-mark='box'] {
+  border-block: 1px solid currentColor;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.w[data-mark='box'][data-edge='start'],
+.w[data-mark='box'][data-edge='both'] {
+  border-left: 1px solid currentColor;
+  padding-left: 0.1em;
+}
+.w[data-mark='box'][data-edge='end'],
+.w[data-mark='box'][data-edge='both'] {
+  border-right: 1px solid currentColor;
+}
+/* A phrase card and a quote are the highlighted words themselves, so they
+   show as plain text; the dashed line shows where they come from. */
+.passage--phrase .w[data-mark],
+.note__words .w[data-mark] {
+  background: none;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  text-decoration: none;
+}
+.passage--phrase .wj .w[data-mark],
+.note__words .wj .w[data-mark] {
+  color: var(--red-letter);
+}
+
+/* A verse that a note quotes: a line down its left side. */
+kjv-verse.is-quoted {
+  margin-left: -0.75rem;
+  padding-left: calc(0.75rem - 2px);
+  border-left: 2px solid var(--muted);
+}
+
+/* The tools under a passage's heading: step, sync, copy. */
+.passage__tools {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0 0.6rem;
+}
+.passage__tools button {
+  min-height: 2rem;
+  padding: 0 0.6rem;
+  font: 0.75rem system-ui, sans-serif;
+}
+.passage__tools button:disabled {
+  color: var(--line);
+}
+.passage__tools [aria-pressed='true'] {
+  background: var(--text);
+  color: var(--table);
+}
+gesture-card[data-zoom='far'] .passage__tools {
+  display: none;
+}
+
+/* A phrase card is narrower: it holds a few words. */
+.passage--phrase {
+  width: auto;
+  max-width: 26rem;
+  min-width: 12rem;
+}
+
+/* A note: the reader's words in the sans-serif, the quotes in the text face. */
+.passage--note {
+  width: 22rem;
+  border-style: dashed;
+}
+.note__text {
+  min-height: 2.75rem;
+  margin: 0 0 0.6rem;
+  font: 1rem/1.45 system-ui, sans-serif;
+  white-space: pre-wrap;
+  cursor: text;
+}
+.note__text:empty::before {
+  content: 'Tap to write.';
+  color: var(--muted);
+}
+.note__quote {
+  margin: 0 0 0.6rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+.note__source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--muted);
+  font: 0.75rem system-ui, sans-serif;
+}
+.note__unquote {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 1rem/1 system-ui, sans-serif;
+}
+.note__hint {
+  color: var(--muted);
+  font: 0.8rem/1.4 system-ui, sans-serif;
+}
+gesture-card[data-zoom='far'] .note__quote,
+gesture-card[data-zoom='far'] .note__hint {
+  display: none;
+}
+gesture-card[data-zoom='far'] .note__text {
+  font-size: 1.6em;
 }
 
 /* A word study in the search panel. */

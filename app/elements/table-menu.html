@@ -1,0 +1,365 @@
+<!-- The menu at the top right of the table.
+
+     The bar: Undo and Redo, Note (a new note card), the marking style for new
+     highlights, and Workspace, which opens the workspace sheet.
+
+     The sheet: save the table under a name, open or delete a saved one, start
+     a new table, and send the table to a file or take one in. A finger on the
+     name field opens the on-screen keyboard.
+
+     The menu only asks. It sends these events (bubbling), and the table does
+     the work, then calls refresh() with a message to show:
+       table-undo, table-redo, note-new
+       pen-change       detail { style }, one of words.js STYLES
+       workspace-save   detail { name }
+       workspace-open   detail { name }
+       workspace-new
+       workspace-export detail { name }
+       workspace-import detail { name, text }
+
+     setHistory(canUndo, canRedo) turns the two buttons on and off, and
+     setName(name) shows which saved workspace is on the table. -->
+
+<script element>
+  import { listNamed, removeNamed } from '../lib/workspace.js';
+
+  export const state = {
+    open: false,
+    keys: false,
+    pen: 'inverse',
+    canUndo: false,
+    canRedo: false,
+    name: '',
+  };
+
+  const PEN_KEY = 'bible.pen';
+
+  export const prototype = {
+    /** the name whose Delete was pressed once, waiting for the second press */
+    deleting: '',
+
+    connected({ signal }) {
+      try {
+        const pen = localStorage.getItem(PEN_KEY);
+        if (pen) this.pen = pen;
+      } catch {
+        // No storage: the default style.
+      }
+      queueMicrotask(() => this.send('pen-change', { style: this.pen }));
+
+      this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('keys-done', () => {
+        this.keys = false;
+      }, { signal });
+      this.addEventListener('pointerdown', (event) => {
+        const target = /** @type {Element} */ (event.target);
+        if (event.pointerType === 'touch' && target.closest?.('#workspace-name')) this.keys = true;
+      }, { signal });
+      const form = /** @type {HTMLFormElement} */ (this.querySelector('.menu__save'));
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const field = /** @type {HTMLInputElement} */ (this.querySelector('#workspace-name'));
+        const name = field.value.trim();
+        if (!name) {
+          this.refresh('Give the table a name first.');
+          return;
+        }
+        this.keys = false;
+        this.send('workspace-save', { name });
+      }, { signal });
+      const file = /** @type {HTMLInputElement} */ (this.querySelector('.menu__file'));
+      file.addEventListener('change', async () => {
+        const chosen = file.files?.[0];
+        file.value = '';
+        if (!chosen) return;
+        const text = await chosen.text();
+        this.send('workspace-import', { name: chosen.name.replace(/\.json$/i, ''), text });
+      }, { signal });
+      document.addEventListener('keydown', (event) => {
+        const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+        if (typing || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+        event.preventDefault();
+        this.send(event.shiftKey ? 'table-redo' : 'table-undo');
+      }, { signal });
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('button') : null;
+      if (!(button instanceof HTMLButtonElement)) return;
+      const action = button.dataset.action ?? '';
+      if (action === 'undo') this.send('table-undo');
+      if (action === 'redo') this.send('table-redo');
+      if (action === 'note') this.send('note-new');
+      if (action === 'pen') {
+        this.pen = button.dataset.pen ?? 'inverse';
+        try {
+          localStorage.setItem(PEN_KEY, this.pen);
+        } catch {
+          // No storage: the style lasts until the page closes.
+        }
+        this.send('pen-change', { style: this.pen });
+      }
+      if (action === 'sheet') {
+        this.open = !this.open;
+        this.keys = false;
+        if (this.open) this.refresh('');
+      }
+      if (action === 'new') this.send('workspace-new');
+      if (action === 'export') this.send('workspace-export', { name: this.name });
+      if (action === 'import') /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click();
+      if (action === 'open-named') this.send('workspace-open', { name: button.dataset.name ?? '' });
+      if (action === 'delete-named') {
+        const name = button.dataset.name ?? '';
+        if (this.deleting !== name) {
+          this.deleting = name;
+          this.refresh(`Press Delete again to delete “${name}”. This cannot be undone.`);
+          return;
+        }
+        removeNamed(name);
+        if (name === this.name) this.setName('');
+        this.deleting = '';
+        this.refresh(`Deleted “${name}”.`);
+      }
+    },
+
+    /**
+     * @param {string} type
+     * @param {object} [detail]
+     */
+    send(type, detail = {}) {
+      this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
+    },
+
+    /**
+     * @param {boolean} canUndo
+     * @param {boolean} canRedo
+     */
+    setHistory(canUndo, canRedo) {
+      this.canUndo = canUndo;
+      this.canRedo = canRedo;
+    },
+
+    /** @param {string} name */
+    setName(name) {
+      this.name = name;
+      const field = /** @type {HTMLInputElement | null} */ (this.querySelector('#workspace-name'));
+      if (field) field.value = name;
+    },
+
+    /**
+     * Lists the saved workspaces again and shows a message.
+     *
+     * @param {string} message
+     */
+    refresh(message) {
+      if (!message.startsWith('Press Delete')) this.deleting = '';
+      const status = /** @type {HTMLElement} */ (this.querySelector('.menu__status'));
+      status.textContent = message;
+      const list = /** @type {HTMLElement} */ (this.querySelector('.menu__list'));
+      const named = listNamed();
+      list.replaceChildren(
+        ...named.map(({ name, saved }) => {
+          const row = document.createElement('li');
+          const open = document.createElement('button');
+          open.type = 'button';
+          open.className = 'menu__open';
+          open.dataset.action = 'open-named';
+          open.dataset.name = name;
+          const title = document.createElement('span');
+          title.textContent = name;
+          const when = document.createElement('span');
+          when.className = 'menu__when';
+          when.textContent = saved ? new Date(saved).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+          open.append(title, when);
+          if (name === this.name) open.setAttribute('aria-current', 'true');
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.dataset.action = 'delete-named';
+          remove.dataset.name = name;
+          remove.textContent = this.deleting === name ? 'Delete?' : 'Delete';
+          remove.setAttribute('aria-label', `Delete ${name}`);
+          row.append(open, remove);
+          return row;
+        }),
+      );
+      if (!named.length) {
+        const row = document.createElement('li');
+        row.className = 'menu__none';
+        row.textContent = 'No saved tables yet.';
+        list.append(row);
+      }
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    /* With the search panel: above the cards at rest, below a held card. */
+    z-index: 1000000;
+    display: flex;
+    flex-direction: column;
+    align-items: end;
+    max-height: calc(100% - var(--timeline-height, 0px) - 3rem);
+    font: 0.85rem system-ui, sans-serif;
+  }
+  .menu__bar {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .menu__bar button,
+  .menu__sheet button {
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    font: inherit;
+  }
+  .menu__bar button:disabled {
+    color: var(--line);
+  }
+  .menu__pens {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0 0.25rem;
+  }
+  .menu__pens button[aria-pressed='true'],
+  .menu__bar [aria-expanded='true'] {
+    outline: 2px solid var(--text);
+    outline-offset: -2px;
+  }
+  /* Each style button shows its own mark. */
+  .pen--inverse span {
+    background: var(--text);
+    color: var(--table);
+    padding: 0 0.2em;
+  }
+  .pen--underline span {
+    text-decoration: underline double;
+    text-underline-offset: 0.2em;
+  }
+  .pen--box span {
+    border: 1px solid var(--text);
+    padding: 0 0.2em;
+  }
+  .menu__sheet {
+    display: none;
+    width: 30rem;
+    margin-top: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  :scope:state(open) .menu__sheet {
+    display: block;
+  }
+  :scope:not(:state(keys)) touch-keys {
+    display: none;
+  }
+  .menu__heading {
+    margin: 0;
+    padding: 0.75rem 0.75rem 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 400;
+  }
+  .menu__save {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
+  .menu__save input {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--table);
+    color: inherit;
+    font: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .menu__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+  .menu__list li {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+  }
+  .menu__list .menu__open {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 0;
+    text-align: start;
+  }
+  .menu__list [aria-current='true'] {
+    font-weight: 700;
+  }
+  .menu__list [data-action='delete-named'] {
+    border: 0;
+    border-left: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .menu__when {
+    color: var(--muted);
+  }
+  .menu__none {
+    padding: 0.75rem;
+    color: var(--muted);
+  }
+  .menu__actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  .menu__status {
+    display: block;
+    min-height: 1.2rem;
+    padding: 0 0.75rem 0.75rem;
+    color: var(--muted);
+  }
+  .menu__file {
+    display: none;
+  }
+</style>
+
+<div class="menu__bar">
+  <button type="button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
+  <button type="button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
+  <button type="button" data-action="note">Note</button>
+  <div class="menu__pens" role="group" aria-label="Style of new highlights">
+    <button type="button" class="pen--inverse" data-action="pen" data-pen="inverse" aria-pressed="${pen === 'inverse' ? 'true' : 'false'}" aria-label="Inverse"><span>Aa</span></button>
+    <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>
+    <button type="button" class="pen--box" data-action="pen" data-pen="box" aria-pressed="${pen === 'box' ? 'true' : 'false'}" aria-label="Box"><span>Aa</span></button>
+  </div>
+  <button type="button" data-action="sheet" aria-expanded="${open ? 'true' : 'false'}">${name ? name : 'Workspace'}</button>
+</div>
+<div class="menu__sheet">
+  <h2 class="menu__heading">Save this table</h2>
+  <form class="menu__save">
+    <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" />
+    <button type="submit">Save</button>
+  </form>
+  <touch-keys for="workspace-name" enter="Save"></touch-keys>
+  <h2 class="menu__heading">Saved tables</h2>
+  <ul class="menu__list"></ul>
+  <div class="menu__actions">
+    <button type="button" data-action="new">New table</button>
+    <button type="button" data-action="export">Save to a file</button>
+    <button type="button" data-action="import">Open a file</button>
+  </div>
+  <output class="menu__status" aria-live="polite"></output>
+  <input class="menu__file" type="file" accept="application/json,.json" />
+</div>

@@ -16,9 +16,6 @@ type __Cookies = {
     set(name: string, value: string, options?: __CookieOptions): Promise<void>
   }
 };
-type __Shape<T> = {
-  [K in keyof T]: T[K] extends never[] ? any[] : T[K]
-};
 type __CookieOptions = {
   path?: string;
   domain?: string;
@@ -37,10 +34,17 @@ type Point = {
 type Highlight = {
   from: string;
   to: string;
+  style?: string | undefined;
 };
 type Link = {
   a: Highlight;
   b: Highlight;
+  type?: string | undefined;
+};
+type Note = {
+  id: string;
+  text: string;
+  quotes: Highlight[];
 };
 type Pull = {
   id: number;
@@ -53,9 +57,11 @@ type Place = {
   box: DOMRect;
 };
 type StoredCard = {
+  id: string;
   address: string;
   matrix: Matrix;
   version?: string | undefined;
+  sync?: boolean | undefined;
 };
 type Matrix = {
   a: number;
@@ -70,6 +76,19 @@ type Card = HTMLElement & {
   hold(id: number, at: Point, scale?: number | undefined): void;
   placeAt(at: Point, scale?: number | undefined): void;
   setMatrix(m: Matrix): void;
+};
+type FetchOptions = {
+  version?: string | undefined;
+  replacing?: Element | null | undefined;
+  id?: string | undefined;
+  sync?: boolean | undefined;
+};
+type Workspace = {
+  offset: Point;
+  cards: StoredCard[];
+  highlights: Highlight[];
+  links: Link[];
+  notes: Note[];
 };
 type Block = {
   style: string;
@@ -162,6 +181,7 @@ type WordVerse = {
   n: number;
   id: string;
   blocks: WordBlock[];
+  label?: string | undefined;
 };
 type WordBlock = {
   style: string;
@@ -180,15 +200,6 @@ type Token = {
   w: number;
   s: string | null;
   e: string | null;
-};
-type Row = {
-  verse: WordVerse;
-  bsb: PlainBlock[];
-};
-type PlainBlock = {
-  style: string;
-  text: string;
-  numbered: boolean;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -209,6 +220,20 @@ export type BibleTableMembers = {
   shown: string;
   frame: number;
   lineFrame: number;
+  notes: Note[];
+  pen: string;
+  history: {
+    reset(snapshot: string): void;
+    record(snapshot: string): boolean;
+    undo(): string | null;
+    redo(): string | null;
+    canUndo(): boolean;
+    canRedo(): boolean;
+  } | null;
+  applying: number;
+  later: boolean | null;
+  name: string;
+  labels: HTMLButtonElement[];
   connected({
     signal
   }: {
@@ -246,6 +271,8 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   }): void;
+  highlight(span: Highlight): void;
+  quote(card: HTMLElement, span: Highlight): Promise<void>;
   sourceOf(span: Highlight): Highlight;
   endAt(x: number, y: number): Highlight | null;
   tapped({
@@ -273,13 +300,52 @@ export type BibleTableMembers = {
   drawSoon(): void;
   placesOf(span: Highlight): Place[];
   draw(): void;
+  placeLabels(labels: {
+    at: Point;
+    text: string;
+    typed: boolean;
+  }[]): void;
   restore({
-    address, matrix, version
+    id, address, matrix, version, sync
   }: StoredCard): Promise<void>;
   switchVersion(card: Card, version: string): Promise<void>;
-  fetchCard(address: string, version?: string | undefined, replacing?: Element | null | undefined): Promise<Card | null>;
+  replaceCard(card: Card, address: string, version: string): Promise<Card | null>;
+  step(card: Card, address: string): Promise<void>;
+  clicked(event: MouseEvent): void;
+  setSync(card: HTMLElement, on: boolean): void;
+  copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
+  unquote(card: HTMLElement, address: string): Promise<void>;
+  newNote(): Promise<void>;
+  editNote(id: string): void;
+  noteText({
+    id, text
+  }: {
+    id: string;
+    text: string;
+  }): void;
+  paintQuoted(root: Element): void;
+  fetchCard(address: string, {
+    version, replacing, id, sync
+  }: FetchOptions): Promise<Card | null>;
   openSpot(): Point;
-  keep(): void;
+  current(): Workspace;
+  keep(record?: boolean | undefined): void;
+  finish(): void;
+  showHistory(): void;
+  undo(): void;
+  redo(): void;
+  apply(target: Workspace, record: boolean): Promise<void>;
+  openWorkspace(workspace: Workspace, name: string, message: string): Promise<void>;
+  setName(name: string): void;
+  saveAs(name: string): void;
+  openNamed(name: string): void;
+  exportFile(): void;
+  importFile({
+    name, text
+  }: {
+    name: string;
+    text: string;
+  }): void;
 };
 
 /** Properties of `<calibration-target>`, from its <script element> block. */
@@ -367,8 +433,28 @@ export type GestureCardMembers = {
 
 /** Properties of `<kjv-verse>`, from its <script element> block. */
 export type KjvVerseProps = {
-  n: number;
+  n: string;
   blocks: Block[];
+};
+
+/** Properties of `<note-editor>`, from its <script element> block. */
+export type NoteEditorProps = {};
+
+/** Internal state of `<note-editor>`, from its <script element> block. */
+export type NoteEditorState = {
+  open: boolean;
+};
+
+/** Members of `<note-editor>`, from its `export const prototype`. */
+export type NoteEditorMembers = {
+  note: string;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  edit(id: string, text: string): void;
+  close(): void;
 };
 
 /** Properties of `<passage-search>`, from its <script element> block. */
@@ -418,6 +504,34 @@ export type SvgIconProps = {
   label: string;
 };
 
+/** Properties of `<table-menu>`, from its <script element> block. */
+export type TableMenuProps = {};
+
+/** Internal state of `<table-menu>`, from its <script element> block. */
+export type TableMenuState = {
+  open: boolean;
+  keys: boolean;
+  pen: string;
+  canUndo: boolean;
+  canRedo: boolean;
+  name: string;
+};
+
+/** Members of `<table-menu>`, from its `export const prototype`. */
+export type TableMenuMembers = {
+  deleting: string;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  act(event: MouseEvent): void;
+  send(type: string, detail?: object | undefined): void;
+  setHistory(canUndo: boolean, canRedo: boolean): void;
+  setName(name: string): void;
+  refresh(message: string): void;
+};
+
 /** Properties of `<time-line>`, from its <script element> block. */
 export type TimeLineProps = {};
 
@@ -440,6 +554,7 @@ export type TimeLineMembers = {
 /** Properties of `<touch-keys>`, from its <script element> block. */
 export type TouchKeysProps = {
   for: string;
+  enter: string;
 };
 
 /** Internal state of `<touch-keys>`, from its <script element> block. */
@@ -696,15 +811,23 @@ export type CardAddressContext = {
 };
 
 /** Data returned by `card-_address`'s <script server> block. */
-export type CardAddressData = __Shape<{
+export type CardAddressData = {
+  kind: string;
   address: string;
   version: string;
   title: string;
-  verses: never[];
-  rows: never[];
+  verses: WordVerse[];
+  rows: {
+    verse: WordVerse;
+    bsb: {
+      style: string;
+      text: string;
+      numbered: boolean;
+    }[];
+  }[];
   opening: string;
   count: string;
-  entity: null;
+  entity: EntityView | null;
   map: {
     width: number;
     height: number;
@@ -717,28 +840,16 @@ export type CardAddressData = __Shape<{
       x: string;
       y: string;
     }[];
-  };
-}> | __Shape<{
-  address: string;
-  version: string;
-  title: string;
-  verses: never[];
-  rows: never[];
-  opening: string;
-  count: string;
-  entity: EntityView;
-  map: null;
-}> | __Shape<{
-  address: string;
-  version: string;
-  title: string;
-  verses: WordVerse[];
-  rows: Row[];
-  opening: string;
-  count: string;
-  entity: null;
-  map: null;
-}>;
+  } | null;
+  note: string;
+  back: string;
+  next: string;
+  quotes: {
+    title: string;
+    address: string;
+    verses: WordVerse[];
+  }[];
+};
 
 /** The `ctx` argument of `404`'s <script server> loader. */
 export type _404Context = {
@@ -772,8 +883,10 @@ declare global {
     "calibration-target": HTMLElement & CalibrationTargetProps & CalibrationTargetState & CalibrationTargetMembers;
     "gesture-card": HTMLElement & GestureCardProps & GestureCardMembers;
     "kjv-verse": HTMLElement;
+    "note-editor": HTMLElement & NoteEditorProps & NoteEditorState & NoteEditorMembers;
     "passage-search": HTMLElement & PassageSearchProps & PassageSearchState & PassageSearchMembers;
     "svg-icon": HTMLElement;
+    "table-menu": HTMLElement & TableMenuProps & TableMenuState & TableMenuMembers;
     "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;
     "touch-keys": HTMLElement & TouchKeysProps & TouchKeysState & TouchKeysMembers;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;

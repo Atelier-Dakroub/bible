@@ -51,22 +51,100 @@
      highlight, the whole passage of that card. Drawing a link again removes
      it, and removing a highlight removes its links.
 
+     The workspace is a document (app/lib/workspace.js). The menu (table-menu)
+     saves it under a name, opens a saved one, starts a new one, and sends it
+     to a file or takes one in. Every change is a step in the undo history
+     (app/lib/history.js), except a pan.
+
+     Highlights come in three styles (words.js STYLES); the menu picks the
+     style of the next one. Marking a highlight again in another style
+     restyles it.
+
+     A marking finger that leaves its card and lifts:
+       on another card   draws a link to it (as above)
+       on a note card    quotes the words in the note
+       on the empty table  pulls the words out as a phrase card of their own
+     In each case the words become a highlight, so a dashed line joins them
+     to every other card that shows them.
+
+     A note card (note:<id>) holds the reader's own text and the spans it
+     quotes. A tap on it opens the note editor. The verses a note quotes
+     carry a mark on every other card.
+
+     A link's label, at the middle of its line, says what the link is (links.js
+     TYPES). A tap on the label changes it, and a typed link has an arrow.
+
+     A passage card's Back and Next step it through the text. Cards with Sync
+     on step together: when one steps, the others go to the same passage.
+     Copy puts the card's words and reference on the clipboard.
+
      It listens for `place` from a search panel inside it:
        detail.address  the passage
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
   import { pan } from '../lib/gesture.js';
+  import { createHistory } from '../lib/history.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../lib/links.js';
-  import { covers, paintWords, toggle, wordAt, wordKey } from '../lib/words.js';
-  import { load, save } from '../lib/workspace.js';
+  import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
+  import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
+  import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
   /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
+  /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
+  /** @typedef {import('../lib/workspace.js').Note} Note */
+  /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean }} FetchOptions */
+
+  const NAME_KEY = 'bible.workspace.name';
+
+  /**
+   * Puts text on the clipboard. The async clipboard needs a secure page, and
+   * the panel opens the app over plain http on the network, so the old way is
+   * the fallback.
+   *
+   * @param {string} text
+   */
+  async function copyText(text) {
+    try {
+      // A browser can hold the promise while it asks for permission. After a
+      // second, the old way is tried as well.
+      if (window.isSecureContext && navigator.clipboard) {
+        const written = navigator.clipboard.writeText(text).then(() => true, () => false);
+        const late = new Promise((resolve) => setTimeout(() => resolve(false), 1000));
+        if (await Promise.race([written, late])) return true;
+      }
+    } catch {
+      // Fall through to the old way.
+    }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.append(area);
+    area.select();
+    let done = false;
+    try {
+      done = document.execCommand('copy');
+    } catch {
+      done = false;
+    }
+    area.remove();
+    return done;
+  }
+
+  /**
+   * The words of an element, as one line of plain text.
+   *
+   * @param {Element} element
+   */
+  function wordsOf(element) {
+    return (element.textContent ?? '').replace(/¶\s*/g, '').replace(/\s+/g, ' ').trim();
+  }
 
   // A passage longer than this arrives small, in its short form, so a whole
   // chapter does not cover the table. Two fingers make it large.
@@ -201,15 +279,45 @@
     shown: '',
     frame: 0,
     lineFrame: 0,
+    /** @type {Note[]} */
+    notes: [],
+    /** the style of the next highlight */
+    pen: STYLES[0],
+    /** @type {ReturnType<typeof createHistory> | null} */
+    history: null,
+    /** how many changes to the table are under way; keep() waits for them */
+    applying: 0,
+    /** a keep() asked for while a change was under way: false, or whether to record it */
+    later: /** @type {boolean | null} */ (null),
+    /** the name of the saved workspace on the table, or "" */
+    name: '',
+    /** @type {HTMLButtonElement[]} the link labels, kept and moved, not made again each frame */
+    labels: [],
 
     connected({ signal }) {
       this.fingers = new Map();
+      this.history = createHistory();
+      try {
+        this.name = localStorage.getItem(NAME_KEY) ?? '';
+      } catch {
+        this.name = '';
+      }
       const workspace = load();
       this.offset = workspace.offset;
       this.highlights = workspace.highlights;
       this.links = workspace.links;
+      this.notes = workspace.notes;
       this.paint();
-      for (const stored of workspace.cards) this.restore(stored);
+      this.applying += 1;
+      Promise.all(workspace.cards.map((stored) => this.restore(stored))).finally(() => {
+        this.applying -= 1;
+        this.history?.reset(snapshot(this.current()));
+        this.finish();
+      });
+      customElements.whenDefined('table-menu').then(() => {
+        /** @type {any} */ (this.querySelector('table-menu'))?.setName(this.name);
+        this.showHistory();
+      });
 
       const options = { signal };
       this.guardPalms(signal);
@@ -219,13 +327,20 @@
       this.addEventListener('pointerup', (event) => this.release(event), options);
       this.addEventListener('pointercancel', (event) => this.release(event), options);
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
-      this.addEventListener('click', (event) => {
-        const button = event.target instanceof Element ? event.target.closest('[data-version]') : null;
-        const card = button?.closest('gesture-card');
-        if (button instanceof HTMLElement && card && this.world().contains(card)) {
-          this.switchVersion(/** @type {Card} */ (card), button.dataset.version ?? 'kjv');
-        }
+      this.addEventListener('click', (event) => this.clicked(event), options);
+      this.addEventListener('table-undo', () => this.undo(), options);
+      this.addEventListener('table-redo', () => this.redo(), options);
+      this.addEventListener('pen-change', (event) => {
+        this.pen = /** @type {CustomEvent} */ (event).detail.style;
       }, options);
+      this.addEventListener('note-new', () => this.newNote(), options);
+      this.addEventListener('note-text', (event) => this.noteText(/** @type {CustomEvent} */ (event).detail), options);
+      this.addEventListener('note-done', () => this.keep(), options);
+      this.addEventListener('workspace-save', (event) => this.saveAs(/** @type {CustomEvent} */ (event).detail.name), options);
+      this.addEventListener('workspace-open', (event) => this.openNamed(/** @type {CustomEvent} */ (event).detail.name), options);
+      this.addEventListener('workspace-new', () => this.openWorkspace(empty(), '', 'A new, empty table. Undo brings the old one back.'), options);
+      this.addEventListener('workspace-export', () => this.exportFile(), options);
+      this.addEventListener('workspace-import', (event) => this.importFile(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
@@ -241,12 +356,21 @@
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
       this.addEventListener('toggle-map', () => this.toggleMap(), options);
       this.addEventListener('show-on-map', () => this.openMap(), options);
-      // The card removes itself after the event, so keep what is left a moment later.
-      this.addEventListener('card-remove', () => queueMicrotask(() => {
-        this.keep();
-        this.paintMap();
-        this.drawSoon();
-      }), options);
+      // The card removes itself after the event, so keep what is left a moment
+      // later. A note goes with its card; undo brings both back.
+      this.addEventListener('card-remove', (event) => {
+        const card = /** @type {HTMLElement} */ (event.target);
+        const note = card.dataset.kind === 'note' ? card.dataset.note : '';
+        queueMicrotask(() => {
+          if (note) {
+            this.notes = this.notes.filter((each) => each.id !== note);
+            this.paintQuoted(this.world());
+          }
+          this.keep();
+          this.paintMap();
+          this.drawSoon();
+        });
+      }, options);
     },
 
     disconnected() {
@@ -376,7 +500,7 @@
      * @param {{ address: string, pointer: Pull | null }} detail
      */
     async place({ address, pointer }) {
-      const card = await this.fetchCard(address);
+      const card = await this.fetchCard(address, {});
       if (!card) return;
       const scale = Number(card.dataset.verses) > LONG ? LONG_SCALE : 1;
       if (pointer?.down) card.hold(pointer.id, pointer, scale);
@@ -388,9 +512,9 @@
     /** @param {{ from: string, to: string }} detail */
     mark({ from, to }) {
       const before = this.highlights;
-      this.highlights = toggle(before, from, to);
+      this.highlights = toggle(before, from, to, this.pen);
       this.links = dropLinksTo(this.links, removed(before, this.highlights));
-      paintWords(this.world(), this.highlights, 'is-highlighted');
+      paintHighlights(this.world(), this.highlights);
       this.keep();
       this.drawSoon();
     },
@@ -404,17 +528,58 @@
     /** @param {{ span: Span, x: number, y: number }} detail */
     link({ span, x, y }) {
       this.pending = null;
-      const target = Number.isFinite(x) ? this.endAt(x, y) : null;
-      if (target) {
-        const source = this.sourceOf(span);
-        if (!this.highlights.some((each) => each.from === source.from && each.to === source.to)) {
-          this.highlights = [...this.highlights, source];
-          paintWords(this.world(), this.highlights, 'is-highlighted');
-        }
+      this.drawSoon();
+      if (!Number.isFinite(x)) return;
+      const source = this.sourceOf(span);
+      const under = document.elementFromPoint(x, y);
+      const card = under?.closest('gesture-card');
+
+      if (card instanceof HTMLElement && this.world().contains(card) && card.dataset.kind === 'note') {
+        this.highlight(source);
+        this.quote(card, source);
+        return;
+      }
+      if (card && this.world().contains(card)) {
+        const target = this.endAt(x, y);
+        if (!target) return;
+        this.highlight(source);
         this.links = toggleLink(this.links, source, target);
         this.keep();
+        return;
       }
-      this.drawSoon();
+      // Lifted on the empty table: the words become a card of their own.
+      if (under === this || under === this.world()) {
+        this.highlight(source);
+        this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
+      }
+    },
+
+    /**
+     * Makes a span a highlight, in the current style, unless it is one.
+     *
+     * @param {Span} span
+     */
+    highlight(span) {
+      if (this.highlights.some((each) => each.from === span.from && each.to === span.to)) return;
+      this.highlights = [...this.highlights, this.pen === STYLES[0] ? span : { ...span, style: this.pen }];
+      paintHighlights(this.world(), this.highlights);
+    },
+
+    /**
+     * Adds a span to a note's quotes, and fetches the note again to show it.
+     *
+     * @param {HTMLElement} card
+     * @param {Span} span
+     */
+    async quote(card, span) {
+      const note = this.notes.find((each) => each.id === card.dataset.note);
+      if (!note) return;
+      if (!note.quotes.some((each) => each.from === span.from && each.to === span.to)) {
+        note.quotes = [...note.quotes, { from: span.from, to: span.to }];
+      }
+      await this.replaceCard(/** @type {Card} */ (card), card.dataset.address ?? '', 'kjv');
+      this.paintQuoted(this.world());
+      this.keep();
     },
 
     /**
@@ -455,6 +620,12 @@
     tapped({ target }) {
       const element = target instanceof Element ? target : null;
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      // A tap on a note, anywhere but on the words it quotes, writes in it.
+      const note = element?.closest('gesture-card[data-kind="note"]');
+      if (note instanceof HTMLElement && !wordAt(element) && !element?.closest('button')) {
+        this.editNote(note.dataset.note ?? '');
+        return;
+      }
       const place = element?.closest('[data-place]');
       if (place instanceof Element) {
         panel?.showEntity(place.getAttribute('data-place'));
@@ -503,7 +674,7 @@
         this.paintMap();
         return;
       }
-      const card = await this.fetchCard(MAP);
+      const card = await this.fetchCard(MAP, {});
       if (!card) return;
       const panel = this.querySelector('passage-search')?.getBoundingClientRect();
       card.placeAt({ x: (panel?.right ?? 0) + 80, y: 80 });
@@ -735,7 +906,7 @@
     },
 
     draw() {
-      const svg = /** @type {SVGSVGElement} */ (this.querySelector('.table__lines'));
+      const drawn = /** @type {SVGGElement} */ (this.querySelector('.table__drawn'));
       /** @type {Element[]} */
       const lines = [...this.timeLines(), ...this.placeLines(), ...this.referenceLines()];
 
@@ -745,14 +916,32 @@
         for (let i = 1; i < places.length; i += 1) lines.push(line(places[i - 1].box, places[i].box, 'same'));
       }
 
-      // Links: each place of one end to the nearest place of the other.
-      for (const { a, b } of this.links) {
+      // Links: each place of one end to the nearest place of the other. A
+      // typed link has an arrow at its far end, and every link has a label
+      // in the middle of its first line.
+      /** @type {{ at: Point, text: string, typed: boolean }[]} */
+      const labels = [];
+      for (const { a, b, type } of this.links) {
         const ends = this.placesOf(b);
+        /** @type {{ at: Point, text: string, typed: boolean } | null} */
+        let label = null;
         for (const start of this.placesOf(a)) {
           const near = nearest(start, ends);
-          if (near) lines.push(line(start.box, near.box, 'link'));
+          if (!near) continue;
+          const drawnLine = line(start.box, near.box, type ? 'link link--typed' : 'link');
+          if (type) drawnLine.setAttribute('marker-end', 'url(#link-arrow)');
+          lines.push(drawnLine);
+          if (!label) {
+            const x1 = Number(drawnLine.getAttribute('x1'));
+            const y1 = Number(drawnLine.getAttribute('y1'));
+            const x2 = Number(drawnLine.getAttribute('x2'));
+            const y2 = Number(drawnLine.getAttribute('y2'));
+            label = { at: { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, text: type || 'link', typed: Boolean(type) };
+          }
         }
+        labels.push(label ?? { at: { x: NaN, y: NaN }, text: '', typed: false });
       }
+      this.placeLabels(labels);
 
       // A link being drawn follows the finger.
       if (this.pending) {
@@ -760,12 +949,42 @@
         for (const start of this.placesOf(this.pending.span)) lines.push(line(start.box, finger, 'link'));
       }
 
-      svg.replaceChildren(...lines);
+      drawn.replaceChildren(...lines);
+    },
+
+    /**
+     * Puts one button per link at the middle of its line. The buttons are
+     * kept from frame to frame and only moved, so a finger on one is not
+     * lost when the lines are drawn again under it.
+     *
+     * @param {{ at: Point, text: string, typed: boolean }[]} labels
+     */
+    placeLabels(labels) {
+      const layer = /** @type {HTMLElement} */ (this.querySelector('.table__labels'));
+      while (this.labels.length < labels.length) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'table__label';
+        layer.append(button);
+        this.labels.push(button);
+      }
+      while (this.labels.length > labels.length) this.labels.pop()?.remove();
+      labels.forEach((label, i) => {
+        const button = this.labels[i];
+        const shown = Number.isFinite(label.at.x);
+        button.hidden = !shown;
+        if (!shown) return;
+        button.dataset.link = String(i);
+        if (button.textContent !== label.text) button.textContent = label.text;
+        button.classList.toggle('is-typed', label.typed);
+        button.setAttribute('aria-label', `Link: ${label.text}. Tap to change what it says.`);
+        button.style.transform = `translate(${label.at.x}px, ${label.at.y}px) translate(-50%, -50%)`;
+      });
     },
 
     /** @param {StoredCard} stored */
-    async restore({ address, matrix, version }) {
-      const card = await this.fetchCard(address, version);
+    async restore({ id, address, matrix, version, sync }) {
+      const card = await this.fetchCard(address, { version, id, sync });
       card?.setMatrix(matrix);
     },
 
@@ -779,38 +998,205 @@
     async switchVersion(card, version) {
       const address = card.dataset.address;
       if (!address || card.dataset.version === version) return;
-      const { matrix } = card;
-      const level = card.style.zIndex;
-      const next = await this.fetchCard(address, version, card);
-      if (!next) return;
-      next.setMatrix(matrix);
-      next.style.zIndex = level;
+      await this.replaceCard(card, address, version);
       this.keep();
     },
 
     /**
+     * Puts a card for `address` in the place of `card`: the same id, position,
+     * level and sync.
+     *
+     * @param {Card} card
      * @param {string} address
-     * @param {string} [version] kjv, bsb or both
-     * @param {Element | null} [replacing] a card to put this one in place of
+     * @param {string} version
+     */
+    async replaceCard(card, address, version) {
+      const { matrix } = card;
+      const level = card.style.zIndex;
+      const next = await this.fetchCard(address, {
+        version,
+        replacing: card,
+        id: card.dataset.id,
+        sync: card.dataset.sync !== undefined,
+      });
+      if (!next) return null;
+      next.setMatrix(matrix);
+      next.style.zIndex = level;
+      return next;
+    },
+
+    /**
+     * Steps a card to another passage. When the card is synced, every other
+     * synced passage card goes to the same passage, each in its own version.
+     *
+     * @param {Card} card
+     * @param {string} address
+     */
+    async step(card, address) {
+      const others = card.dataset.sync === undefined
+        ? []
+        : [...this.world().querySelectorAll('gesture-card[data-kind="passage"][data-sync]')].filter((each) => each !== card);
+      await Promise.all(
+        [card, ...others].map((each) => this.replaceCard(/** @type {Card} */ (each), address, /** @type {HTMLElement} */ (each).dataset.version ?? 'kjv')),
+      );
+      this.keep();
+    },
+
+    /**
+     * The buttons on the cards, and the link labels.
+     *
+     * @param {MouseEvent} event
+     */
+    clicked(event) {
+      const target = event.target instanceof Element ? event.target : null;
+      const label = target?.closest('.table__label');
+      if (label instanceof HTMLElement) {
+        const i = Number(label.dataset.link);
+        const link = this.links[i];
+        if (!link) return;
+        const type = nextType(link.type);
+        const changed = { a: link.a, b: link.b, ...(type ? { type } : {}) };
+        this.links = this.links.map((each, at) => (at === i ? changed : each));
+        this.keep();
+        this.drawSoon();
+        return;
+      }
+
+      const button = target?.closest('button');
+      const card = button?.closest('gesture-card');
+      if (!(button instanceof HTMLButtonElement) || !(card instanceof HTMLElement) || !this.world().contains(card)) return;
+      const cardElement = /** @type {Card} */ (card);
+
+      if (button.dataset.version) this.switchVersion(cardElement, button.dataset.version);
+      else if (button.dataset.stepTo) this.step(cardElement, button.dataset.stepTo);
+      else if (button.dataset.action === 'sync') {
+        const on = card.dataset.sync === undefined;
+        this.setSync(card, on);
+        this.keep();
+      } else if (button.dataset.action === 'copy') this.copyCard(card, button);
+      else if (button.dataset.unquote) this.unquote(card, button.dataset.unquote);
+    },
+
+    /**
+     * @param {HTMLElement} card
+     * @param {boolean} on
+     */
+    setSync(card, on) {
+      if (on) card.dataset.sync = '';
+      else delete card.dataset.sync;
+      card.querySelector('[data-action="sync"]')?.setAttribute('aria-pressed', String(on));
+    },
+
+    /**
+     * Copies the words on a card with the reference after them.
+     *
+     * @param {HTMLElement} card
+     * @param {HTMLButtonElement} button
+     */
+    async copyCard(card, button) {
+      const title = wordsOf(card.querySelector('.passage__heading') ?? card);
+      const version = card.dataset.version ?? 'kjv';
+      const kjv = [...card.querySelectorAll('kjv-verse')];
+      const bsb = [...card.querySelectorAll('.bsb-verse')];
+      const parts = version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
+      const name = version === 'bsb' ? 'BSB' : 'KJV';
+      const text = `${parts.join(' ')}\n— ${title} (${name})`;
+      const done = await copyText(text);
+      button.textContent = done ? 'Copied' : 'Copy failed';
+      setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1500);
+    },
+
+    /**
+     * @param {HTMLElement} card a note card
+     * @param {string} address the span address of the quote
+     */
+    async unquote(card, address) {
+      const note = this.notes.find((each) => each.id === card.dataset.note);
+      if (!note) return;
+      note.quotes = note.quotes.filter((each) => spanAddress(each) !== address);
+      await this.replaceCard(/** @type {Card} */ (card), card.dataset.address ?? '', 'kjv');
+      this.paintQuoted(this.world());
+      this.keep();
+    },
+
+    async newNote() {
+      const id = newId('n');
+      this.notes = [...this.notes, { id, text: '', quotes: [] }];
+      const card = await this.fetchCard(`note:${id}`, {});
+      if (!card) return;
+      card.placeAt(this.openSpot());
+      this.keep();
+      this.editNote(id);
+    },
+
+    /** @param {string} id */
+    editNote(id) {
+      const note = this.notes.find((each) => each.id === id);
+      if (!note) return;
+      /** @type {any} */ (this.querySelector('note-editor'))?.edit(id, note.text);
+    },
+
+    /** @param {{ id: string, text: string }} detail */
+    noteText({ id, text }) {
+      const note = this.notes.find((each) => each.id === id);
+      if (!note) return;
+      note.text = text;
+      const card = this.world().querySelector(`gesture-card[data-note="${CSS.escape(id)}"]`);
+      const shown = card?.querySelector('.note__text');
+      if (shown) shown.textContent = text;
+      this.drawSoon();
+    },
+
+    /**
+     * Marks the verses that a note quotes, on every card but the notes.
+     *
+     * @param {Element} root
+     */
+    paintQuoted(root) {
+      const ranges = this.notes.flatMap((note) => note.quotes).map((each) => [wordKey(each.from), wordKey(each.to)]);
+      for (const verse of root.querySelectorAll('kjv-verse[data-ref]')) {
+        const element = /** @type {HTMLElement} */ (verse);
+        if (element.closest('gesture-card[data-kind="note"]')) continue;
+        const first = wordKey(`${element.dataset.ref}.w1`);
+        const last = first + 999;
+        element.classList.toggle('is-quoted', ranges.some(([from, to]) => from <= last && to >= first));
+      }
+    },
+
+    /**
+     * @param {string} address
+     * @param {FetchOptions} options
      * @returns {Promise<Card | null>}
      */
-    async fetchCard(address, version = 'kjv', replacing = null) {
+    async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false }) {
       const query = new URLSearchParams({ version, fragment: 'card' });
+      const note = address.startsWith('note:') ? this.notes.find((each) => `note:${each.id}` === address) : null;
+      if (address.startsWith('note:') && !note) return null;
+      if (note?.quotes.length) query.set('quotes', note.quotes.map(spanAddress).join(','));
       const response = await fetch(`/card/${encodeURIComponent(address)}?${query}`).catch(() => null);
       if (!response?.ok) return null;
       const holder = document.createElement('template');
       holder.setHTMLUnsafe(await response.text());
-      const card = holder.content.querySelector('gesture-card');
+      const card = /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
       if (!card) return null;
+      card.dataset.id = id ?? newId('c');
       if (replacing?.isConnected) replacing.replaceWith(card);
       else this.world().append(card);
-      paintWords(card, this.highlights, 'is-highlighted');
+      if (sync) this.setSync(card, true);
+      if (note) {
+        const text = card.querySelector('.note__text');
+        if (text) text.textContent = note.text;
+      }
+      paintHighlights(card, this.highlights);
       this.paintStudy(card);
+      this.paintQuoted(card);
       this.loadEvents(card);
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
       this.loadReferences(card);
-      return /** @type {Card} */ (card);
+      return /** @type {Card} */ (/** @type {unknown} */ (card));
     },
 
     /**
@@ -826,17 +1212,167 @@
       return { x: (panel?.right ?? 0) + 96 + step * 72, y: 96 + step * 72 };
     },
 
-    keep() {
-      const cards = [...this.world().querySelectorAll('gesture-card')].map((element) => {
+    /** @returns {Workspace} what is on the table now */
+    current() {
+      const cards = [...this.world().querySelectorAll('gesture-card')].flatMap((element) => {
         const card = /** @type {Card} */ (element);
-        return { address: card.dataset.address ?? '', matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
+        const address = card.dataset.address ?? '';
+        if (!address || !card.matrix) return [];
+        /** @type {StoredCard} */
+        const stored = { id: card.dataset.id ?? newId('c'), address, matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
+        if (card.dataset.sync !== undefined) stored.sync = true;
+        return [stored];
       });
-      save({
-        offset: this.offset,
-        cards: cards.filter((card) => card.address && card.matrix),
-        highlights: this.highlights,
-        links: this.links,
-      });
+      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes };
+    },
+
+    /**
+     * Keeps the table in this browser, and records a step in the undo history.
+     * While a change is under way, it waits for the change to finish.
+     *
+     * @param {boolean} [record] false for a change that is itself an undo or a redo
+     */
+    keep(record = true) {
+      if (this.applying > 0) {
+        this.later = Boolean(this.later) || record;
+        return;
+      }
+      const workspace = this.current();
+      save(workspace);
+      if (record) this.history?.record(snapshot(workspace));
+      this.showHistory();
+    },
+
+    /** A keep() that waited for a change. */
+    finish() {
+      if (this.applying > 0) return;
+      const later = this.later;
+      this.later = null;
+      if (later !== null) this.keep(later);
+      else save(this.current());
+    },
+
+    showHistory() {
+      /** @type {any} */ (this.querySelector('table-menu'))?.setHistory?.(this.history?.canUndo(), this.history?.canRedo());
+    },
+
+    undo() {
+      const state = this.history?.undo();
+      if (state) this.apply({ ...parse(state), offset: this.offset }, false);
+    },
+
+    redo() {
+      const state = this.history?.redo();
+      if (state) this.apply({ ...parse(state), offset: this.offset }, false);
+    },
+
+    /**
+     * Makes the table show a workspace: moves the cards that stay, fetches
+     * the ones that are new or changed, and takes away the rest.
+     *
+     * @param {Workspace} target
+     * @param {boolean} record whether this is a new step in the history
+     */
+    async apply(target, record) {
+      this.applying += 1;
+      try {
+        const cards = [...this.world().querySelectorAll('gesture-card')];
+        /** @type {Map<string, HTMLElement>} */
+        const byId = new Map(cards.map((card) => [/** @type {HTMLElement} */ (card).dataset.id ?? '', /** @type {HTMLElement} */ (card)]));
+        const { move, add, remove } = diffCards(this.current().cards, target.cards);
+        this.highlights = target.highlights;
+        this.links = target.links;
+        this.notes = target.notes;
+        if (target.offset.x !== this.offset.x || target.offset.y !== this.offset.y) {
+          this.offset = target.offset;
+          this.paint();
+        }
+        for (const id of remove) byId.get(id)?.remove();
+        /** @type {Promise<unknown>[]} */
+        const waits = add.map((stored) => this.restore(stored));
+        for (const stored of move) {
+          const card = /** @type {Card} */ (byId.get(stored.id));
+          card.setMatrix(stored.matrix);
+          this.setSync(card, Boolean(stored.sync));
+          // A note's quotes can differ between the two states.
+          if (card.dataset.kind === 'note') waits.push(this.replaceCard(card, stored.address, 'kjv'));
+        }
+        await Promise.all(waits);
+        paintHighlights(this.world(), this.highlights);
+        this.paintQuoted(this.world());
+        this.paintMap();
+        this.drawSoon();
+        this.later = Boolean(this.later) || record;
+      } finally {
+        this.applying -= 1;
+        this.finish();
+      }
+    },
+
+    /**
+     * Puts a whole workspace on the table, as one step that undo takes back.
+     *
+     * @param {Workspace} workspace
+     * @param {string} name
+     * @param {string} message
+     */
+    async openWorkspace(workspace, name, message) {
+      await this.apply(workspace, true);
+      this.setName(name);
+      /** @type {any} */ (this.querySelector('table-menu'))?.refresh(message);
+    },
+
+    /** @param {string} name */
+    setName(name) {
+      this.name = name;
+      try {
+        localStorage.setItem(NAME_KEY, name);
+      } catch {
+        // No storage: the name lasts until the page closes.
+      }
+      /** @type {any} */ (this.querySelector('table-menu'))?.setName(name);
+    },
+
+    /** @param {string} name */
+    saveAs(name) {
+      const menu = /** @type {any} */ (this.querySelector('table-menu'));
+      if (!saveNamed(name, this.current())) {
+        menu?.refresh('This browser could not save it: its storage is off or full. Save to a file instead.');
+        return;
+      }
+      this.setName(name);
+      menu?.refresh(`Saved “${name}”.`);
+    },
+
+    /** @param {string} name */
+    openNamed(name) {
+      const workspace = loadNamed(name);
+      if (!workspace) return;
+      this.openWorkspace(workspace, name, `Opened “${name}”. Undo goes back to the table before it.`);
+    },
+
+    exportFile() {
+      const name = this.name || 'Table';
+      const blob = new Blob([toFile(name, this.current())], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${name.replace(/[^\w .-]+/g, '-')}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+      /** @type {any} */ (this.querySelector('table-menu'))?.refresh(`Saved “${link.download}” to the downloads folder.`);
+    },
+
+    /** @param {{ name: string, text: string }} detail */
+    importFile({ name, text }) {
+      const found = fromFile(text);
+      if (!found) {
+        /** @type {any} */ (this.querySelector('table-menu'))?.refresh('That file is not a saved table.');
+        return;
+      }
+      const title = found.name || name;
+      this.openWorkspace(found.workspace, title, `Opened “${title}” from the file. Undo goes back to the table before it.`);
     },
   };
 </script>
@@ -889,6 +1425,35 @@
   .table__lines .link {
     stroke: var(--text);
   }
+  .table__arrow {
+    fill: var(--text);
+  }
+  /* A link's label: a small box at the middle of its line, at the same level
+     as the lines. A plain link says "link" in gray; a typed one in white. */
+  .table__labels {
+    position: absolute;
+    inset: 0;
+    z-index: 999999;
+    pointer-events: none;
+  }
+  .table__label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 2.75rem;
+    min-height: 2.2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--table);
+    color: var(--muted);
+    font: 0.7rem system-ui, sans-serif;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  .table__label.is-typed {
+    border-color: var(--text);
+    color: var(--text);
+  }
   .table__lines .same {
     stroke: var(--muted);
     stroke-dasharray: 6 6;
@@ -896,7 +1461,7 @@
   .table__perf {
     position: absolute;
     top: 0.5rem;
-    right: 0.5rem;
+    left: 50%;
     z-index: 3000000;
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--line);
@@ -922,5 +1487,13 @@
 </style>
 
 <div class="table__world"></div>
-<svg class="table__lines" aria-hidden="true"></svg>
+<svg class="table__lines" aria-hidden="true">
+  <defs>
+    <marker id="link-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="table__arrow" d="M0,0 L10,5 L0,10 z"></path>
+    </marker>
+  </defs>
+  <g class="table__drawn"></g>
+</svg>
+<div class="table__labels"></div>
 <slot></slot>

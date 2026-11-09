@@ -1,59 +1,111 @@
 <script server>
-  import { books, entityView, parallel, preview, verseCount } from '../../data/bible.js';
+  import { books, entityView, parallel, phrase, preview, verseCount } from '../../data/bible.js';
   import { mapOf } from '../../data/entities.js';
-  import { parseAddress } from '../../lib/reference.js';
+  import { parseAddress, stepAddress } from '../../lib/reference.js';
+  import { parseSpanAddress } from '../../lib/words.js';
 
   // A card is a passage with an address of its own. The table asks for the
   // `card` fragment and puts it down. Opened whole, it is a page with one card.
+  //
+  // The kinds of card, by address:
+  //   JHN.3.16-18               a passage
+  //   JHN.3.16.w3-JHN.3.16.w9   a phrase: only those words
+  //   person:david_994          a person, place, group or event
+  //   map:near-east             the map
+  //   note:<id>                 a note; its text is in the browser, and
+  //                             `quotes` names the spans it quotes
   export const prerender = false;
 
   // `version` picks the text: kjv (the default), bsb, or both side by side.
   const VERSIONS = ['kjv', 'bsb', 'both'];
+  const NOTE = /^note:([a-z0-9]{1,40})$/i;
+  const MAX_QUOTES = 20;
 
+  /**
+   * @typedef {{
+   *   kind: string, address: string, version: string, title: string,
+   *   verses: import('../../data/bible.js').WordVerse[],
+   *   rows: { verse: import('../../data/bible.js').WordVerse, bsb: { style: string, text: string, numbered: boolean }[] }[],
+   *   opening: string, count: string,
+   *   entity: import('../../data/bible.js').EntityView | null,
+   *   map: Awaited<ReturnType<typeof mapOf>> | null,
+   *   note: string, back: string, next: string,
+   *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[]
+   * }} Card
+   */
+
+  /**
+   * @param {Partial<Card> & { kind: string, address: string, version: string, title: string }} fields
+   * @returns {Card}
+   */
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], ...fields });
+
+  /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
-    const asked = new URL(url).searchParams.get('version') ?? 'kjv';
+    const query = new URL(url).searchParams;
+    const asked = query.get('version') ?? 'kjv';
     const version = VERSIONS.includes(asked) ? asked : 'kjv';
+    const address = params.address;
+
     // The map of the biblical world.
-    if (params.address === 'map:near-east') {
-      return { address: params.address, version, title: 'The biblical world', verses: [], rows: [], opening: 'Map', count: '', entity: null, map: await mapOf() };
+    if (address === 'map:near-east') {
+      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map: await mapOf() });
     }
+
+    // A note, with the words it quotes.
+    const note = NOTE.exec(address);
+    if (note) {
+      const spans = (query.get('quotes') ?? '').split(',').flatMap((text) => parseSpanAddress(text) ?? []).slice(0, MAX_QUOTES);
+      const quotes = (await Promise.all(spans.map((each) => phrase(each)))).flatMap((each) => each ?? []);
+      return card({ kind: 'note', address, version, title: 'Note', note: note[1], quotes, count: quotes.length === 1 ? '1 quote' : `${quotes.length} quotes` });
+    }
+
+    // A phrase pulled out of a card.
+    const range = parseSpanAddress(address);
+    if (range) {
+      const found = await phrase(range);
+      if (!found) return new Response('No words have that address.', { status: 404 });
+      return card({ kind: 'phrase', address, version, title: found.title, verses: found.verses, opening: preview(found.verses) });
+    }
+
     // An address with a colon is an entity, such as person:david_994.
-    if (params.address.includes(':')) {
-      const entity = await entityView(params.address);
+    if (address.includes(':')) {
+      const entity = await entityView(address);
       if (!entity) return new Response('Nothing has that address.', { status: 404 });
-      return { address: params.address, version, title: entity.title, verses: [], rows: [], opening: entity.facts.join(' · '), count: '', entity, map: null };
+      return card({ kind: 'entity', address, version, title: entity.title, opening: entity.facts.join(' · '), entity });
     }
-    const ref = parseAddress(params.address, books);
+
+    const ref = parseAddress(address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
     const { title, rows } = await parallel(ref);
     const verses = rows.map((row) => row.verse);
-    return {
-      address: params.address,
-      version,
-      title,
-      verses,
-      rows,
-      opening: preview(verses),
-      count: verseCount(verses.length),
-      entity: null,
-      map: null,
-    };
+    const back = stepAddress(address, -1, books) ?? '';
+    const next = stepAddress(address, 1, books) ?? '';
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next });
   };
 </script>
 
 <title>Passage</title>
 
-<gesture-card id="card" fragment data-address="${address}" data-version="${version}" data-verses="${verses.length}" x="0.5" y="0.4">
-  <article class="passage passage--${map ? 'map' : version}">
+<gesture-card id="card" fragment data-address="${address}" data-kind="${kind}" data-version="${version}" data-verses="${verses.length}" data-note="${note}" x="0.5" y="0.4">
+  <article class="passage passage--${kind === 'passage' ? version : kind}">
     <header class="passage__header">
       <h2 class="passage__heading">${title}</h2>
-      <div if="!entity && !map" class="passage__versions" role="group" aria-label="Translation">
+      <div if="kind === 'passage'" class="passage__versions" role="group" aria-label="Translation">
         <button type="button" data-version="kjv" aria-pressed="${version === 'kjv' ? 'true' : 'false'}">KJV</button>
         <button type="button" data-version="bsb" aria-pressed="${version === 'bsb' ? 'true' : 'false'}">BSB</button>
         <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
       </div>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
+    <!-- Steps through the text, keeps step with the other synced cards, and
+         copies the words with their reference. -->
+    <div if="kind === 'passage' || kind === 'phrase'" class="passage__tools">
+      <button if="kind === 'passage'" type="button" data-step-to="${back}" disabled="${!back}" aria-label="The passage before">‹ Back</button>
+      <button if="kind === 'passage'" type="button" data-step-to="${next}" disabled="${!next}" aria-label="The passage after">Next ›</button>
+      <button if="kind === 'passage'" type="button" data-action="sync" aria-pressed="false" title="Synced cards step through the text together">Sync</button>
+      <button type="button" data-action="copy">Copy</button>
+    </div>
     <!-- The short form, shown in place of the verses when the card is small.
          See gesture-card's data-zoom. -->
     <p class="passage__short">
@@ -79,24 +131,43 @@
       <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </div>
+    <!-- A note: the reader's own words, which the table fills in, and the
+         spans it quotes, by address, so a quote is the text itself. -->
+    <div if="kind === 'note'" class="note">
+      <p class="note__text" data-action="edit-note"></p>
+      <section each="quote of quotes" class="note__quote">
+        <p class="note__source">
+          <span>${quote.title}</span>
+          <button type="button" class="note__unquote" data-unquote="${quote.address}" aria-label="Remove the quote from ${quote.title}">×</button>
+        </p>
+        <div class="note__words">
+          <kjv-verse each="verse of quote.verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+        </div>
+      </section>
+      <p if="!quotes.length" class="note__hint">To quote words here, mark them on a card with two hands and drag them onto this note.</p>
+    </div>
+    <!-- A phrase: only the words of the span, which keep their addresses. -->
+    <div if="kind === 'phrase'" class="passage__text">
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+    </div>
     <!-- The KJV alone: its words have addresses, so highlights and links show. -->
-    <div if="version === 'kjv'" class="passage__text">
-      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.n}" blocks="${verse.blocks}"></kjv-verse>
+    <div if="kind === 'passage' && version === 'kjv'" class="passage__text">
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
     </div>
     <!-- The BSB alone: plain text, with no word addresses. -->
-    <div if="version === 'bsb'" class="passage__text">
-      <div each="row of rows" class="bsb-verse">
-        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.n}</sup> ${block.text}</p>
-        <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.n}</sup> Not in the BSB's main text.</p>
+    <div if="kind === 'passage' && version === 'bsb'" class="passage__text">
+      <div each="row of rows" class="bsb-verse" data-ref="${row.verse.id}">
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> ${block.text}</p>
+        <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.label}</sup> Not in the BSB's main text.</p>
       </div>
     </div>
     <!-- Both, verse by verse: the KJV on the left, the BSB on the right. -->
-    <div if="version === 'both'" class="passage__parallel">
+    <div if="kind === 'passage' && version === 'both'" class="passage__parallel">
       <p class="parallel__labels"><span>KJV</span><span>BSB</span></p>
       <div each="row of rows" class="parallel__row">
-        <kjv-verse data-ref="${row.verse.id}" n="${row.verse.n}" blocks="${row.verse.blocks}"></kjv-verse>
+        <kjv-verse data-ref="${row.verse.id}" n="${row.verse.label}" blocks="${row.verse.blocks}"></kjv-verse>
         <div class="bsb-verse">
-          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.n}</sup> ${block.text}</p>
+          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> ${block.text}</p>
           <p if="!row.bsb.length" class="verse__missing">Not in the BSB's main text.</p>
         </div>
       </div>

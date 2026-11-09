@@ -8,9 +8,11 @@ import { loaders } from './kjv/index.js';
 import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
-import { formatReference, parseAddress, parseReference, toAddress } from '../lib/reference.js';
+import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
+
+/** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
@@ -21,7 +23,7 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /** @typedef {{ text: string, w: number, s: string | null, e: string | null }} Token `s` is the word's Strong's number, `e` the entity it names */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
-/** @typedef {{ n: number, id: string, blocks: WordBlock[] }} WordVerse */
+/** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
@@ -91,15 +93,65 @@ export function book(id) {
  */
 export async function passage(ref) {
   const [{ chapters }, codes, named] = await Promise.all([book(ref.book), strongsBook(ref.book), namedIn(ref.book)]);
-  const verses = chapters[ref.chapter - 1].verses;
-  const from = ref.from ?? 1;
-  const to = ref.to ?? ref.from ?? verses.length;
-  const chosen = verses.slice(from - 1, to);
+  const covered = versesIn(ref, books);
+  const chosen = covered.map(([chapter, n]) => chapters[chapter - 1]?.verses[n - 1]).filter(Boolean);
   const names = await Promise.all(chosen.map((verse) => namesFor(named[verse.id] ?? [])));
   return {
     title: formatReference(ref, books),
-    verses: chosen.map((verse, i) => withWords(verse, codes[verse.id], names[i])),
+    verses: chosen.map((verse, i) => {
+      const chapter = covered[i][0];
+      const label = chapter !== ref.chapter && verse.n === 1 ? `${chapter}:1` : String(verse.n);
+      return { ...withWords(verse, codes[verse.id], names[i]), label };
+    }),
   };
+}
+
+/**
+ * Only the words of a span, as verses: a phrase card, or a quote in a note.
+ * Each verse keeps the words from the span's first word to its last, and
+ * the punctuation between them. A verse that starts inside the span keeps
+ * its number.
+ *
+ * @param {Span} range
+ * @returns {Promise<{ title: string, address: string, verses: WordVerse[] } | null>}
+ */
+export async function phrase(range) {
+  const [book, c1, v1, w1] = range.from.split('.');
+  const [, c2, v2, w2] = range.to.split('.');
+  const ref = parseAddress(`${book}.${c1}.${v1}-${c2}.${v2}`, books) ?? parseAddress(`${book}.${c1}.${v1}`, books);
+  if (!ref) return null;
+  const { title, verses } = await passage(ref);
+  const firstWord = Number(w1.slice(1));
+  const lastWord = Number(w2.slice(1));
+  const trimmed = verses.map((verse, i) => {
+    const low = i === 0 ? firstWord : 1;
+    const high = i === verses.length - 1 ? lastWord : Infinity;
+    const tokens = verse.blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens));
+    const start = tokens.findIndex((token) => token.w >= low);
+    let end = -1;
+    tokens.forEach((token, at) => {
+      if (token.w && token.w <= high) end = at;
+    });
+    let at = 0;
+    const blocks = verse.blocks
+      .map((block, b) => ({
+        ...block,
+        numbered: Boolean(block.numbered) && low === 1 && b === 0,
+        runs: block.runs
+          .map((run) => {
+            const kept = run.tokens.filter(() => {
+              const here = at;
+              at += 1;
+              return here >= start && here <= end;
+            });
+            return { ...run, tokens: kept, text: kept.map((token) => token.text).join('') };
+          })
+          .filter((run) => run.tokens.length),
+      }))
+      .filter((block) => block.runs.length);
+    return { ...verse, blocks };
+  });
+  return { title, address: `${range.from}-${range.to}`, verses: trimmed };
 }
 
 /** @typedef {{ style: string, text: string, numbered: boolean }} PlainBlock a block of the BSB */

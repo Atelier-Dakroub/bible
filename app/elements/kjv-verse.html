@@ -18,7 +18,8 @@
   // The page puts the verse id on the element as `data-ref`, so a selection
   // inside it can be traced back to its address.
   export const properties = {
-    n: 0,
+    /** The number to print: the verse, or chapter and verse (`2:1`). */
+    n: '',
     /** @type {Block[]} */
     blocks: [],
   };

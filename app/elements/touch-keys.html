@@ -1,8 +1,10 @@
 <!-- An on-screen keyboard for the kiosk, where no hardware keyboard is near.
 
-     It types into the input named by `for` (an id): each key adds to the end
-     of the value and sends `input`, as typing does. Enter submits the input's
-     form. Done sends `keys-done` (bubbling), and the owner hides the keyboard.
+     It types into the input or textarea named by `for` (an id): each key adds
+     to the end of the value and sends `input`, as typing does. Enter submits
+     an input's form, and starts a new line in a textarea. `enter` is the
+     label of that key. Done sends `keys-done` (bubbling), and the owner hides
+     the keyboard.
 
      The keys need no focus: a key is handled on pointerdown, and its default
      is prevented, so the input keeps the caret and the browser opens no
@@ -10,8 +12,10 @@
 
 <script element>
   export const properties = {
-    /** The id of the input to type into. */
+    /** The id of the input or textarea to type into. */
     for: '',
+    /** The label of the Enter key. */
+    enter: 'Search',
   };
 
   export const state = {
@@ -28,7 +32,7 @@
       const key = event.target instanceof Element ? event.target.closest('[data-key]') : null;
       if (!(key instanceof HTMLElement)) return;
       event.preventDefault();
-      const input = /** @type {HTMLInputElement | null} */ (document.getElementById(String(this.for)));
+      const input = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(String(this.for)));
       if (!input) return;
 
       const name = key.dataset.key ?? '';
@@ -40,13 +44,14 @@
         this.dispatchEvent(new Event('keys-done', { bubbles: true }));
         return;
       }
-      if (name === 'enter') {
+      if (name === 'enter' && !(input instanceof HTMLTextAreaElement)) {
         input.form?.requestSubmit();
         return;
       }
       if (name === 'back') input.value = input.value.slice(0, -1);
       else if (name === 'clear') input.value = '';
       else if (name === 'space') input.value += ' ';
+      else if (name === 'enter') input.value += '\n';
       else input.value += this.shift ? name.toUpperCase() : name;
       if (this.shift && name.length === 1) this.shift = false;
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -86,7 +91,7 @@
     flex: 2;
   }
   .keys__space {
-    flex: 5;
+    flex: 4;
   }
 </style>
 
@@ -103,5 +108,5 @@
   <button type="button" data-key="shift" aria-pressed="${shift ? 'true' : 'false'}" aria-label="Shift">⇧</button><button type="button" data-key="z">z</button><button type="button" data-key="x">x</button><button type="button" data-key="c">c</button><button type="button" data-key="v">v</button><button type="button" data-key="b">b</button><button type="button" data-key="n">n</button><button type="button" data-key="m">m</button><button type="button" data-key="-">-</button><button type="button" data-key="back" aria-label="Delete">⌫</button>
 </div>
 <div class="keys__row">
-  <button type="button" class="keys__wide" data-key="done">Done</button><button type="button" data-key="&quot;" aria-label="Quote">"</button><button type="button" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" class="keys__wide" data-key="clear">Clear</button><button type="button" class="keys__wide" data-key="enter">Search</button>
+  <button type="button" class="keys__wide" data-key="done">Done</button><button type="button" data-key="&quot;" aria-label="Quote">"</button><button type="button" data-key="'" aria-label="Apostrophe">'</button><button type="button" data-key="," aria-label="Comma">,</button><button type="button" data-key="." aria-label="Full stop">.</button><button type="button" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" data-key="?" aria-label="Question mark">?</button><button type="button" class="keys__wide" data-key="clear">Clear</button><button type="button" class="keys__wide" data-key="enter">${enter}</button>
 </div>

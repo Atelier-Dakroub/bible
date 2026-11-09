@@ -1,14 +1,29 @@
 // Links between spans of text.
 //
-// A link joins two spans of word addresses (app/lib/words.js). It has no
-// direction yet, so A–B and B–A are the same link. An end is usually a
+// A link joins two spans of word addresses (app/lib/words.js). It runs from
+// `a`, where the finger started, to `b`, where it lifted. A link can have a
+// type (TYPES), and a typed link is drawn with its direction. Drawing the same
+// two spans again, either way round, removes the link. An end is usually a
 // highlight; an end dropped on a passage with no highlight under the finger
 // is the whole passage, as the span from its first word to its last.
 
 import { wordKey } from './words.js';
 
 /** @typedef {import('./words.js').Highlight} Span */
-/** @typedef {{ a: Span, b: Span }} Link */
+/** @typedef {{ a: Span, b: Span, type?: string }} Link `type` is one of TYPES; none is "" */
+
+// What a link says, read from `a` to `b`: "a quotes b", "a fulfills b",
+// "a contrasts with b". The first, "", is a plain link.
+export const TYPES = ['', 'quotes', 'fulfills', 'contrasts'];
+
+/**
+ * The type after `type`, round to a plain link again.
+ *
+ * @param {string | undefined} type
+ */
+export function nextType(type) {
+  return TYPES[(TYPES.indexOf(type ?? '') + 1) % TYPES.length];
+}
 
 /**
  * @param {Span} x

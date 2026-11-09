@@ -12,8 +12,11 @@ What is on the table is kept in the browser as addresses and positions.
 Highlights take two hands: hold a card still with one finger, then run a
 finger of the other hand over the words. A highlight is stored as a span of
 word addresses (`JHN.3.16.w2` to `JHN.3.16.w6`), apart from the text, so
-every card that holds those words shows it, in inverse. Marking the same span
-again, or a tap on a highlighted word while you hold the card, removes it.
+every card that holds those words shows it. A highlight has one of three
+styles: inverse, a double underline, or a box. The three buttons in the menu
+at the top right pick the style of the next one. Marking the same span again
+in the same style, or a tap on a highlighted word while you hold the card,
+removes it. Marking it in another style changes its style.
 
 Links: while you mark words, drag the marking finger out of the card and lift
 it on another card. That links the marked words to the highlight under your
@@ -21,7 +24,32 @@ finger, or to the whole passage when no highlight is there. A solid white line
 shows a link; a dashed gray line joins the places where the same highlighted
 words show on more than one card. Drawing a link again removes it, and
 removing a highlight removes its links. A link is two spans of word
-addresses, kept with the workspace.
+addresses, kept with the workspace. A label at the middle of each link says
+what it is: a tap changes it from "link" to "quotes", "fulfills" and
+"contrasts", and back. A link with a type has an arrow, from the words you
+marked to the words you dropped them on.
+
+Phrases and notes: lift the marking finger on the empty table, and the marked
+words become a card of their own, a phrase card. Note, in the menu, puts a
+note card on the table and opens the note editor with the on-screen
+keyboard; a tap on a note opens it again. Lift the marking finger on a note,
+and the note quotes the words. A quote is the text itself, by address: its
+words keep their addresses, so a dashed line joins the quote to the
+highlight it came from. A verse that a note quotes has a gray line down its
+left side on the other cards.
+
+Passage cards step through the text: Back and Next go to the passage before
+or after, the same size. Sync joins cards: when one synced card steps, the
+others go to the same passage, each in its own translation, for example the
+KJV and the BSB of one chapter. Copy puts the words of the card and their
+reference on the clipboard. A reference can cross a chapter, such as
+`Gen 1:1-2:3`.
+
+Workspaces and undo: Undo and Redo in the menu (or Command-Z and
+Shift-Command-Z) step through every change to the table but a pan. The
+workspace button opens a sheet: save the table under a name, open or delete
+a saved table, start a new table, save the table to a JSON file, or open a
+file. Opening a table, or a new one, is one step that Undo takes back.
 
 Word studies: tap a word on a card. The search panel shows its Hebrew or
 Greek word from Strong's dictionary, with the verses that use it, and every
@@ -90,8 +118,8 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | Path | What it holds |
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
-| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `pointer-log.js`. |
+| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
 | `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |
