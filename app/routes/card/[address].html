@@ -183,25 +183,28 @@
     <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA). Modern shores: ancient ones differed in places.</p>
   </article>
   <article else class="passage passage--${kind === 'passage' ? version : kind} ${entity ? 'kind--' + entity.kind : ''}">
+    <!-- The heading, with the steps through the text on either side of it,
+         as the pages of a book; on the right, Copy, Sync and close as
+         small icons, each with its name for a screen reader and a pointer. -->
     <header class="passage__header">
+      <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${back}" disabled="${!back}" aria-label="The passage before" title="The passage before"><svg-icon library="ui" name="back"></svg-icon></button>
       <h2 class="passage__heading">${title}</h2>
-      <div if="kind === 'passage'" class="passage__versions" role="group" aria-label="Translation">
+      <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${next}" disabled="${!next}" aria-label="The passage after" title="The passage after"><svg-icon library="ui" name="next"></svg-icon></button>
+      <span class="passage__spacer"></span>
+      <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
+      <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
+      <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
+    </header>
+    <!-- The version: one joined bar. Compare follows it on a card in Both. -->
+    <div if="kind === 'passage'" class="passage__tools">
+      <div class="passage__versions rr-segments" role="group" aria-label="Translation">
         <button type="button" data-version="kjv" aria-pressed="${version === 'kjv' ? 'true' : 'false'}">KJV</button>
         <button type="button" data-version="bsb" aria-pressed="${version === 'bsb' ? 'true' : 'false'}">BSB</button>
         <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
         <button type="button" data-version="original" aria-pressed="${version === 'original' ? 'true' : 'false'}" title="The Hebrew or the Greek">Original</button>
         <button type="button" data-version="interlinear" aria-pressed="${version === 'interlinear' ? 'true' : 'false'}" title="The Hebrew or the Greek, word by word, with the English and the grammar">Word by word</button>
       </div>
-      <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
-    </header>
-    <!-- Steps through the text, keeps step with the other synced cards, and
-         copies the words with their reference. -->
-    <div if="kind === 'passage' || kind === 'phrase'" class="passage__tools">
-      <button if="kind === 'passage'" type="button" data-step-to="${back}" disabled="${!back}" aria-label="The passage before">‹ Back</button>
-      <button if="kind === 'passage'" type="button" data-step-to="${next}" disabled="${!next}" aria-label="The passage after">Next ›</button>
-      <button if="kind === 'passage'" type="button" data-action="sync" aria-pressed="false" title="Synced cards step through the text together">Sync</button>
-      <button if="kind === 'passage' && version === 'both'" type="button" data-action="compare" aria-pressed="false" title="Bold: words the other translation does not have">Compare</button>
-      <button type="button" data-action="copy">Copy</button>
+      <button if="version === 'both'" type="button" data-action="compare" aria-pressed="false" title="Bold: words the other translation does not have">Compare</button>
     </div>
     <!-- The short form, shown in place of the verses when the card is small.
          See gesture-card's data-zoom. -->

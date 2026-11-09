@@ -1613,13 +1613,20 @@
       const version = card.dataset.version ?? 'kjv';
       const kjv = [...card.querySelectorAll('kjv-verse')];
       const bsb = [...card.querySelectorAll('.bsb-verse')];
-      const parts = version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
-      const name = version === 'bsb' ? 'BSB' : 'KJV';
+      // The Hebrew or the Greek: the words of each verse, as they read.
+      const source = card.querySelector('[lang="hbo"], [lang="grc"]');
+      const originals = [...card.querySelectorAll('.original__verse, .inter__verse')].map((verse) =>
+        [...verse.querySelectorAll('.orig, .inter__text')].map((word) => word.textContent?.trim()).join(' '),
+      );
+      const original = version === 'original' || version === 'interlinear';
+      const parts = original ? originals : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
+      const name = original ? (source?.getAttribute('lang') === 'hbo' ? 'Hebrew' : 'Greek') : version === 'bsb' ? 'BSB' : 'KJV';
       const text = `${parts.join(' ')}\n— ${title} (${name})`;
       const done = await copyText(text);
-      button.textContent = done ? 'Copied' : 'Copy failed';
+      // The button is an icon: a small label beside it says what happened.
+      button.dataset.done = done ? 'Copied' : 'Copy failed';
       setTimeout(() => {
-        button.textContent = 'Copy';
+        delete button.dataset.done;
       }, 1500);
     },
 

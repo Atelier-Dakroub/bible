@@ -172,19 +172,68 @@ gesture-card.is-held > .rr-card {
   color: inherit;
 }
 
+/* The heading row: ‹ heading › on the left, the icons on the right. */
 .passage__header {
   display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0 0 0.45rem;
+}
+.passage__header .passage__heading {
+  min-width: 0;
+  margin: 0 0.2rem;
+}
+.passage__spacer {
+  flex: 1;
+}
+/* The step and icon buttons: quiet until a pointer is on them. */
+.passage__step,
+.passage__icon {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+}
+.passage__step:first-child {
+  margin-left: -0.5rem;
+}
+.passage__step:disabled {
+  background: transparent;
+}
+.passage__icon[aria-pressed='true'] {
+  border-color: var(--lapis);
+  background: var(--lapis);
+  color: var(--on-pigment);
+}
+/* After Copy: a small label beside the button. */
+.passage__icon[data-done]::after {
+  content: attr(data-done);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 0.3rem);
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--ink);
+  color: var(--paper);
+  font: 500 0.55rem/1.4 var(--sans);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 /* The control is small on the card and large under a finger: the hit area is
-   a 2.75rem square around a mark the size of the text. */
+   a square around a mark the size of the text. */
 .passage__close {
   flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: -0.75rem -1rem 0 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin: 0 -0.5rem 0 0;
   border: 0;
   background: none;
   border-radius: var(--radius-small);
@@ -250,10 +299,14 @@ gesture-card[data-zoom='far'] .passage__short {
 gesture-card[data-zoom='far'] .passage__heading {
   font-size: 2.2em;
 }
-gesture-card[data-zoom='far'] .passage__close {
+gesture-card[data-zoom='far'] .passage__close,
+gesture-card[data-zoom='far'] .passage__step {
   font-size: 2.4em;
   width: 5rem;
   height: 5rem;
+}
+gesture-card[data-zoom='far'] .passage__icon {
+  display: none;
 }
 gesture-card[data-zoom='far'] kjv-verse,
 gesture-card[data-zoom='far'] .passage__text,
@@ -334,29 +387,25 @@ kjv-verse.is-quoted {
 }
 
 /* The tools under a passage's heading: step, sync, copy. */
+/* The version bar, and Compare after it. */
 .passage__tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0 0 0.7rem;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
 }
 .passage__tools button {
-  min-height: 2rem;
+  min-height: 1.9rem;
   padding: 0 0.6rem;
   white-space: nowrap;
-  font: 0.75rem var(--sans);
+  font: 500 0.6rem var(--sans);
 }
 
-/* In the short form the tools stay, set larger to stay usable at that
-   scale: a long chapter arrives small, and Back and Next must still work. */
+/* In the short form the version bar goes; the steps beside the heading stay,
+   set larger (above), so a long chapter that arrives small can still step. */
 gesture-card[data-zoom='far'] .passage__tools {
-  gap: 0.5rem;
-  margin-bottom: 0.8rem;
-}
-gesture-card[data-zoom='far'] .passage__tools button {
-  min-height: 4rem;
-  padding: 0 1.2rem;
-  font-size: 1.5rem;
+  display: none;
 }
 
 /* A phrase card is narrower: it holds a few words. */
@@ -537,19 +586,10 @@ gesture-card[data-zoom='far'] .note__text {
 }
 
 /* The translation switch on a card. */
-.passage__header {
-  flex-wrap: wrap;
-}
-.passage__versions {
-  display: flex;
-  gap: 0.25rem;
-  margin-left: auto;
-  margin-right: 1.5rem;
-}
 .passage__versions button {
-  min-height: 2rem;
-  padding: 0 0.5rem;
-  font: 0.75rem var(--sans);
+  min-height: 1.9rem;
+  padding: 0 0.6rem;
+  font: 500 0.6rem var(--sans);
 }
 
 
