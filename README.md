@@ -201,12 +201,12 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-map.js` and `import-relief.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
-| `app/data/map/` | The base map, from Natural Earth. |
+| `app/data/map/` | The base map, from Natural Earth, and the relief, from ETOPO 2022. |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -240,8 +240,8 @@ scoped to `.rr` until each part of the table moves over. The settings at the
 top of the page are the reader's own (`reading-settings`): Day, Night, or as
 the computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
-three text typefaces and two interface typefaces, and red letters, verse
-numbers, initials and paragraphs on or off. The browser keeps them.
+and red letters, verse numbers, initials and paragraphs on or off. The
+browser keeps them.
 
 The colors are manuscript pigments, and each kind of thing has one: ochre
 for people, verdigris for places, slate for groups, purple for events and
@@ -250,9 +250,8 @@ alone. `test/design.test.js` checks every color with APCA (`app/lib/apca.js`)
 on the paper of all six settings.
 
 The fonts are in `app/public/fonts`, Latin and extended Latin only, each with
-its SIL Open Font License: Literata, Source Serif 4 and Newsreader for the
-text; Atkinson Hyperlegible Next and Source Sans 3 for the interface. They
-came from Fontsource on npm (version 5.3). The pictograms are in
+its SIL Open Font License: Literata for the text and Atkinson Hyperlegible
+Next for the interface. They came from Fontsource on npm (version 5.3). The pictograms are in
 `app/icons/kinds`.
 
 ## The map data
@@ -269,6 +268,23 @@ node tools/import-map.js <directory with ne_10m_land, ne_10m_lakes and ne_10m_ri
 Modern reservoirs, such as Lake Nasser, are left out. The place markers come
 from the entity data at request time.
 
+
+The relief (`/design` shows it): `app/data/map/relief.json` holds, for each
+of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or
+above it as one path; its edge is the contour line. `app/public/map/` holds
+two hill shades, lit from the northwest: one of the whole map, and a sharper
+one of the Levant for a close view, which also has its own contours. Both
+come from NOAA's ETOPO 2022 (free to use and share), through NOAA's ERDDAP
+service, and need nothing but Node to build:
+
+```sh
+curl -o etopo-30s.nc 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.nc?z%5B(18):2:(46)%5D%5B(8):2:(62)%5D'
+curl -o etopo-15s-levant.nc 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.nc?z%5B(29.2):1:(34.6)%5D%5B(33.4):1:(37.8)%5D'
+node tools/import-relief.js etopo-30s.nc --levant etopo-15s-levant.nc
+```
+
+The first file is 87 MB and the second 5.5 MB; the outputs are 1.9 MB of
+paths and 2.3 MB of images.
 ## The BSB data
 
 `app/data/bsb/<BOOK>.json` holds the Berean Standard Bible (public domain) by

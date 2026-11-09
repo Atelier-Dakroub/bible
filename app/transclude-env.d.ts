@@ -1047,7 +1047,7 @@ export type DesignData = {
       height: number;
     }[];
   } | null;
-  map: {
+  israel: {
     viewBox: string;
     land: string[];
     lakes: string[];
@@ -1064,15 +1064,75 @@ export type DesignData = {
     }[];
     font: number;
     halo: number;
-    sea: {
+    relief: {
+      id: string;
+      n: number;
+    }[];
+    shade: {
       x: number;
       y: number;
-    };
-    salt: {
+      w: number;
+      h: number;
+      href: string;
+    } | {
       x: number;
       y: number;
+      w: number;
+      h: number;
+      href: string;
     };
+    waters: {
+      x: number;
+      y: number;
+      label: string;
+      size: number;
+    }[];
   };
+  world: {
+    viewBox: string;
+    land: string[];
+    lakes: string[];
+    rivers: string[];
+    places: {
+      id: string;
+      name: string;
+      x: string;
+      y: string;
+      verses: number;
+      r: number;
+      dx: number;
+      dy: number;
+    }[];
+    font: number;
+    halo: number;
+    relief: {
+      id: string;
+      n: number;
+    }[];
+    shade: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      href: string;
+    } | {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      href: string;
+    };
+    waters: {
+      x: number;
+      y: number;
+      label: string;
+      size: number;
+    }[];
+  };
+  relief: {
+    id: string;
+    d: string;
+  }[];
   eras: {
     name: string;
     label: string;

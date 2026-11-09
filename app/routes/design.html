@@ -74,6 +74,8 @@
       mapOf(),
       import('../data/xrefs/JHN.json', { with: { type: 'json' } }).then((module) => module.default),
     ]);
+    // The relief (tools/import-relief.js): the land at or above each level.
+    const { default: relief } = await import('../data/map/relief.json', { with: { type: 'json' } });
 
     // Margin notes from the cross-references: the first three of a verse.
     /** @param {string} id */
@@ -86,26 +88,47 @@
     opening.verses[2].note = see('JHN.1.3');
     red.verses[2].note = see('JHN.3.16');
 
-    // The Levant, cut out of the map: from the coast of Lebanon to Sinai.
-    const corner = project(33.9, 33.4);
-    const far = project(37.4, 30.7);
-    const view = { x: corner.x, y: corner.y, w: far.x - corner.x, h: far.y - corner.y };
-    const inView = (/** @type {{ x: string, y: string }} */ place) =>
-      Number(place.x) > view.x && Number(place.x) < view.x + view.w && Number(place.y) > view.y && Number(place.y) < view.y + view.h;
-    // The most named places whose names have room, as the map card names them
-    // at its first level (lib/map.js nameLevels). The map is about 1000
-    // pixels wide here.
-    const candidates = map.places.filter((place) => inView(place) && place.verses >= 20).reverse();
-    const levels = nameLevels(
-      candidates.map((place) => ({ x: Number(place.x), y: Number(place.y), chars: place.name.length })),
-      1000 / view.w,
-      { font: 13, gap: 7 },
-    );
-    const places = candidates.filter((_, i) => levels[i] === 0);
-    const sea = project(34.45, 32.75);
-    const salt = project(35.62, 31.1);
-    // The labels are in pixels; the map is about 1000 pixels wide.
-    const k = view.w / 1000;
+    /**
+     * A piece of the map, as an atlas draws it: the land, the relief, the
+     * water and the names that have room.
+     *
+     * @param {[number, number, number, number]} box west, north, east, south
+     * @param {{ x: number, y: number, label: string, size?: number }[]} waters
+     * @param {boolean} [close] a close view of the Levant: its own sharper
+     *   contours and hill shade
+     */
+    const atlas = (box, waters, close = false) => {
+      const corner = project(box[0], box[1]);
+      const far = project(box[2], box[3]);
+      const view = { x: corner.x, y: corner.y, w: far.x - corner.x, h: far.y - corner.y };
+      const inView = (/** @type {{ x: string, y: string }} */ place) =>
+        Number(place.x) > view.x && Number(place.x) < view.x + view.w && Number(place.y) > view.y && Number(place.y) < view.y + view.h;
+      // The most named places whose names have room, as the map card names
+      // them at its first level (lib/map.js nameLevels). The map is about
+      // 1000 pixels wide here, and the labels are in pixels.
+      const candidates = map.places.filter((place) => inView(place) && place.verses >= 20).reverse();
+      const levels = nameLevels(
+        candidates.map((place) => ({ x: Number(place.x), y: Number(place.y), chars: place.name.length })),
+        1000 / view.w,
+        { font: 13, gap: 7 },
+      );
+      const k = view.w / 1000;
+      return {
+        viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
+        land: map.land,
+        lakes: map.lakes,
+        rivers: map.rivers,
+        places: candidates.filter((_, i) => levels[i] === 0).map((place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
+        font: 13 * k,
+        halo: 3 * k,
+        relief: (close ? relief.levant.bands : relief.bands).map((_, n) => ({ id: `${close ? 'rr-levant' : 'rr-relief'}-${n}`, n })),
+        shade: { href: `/map/${close ? 'hillshade-levant' : 'hillshade'}.png`, ...relief.shades[close ? 'hillshade-levant' : 'hillshade'] },
+        waters: waters.map((water) => {
+          const at = project(water.x, water.y);
+          return { x: at.x, y: at.y, label: water.label, size: 13 * k * (water.size ?? 1) };
+        }),
+      };
+    };
 
     const { facts = [], summary = '', relations = [], title = '' } = jerusalem ?? {};
     const [lat, lon] = (facts[2] ?? '').split(',').map(Number);
@@ -145,17 +168,23 @@
             bars: word.stats.bars,
           }
         : null,
-      map: {
-        viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
-        land: map.land,
-        lakes: map.lakes,
-        rivers: map.rivers,
-        places: places.map((place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
-        font: 13 * k,
-        halo: 3 * k,
-        sea: { x: sea.x, y: sea.y },
-        salt: { x: salt.x, y: salt.y },
-      },
+      // The Levant: from the coast of Lebanon to the Negeb.
+      israel: atlas([33.9, 33.4, 37.4, 30.7], [
+        { x: 34.45, y: 32.75, label: 'The Great Sea' },
+        { x: 35.62, y: 31.1, label: 'Salt Sea', size: 0.8 },
+      ], true),
+      // The whole map: from Italy to Persia.
+      world: atlas([8, 46, 62, 18], [
+        { x: 18.5, y: 34.2, label: 'The Great Sea' },
+        { x: 34.5, y: 43.3, label: 'Black Sea' },
+        { x: 50.5, y: 42.2, label: 'Caspian Sea', size: 0.8 },
+        { x: 38.6, y: 21.2, label: 'Red Sea', size: 0.8 },
+        { x: 51.6, y: 26.6, label: 'Persian Gulf', size: 0.8 },
+      ]),
+      relief: [
+        ...relief.bands.map((d, n) => ({ id: `rr-relief-${n}`, d })),
+        ...relief.levant.bands.map((d, n) => ({ id: `rr-levant-${n}`, d })),
+      ],
       eras: ERAS.map((era) => ({ name: era.name, label: yearLabel(era.from) })),
       ticks: timeline.slice(0, 400).map((event) => ({
         at: (positionOf(event.start) * 100).toFixed(2),
@@ -336,7 +365,7 @@
   <script>
     try {
       const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
-      const keys = ['theme', 'paper', 'size', 'leading', 'serif', 'sans', 'red', 'numbers', 'initials', 'layout'];
+      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout'];
       for (const key of keys) {
         const value = settings[key];
         if (typeof value === 'string' && /^[a-z0-9-]{1,20}$/.test(value)) document.documentElement.dataset[key] = value;
@@ -485,10 +514,49 @@
   <section class="design__section">
     <h2>The atlas</h2>
     <p>
-      Flat color in the manner of a good atlas: paper land, a pale sea, water named in italic capitals, places in
-      verdigris. Time and charts use the same pigments.
+      In the manner of a good atlas: paper land tinted by height, with a contour at each step (200, 500, 1,000,
+      1,500, 2,000 and 3,000 m) and a hill shade lit from the northwest; a pale, flat sea; water named in italic
+      capitals; places in verdigris. Time and charts use the same pigments.
     </p>
     <div class="design__desk">
+      <!-- The relief and the land, once for both maps: each map draws them
+           with <use>, clipped to the land, so the sea stays flat. -->
+      <svg class="rr-defs" width="0" height="0" aria-hidden="true">
+        <defs>
+          <clipPath id="rr-land"><path each="d of world.land" d="${d}"></path></clipPath>
+          <path each="band of relief" id="${band.id}" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke"></path>
+        </defs>
+      </svg>
+      <article class="rr-card rr-card--place design__wide">
+        <header class="rr-card__head">
+          <div class="rr-card__titles">
+            <p class="rr-card__kind"><span class="rr-pictogram rr-pictogram--place"><svg-icon library="kinds" name="place"></svg-icon></span><span class="rr-kicker">Map</span></p>
+            <h3 class="rr-card__title">The biblical world</h3>
+          </div>
+        </header>
+        <div class="rr-card__body">
+          <svg class="rr-map" viewBox="${world.viewBox}" role="img" aria-label="Map of the biblical world">
+            <path each="d of world.land" d="${d}" class="rr-map__land"></path>
+            <!-- The clip makes the group a layer of its own, so the hill shade
+                 blends only with what is inside it: the paper goes in first. -->
+            <g class="rr-relief" clip-path="url(#rr-land)">
+              <rect x="0" y="0" width="1600" height="978" class="rr-relief__ground"></rect>
+              <use each="band of world.relief" href="#${band.id}" class="rr-relief__band rr-relief__band--${band.n}"></use>
+              <image href="${world.shade.href}" x="${world.shade.x}" y="${world.shade.y}" width="${world.shade.w}" height="${world.shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+              <use each="band of world.relief" href="#${band.id}" class="rr-relief__line"></use>
+            </g>
+            <path each="d of world.rivers" d="${d}" class="rr-map__river"></path>
+            <path each="d of world.lakes" d="${d}" class="rr-map__lake"></path>
+            <text each="water of world.waters" class="rr-map__water" x="${water.x}" y="${water.y}" font-size="${water.size}" text-anchor="middle">${water.label}</text>
+            <g each="place of world.places" class="rr-map__place">
+              <circle cx="${place.x}" cy="${place.y}" r="${place.r}"></circle>
+              <text x="${Number(place.x) + place.dx}" y="${Number(place.y) + place.dy}" font-size="${world.font}" stroke-width="${world.halo}">${place.name}</text>
+            </g>
+          </svg>
+        </div>
+        <p class="rr-card__foot">Base map: Natural Earth (public domain). Relief: ETOPO 2022, NOAA NCEI. Places: Theographic (CC BY-SA).</p>
+      </article>
+
       <article class="rr-card rr-card--place design__wide">
         <header class="rr-card__head">
           <div class="rr-card__titles">
@@ -497,19 +565,26 @@
           </div>
         </header>
         <div class="rr-card__body">
-          <svg class="rr-map" viewBox="${map.viewBox}" role="img" aria-label="Map of the land of Israel">
-            <path each="d of map.land" d="${d}" class="rr-map__land"></path>
-            <path each="d of map.lakes" d="${d}" class="rr-map__lake"></path>
-            <path each="d of map.rivers" d="${d}" class="rr-map__river"></path>
-            <text class="rr-map__water" x="${map.sea.x}" y="${map.sea.y}" font-size="${map.font}" text-anchor="middle">The Great Sea</text>
-            <text class="rr-map__water" x="${map.salt.x}" y="${map.salt.y}" font-size="${map.font * 0.8}" text-anchor="middle">Salt Sea</text>
-            <g each="place of map.places" class="rr-map__place">
+          <svg class="rr-map" viewBox="${israel.viewBox}" role="img" aria-label="Map of the land of Israel">
+            <path each="d of israel.land" d="${d}" class="rr-map__land"></path>
+            <!-- The clip makes the group a layer of its own, so the hill shade
+                 blends only with what is inside it: the paper goes in first. -->
+            <g class="rr-relief" clip-path="url(#rr-land)">
+              <rect x="0" y="0" width="1600" height="978" class="rr-relief__ground"></rect>
+              <use each="band of israel.relief" href="#${band.id}" class="rr-relief__band rr-relief__band--${band.n}"></use>
+              <image href="${israel.shade.href}" x="${israel.shade.x}" y="${israel.shade.y}" width="${israel.shade.w}" height="${israel.shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+              <use each="band of israel.relief" href="#${band.id}" class="rr-relief__line"></use>
+            </g>
+            <path each="d of israel.rivers" d="${d}" class="rr-map__river"></path>
+            <path each="d of israel.lakes" d="${d}" class="rr-map__lake"></path>
+            <text each="water of israel.waters" class="rr-map__water" x="${water.x}" y="${water.y}" font-size="${water.size}" text-anchor="middle">${water.label}</text>
+            <g each="place of israel.places" class="rr-map__place">
               <circle cx="${place.x}" cy="${place.y}" r="${place.r}"></circle>
-              <text x="${Number(place.x) + place.dx}" y="${Number(place.y) + place.dy}" font-size="${map.font}" stroke-width="${map.halo}">${place.name}</text>
+              <text x="${Number(place.x) + place.dx}" y="${Number(place.y) + place.dy}" font-size="${israel.font}" stroke-width="${israel.halo}">${place.name}</text>
             </g>
           </svg>
         </div>
-        <p class="rr-card__foot">Base map: Natural Earth (public domain). Places: Theographic (CC BY-SA).</p>
+        <p class="rr-card__foot">Base map: Natural Earth (public domain). Relief: ETOPO 2022, NOAA NCEI. Places: Theographic (CC BY-SA).</p>
       </article>
 
       <article class="rr-card rr-card--era design__wide">
@@ -561,7 +636,7 @@
 
   <section class="design__section">
     <h2>Type</h2>
-    <p>A book serif for everything that is read, with optical sizes; a sans designed for legibility for everything that is used.</p>
+    <p>Literata, a book serif with optical sizes, for everything that is read; Atkinson Hyperlegible Next, a sans designed for legibility, for everything that is used.</p>
     <div class="rr-panel design__type">
       <div><span class="rr-kicker">Title</span><span style="font: 600 2.2rem/1.1 var(--serif)">The reading room</span></div>
       <div><span class="rr-kicker">Card title</span><span class="rr-card__title">John 1:1–5</span></div>

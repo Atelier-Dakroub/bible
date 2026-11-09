@@ -17,8 +17,6 @@
                     is, for a dim room
      data-size      1 to 5, the size of the Bible text (3 is the default)
      data-leading   compact, normal (the default) or loose
-     data-serif     literata (the default), source-serif or newsreader
-     data-sans      atkinson (the default) or source-sans
      data-red       off: the words of Christ in the text color
      data-numbers   off: no verse numbers
      data-initials  off: no initial at a chapter's start
@@ -39,8 +37,9 @@
      edge     Lc 17 to 40   lines: not text, so Lc 15 is the floor (night
                             cards also have a shadow) */
 
-/* The fonts: all under the SIL Open Font License (app/public/fonts/*-OFL.txt),
-   from Fontsource. Latin, and extended Latin for transliteration, loaded only
+/* The fonts: Literata for everything that is read, and Atkinson
+   Hyperlegible Next for everything that is used. Both are under the SIL Open
+   Font License (app/public/fonts/*-OFL.txt), from Fontsource. Latin, and extended Latin for transliteration, loaded only
    when a page uses a letter from it. The serifs have optical sizes, so a
    heading and a footnote each get the cut drawn for their size. */
 @font-face {
@@ -76,70 +75,6 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Source Serif 4';
-  src: url('/fonts/source-serif-4-latin-standard-normal.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('/fonts/source-serif-4-latin-ext-standard-normal.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('/fonts/source-serif-4-latin-standard-italic.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('/fonts/source-serif-4-latin-ext-standard-italic.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Newsreader';
-  src: url('/fonts/newsreader-latin-standard-normal.woff2') format('woff2');
-  font-weight: 200 800;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Newsreader';
-  src: url('/fonts/newsreader-latin-ext-standard-normal.woff2') format('woff2');
-  font-weight: 200 800;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Newsreader';
-  src: url('/fonts/newsreader-latin-standard-italic.woff2') format('woff2');
-  font-weight: 200 800;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Newsreader';
-  src: url('/fonts/newsreader-latin-ext-standard-italic.woff2') format('woff2');
-  font-weight: 200 800;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
   font-family: 'Atkinson Hyperlegible Next';
   src: url('/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2') format('woff2');
   font-weight: 200 800;
@@ -167,38 +102,6 @@
   font-family: 'Atkinson Hyperlegible Next';
   src: url('/fonts/atkinson-hyperlegible-next-latin-ext-wght-italic.woff2') format('woff2');
   font-weight: 200 800;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/source-sans-3-latin-wght-normal.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/source-sans-3-latin-ext-wght-normal.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/source-sans-3-latin-wght-italic.woff2') format('woff2');
-  font-weight: 200 900;
-  font-style: italic;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/source-sans-3-latin-ext-wght-italic.woff2') format('woff2');
-  font-weight: 200 900;
   font-style: italic;
   font-display: swap;
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
@@ -287,9 +190,6 @@
 :root[data-size='5'] .rr { --read-scale: 1.4; }
 :root[data-leading='compact'] .rr { --leading: 1.45; }
 :root[data-leading='loose'] .rr { --leading: 1.8; }
-:root[data-serif='source-serif'] .rr { --serif: 'Source Serif 4', Georgia, serif; }
-:root[data-serif='newsreader'] .rr { --serif: 'Newsreader', Georgia, serif; }
-:root[data-sans='source-sans'] .rr { --sans: 'Source Sans 3', system-ui, sans-serif; }
 
 /* ---- Base ------------------------------------------------------------- */
 
@@ -635,6 +535,38 @@
   stroke: var(--ink-soft);
   stroke-width: 0.75;
   vector-effect: non-scaling-stroke;
+}
+/* The relief: the land tinted by height in a warm earth color, mixed into
+   the paper so it follows the paper setting; a contour at each step; and
+   the hill shade, gray with 50% as flat ground, laid on with soft light so
+   it darkens the slopes away from the light and lightens those toward it,
+   on light paper and on dark. */
+.rr {
+  --relief-ink: light-dark(#8a6a3a, #c9a77a);
+}
+.rr-defs {
+  position: absolute;
+}
+.rr-relief__ground { fill: var(--paper); }
+.rr-relief__band { fill: color-mix(in srgb, var(--relief-ink) var(--relief-step), var(--paper)); }
+.rr-relief__band--0 { --relief-step: 5%; }
+.rr-relief__band--1 { --relief-step: 10%; }
+.rr-relief__band--2 { --relief-step: 15%; }
+.rr-relief__band--3 { --relief-step: 21%; }
+.rr-relief__band--4 { --relief-step: 27%; }
+.rr-relief__band--5 { --relief-step: 33%; }
+.rr-relief__line {
+  fill: none;
+  /* light-dark() takes only colors, so each side is a whole mix. */
+  stroke: light-dark(
+    color-mix(in srgb, var(--relief-ink) 45%, var(--paper)),
+    color-mix(in srgb, var(--relief-ink) 32%, var(--paper))
+  );
+  stroke-width: 0.6;
+}
+.rr-relief__shade {
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
 }
 .rr-map__river {
   fill: none;

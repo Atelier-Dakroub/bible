@@ -113,3 +113,14 @@ test('a workspace keeps the map view, and drops a bad one', () => {
   assert.deepEqual(kept.cards[0].view, { x: 10, y: 20, w: 300 });
   assert.equal(kept.cards[1].view, undefined);
 });
+
+test('the relief has a band for each level, and its images lie on the map', async () => {
+  const { default: relief } = await import('../app/data/map/relief.json', { with: { type: 'json' } });
+  assert.deepEqual(relief.levels, [200, 500, 1000, 1500, 2000, 3000]);
+  assert.equal(relief.bands.length, relief.levels.length);
+  assert.equal(relief.levant.bands.length, relief.levels.length);
+  for (const d of [...relief.bands, ...relief.levant.bands]) assert.match(d, /^M[\d.-]+ [\d.-]+L/);
+  for (const box of Object.values(relief.shades)) {
+    assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.w <= WIDTH + 0.01 && box.y + box.h <= HEIGHT + 1, JSON.stringify(box));
+  }
+});

@@ -1,4 +1,4 @@
-<!-- The reader's settings: theme, paper, text size, line spacing, typefaces,
+<!-- The reader's settings: theme, paper, text size, line spacing,
      and what the text shows. Each is an attribute on <html> that the
      stylesheet reads (styles/reading-room.css), and the browser keeps them
      for the next visit. A page that uses them also applies them in a small
@@ -22,8 +22,6 @@
     paper: ['bright', 'soft', 'lamp'],
     size: ['3', '1', '2', '4', '5'],
     leading: ['normal', 'compact', 'loose'],
-    serif: ['literata', 'source-serif', 'newsreader'],
-    sans: ['atkinson', 'source-sans'],
     red: ['on', 'off'],
     numbers: ['on', 'off'],
     initials: ['on', 'off'],
@@ -147,12 +145,6 @@
     gap: 0.4rem;
     align-items: center;
   }
-  /* Each typeface's button is set in that typeface. */
-  .reading__face--literata { font-family: 'Literata', serif !important; }
-  .reading__face--source-serif { font-family: 'Source Serif 4', serif !important; }
-  .reading__face--newsreader { font-family: 'Newsreader', serif !important; }
-  .reading__face--atkinson { font-family: 'Atkinson Hyperlegible Next', sans-serif !important; }
-  .reading__face--source-sans { font-family: 'Source Sans 3', sans-serif !important; }
   .reading__size {
     min-width: 3.5rem;
     text-align: center;
@@ -192,23 +184,6 @@
     <button type="button" data-set="leading" data-value="compact">Compact</button>
     <button type="button" data-set="leading" data-value="normal">Normal</button>
     <button type="button" data-set="leading" data-value="loose">Loose</button>
-  </div>
-</div>
-
-<p class="reading__name">Text typeface</p>
-<div class="reading__row">
-  <div class="rr-segments" role="group" aria-label="Text typeface">
-    <button type="button" data-set="serif" data-value="literata" class="reading__face--literata">Literata</button>
-    <button type="button" data-set="serif" data-value="source-serif" class="reading__face--source-serif">Source Serif</button>
-    <button type="button" data-set="serif" data-value="newsreader" class="reading__face--newsreader">Newsreader</button>
-  </div>
-</div>
-
-<p class="reading__name">Interface typeface</p>
-<div class="reading__row">
-  <div class="rr-segments" role="group" aria-label="Interface typeface">
-    <button type="button" data-set="sans" data-value="atkinson" class="reading__face--atkinson">Atkinson Hyperlegible</button>
-    <button type="button" data-set="sans" data-value="source-sans" class="reading__face--source-sans">Source Sans</button>
   </div>
 </div>
 
