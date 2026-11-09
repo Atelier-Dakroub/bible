@@ -1,8 +1,8 @@
 // What is on the table, kept in this browser between visits.
 //
 // A card is stored as its id, its address and its matrix, a highlight as two
-// word addresses and a style, and a note as its own text and the spans it
-// quotes. Never the text of the Bible: that comes back from the server by
+// word addresses and a style, a note as its own text and the spans it
+// quotes, and a rule mark as what it marks (app/lib/rules.js). Never the text of the Bible: that comes back from the server by
 // address. That keeps the stored state small, and it is the shape a shared or
 // linked workspace will need later.
 //
@@ -16,12 +16,14 @@
 /** @typedef {import('./affine.js').Point} Point */
 /** @typedef {import('./words.js').Highlight} Highlight */
 /** @typedef {import('./links.js').Span} Span */
-/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean }} StoredCard `version` is kjv, bsb or both */
+/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean }} StoredCard `version` is kjv, bsb or both; `compare` marks the differences in both */
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ id: string, text: string, quotes: Span[] }} Note */
-/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[] }} Workspace */
+/** @typedef {import('./rules.js').Rule} Rule */
+/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[] }} Workspace */
 
 import { isWordAddress, STYLES } from './words.js';
+import { sameRule, toRule } from './rules.js';
 import { TYPES } from './links.js';
 
 const KEY = 'bible.table.v1';
@@ -30,7 +32,7 @@ const VERSIONS = ['kjv', 'bsb', 'both'];
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [] };
+  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [] };
 }
 
 /**
@@ -78,6 +80,7 @@ function fromValue(value) {
         const stored = { id, address: card.address, matrix: card.matrix };
         if (VERSIONS.includes(String(card.version))) stored.version = card.version;
         if (card.sync === true) stored.sync = true;
+        if (card.compare === true) stored.compare = true;
         return stored;
       })
     : [];
@@ -101,7 +104,13 @@ function fromValue(value) {
           quotes: Array.isArray(note.quotes) ? note.quotes.filter(isSpan).map(toSpan) : [],
         }))
     : [];
-  return { offset, cards, highlights, links, notes };
+  /** @type {Rule[]} */
+  const rules = [];
+  for (const each of Array.isArray(value.rules) ? value.rules : []) {
+    const rule = toRule(each);
+    if (rule && !rules.some((kept) => sameRule(kept, rule))) rules.push(rule);
+  }
+  return { offset, cards, highlights, links, notes, rules };
 }
 
 /** @returns {Workspace} */
@@ -132,7 +141,7 @@ export function save(workspace) {
  */
 export function snapshot(workspace) {
   const cards = [...workspace.cards].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
-  return JSON.stringify({ cards, highlights: workspace.highlights, links: workspace.links, notes: workspace.notes });
+  return JSON.stringify({ cards, highlights: workspace.highlights, links: workspace.links, notes: workspace.notes, rules: workspace.rules });
 }
 
 /**

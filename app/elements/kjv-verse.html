@@ -7,12 +7,13 @@
 
      The runs carry tokens (data/bible.js withWords, which passage() applies), and each word is a span
      with data-w, its number in the verse, data-s, its Strong's number when it has one,
-     and data-e, the person, place or group it names, when it names one. With the verse id in data-ref on
+     data-e, the person, place or group it names, when it names one, and data-d
+     in the parallel view, when the other translation does not share it. With the verse id in data-ref on
      the element, that is the word's address. The template is on one line
      inside each run, because a line break there would be a space in the text. -->
 
 <script element>
-  /** @typedef {{ text: string, marks: string[], tokens: { text: string, w: number, s: string | null, e: string | null }[] }} Run */
+  /** @typedef {{ text: string, marks: string[], tokens: { text: string, w: number, s: string | null, e: string | null, d: boolean }[] }} Run */
   /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
 
   // The page puts the verse id on the element as `data-ref`, so a selection
@@ -33,5 +34,5 @@
 
 <p each="block of blocks" class="verse__block verse__block--${block.style}">
   <sup if="block.numbered" class="verse__number">${n}</sup>
-  <span each="run of block.runs" class="${run.marks.join(' ')}"><template each="token of run.tokens"><span if="token.w" class="w" data-w="${token.w}" data-s="${token.s}" data-e="${token.e}">${token.text}</span><span else>${token.text}</span></template></span>
+  <span each="run of block.runs" class="${run.marks.join(' ')}"><template each="token of run.tokens"><span if="token.w" class="w" data-w="${token.w}" data-s="${token.s}" data-e="${token.e}" data-d="${token.d}">${token.text}</span><span else>${token.text}</span></template></span>
 </p>

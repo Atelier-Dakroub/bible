@@ -91,12 +91,29 @@
      The wheel is left alone over the panels, which scroll their own lists.
      The cards have their own keys (gesture-card).
 
+     Study (data/study.js):
+       a tap on a passage's heading (or Enter on the card)  the passage guide
+                     in the search panel; its notes are added here
+       Put them beside the card   the guide's parallels, in a row to the right
+                     of the card, at its size
+       Mark it on every card      a rule mark (app/lib/rules.js): every word
+                     on the table that renders a Strong's number, names an
+                     entity, or is in a marked run is marked, live. The menu
+                     lists the rules, and they are kept with the workspace.
+       Compare       on a card in Both: the words one translation has and the
+                     other does not are bold (app/lib/compare.js)
+       a landscape card (landscape:...)   a tap on a chapter puts the chapter
+                     beside it; a tap on its heading shows its subject
+       Books, on the strip   puts the landscape of the books down, or takes it away
+
      It listens for `place` from a search panel inside it:
        detail.address  the passage
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
+  import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
+  import { nextStyle, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
@@ -110,7 +127,8 @@
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
   /** @typedef {import('../lib/workspace.js').Note} Note */
-  /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean }} FetchOptions */
+  /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean, compare?: boolean }} FetchOptions */
+  /** @typedef {import('../lib/rules.js').Rule} Rule */
 
   const NAME_KEY = 'bible.workspace.name';
 
@@ -182,6 +200,9 @@
   const cardNamed = new WeakMap();
 
   const MAP = 'map:near-east';
+  const BOOKS = 'landscape:books';
+  // The space between cards that are put down in a row.
+  const ROW_GAP = 24;
 
   // A card's verses by id. A card's text never changes, so this is built once.
   /** @type {WeakMap<Element, Map<string, Element>>} */
@@ -309,6 +330,12 @@
     keepTimer: 0,
     /** @type {import('../lib/snap.js').Guide[]} where a held card lines up, in the world's coordinates */
     guides: [],
+    /** @type {Rule[]} */
+    rules: [],
+    /** @type {Set<string>} the places the map marks for the panel, besides the one on show */
+    shownPlaces: new Set(),
+    /** @type {HTMLElement | null} the card whose guide is in the panel */
+    guideCard: null,
 
     connected({ signal }) {
       this.fingers = new Map();
@@ -323,6 +350,8 @@
       this.highlights = workspace.highlights;
       this.links = workspace.links;
       this.notes = workspace.notes;
+      this.rules = workspace.rules;
+      this.shownPlaces = new Set();
       this.paint();
       this.applying += 1;
       Promise.all(workspace.cards.map((stored) => this.restore(stored))).finally(() => {
@@ -333,6 +362,7 @@
       customElements.whenDefined('table-menu').then(() => {
         /** @type {any} */ (this.querySelector('table-menu'))?.setName(this.name);
         this.showHistory();
+        this.showRules();
       });
 
       const options = { signal };
@@ -391,8 +421,17 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
-      this.addEventListener('toggle-map', () => this.toggleMap(), options);
-      this.addEventListener('show-on-map', (event) => this.showOnMap(/** @type {CustomEvent} */ (event).detail.id), options);
+      this.addEventListener('toggle-map', () => this.toggleCard(MAP), options);
+      this.addEventListener('toggle-books', () => this.toggleCard(BOOKS), options);
+      this.addEventListener('show-on-map', (event) => this.showOnMap(/** @type {CustomEvent} */ (event).detail.ids), options);
+      this.addEventListener('rule-add', (event) => this.setRules(toggleRule(this.rules, /** @type {CustomEvent} */ (event).detail)), options);
+      this.addEventListener('rule-remove', (event) => {
+        const index = /** @type {CustomEvent} */ (event).detail.index;
+        this.setRules(this.rules.filter((_, i) => i !== index));
+      }, options);
+      this.addEventListener('rule-style', (event) => this.setRules(nextStyle(this.rules, /** @type {CustomEvent} */ (event).detail.index)), options);
+      this.addEventListener('place-beside', (event) => this.placeBeside(/** @type {CustomEvent} */ (event).detail.addresses), options);
+      this.addEventListener('show-note', (event) => this.showNote(/** @type {CustomEvent} */ (event).detail.id), options);
       // The card removes itself after the event, so keep what is left a moment
       // later. A note goes with its card; undo brings both back.
       this.addEventListener('card-remove', (event) => {
@@ -776,6 +815,20 @@
         panel?.showEntity(place.getAttribute('data-place'));
         return;
       }
+      // A chapter on a landscape: the chapter goes down beside it.
+      const chapter = element?.closest('[data-chapter]');
+      if (chapter instanceof Element) {
+        const box = chapter.getBoundingClientRect();
+        const address = chapter.getAttribute('data-chapter') ?? '';
+        this.place({ address, pointer: { id: -1, x: box.right + ROW_GAP, y: box.top, down: false } });
+        return;
+      }
+      const heading = element?.closest('.passage__heading');
+      const card = heading?.closest('gesture-card');
+      if (heading && card instanceof HTMLElement) {
+        this.headingTapped(card);
+        return;
+      }
       const word = wordAt(element);
       if (word) {
         panel?.showWord(word);
@@ -785,10 +838,163 @@
       if (verse instanceof HTMLElement && verse.dataset.ref) panel?.showReferences(verse.dataset.ref);
     },
 
+    /**
+     * A tap on a card's heading: a passage or a phrase shows its guide, an
+     * entity shows itself, and a landscape shows its subject.
+     *
+     * @param {HTMLElement} card
+     */
+    headingTapped(card) {
+      const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      const address = card.dataset.address ?? '';
+      const kind = card.dataset.kind;
+      if (kind === 'passage' || kind === 'phrase') {
+        this.guideCard = card;
+        panel?.showGuide(address, this.notesOn(card));
+      } else if (kind === 'entity') {
+        panel?.showEntity(address);
+      } else if (kind === 'landscape') {
+        const subject = card.dataset.subject ?? '';
+        if (subject.startsWith('text:')) panel?.searchFor(subject.slice(5));
+        else if (/^[HG]\d/.test(subject)) panel?.searchFor(subject);
+        else if (subject.includes(':')) panel?.showEntity(subject);
+      }
+    },
+
+    /**
+     * The notes that quote any verse of a card.
+     *
+     * @param {HTMLElement} card
+     * @returns {{ id: string, text: string }[]}
+     */
+    notesOn(card) {
+      const ranges = [...card.querySelectorAll('kjv-verse[data-ref], .bsb-verse[data-ref]')].map((verse) => {
+        const first = wordKey(`${/** @type {HTMLElement} */ (verse).dataset.ref}.w1`);
+        return [first, first + 999];
+      });
+      return this.notes
+        .filter((note) => note.quotes.some((quote) => {
+          const from = wordKey(quote.from);
+          const to = wordKey(quote.to);
+          return ranges.some(([first, last]) => from <= last && to >= first);
+        }))
+        .map((note) => ({ id: note.id, text: note.text }));
+    },
+
+    /**
+     * Brings a note's card into view and opens it.
+     *
+     * @param {string} id
+     */
+    showNote(id) {
+      const card = this.world().querySelector(`gesture-card[data-note="${CSS.escape(id)}"]`);
+      if (!(card instanceof HTMLElement)) return;
+      this.raise(card);
+      this.glideTo(card.getBoundingClientRect());
+    },
+
+    /**
+     * Puts cards down in a row to the right of the card whose guide is on
+     * show, at its size, as one step that undo takes back.
+     *
+     * @param {string[]} addresses
+     */
+    async placeBeside(addresses) {
+      const anchor = this.guideCard?.isConnected ? /** @type {Card} */ (/** @type {unknown} */ (this.guideCard)) : null;
+      if (!anchor) {
+        for (const address of addresses) await this.place({ address, pointer: null });
+        return;
+      }
+      const world = this.world().getBoundingClientRect();
+      const box = anchor.getBoundingClientRect();
+      const scale = scaleOf(anchor.matrix);
+      let x = box.right - world.left + ROW_GAP;
+      const y = box.top - world.top;
+      this.applying += 1;
+      try {
+        for (const address of addresses) {
+          const card = await this.fetchCard(address, {});
+          if (!card) continue;
+          card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: x, f: y });
+          this.raise(card);
+          x += card.offsetWidth * scale + ROW_GAP;
+        }
+        this.later = true;
+      } finally {
+        this.applying -= 1;
+        this.finish();
+      }
+    },
+
+    /**
+     * Puts a card above the other cards at rest.
+     *
+     * @param {HTMLElement} card
+     */
+    raise(card) {
+      const levels = [...this.world().querySelectorAll('gesture-card')]
+        .filter((each) => each !== card)
+        .map((each) => Number(/** @type {HTMLElement} */ (each).style.zIndex) || 0);
+      card.style.zIndex = String(Math.max(0, ...levels.filter((level) => level < 1000000)) + 1);
+    },
+
+    /**
+     * Pans the table so a box on the screen is in the middle of its open
+     * part: right of the search panel, above the timeline.
+     *
+     * @param {DOMRect} box
+     */
+    glideTo(box) {
+      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
+      const strip = this.querySelector('time-line')?.getBoundingClientRect();
+      const left = panel ? panel.right : 0;
+      const bottom = strip ? strip.top : innerHeight;
+      const target = { x: (left + innerWidth) / 2, y: bottom / 2 };
+      this.glide(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2));
+    },
+
+    /** @param {Rule[]} rules */
+    setRules(rules) {
+      this.rules = rules;
+      this.paintRules(this.world());
+      this.showRules();
+      this.keep();
+    },
+
+    /** Tells the menu and the panel which rules are on. */
+    showRules() {
+      /** @type {any} */ (this.querySelector('table-menu'))?.setRules?.(this.rules);
+      /** @type {any} */ (this.querySelector('passage-search'))?.showRules?.(this.rules);
+    },
+
+    /**
+     * Marks every word under `root` that a rule marks: data-rule holds the
+     * styles, which global.css draws.
+     *
+     * @param {Element} root
+     */
+    paintRules(root) {
+      const rules = this.rules;
+      for (const element of root.querySelectorAll('.w')) {
+        const word = /** @type {HTMLElement} */ (element);
+        const styles = rules.length
+          ? stylesFor(rules, { s: word.dataset.s, e: word.dataset.e, marks: [...(word.parentElement?.classList ?? [])] })
+          : [];
+        const value = styles.join(' ');
+        if (value) {
+          if (word.dataset.rule !== value) word.dataset.rule = value;
+        } else if (word.dataset.rule !== undefined) {
+          delete word.dataset.rule;
+        }
+      }
+    },
+
     /** @param {{ code: string, entity: string }} detail */
     study({ code, entity }) {
       this.studied = code;
       this.shown = entity;
+      this.shownPlaces = new Set();
+      this.showRules();
       this.paintStudy(this.world());
       const strip = this.querySelector('time-line');
       for (const tick of strip?.querySelectorAll('.is-shown') ?? []) tick.classList.remove('is-shown');
@@ -802,15 +1008,28 @@
       return this.world().querySelector(`gesture-card[data-address="${MAP}"]`);
     },
 
-    async toggleMap() {
-      const card = this.mapCard();
+    /**
+     * Puts a card down, or takes it away when it is on the table: the map,
+     * or the landscape of the books.
+     *
+     * @param {string} address
+     */
+    async toggleCard(address) {
+      const card = this.world().querySelector(`gesture-card[data-address="${CSS.escape(address)}"]`);
       if (card) {
         card.remove();
         this.keep();
         this.drawSoon();
         return;
       }
-      await this.openMap();
+      if (address === MAP) {
+        await this.openMap();
+        return;
+      }
+      const placed = await this.fetchCard(address, {});
+      if (!placed) return;
+      placed.placeAt(this.openSpot());
+      this.keep();
     },
 
     /** Puts the map on the table, unless it is there already. */
@@ -828,28 +1047,32 @@
 
     /**
      * Puts the map on the table if it is not there, brings it to the top,
-     * marks the place, and pans the table so the place is in the open part
-     * of the screen: right of the search panel, above the timeline.
+     * marks the places, and pans the table so they are in the open part of
+     * the screen: right of the search panel, above the timeline.
      *
-     * @param {string} id a place id, such as place:damascus_310
+     * @param {string} ids place ids, with commas between, such as place:damascus_310
      */
-    async showOnMap(id) {
+    async showOnMap(ids) {
+      const list = String(ids).split(',').filter(Boolean);
       await this.openMap();
       const map = this.mapCard();
       if (!(map instanceof HTMLElement)) return;
-      this.shown = id;
+      this.shownPlaces = new Set(list);
       this.paintMap();
-      const levels = [...this.world().querySelectorAll('gesture-card')].map((card) => Number(/** @type {HTMLElement} */ (card).style.zIndex) || 0);
-      map.style.zIndex = String(Math.max(0, ...levels.filter((level) => level < 1000000)) + 1);
+      this.raise(map);
 
-      const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
-      const box = (dot ?? map).getBoundingClientRect();
-      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
-      const strip = this.querySelector('time-line')?.getBoundingClientRect();
-      const left = panel ? panel.right : 0;
-      const bottom = strip ? strip.top : innerHeight;
-      const target = { x: (left + innerWidth) / 2, y: bottom / 2 };
-      this.glide(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2));
+      const boxes = list
+        .map((id) => map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect())
+        .filter((box) => box && box.width > 0);
+      if (!boxes.length) {
+        this.glideTo(map.getBoundingClientRect());
+        return;
+      }
+      const left = Math.min(...boxes.map((box) => /** @type {DOMRect} */ (box).left));
+      const top = Math.min(...boxes.map((box) => /** @type {DOMRect} */ (box).top));
+      const right = Math.max(...boxes.map((box) => /** @type {DOMRect} */ (box).right));
+      const bottom = Math.max(...boxes.map((box) => /** @type {DOMRect} */ (box).bottom));
+      this.glideTo(new DOMRect(left, top, right - left, bottom - top));
     },
 
     /**
@@ -888,7 +1111,7 @@
       for (const marker of map.querySelectorAll('[data-place]')) {
         const id = marker.getAttribute('data-place');
         marker.classList.toggle('is-on-table', named.has(id));
-        marker.classList.toggle('is-shown', id === this.shown);
+        marker.classList.toggle('is-shown', id === this.shown || this.shownPlaces.has(id ?? ''));
       }
       this.drawSoon();
     },
@@ -1190,8 +1413,8 @@
     },
 
     /** @param {StoredCard} stored */
-    async restore({ id, address, matrix, version, sync }) {
-      const card = await this.fetchCard(address, { version, id, sync });
+    async restore({ id, address, matrix, version, sync, compare }) {
+      const card = await this.fetchCard(address, { version, id, sync, compare });
       card?.setMatrix(matrix);
     },
 
@@ -1225,6 +1448,7 @@
         replacing: card,
         id: card.dataset.id,
         sync: card.dataset.sync !== undefined,
+        compare: card.dataset.compare !== undefined,
       });
       if (!next) return null;
       next.setMatrix(matrix);
@@ -1280,6 +1504,9 @@
         const on = card.dataset.sync === undefined;
         this.setSync(card, on);
         this.keep();
+      } else if (button.dataset.action === 'compare') {
+        this.setCompare(card, card.dataset.compare === undefined);
+        this.keep();
       } else if (button.dataset.action === 'copy') this.copyCard(card, button);
       else if (button.dataset.unquote) this.unquote(card, button.dataset.unquote);
     },
@@ -1292,6 +1519,16 @@
       if (on) card.dataset.sync = '';
       else delete card.dataset.sync;
       card.querySelector('[data-action="sync"]')?.setAttribute('aria-pressed', String(on));
+    },
+
+    /**
+     * @param {HTMLElement} card
+     * @param {boolean} on
+     */
+    setCompare(card, on) {
+      if (on) card.dataset.compare = '';
+      else delete card.dataset.compare;
+      card.querySelector('[data-action="compare"]')?.setAttribute('aria-pressed', String(on));
     },
 
     /**
@@ -1377,7 +1614,7 @@
      * @param {FetchOptions} options
      * @returns {Promise<Card | null>}
      */
-    async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false }) {
+    async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false, compare = false }) {
       const query = new URLSearchParams({ version, fragment: 'card' });
       const note = address.startsWith('note:') ? this.notes.find((each) => `note:${each.id}` === address) : null;
       if (address.startsWith('note:') && !note) return null;
@@ -1392,6 +1629,7 @@
       if (replacing?.isConnected) replacing.replaceWith(card);
       else this.world().append(card);
       if (sync) this.setSync(card, true);
+      if (compare && version === 'both') this.setCompare(card, true);
       if (note) {
         const text = card.querySelector('.note__text');
         if (text) text.textContent = note.text;
@@ -1399,6 +1637,7 @@
       paintHighlights(card, this.highlights);
       this.paintStudy(card);
       this.paintQuoted(card);
+      this.paintRules(card);
       this.loadEvents(card);
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
@@ -1428,9 +1667,10 @@
         /** @type {StoredCard} */
         const stored = { id: card.dataset.id ?? newId('c'), address, matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
         if (card.dataset.sync !== undefined) stored.sync = true;
+        if (card.dataset.compare !== undefined && stored.version === 'both') stored.compare = true;
         return [stored];
       });
-      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes };
+      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules };
     },
 
     /**
@@ -1490,6 +1730,7 @@
         this.highlights = target.highlights;
         this.links = target.links;
         this.notes = target.notes;
+        this.rules = target.rules;
         if (target.offset.x !== this.offset.x || target.offset.y !== this.offset.y) {
           this.offset = target.offset;
           this.paint();
@@ -1501,12 +1742,15 @@
           const card = /** @type {Card} */ (byId.get(stored.id));
           card.setMatrix(stored.matrix);
           this.setSync(card, Boolean(stored.sync));
+          this.setCompare(card, Boolean(stored.compare));
           // A note's quotes can differ between the two states.
           if (card.dataset.kind === 'note') waits.push(this.replaceCard(card, stored.address, 'kjv'));
         }
         await Promise.all(waits);
         paintHighlights(this.world(), this.highlights);
         this.paintQuoted(this.world());
+        this.paintRules(this.world());
+        this.showRules();
         this.paintMap();
         this.drawSoon();
         this.later = Boolean(this.later) || record;

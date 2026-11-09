@@ -124,6 +124,42 @@ one gap (1rem) beside them, within 12 px, and dotted guides show where.
 Snap in the menu turns it off and on. With a mouse, hold Command or Control
 while you drag to move freely. The wheel and the keys do not snap.
 
+Study tools:
+
+- **The passage guide.** Tap a passage's heading (or press Enter on a card
+  that has the focus). The search panel shows what the data has on it: its
+  parallel passages, its cross-references (joined over all its verses, most
+  voted first), the people, places and groups it names, its events with
+  their dates, and the notes on the table that quote it. "Put them beside
+  the card" lays the parallels out in a row to the right of the card, at
+  its size. "Show its places on the map" marks them all on the map.
+- **Parallel passages** are runs of cross-references: verse after verse of
+  one passage refers to verse after verse of another, in the same order.
+  That finds Kings and Chronicles, the Synoptic Gospels, 2 Samuel 22 and
+  Psalm 18, and Isaiah 36–39 and 2 Kings 18–20 (1,241 pairs). A quotation of
+  one verse is not a run, so the Old Testament in the New is not found this
+  way.
+- **Marks** mark words on every card by what they are, live, so a card put
+  down later shows them too. In a word study or on a person, place or group,
+  "Mark it on every card" marks every word that renders that Strong's number
+  or names that entity. Marks, in the menu, offers the words of Christ, the
+  words the translators supplied, the divine name, and every person, place
+  or group, and lists the marks that are on. Each mark takes a shape of its
+  own (a bar over, dots under, a dashed box, a wavy line), and the marks are
+  kept with the table.
+- **Compare.** On a card in Both, Compare sets in bold the words that one
+  translation has and the other does not. Words are compared in a plain form:
+  "thee" is "you", and "believeth" is "believes".
+- **Word statistics.** A word study counts how the KJV renders the word
+  ("mercy" 137, "kindness" 39, …) and shows where it occurs, one bar per
+  book.
+- **The landscape.** "Where, chapter by chapter" in a word study, on a person
+  or place, or under a text search, puts a card with one cell per chapter of
+  the Bible, marked larger where the subject occurs more. A tap on a chapter
+  puts the chapter beside it. Books, on the timeline strip, compares the 66
+  books: each a bar as long as its verses, cut into chapters, with its group
+  and the author tradition gives it.
+
 `/touch` is the touch test page for the panel.
 
 ```sh
@@ -140,10 +176,13 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `pointer-log.js`. |
-| `app/data/bible.js` | The server's access to the text: passages by reference, and search. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `pointer-log.js`. |
+| `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
+| `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
+| `app/data/canon.js` | The books by group, and the traditional author of each. |
+| `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js` and `import-map.js`. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
@@ -312,3 +351,20 @@ verse numbers, from API.Bible) is not in the rebuilt data.
 
 The rebuild also renumbers the words of those verses. A highlight made before
 the rebuild on one of the 16 verses can be off by a word.
+
+## The parallel passages
+
+`app/data/parallels.json` lists the parallel passages as
+`[a, b, references]`, with `a` before `b` in canon order:
+`["2SA.22.1-21", "PSA.18.1-20", 19]`. They come from the cross-references
+in `app/data/xrefs`, so the script downloads nothing:
+
+```sh
+node tools/import-parallels.js
+```
+
+A run of at least three references, each a step forward on both sides,
+that covers at least three verses on each side, is a parallel. Runs between
+the same two passages join, and two passages of one book must be at least
+ten verses apart. The rules and their limits are at the top of the script.
+

@@ -1,7 +1,14 @@
 <!-- The menu at the top right of the table.
 
      The bar: Undo and Redo, Note (a new note card), the marking style for new
-     highlights, and Workspace, which opens the workspace sheet.
+     highlights, Marks, which opens the marks sheet, and Workspace, which
+     opens the workspace sheet.
+
+     The marks sheet: rule marks (app/lib/rules.js), words marked on every
+     card by what they are. It offers the words of Christ, the supplied words,
+     the divine name and every person, place or group, and lists the rules
+     that are on, each with its style and a Remove button. A word study or a
+     person in the search panel adds its own.
 
      The sheet: save the table under a name, open or delete a saved one, start
      a new table, and send the table to a file or take one in. A finger on the
@@ -10,6 +17,9 @@
      The menu only asks. It sends these events (bubbling), and the table does
      the work, then calls refresh() with a message to show:
        table-undo, table-redo, note-new
+       rule-add         detail { kind, value, label }: add the rule, or remove it
+       rule-style       detail { index }: the next style for that rule
+       rule-remove      detail { index }
        snap-change      detail { on }, whether held cards snap
        pen-change       detail { style }, one of words.js STYLES
        workspace-save   detail { name }
@@ -18,11 +28,15 @@
        workspace-export detail { name }
        workspace-import detail { name, text }
 
-     setHistory(canUndo, canRedo) turns the two buttons on and off, and
-     setName(name) shows which saved workspace is on the table. -->
+     setHistory(canUndo, canRedo) turns the two buttons on and off,
+     setName(name) shows which saved workspace is on the table, and
+     setRules(rules) lists the rules. -->
 
 <script element>
   import { listNamed, removeNamed } from '../lib/workspace.js';
+  import { PRESETS, sameRule } from '../lib/rules.js';
+
+  /** @typedef {import('../lib/rules.js').Rule} Rule */
 
   export const state = {
     open: false,
@@ -32,6 +46,7 @@
     canRedo: false,
     name: '',
     snap: true,
+    marks: false,
   };
 
   const PEN_KEY = 'bible.pen';
@@ -40,6 +55,8 @@
   export const prototype = {
     /** the name whose Delete was pressed once, waiting for the second press */
     deleting: '',
+    /** @type {Rule[]} */
+    rules: [],
 
     connected({ signal }) {
       try {
@@ -123,8 +140,25 @@
       if (action === 'sheet') {
         this.open = !this.open;
         this.keys = false;
-        if (this.open) this.refresh('');
+        if (this.open) {
+          this.marks = false;
+          this.refresh('');
+        }
       }
+      if (action === 'marks') {
+        this.marks = !this.marks;
+        if (this.marks) {
+          this.open = false;
+          this.keys = false;
+          this.setRules(this.rules);
+        }
+      }
+      if (action === 'rule-preset') {
+        const { kind, value, label } = button.dataset;
+        this.send('rule-add', { kind, value, label });
+      }
+      if (action === 'rule-style') this.send('rule-style', { index: Number(button.dataset.index) });
+      if (action === 'rule-remove') this.send('rule-remove', { index: Number(button.dataset.index) });
       if (action === 'new') this.send('workspace-new');
       if (action === 'export') this.send('workspace-export', { name: this.name });
       if (action === 'import') /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click();
@@ -165,6 +199,67 @@
       this.name = name;
       const field = /** @type {HTMLInputElement | null} */ (this.querySelector('#workspace-name'));
       if (field) field.value = name;
+    },
+
+    /**
+     * Lists the rules that are on, and shows which presets are.
+     *
+     * @param {Rule[]} rules
+     */
+    setRules(rules) {
+      this.rules = rules;
+      const presets = /** @type {HTMLElement} */ (this.querySelector('.menu__presets'));
+      if (!presets.children.length) {
+        presets.replaceChildren(
+          ...PRESETS.map((preset) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.action = 'rule-preset';
+            button.dataset.kind = preset.kind;
+            button.dataset.value = preset.value;
+            button.dataset.label = preset.label;
+            button.textContent = preset.label;
+            return button;
+          }),
+        );
+      }
+      for (const button of presets.querySelectorAll('button')) {
+        const { kind = '', value = '' } = /** @type {HTMLElement} */ (button).dataset;
+        button.setAttribute('aria-pressed', String(rules.some((rule) => sameRule(rule, { kind, value }))));
+      }
+      const list = /** @type {HTMLElement} */ (this.querySelector('.menu__rules'));
+      list.replaceChildren(
+        ...rules.map((rule, index) => {
+          const row = document.createElement('li');
+          const sample = document.createElement('span');
+          sample.className = 'menu__sample';
+          sample.dataset.rule = rule.style;
+          sample.textContent = 'Aa';
+          const label = document.createElement('span');
+          label.className = 'menu__label';
+          label.textContent = rule.label;
+          const style = document.createElement('button');
+          style.type = 'button';
+          style.dataset.action = 'rule-style';
+          style.dataset.index = String(index);
+          style.textContent = 'Style';
+          style.setAttribute('aria-label', `Another style for ${rule.label}`);
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.dataset.action = 'rule-remove';
+          remove.dataset.index = String(index);
+          remove.textContent = 'Remove';
+          remove.setAttribute('aria-label', `Stop marking ${rule.label}`);
+          row.append(sample, label, style, remove);
+          return row;
+        }),
+      );
+      if (!rules.length) {
+        const row = document.createElement('li');
+        row.className = 'menu__none';
+        row.textContent = 'No marks yet.';
+        list.append(row);
+      }
     },
 
     /**
@@ -268,6 +363,8 @@
   }
   .menu__sheet {
     display: none;
+    box-sizing: border-box;
+    max-width: calc(100vw - 2rem);
     width: 30rem;
     margin-top: 0.5rem;
     border: 1px solid var(--line);
@@ -275,8 +372,47 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  :scope:state(open) .menu__sheet {
+  :scope:state(open) .menu__workspace,
+  :scope:state(marks) .menu__marks {
     display: block;
+  }
+  .menu__presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
+  }
+  .menu__presets [aria-pressed='true'] {
+    outline: 2px solid var(--text);
+    outline-offset: -2px;
+  }
+  .menu__rules {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+  .menu__rules li {
+    display: flex;
+    align-items: center;
+    gap: var(--bar-gap);
+    padding: var(--bar-padding);
+    border-bottom: 1px solid var(--line);
+  }
+  .menu__sample {
+    flex: none;
+    font: 1.1rem 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  }
+  .menu__label {
+    flex: 1;
+    min-width: 0;
+  }
+  .menu__hint {
+    margin: 0;
+    padding: var(--bar-padding);
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
   }
   :scope:not(:state(keys)) touch-keys {
     display: none;
@@ -365,9 +501,17 @@
     <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>
     <button type="button" class="pen--box" data-action="pen" data-pen="box" aria-pressed="${pen === 'box' ? 'true' : 'false'}" aria-label="Box"><span>Aa</span></button>
   </div>
+  <button type="button" data-action="marks" aria-expanded="${marks ? 'true' : 'false'}">Marks</button>
   <button type="button" data-action="sheet" aria-expanded="${open ? 'true' : 'false'}">${name ? name : 'Workspace'}</button>
 </div>
-<div class="menu__sheet">
+<div class="menu__sheet menu__marks">
+  <h2 class="menu__heading">Mark on every card</h2>
+  <div class="menu__presets"></div>
+  <h2 class="menu__heading">Marks on now</h2>
+  <ul class="menu__rules"></ul>
+  <p class="menu__hint">To mark one word, person or place: tap it on a card, then Mark it on every card in the search panel. The marks are kept with the table.</p>
+</div>
+<div class="menu__sheet menu__workspace">
   <h2 class="menu__heading">Save this table</h2>
   <form class="menu__save">
     <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" />

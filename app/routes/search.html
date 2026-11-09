@@ -1,16 +1,20 @@
 <script server>
   import { entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
+  import { guideResults } from '../data/study.js';
 
   export const prerender = false;
 
   // `q` searches the text, or finds a Strong's number such as H2617. `refs`
   // lists the cross-references of one verse. `word` studies one word address.
   // `entity` shows a person, place, group or event, such as person:david_994.
+  // `guide` shows the passage guide for a card's address.
   export default async ({ url }) => {
     const params = new URL(url).searchParams;
     const refs = params.get('refs');
     const word = params.get('word');
     const entity = params.get('entity');
+    const guide = params.get('guide');
+    if (guide) return guideResults(guide);
     if (entity?.startsWith('world:')) return worldResults(entity);
     if (entity) return entityResults(entity);
     if (word) return wordResults(word);
@@ -40,6 +44,8 @@
         </template>
       </dl>
       <button if="entity && entity.mapped" type="button" class="results__switch" data-show-map="${entity ? entity.id : ''}">Show on the map</button>
+      <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
+      <button if="landscape" type="button" class="results__switch result--pull" data-address="${landscape}">Where, chapter by chapter</button>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </section>
     <section if="dictionary" class="entity" aria-label="${dictionary ? dictionary.term : ''}">
@@ -54,9 +60,68 @@
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
     </section>
+    <!-- Word statistics: how the KJV renders the word, and where it occurs. -->
+    <section if="stats" class="stats" aria-label="How the KJV renders it">
+      <p class="stats__summary">${stats ? stats.summary : ''}</p>
+      <ol class="stats__renderings">
+        <li each="rendering of stats ? stats.renderings : []"><span>${rendering.text}</span> <span class="stats__count">${rendering.count}</span></li>
+        <li if="stats && stats.more" class="stats__more">${stats ? stats.more : ''}</li>
+      </ol>
+      <svg class="stats__bars" viewBox="0 0 660 88" role="img" aria-label="${stats ? stats.most : ''}">
+        <rect each="bar of stats ? stats.bars : []" x="${bar.x}" y="${bar.y}" width="8" height="${bar.height}"><title>${bar.title}</title></rect>
+        <line x1="389" y1="0" x2="389" y2="62" class="stats__divide"></line>
+        <text x="0" y="86" class="stats__axis">Genesis</text>
+        <text x="384" y="86" class="stats__axis" text-anchor="end">Malachi</text>
+        <text x="394" y="86" class="stats__axis">Matthew</text>
+        <text x="660" y="86" class="stats__axis" text-anchor="end">Revelation</text>
+      </svg>
+      <p class="stats__most">${stats ? stats.most : ''}</p>
+      <button if="rule" type="button" class="results__switch" data-rule-kind="${rule ? rule.kind : ''}" data-rule-value="${rule ? rule.value : ''}" data-rule-label="${rule ? rule.label : ''}">Mark it on every card</button>
+      <button if="stats" type="button" class="results__switch result--pull" data-address="${stats ? stats.landscape : ''}">Where, chapter by chapter</button>
+    </section>
+    <!-- The passage guide. The notes on the passage are in the browser: the
+         panel fills in .guide__notes. -->
+    <section if="guide" class="guide" aria-label="Guide to ${guide ? guide.title : ''}">
+      <button type="button" class="entity__title result" data-address="${guide ? guide.address : ''}">${guide ? guide.title : ''}</button>
+      <section class="guide__notes" hidden></section>
+      <h3 class="guide__heading">Parallel passages</h3>
+      <p if="guide && !guide.parallels.length" class="guide__none">None found.</p>
+      <ol if="guide && guide.parallels.length" class="results__list">
+        <li each="result of guide ? guide.parallels : []">
+          <button type="button" class="result" data-address="${result.address}">
+            <span class="result__title">${result.title}</span>
+            <span class="result__text"><template each="part of result.parts">${part.text}</template></span>
+          </button>
+        </li>
+      </ol>
+      <button if="guide && guide.parallels.length" type="button" class="results__switch" data-beside="${guide ? guide.beside : ''}">Put them beside the card</button>
+      <h3 class="guide__heading">Cross-references</h3>
+      <p class="guide__none">${guide ? guide.referenceSummary : ''}</p>
+      <ol if="guide && guide.references.length" class="results__list">
+        <li each="result of guide ? guide.references : []">
+          <button type="button" class="result" data-address="${result.address}">
+            <span class="result__title">${result.title}</span>
+            <span class="result__text"><template each="part of result.parts">${part.text}</template></span>
+          </button>
+        </li>
+      </ol>
+      <dl class="entity__relations">
+        <dt if="guide && guide.people.length">People</dt>
+        <dd if="guide && guide.people.length"><button each="item of guide ? guide.people : []" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
+        <dt if="guide && guide.places.length">Places</dt>
+        <dd if="guide && guide.places.length"><button each="item of guide ? guide.places : []" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
+        <dt if="guide && guide.groups.length">Groups</dt>
+        <dd if="guide && guide.groups.length"><button each="item of guide ? guide.groups : []" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
+        <dt if="guide && guide.events.length">Events, on the timeline</dt>
+        <dd if="guide && guide.events.length"><button each="event of guide ? guide.events : []" type="button" class="entity__link" data-entity="${event.id}">${event.title}, ${event.label}</button></dd>
+      </dl>
+      <button if="guide && guide.mapIds" type="button" class="results__switch" data-show-map="${guide ? guide.mapIds : ''}">Show its places on the map</button>
+      <p class="entity__credit">${guide ? guide.credit : ''}</p>
+    </section>
     <button if="studyCode" type="button" class="results__switch" data-strongs="${studyCode}">Original word: ${studyCode}</button>
     <button if="refsFor" type="button" class="results__switch" data-refs="${refsFor}">Cross-references of ${refsTitle}</button>
     <p if="summary" class="results__summary">${summary}</p>
+    <button if="landscape && !entity && !stats" type="button" class="results__switch result--pull" data-address="${landscape}">Where, chapter by chapter</button>
     <ol class="results__list">
       <li each="result of results">
         <button type="button" class="result" data-address="${result.address}">

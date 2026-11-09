@@ -237,12 +237,12 @@ gesture-card[data-zoom='far'] .passage__versions {
    A marking in progress is inverse, so the hand sees the words as it goes. */
 .w[data-mark='inverse'],
 .w.is-marking {
-  background: var(--text);
+  background-color: var(--text);
   color: var(--table);
 }
 .wj .w[data-mark='inverse'],
 .wj .w.is-marking {
-  background: var(--red-letter);
+  background-color: var(--red-letter);
 }
 .w[data-mark='underline'] {
   text-decoration: underline double;
@@ -267,7 +267,7 @@ gesture-card[data-zoom='far'] .passage__versions {
    show as plain text; the dashed line shows where they come from. */
 .passage--phrase .w[data-mark],
 .note__words .w[data-mark] {
-  background: none;
+  background-color: transparent;
   color: inherit;
   border: 0;
   padding: 0;
@@ -588,4 +588,187 @@ gesture-card[data-zoom='far'] .note__text {
 }
 gesture-card[data-zoom='far'] .map {
   display: block;
+}
+
+/* Rule marks (app/lib/rules.js): words marked on every card by what they
+   are. Four shapes, each on a property of its own, so the marks of several
+   rules on one word all show, and none hides a highlight:
+     over   a bar over the word
+     dots   a dotted line under it
+     ring   a dashed box around it
+     wavy   a wavy line under it, where no highlight or study underlines it
+   The menu's samples use the same shapes. */
+.w[data-rule~='over'],
+.menu__sample[data-rule~='over'] {
+  box-shadow: inset 0 2px 0 currentColor;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.w[data-rule~='dots'],
+.menu__sample[data-rule~='dots'] {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.4px);
+  background-size: 5px 4px;
+  background-position: 0 100%;
+  background-repeat: repeat-x;
+}
+.w[data-rule~='ring'],
+.menu__sample[data-rule~='ring'] {
+  outline: 1px dashed currentColor;
+  outline-offset: 1px;
+}
+.w[data-rule~='wavy']:not([data-mark], .is-studied),
+.menu__sample[data-rule~='wavy'] {
+  text-decoration: underline wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+/* Compare, on a card in Both: the words one translation has and the other
+   does not are bold (app/lib/compare.js). */
+.parallel__legend {
+  display: none;
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font: 0.75rem/1.4 system-ui, sans-serif;
+}
+gesture-card[data-compare] .parallel__legend {
+  display: block;
+}
+gesture-card[data-compare] .passage__parallel .w[data-d],
+gesture-card[data-compare] .bsb__d {
+  font-weight: 700;
+}
+
+/* A result that a tap puts on the table and a drag pulls out. */
+.result--pull {
+  cursor: grab;
+}
+.results__switch[aria-pressed='true'] {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+
+/* Word statistics in a word study. */
+.stats {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.stats p {
+  margin: 0 0 0.4rem;
+}
+.stats__summary {
+  font-size: 0.9rem;
+}
+.stats__renderings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+  font: 0.95rem/1.4 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.stats__count,
+.stats__more {
+  color: var(--muted);
+  font: 0.75rem system-ui, sans-serif;
+}
+.stats__bars {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0.4rem 0;
+}
+.stats__bars rect {
+  fill: var(--text);
+}
+.stats__divide {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.stats__axis {
+  fill: var(--muted);
+  font: 20px system-ui, sans-serif;
+}
+.stats__most {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.stats .results__switch,
+.guide .results__switch {
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+/* The passage guide in the search panel. */
+.guide {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.guide__heading {
+  margin: 1rem 0 0.3rem;
+  color: var(--muted);
+  font: 600 0.8rem system-ui, sans-serif;
+}
+.guide__none {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.guide .results__list {
+  margin: 0 -0.75rem;
+}
+.guide .entity__relations dt {
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+/* The landscape: a row per book, a cell per chapter. The SVG's units are
+   about pixels at the card's own size. */
+.passage--landscape {
+  width: 64rem;
+}
+.landscape__summary {
+  color: var(--muted);
+  font: 0.8rem/1.4 system-ui, sans-serif;
+}
+.landscape__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0.5rem 0;
+}
+.landscape__svg text {
+  fill: var(--muted);
+  font: 13px system-ui, sans-serif;
+}
+.landscape__svg .landscape__group {
+  fill: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+}
+.landscape__cell {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  /* The whole cell takes a tap or a click, not only its edge. */
+  pointer-events: all;
+  cursor: pointer;
+}
+.landscape--books .landscape__cell {
+  stroke: var(--muted);
+}
+.landscape__mark {
+  fill: var(--text);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .landscape__cell:hover {
+    stroke: var(--text);
+  }
+}
+gesture-card[data-zoom='far'] .landscape__summary {
+  display: none;
 }

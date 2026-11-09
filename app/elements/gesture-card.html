@@ -24,6 +24,7 @@
        + and -             scale it
        [ and ]             turn it
        Delete, Backspace   take it off the table (Undo brings it back)
+       Enter               the same as a tap on its heading
 
      Snapping (app/lib/snap.js): while a hand or a mouse holds the card, it
      stands upright near upright, takes full size near full size, and lines
@@ -243,7 +244,10 @@
       else if (event.key === '-' || event.key === '_') this.zoomAt(this.middle(), 1 / KEY_SCALE);
       else if (event.key === ']') this.turnAt(this.middle(), KEY_TURN);
       else if (event.key === '[') this.turnAt(this.middle(), -KEY_TURN);
-      else if (event.key === 'Delete' || event.key === 'Backspace') {
+      else if (event.key === 'Enter') {
+        const heading = this.querySelector('.passage__heading') ?? this;
+        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: heading } }));
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
         this.dispatchEvent(new CustomEvent('card-remove', { bubbles: true }));
         this.remove();
       } else return;

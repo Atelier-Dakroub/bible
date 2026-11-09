@@ -1,0 +1,93 @@
+// The books of the Bible by kind, and who tradition says wrote each one.
+//
+// The groups are the usual ones of the Protestant canon. The authors are the
+// traditional ones (for the Old Testament, mostly as the Talmud gives them).
+// Scholars date and attribute many books differently, and every view that
+// shows an author says so.
+
+/** @type {{ name: string, books: string[] }[]} */
+export const GROUPS = [
+  { name: 'Law', books: ['GEN', 'EXO', 'LEV', 'NUM', 'DEU'] },
+  { name: 'History', books: ['JOS', 'JDG', 'RUT', '1SA', '2SA', '1KI', '2KI', '1CH', '2CH', 'EZR', 'NEH', 'EST'] },
+  { name: 'Wisdom and poetry', books: ['JOB', 'PSA', 'PRO', 'ECC', 'SNG'] },
+  { name: 'Major prophets', books: ['ISA', 'JER', 'LAM', 'EZK', 'DAN'] },
+  { name: 'Minor prophets', books: ['HOS', 'JOL', 'AMO', 'OBA', 'JON', 'MIC', 'NAM', 'HAB', 'ZEP', 'HAG', 'ZEC', 'MAL'] },
+  { name: 'Gospels', books: ['MAT', 'MRK', 'LUK', 'JHN'] },
+  { name: 'Acts', books: ['ACT'] },
+  { name: 'Letters of Paul', books: ['ROM', '1CO', '2CO', 'GAL', 'EPH', 'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM'] },
+  { name: 'Other letters', books: ['HEB', 'JAS', '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD'] },
+  { name: 'Prophecy', books: ['REV'] },
+];
+
+/** @type {Record<string, string>} */
+export const AUTHORS = {
+  GEN: 'Moses',
+  EXO: 'Moses',
+  LEV: 'Moses',
+  NUM: 'Moses',
+  DEU: 'Moses',
+  JOS: 'Joshua',
+  JDG: 'Samuel',
+  RUT: 'Samuel',
+  '1SA': 'Samuel, Nathan and Gad',
+  '2SA': 'Samuel, Nathan and Gad',
+  '1KI': 'Jeremiah',
+  '2KI': 'Jeremiah',
+  '1CH': 'Ezra',
+  '2CH': 'Ezra',
+  EZR: 'Ezra',
+  NEH: 'Nehemiah',
+  EST: 'Not known',
+  JOB: 'Not known',
+  PSA: 'David and others',
+  PRO: 'Solomon and others',
+  ECC: 'Solomon',
+  SNG: 'Solomon',
+  ISA: 'Isaiah',
+  JER: 'Jeremiah',
+  LAM: 'Jeremiah',
+  EZK: 'Ezekiel',
+  DAN: 'Daniel',
+  HOS: 'Hosea',
+  JOL: 'Joel',
+  AMO: 'Amos',
+  OBA: 'Obadiah',
+  JON: 'Jonah',
+  MIC: 'Micah',
+  NAM: 'Nahum',
+  HAB: 'Habakkuk',
+  ZEP: 'Zephaniah',
+  HAG: 'Haggai',
+  ZEC: 'Zechariah',
+  MAL: 'Malachi',
+  MAT: 'Matthew',
+  MRK: 'Mark',
+  LUK: 'Luke',
+  JHN: 'John',
+  ACT: 'Luke',
+  ROM: 'Paul',
+  '1CO': 'Paul',
+  '2CO': 'Paul',
+  GAL: 'Paul',
+  EPH: 'Paul',
+  PHP: 'Paul',
+  COL: 'Paul',
+  '1TH': 'Paul',
+  '2TH': 'Paul',
+  '1TI': 'Paul',
+  '2TI': 'Paul',
+  TIT: 'Paul',
+  PHM: 'Paul',
+  HEB: 'Not known',
+  JAS: 'James',
+  '1PE': 'Peter',
+  '2PE': 'Peter',
+  '1JN': 'John',
+  '2JN': 'John',
+  '3JN': 'John',
+  JUD: 'Jude',
+  REV: 'John',
+};
+
+export const CANON_CREDIT =
+  'Groups as in the Protestant canon. Authors as tradition gives them; scholars date and attribute many books differently.';

@@ -11,6 +11,7 @@ import { loaders as bsbLoaders } from './bsb/index.js';
 import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
+import { differences } from '../lib/compare.js';
 
 /** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
@@ -20,13 +21,24 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /** @typedef {{ style: string, numbered?: boolean, runs: Run[] }} Block */
 /** @typedef {{ n: number, id: string, blocks: Block[] }} Verse */
 /** @typedef {{ id: string, name: string, chapters: { n: number, verses: Verse[] }[] }} Book */
-/** @typedef {{ text: string, w: number, s: string | null, e: string | null }} Token `s` is the word's Strong's number, `e` the entity it names */
+/** @typedef {{ text: string, w: number, s: string | null, e: string | null, d: boolean }} Token `s` is the word's Strong's number, `e` the entity it names, `d` true where a parallel translation does not share the word */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
 /** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ address: string, title: string, parts: Part[] }} Result */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
+/**
+ * How the KJV renders a Strong's number, and where, book by book. `bars` is a
+ * small chart: one bar per book, in a 660 by 64 box.
+ *
+ * @typedef {{
+ *   summary: string, renderings: { text: string, count: number }[], more: string,
+ *   bars: { id: string, title: string, x: number, y: number, height: number }[],
+ *   most: string, landscape: string
+ * }} WordStats
+ */
+/** @typedef {{ kind: string, value: string, label: string }} RuleOffer a rule the panel offers to mark on every card */
 /** @typedef {{ label: string, items: { id: string, name: string }[] }} Relation */
 /**
  * An entity as the search panel shows it.
@@ -38,15 +50,21 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /**
  * What the search panel shows.
  *   entry       a Strong's dictionary entry: a word study, or a search by number
+ *   stats       how the KJV renders that entry's word, and where
  *   entity      a person, place, group or event (Theographic)
  *   dictionary  an Easton's dictionary entry for a word that names no entity
  *   refsFor     a verse whose cross-references the panel can switch to
  *   studyCode   a Strong's number the panel can switch to
+ *   guide       everything the data has on one passage (data/study.js)
+ *   landscape   the address of a landscape card for what is on show, or ""
+ *   rule        what the panel can mark on every card, or null
  *
  * @typedef {{
  *   query: string, summary: string, results: Result[], entry: Entry | null,
- *   entity: EntityView | null, dictionary: { term: string, text: string } | null,
- *   refsFor: string, refsTitle: string, studyCode: string
+ *   stats: WordStats | null, entity: EntityView | null,
+ *   dictionary: { term: string, text: string } | null,
+ *   refsFor: string, refsTitle: string, studyCode: string,
+ *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null
  * }} Results
  */
 
@@ -56,7 +74,7 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
  * @param {Partial<Results>} fields
  * @returns {Results}
  */
-function answer(fields) {
+export function answer(fields) {
   return {
     query: '',
     summary: '',
@@ -67,6 +85,10 @@ function answer(fields) {
     refsFor: '',
     refsTitle: '',
     studyCode: '',
+    stats: null,
+    guide: null,
+    landscape: '',
+    rule: null,
     ...fields,
   };
 }
@@ -154,7 +176,7 @@ export async function phrase(range) {
   return { title, address: `${range.from}-${range.to}`, verses: trimmed };
 }
 
-/** @typedef {{ style: string, text: string, numbered: boolean }} PlainBlock a block of the BSB */
+/** @typedef {{ style: string, text: string, numbered: boolean, parts: { text: string, d: boolean }[] }} PlainBlock a block of the BSB; `parts` mark the words the KJV does not share */
 /** @typedef {{ verse: WordVerse, bsb: PlainBlock[] }} Row */
 
 /** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
@@ -164,7 +186,9 @@ const bsbBooks = new Map();
  * The passage in two translations, verse by verse: the KJV verse and the
  * Berean Standard Bible's blocks for the same address. A verse the BSB leaves
  * out has no blocks. The verse number goes on the first block that is not a
- * psalm title.
+ * psalm title. The words that one translation has and the other does not are
+ * marked on both (app/lib/compare.js): `d` on a KJV token, a part of a BSB
+ * block.
  *
  * @param {Reference} ref
  * @returns {Promise<{ title: string, rows: Row[] }>}
@@ -180,9 +204,47 @@ export async function parallel(ref) {
   const rows = verses.map((verse) => {
     const blocks = bsb[verse.id] ?? [];
     const first = blocks.findIndex((block) => block.style !== 'd');
-    return { verse, bsb: blocks.map((block, i) => ({ ...block, numbered: i === first })) };
+    const split = blocks.map((block) => tokenize(block.text, 1).tokens);
+    const kjvWords = verse.blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens.filter((token) => token.w)));
+    const bsbWords = split.flat().filter((token) => token.w);
+    const diff = blocks.length ? differences(kjvWords.map((token) => token.text), bsbWords.map((token) => token.text)) : null;
+    /** @type {Map<object, boolean>} */
+    const kjvDiff = new Map(kjvWords.map((token, i) => [token, diff ? diff.a[i] : false]));
+    /** @type {Map<object, boolean>} */
+    const bsbDiff = new Map(bsbWords.map((token, i) => [token, diff ? diff.b[i] : false]));
+    const marked = {
+      ...verse,
+      blocks: verse.blocks.map((block) => ({
+        ...block,
+        runs: block.runs.map((run) => ({ ...run, tokens: run.tokens.map((token) => ({ ...token, d: kjvDiff.get(token) ?? false })) })),
+      })),
+    };
+    return {
+      verse: marked,
+      bsb: blocks.map((block, i) => ({ ...block, numbered: i === first, parts: partsOf(split[i], bsbDiff) })),
+    };
   });
   return { title, rows };
+}
+
+/**
+ * A block's tokens as runs of text that differ or do not. A space or a mark
+ * between two words goes with the word before it.
+ *
+ * @param {{ text: string, w: number }[]} tokens
+ * @param {Map<object, boolean>} diff
+ * @returns {{ text: string, d: boolean }[]}
+ */
+function partsOf(tokens, diff) {
+  /** @type {{ text: string, d: boolean }[]} */
+  const parts = [];
+  for (const token of tokens) {
+    const last = parts.at(-1);
+    const d = token.w ? (diff.get(token) ?? false) : (last?.d ?? false);
+    if (last && last.d === d) last.text += token.text;
+    else parts.push({ text: token.text, d });
+  }
+  return parts;
 }
 
 /** @type {Map<string, Promise<Record<string, string>>>} */
@@ -193,7 +255,7 @@ const strongsBooks = new Map();
  *
  * @param {string} id
  */
-function strongsBook(id) {
+export function strongsBook(id) {
   let promise = strongsBooks.get(id);
   if (!promise) {
     const load = strongsLoaders[/** @type {keyof typeof strongsLoaders} */ (id)];
@@ -247,7 +309,7 @@ export function withWords(verse, codes = '', names = new Map()) {
       const tokens = split.tokens.map((token) => {
         const code = token.w ? numbers[token.w - 1] : undefined;
         const named = token.w ? names.get(nameKey(token.text)) : undefined;
-        return { ...token, s: code && code !== '-' ? code : null, e: named ?? null };
+        return { ...token, s: code && code !== '-' ? code : null, e: named ?? null, d: false };
       });
       return { ...run, tokens };
     }),
@@ -288,7 +350,86 @@ export async function strongsResults(code, limit = 50) {
     : results.length < found.length
       ? `The first ${results.length} verses, in canon order.`
       : 'Every verse, in canon order.';
-  return answer({ query: code, summary, results, entry });
+  const stats = entry ? await wordStats(code, found) : null;
+  const rule = entry ? { kind: 'strongs', value: code, label: `${code} ${entry.xlit}` } : null;
+  return answer({ query: code, summary, results, entry, stats, rule, landscape: stats ? stats.landscape : '' });
+}
+
+/** @type {Map<string, WordStats>} the last few studied, as the panel goes back and forth */
+const statsCache = new Map();
+
+/**
+ * How the KJV renders a Strong's number, and where it occurs, book by book.
+ * A rendering is the run of English words that carry the number in one
+ * place, such as "lovingkindness" or "in the beginning", in lower case.
+ *
+ * @param {string} code
+ * @param {string[]} found the verses that use it, in canon order
+ * @returns {Promise<WordStats>}
+ */
+export async function wordStats(code, found) {
+  const cached = statsCache.get(code);
+  if (cached) return cached;
+
+  /** @type {Map<string, number>} */
+  const renderings = new Map();
+  /** @type {Map<string, number>} */
+  const perBook = new Map();
+  let total = 0;
+  const byBook = Map.groupBy(found, (address) => address.split('.')[0]);
+  for (const [id, addresses] of byBook) {
+    const [{ chapters }, codes] = await Promise.all([book(id), strongsBook(id)]);
+    for (const address of addresses) {
+      const [, chapter, verse] = address.split('.');
+      const source = chapters[Number(chapter) - 1]?.verses[Number(verse) - 1];
+      if (!source) continue;
+      const tokens = withWords(source, codes[address]).blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens));
+      /** @type {string[]} */
+      let run = [];
+      const close = () => {
+        if (!run.length) return;
+        const text = run.join(' ');
+        renderings.set(text, (renderings.get(text) ?? 0) + 1);
+        perBook.set(id, (perBook.get(id) ?? 0) + 1);
+        total += 1;
+        run = [];
+      };
+      for (const token of tokens) {
+        if (!token.w) continue;
+        if (token.s === code) run.push(token.text.toLowerCase().replace(/[^\p{L}’'-]/gu, '').replace(/^[’']+|[’']+$/g, ''));
+        else close();
+      }
+      close();
+    }
+  }
+
+  const sorted = [...renderings].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
+  const shown = sorted.slice(0, 12).map(([text, count]) => ({ text, count }));
+  const rest = sorted.length - shown.length;
+  const max = Math.max(1, ...perBook.values());
+  const bars = books.map((entry, i) => {
+    const count = perBook.get(entry.id) ?? 0;
+    const height = count ? Math.max(2, Math.round((count / max) * 56)) : 0;
+    return { id: entry.id, title: `${entry.name}: ${count}`, x: i * 10, y: 60 - height, height };
+  });
+  const top = [...perBook].sort((x, y) => y[1] - x[1]).slice(0, 3);
+  const name = (/** @type {string} */ id) => books.find((entry) => entry.id === id)?.name ?? id;
+  const stats = {
+    summary: `${times(total)} in ${verseCount(found.length)}, in ${perBook.size === 1 ? '1 book' : `${perBook.size} books`}.`,
+    renderings: shown,
+    more: rest > 0 ? `and ${rest} more` : '',
+    bars,
+    most: top.length ? `Most in ${top.map(([id, count]) => `${name(id)} (${count})`).join(', ')}.` : '',
+    landscape: `landscape:${code}`,
+  };
+  statsCache.set(code, stats);
+  if (statsCache.size > 20) statsCache.delete(statsCache.keys().next().value ?? '');
+  return stats;
+}
+
+/** @param {number} count */
+function times(count) {
+  return count === 1 ? 'Once' : `${count.toLocaleString('en')} times`;
 }
 
 /**
@@ -515,7 +656,8 @@ export async function entityResults(id, limit = 50) {
   const summary = total === 0
     ? 'No verses are linked yet.'
     : `${found.kind === 'event' ? 'Told in' : 'Named in'} ${verseCount(total)}${results.length < total ? `. The first ${results.length}, in canon order.` : '.'}`;
-  return answer({ summary, results, entity: view });
+  const rule = ['person', 'place', 'group'].includes(found.kind) ? { kind: 'entity', value: id, label: view.title } : null;
+  return answer({ summary, results, entity: view, rule, landscape: total ? `landscape:${id}` : '' });
 }
 
 /**
@@ -545,7 +687,7 @@ export function preview(verses, limit = 90) {
 
 /** @param {number} count */
 export function verseCount(count) {
-  return count === 1 ? '1 verse' : `${count} verses`;
+  return count === 1 ? '1 verse' : `${count.toLocaleString('en')} verses`;
 }
 
 /** @typedef {[string, number]} CrossReference a target address and its votes */
@@ -554,7 +696,7 @@ export function verseCount(count) {
 const referenceBooks = new Map();
 
 /** @param {string} id */
-function referenceBook(id) {
+export function referenceBook(id) {
   let promise = referenceBooks.get(id);
   if (!promise) {
     const load = referenceLoaders[/** @type {keyof typeof referenceLoaders} */ (id)];
@@ -615,7 +757,7 @@ export async function referenceResults(address, limit = 50) {
 /** @type {Promise<{ address: string, title: string, text: string }[]> | null} */
 let corpus = null;
 
-function allVerses() {
+export function allVerses() {
   corpus ??= Promise.all(books.map((entry) => book(entry.id))).then((all) =>
     all.flatMap((each) =>
       each.chapters.flatMap((chapter) =>
@@ -652,6 +794,24 @@ export async function search(query, limit = 50) {
   const ref = parseReference(text, books);
   if (ref) return referenceResult(text, ref);
 
+  const { first, rest, marker } = await matching(text);
+  const total = first.length + rest.length;
+
+  /** @type {Result[]} */
+  const results = [...first, ...rest]
+    .slice(0, limit)
+    .map((verse) => ({ address: verse.address, title: verse.title, parts: mark(verse.text, marker) }));
+
+  return answer({ query: text, summary: summarize(total, results.length), results, landscape: total ? `landscape:text:${text}` : '' });
+}
+
+/**
+ * The verses that hold every word of a search, the ones that hold them as
+ * one phrase first (see search).
+ *
+ * @param {string} text
+ */
+export async function matching(text) {
   const quoted = /^".+"$/.test(text);
   const terms = quoted ? [text.slice(1, -1)] : text.split(/\s+/);
   const patterns = terms.map(wordPattern);
@@ -665,14 +825,7 @@ export async function search(query, limit = 50) {
     if (!tests.every((test) => test.test(verse.text))) continue;
     (phrase.test(verse.text) ? first : rest).push(verse);
   }
-  const total = first.length + rest.length;
-
-  /** @type {Result[]} */
-  const results = [...first, ...rest]
-    .slice(0, limit)
-    .map((verse) => ({ address: verse.address, title: verse.title, parts: mark(verse.text, marker) }));
-
-  return answer({ query: text, summary: summarize(total, results.length), results });
+  return { first, rest, marker };
 }
 
 /**

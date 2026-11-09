@@ -27,6 +27,17 @@
      showEntity(id) shows a person, place, group or event, with its relations
      as buttons that show those in turn. Its heading pulls out as a card.
 
+     showGuide(address, notes) shows the passage guide (data/study.js) and
+     the notes the table found on the passage. searchFor(text) searches.
+
+     The buttons in an answer send, all bubbling:
+       show-on-map   detail { ids }, place ids with commas between
+       rule-add      detail { kind, value, label }: mark it on every card, or
+                     stop (app/lib/rules.js)
+       place-beside  detail { addresses }: the guide's parallels, beside the card
+       show-note     detail { id }: a note on the passage
+     showRules(rules) shows which offers to mark are on.
+
      After each answer it sends `study` (bubbling) with { code, entity }: the
      Strong's number and the entity on show, or "" for none, so the table can
      mark the words on every card that render that word or name that entity. -->
@@ -69,7 +80,20 @@
         if (link instanceof HTMLElement && link.dataset.entity) this.showEntity(link.dataset.entity);
         const onMap = target?.closest('[data-show-map]');
         if (onMap instanceof HTMLElement && onMap.dataset.showMap) {
-          this.dispatchEvent(new CustomEvent('show-on-map', { bubbles: true, detail: { id: onMap.dataset.showMap } }));
+          this.dispatchEvent(new CustomEvent('show-on-map', { bubbles: true, detail: { ids: onMap.dataset.showMap } }));
+        }
+        const rule = target?.closest('[data-rule-kind]');
+        if (rule instanceof HTMLElement) {
+          const { ruleKind: kind, ruleValue: value, ruleLabel: label } = rule.dataset;
+          this.dispatchEvent(new CustomEvent('rule-add', { bubbles: true, detail: { kind, value, label } }));
+        }
+        const beside = target?.closest('[data-beside]');
+        if (beside instanceof HTMLElement && beside.dataset.beside) {
+          this.dispatchEvent(new CustomEvent('place-beside', { bubbles: true, detail: { addresses: beside.dataset.beside.split(',') } }));
+        }
+        const note = target?.closest('[data-note-show]');
+        if (note instanceof HTMLElement && note.dataset.noteShow) {
+          this.dispatchEvent(new CustomEvent('show-note', { bubbles: true, detail: { id: note.dataset.noteShow } }));
         }
         const strongs = target?.closest('[data-strongs]');
         if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
@@ -154,7 +178,63 @@
       this.run(new URLSearchParams({ word: address, fragment: 'results' }));
     },
 
-    /** @param {URLSearchParams} [query] what to ask for; the typed search by default */
+    /**
+     * @param {string} address a passage or a phrase
+     * @param {{ id: string, text: string }[]} notes the notes that quote it
+     */
+    async showGuide(address, notes) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      if (!(await this.run(new URLSearchParams({ guide: address, fragment: 'results' })))) return;
+      const holder = this.querySelector('.guide__notes');
+      if (!(holder instanceof HTMLElement) || !notes.length) return;
+      const heading = document.createElement('h3');
+      heading.className = 'guide__heading';
+      heading.textContent = notes.length === 1 ? 'A note on it' : `${notes.length} notes on it`;
+      const list = document.createElement('ol');
+      list.className = 'results__list';
+      for (const note of notes) {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'result';
+        button.dataset.noteShow = note.id;
+        const text = note.text.trim();
+        button.textContent = text ? (text.length > 120 ? `${text.slice(0, 120)} …` : text) : 'A note with no text yet';
+        item.append(button);
+        list.append(item);
+      }
+      holder.replaceChildren(heading, list);
+      holder.hidden = false;
+    },
+
+    /** @param {string} text */
+    searchFor(text) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = text;
+      if (this.collapsed) this.setCollapsed(false);
+      this.run();
+    },
+
+    /**
+     * Shows which offers to mark a word on every card are on.
+     *
+     * @param {{ kind: string, value: string }[]} rules
+     */
+    showRules(rules) {
+      for (const button of this.querySelectorAll('[data-rule-kind]')) {
+        const element = /** @type {HTMLElement} */ (button);
+        const on = rules.some((rule) => rule.kind === element.dataset.ruleKind && rule.value === element.dataset.ruleValue);
+        element.setAttribute('aria-pressed', String(on));
+        element.textContent = on ? 'Marked on every card: tap to stop' : 'Mark it on every card';
+      }
+    },
+
+    /**
+     * @param {URLSearchParams} [query] what to ask for; the typed search by default
+     * @returns {Promise<boolean>} false when a newer request took its place
+     */
     async run(query) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       this.request?.abort();
@@ -163,9 +243,9 @@
 
       query ??= new URLSearchParams({ q: input.value, fragment: 'results' });
       const response = await fetch(`/search?${query}`, { signal: request.signal }).catch(() => null);
-      if (!response?.ok || request.signal.aborted) return;
+      if (!response?.ok || request.signal.aborted) return false;
       const text = await response.text();
-      if (request.signal.aborted) return;
+      if (request.signal.aborted) return false;
       const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
       results.setHTMLUnsafe(text);
       results.scrollTop = 0;
@@ -173,6 +253,7 @@
       const code = answer?.dataset.code ?? '';
       const entity = answer?.dataset.entity ?? '';
       this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code, entity } }));
+      return true;
     },
 
     /** @param {PointerEvent} event */

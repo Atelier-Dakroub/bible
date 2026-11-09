@@ -17,7 +17,8 @@
      id, and the panel lists the biblical events inside it.
 
      The Map button sends `toggle-map` (bubbling): the table puts the map card
-     down, or takes it away.
+     down, or takes it away. The Books button sends `toggle-books`, for the
+     card that compares the books (the landscape, data/study.js).
 
      It keeps --timeline-height on its parent up to date, so the search panel
      can stop above it. -->
@@ -69,6 +70,10 @@
         }
         if (target?.closest('[data-action="map"]')) {
           this.dispatchEvent(new Event('toggle-map', { bubbles: true }));
+          return;
+        }
+        if (target?.closest('[data-action="books"]')) {
+          this.dispatchEvent(new Event('toggle-books', { bubbles: true }));
           return;
         }
         if (target?.closest('[data-action="world"]')) {
@@ -259,6 +264,7 @@
     aria-pressed="${world ? 'true' : 'false'}"
   >World</button>
   <button type="button" class="timeline__toggle timeline__world-toggle" data-action="map">Map</button>
+  <button type="button" class="timeline__toggle timeline__world-toggle" data-action="books">Books</button>
   <p class="timeline__note">
     Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
   </p>

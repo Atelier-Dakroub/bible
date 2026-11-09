@@ -52,6 +52,12 @@ type Guide = {
   x2: number;
   y2: number;
 };
+type Rule = {
+  kind: string;
+  value: string;
+  label: string;
+  style: string;
+};
 type Card = HTMLElement & {
   matrix: Matrix;
   hold(id: number, at: Point, scale?: number | undefined): void;
@@ -84,12 +90,14 @@ type StoredCard = {
   matrix: Matrix;
   version?: string | undefined;
   sync?: boolean | undefined;
+  compare?: boolean | undefined;
 };
 type FetchOptions = {
   version?: string | undefined;
   replacing?: Element | null | undefined;
   id?: string | undefined;
   sync?: boolean | undefined;
+  compare?: boolean | undefined;
 };
 type Workspace = {
   offset: Point;
@@ -97,6 +105,7 @@ type Workspace = {
   highlights: Highlight[];
   links: Link[];
   notes: Note[];
+  rules: Rule[];
 };
 type Box = {
   left: number;
@@ -117,6 +126,7 @@ type Run = {
     w: number;
     s: string | null;
     e: string | null;
+    d: boolean;
   }[];
 };
 type Pull_2 = {
@@ -162,6 +172,23 @@ type Entry = {
   dir: string;
   count: string;
 };
+type WordStats = {
+  summary: string;
+  renderings: {
+    text: string;
+    count: number;
+  }[];
+  more: string;
+  bars: {
+    id: string;
+    title: string;
+    x: number;
+    y: number;
+    height: number;
+  }[];
+  most: string;
+  landscape: string;
+};
 type EntityView = {
   id: string;
   kind: string;
@@ -178,6 +205,33 @@ type Relation = {
     id: string;
     name: string;
   }[];
+};
+type Guide_2 = {
+  address: string;
+  title: string;
+  parallels: Result[];
+  beside: string;
+  references: Result[];
+  referenceSummary: string;
+  people: Named[];
+  places: Named[];
+  groups: Named[];
+  events: {
+    id: string;
+    title: string;
+    label: string;
+  }[];
+  mapIds: string;
+  credit: string;
+};
+type Named = {
+  id: string;
+  name: string;
+};
+type RuleOffer = {
+  kind: string;
+  value: string;
+  label: string;
 };
 type PlacedSpan = Span & {
   at: number;
@@ -214,6 +268,50 @@ type Token = {
   w: number;
   s: string | null;
   e: string | null;
+  d: boolean;
+};
+type PlainBlock = {
+  style: string;
+  text: string;
+  numbered: boolean;
+  parts: {
+    text: string;
+    d: boolean;
+  }[];
+};
+type Landscape = {
+  title: string;
+  summary: string;
+  subject: string;
+  mode: string;
+  width: number;
+  height: number;
+  groups: Group[];
+  credit: string;
+};
+type Group = {
+  label: string;
+  y: number;
+  rows: Row[];
+};
+type Row = {
+  name: string;
+  y: number;
+  cells: Cell[];
+  marks: Mark[];
+  end: number;
+  total: string;
+};
+type Cell = {
+  address: string;
+  title: string;
+  x: number;
+  w: number;
+};
+type Mark = {
+  x: number;
+  y: number;
+  size: number;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -250,6 +348,9 @@ export type BibleTableMembers = {
   labels: HTMLButtonElement[];
   keepTimer: number;
   guides: Guide[];
+  rules: Rule[];
+  shownPlaces: Set<string>;
+  guideCard: HTMLElement | null;
   connected({
     signal
   }: {
@@ -302,6 +403,18 @@ export type BibleTableMembers = {
   }: {
     target: EventTarget | null;
   }): void;
+  headingTapped(card: HTMLElement): void;
+  notesOn(card: HTMLElement): {
+    id: string;
+    text: string;
+  }[];
+  showNote(id: string): void;
+  placeBeside(addresses: string[]): Promise<void>;
+  raise(card: HTMLElement): void;
+  glideTo(box: DOMRect): void;
+  setRules(rules: Rule[]): void;
+  showRules(): void;
+  paintRules(root: Element): void;
   study({
     code, entity
   }: {
@@ -309,9 +422,9 @@ export type BibleTableMembers = {
     entity: string;
   }): void;
   mapCard(): Element | null;
-  toggleMap(): Promise<void>;
+  toggleCard(address: string): Promise<void>;
   openMap(): Promise<void>;
-  showOnMap(id: string): Promise<void>;
+  showOnMap(ids: string): Promise<void>;
   glide(dx: number, dy: number): void;
   paintMap(): void;
   placeLines(): Element[];
@@ -330,13 +443,14 @@ export type BibleTableMembers = {
     typed: boolean;
   }[]): void;
   restore({
-    id, address, matrix, version, sync
+    id, address, matrix, version, sync, compare
   }: StoredCard): Promise<void>;
   switchVersion(card: Card, version: string): Promise<void>;
   replaceCard(card: Card, address: string, version: string): Promise<Card | null>;
   step(card: Card, address: string): Promise<void>;
   clicked(event: MouseEvent): void;
   setSync(card: HTMLElement, on: boolean): void;
+  setCompare(card: HTMLElement, on: boolean): void;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
   unquote(card: HTMLElement, address: string): Promise<void>;
   newNote(): Promise<void>;
@@ -349,7 +463,7 @@ export type BibleTableMembers = {
   }): void;
   paintQuoted(root: Element): void;
   fetchCard(address: string, {
-    version, replacing, id, sync
+    version, replacing, id, sync, compare
   }: FetchOptions): Promise<Card | null>;
   openSpot(): Point;
   current(): Workspace;
@@ -535,7 +649,16 @@ export type PassageSearchMembers = {
   showReferences(address: string): void;
   showEntity(id: string): void;
   showWord(address: string): void;
-  run(query?: URLSearchParams | undefined): Promise<void>;
+  showGuide(address: string, notes: {
+    id: string;
+    text: string;
+  }[]): Promise<void>;
+  searchFor(text: string): void;
+  showRules(rules: {
+    kind: string;
+    value: string;
+  }[]): void;
+  run(query?: URLSearchParams | undefined): Promise<boolean>;
   down(event: PointerEvent): void;
   move(event: PointerEvent): void;
   up(event: PointerEvent): void;
@@ -562,11 +685,13 @@ export type TableMenuState = {
   canRedo: boolean;
   name: string;
   snap: boolean;
+  marks: boolean;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */
 export type TableMenuMembers = {
   deleting: string;
+  rules: Rule[];
   connected({
     signal
   }: {
@@ -576,6 +701,7 @@ export type TableMenuMembers = {
   send(type: string, detail?: object | undefined): void;
   setHistory(canUndo: boolean, canRedo: boolean): void;
   setName(name: string): void;
+  setRules(rules: Rule[]): void;
   refresh(message: string): void;
 };
 
@@ -722,6 +848,7 @@ export type SearchData = {
   summary: string;
   results: Result[];
   entry: Entry | null;
+  stats: WordStats | null;
   entity: EntityView | null;
   dictionary: {
     term: string;
@@ -730,6 +857,9 @@ export type SearchData = {
   refsFor: string;
   refsTitle: string;
   studyCode: string;
+  guide: Guide_2 | null;
+  landscape: string;
+  rule: RuleOffer | null;
 };
 
 /** The `ctx` argument of `table`'s <script server> loader. */
@@ -866,11 +996,7 @@ export type CardAddressData = {
   verses: WordVerse[];
   rows: {
     verse: WordVerse;
-    bsb: {
-      style: string;
-      text: string;
-      numbered: boolean;
-    }[];
+    bsb: PlainBlock[];
   }[];
   opening: string;
   count: string;
@@ -896,6 +1022,7 @@ export type CardAddressData = {
     address: string;
     verses: WordVerse[];
   }[];
+  landscape: Landscape | null;
 };
 
 /** The `ctx` argument of `404`'s <script server> loader. */
