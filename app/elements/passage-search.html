@@ -40,10 +40,41 @@
 
      After each answer it sends `study` (bubbling) with { code, entity }: the
      Strong's number and the entity on show, or "" for none, so the table can
-     mark the words on every card that render that word or name that entity. -->
+     mark the words on every card that render that word or name that entity.
+
+     The trail (lib/trail.js): a row of chips under the field, one for each
+     thing looked at, with ‹ and › to step back and forward (also Alt and the
+     arrow keys). A tap on a chip goes to it; "…" shows the whole trail. Going
+     to a step asks for its view again, through the same run(), so the table's
+     marks, the map and the timeline follow it as they did the first time; the
+     list comes back where it was scrolled to. A guide's notes come from the
+     table (notesFor). Each change sends `trail-change` (bubbling), and the
+     table keeps the trail with the workspace: trail() reads it, and
+     setTrail(trail, show) puts one back and shows its step. -->
 
 <script element>
+  import { dropCurrent, emptyTrail, record, windowOf } from '../lib/trail.js';
+
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
+  /** @typedef {import('../lib/trail.js').Trail} Trail */
+  /** @typedef {'typed' | 'submit' | 'open' | 'trail'} How how a view was asked for: typed in the field, sent with Enter, opened from something, or gone to on the trail */
+
+  // How many chips of the trail show at a time.
+  const CHIPS = 4;
+
+  // The pictogram of each kind of step (app/icons/kinds).
+  /** @type {Record<string, string>} */
+  const PICTOGRAMS = {
+    search: 'search',
+    passage: 'passage',
+    refs: 'passage',
+    word: 'word',
+    person: 'person',
+    place: 'place',
+    group: 'group',
+    event: 'event',
+    world: 'era',
+  };
 
   // How far a finger moves before a press on a result is a drag, in CSS pixels.
   const SLOP = 16;
@@ -60,6 +91,14 @@
     request: null,
     /** @type {{ address: string, start: { x: number, y: number }, pull: Pull, out: boolean } | null} */
     press: null,
+    /** @type {Trail} */
+    path: emptyTrail(),
+    /** whether the step on show is a search still being typed */
+    typing: false,
+    /** whether the whole trail is on show, not only the chips around the step */
+    wholeTrail: false,
+    /** @type {((address: string) => { id: string, text: string }[]) | null} the notes on a passage, from the table */
+    notesFor: null,
 
     connected({ signal }) {
       const form = /** @type {HTMLFormElement} */ (this.querySelector('form'));
@@ -98,8 +137,27 @@
         const strongs = target?.closest('[data-strongs]');
         if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
           input.value = strongs.dataset.strongs;
-          this.run();
+          this.run(undefined, 'open');
         }
+        const step = target?.closest('[data-trail]');
+        if (step instanceof HTMLElement) {
+          const where = step.dataset.trail;
+          if (where === 'back') this.go(this.path.index - 1);
+          else if (where === 'forward') this.go(this.path.index + 1);
+          else if (where === 'all') {
+            this.wholeTrail = !this.wholeTrail;
+            this.paintTrail();
+          } else this.go(Number(where));
+        }
+      }, { signal });
+      // Alt and the arrow keys step through the trail, as in a browser.
+      document.addEventListener('keydown', (event) => {
+        if (!event.altKey || event.metaKey || event.ctrlKey) return;
+        if (event.target instanceof HTMLTextAreaElement) return;
+        if (event.key === 'ArrowLeft') this.go(this.path.index - 1);
+        else if (event.key === 'ArrowRight') this.go(this.path.index + 1);
+        else return;
+        event.preventDefault();
       }, { signal });
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -124,7 +182,8 @@
         'submit',
         (event) => {
           event.preventDefault();
-          this.run();
+          clearTimeout(this.timer);
+          this.run(undefined, 'submit');
         },
         { signal },
       );
@@ -159,7 +218,7 @@
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
       if (this.collapsed) this.setCollapsed(false);
-      this.run(new URLSearchParams({ refs: address, fragment: 'results' }));
+      this.run(new URLSearchParams({ refs: address, fragment: 'results' }), 'open');
     },
 
     /** @param {string} id an entity id, such as person:david_994 */
@@ -167,7 +226,7 @@
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
       if (this.collapsed) this.setCollapsed(false);
-      this.run(new URLSearchParams({ entity: id, fragment: 'results' }));
+      this.run(new URLSearchParams({ entity: id, fragment: 'results' }), 'open');
     },
 
     /** @param {string} address a word address */
@@ -175,18 +234,19 @@
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
       if (this.collapsed) this.setCollapsed(false);
-      this.run(new URLSearchParams({ word: address, fragment: 'results' }));
+      this.run(new URLSearchParams({ word: address, fragment: 'results' }), 'open');
     },
 
     /**
      * @param {string} address a passage or a phrase
      * @param {{ id: string, text: string }[]} notes the notes that quote it
+     * @param {How} [how]
      */
-    async showGuide(address, notes) {
+    async showGuide(address, notes, how = 'open') {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
       if (this.collapsed) this.setCollapsed(false);
-      if (!(await this.run(new URLSearchParams({ guide: address, fragment: 'results' })))) return;
+      if (!(await this.run(new URLSearchParams({ guide: address, fragment: 'results' }), how))) return;
       const holder = this.querySelector('.guide__notes');
       if (!(holder instanceof HTMLElement) || !notes.length) return;
       const heading = document.createElement('h3');
@@ -214,7 +274,7 @@
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = text;
       if (this.collapsed) this.setCollapsed(false);
-      this.run();
+      this.run(undefined, 'open');
     },
 
     /**
@@ -232,10 +292,14 @@
     },
 
     /**
+     * Asks for a view and shows it, and records it on the trail.
+     *
      * @param {URLSearchParams} [query] what to ask for; the typed search by default
+     * @param {How} [how] how it was asked for; typing by default
+     * @param {number} [scroll] where to scroll the list to once it is in
      * @returns {Promise<boolean>} false when a newer request took its place
      */
-    async run(query) {
+    async run(query, how = 'typed', scroll = 0) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       this.request?.abort();
       const request = new AbortController();
@@ -247,13 +311,165 @@
       const text = await response.text();
       if (request.signal.aborted) return false;
       const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
+      // The step being left keeps where its list was scrolled to.
+      const leaving = this.path.steps[this.path.index];
+      if (leaving && how !== 'typed') leaving.scroll = results.scrollTop;
       results.setHTMLUnsafe(text);
-      results.scrollTop = 0;
+      results.scrollTop = scroll;
       const answer = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
       const code = answer?.dataset.code ?? '';
       const entity = answer?.dataset.entity ?? '';
       this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code, entity } }));
+      if (how !== 'trail') this.remember(query, answer, how, input.value);
       return true;
+    },
+
+    /**
+     * Records a view on the trail.
+     *
+     * @param {URLSearchParams} query
+     * @param {HTMLElement | null} answer the results, which say what they are
+     * @param {How} how
+     * @param {string} typed the text in the field
+     */
+    remember(query, answer, how, typed) {
+      const kind = answer?.dataset.trailKind ?? '';
+      const label = answer?.dataset.trailLabel ?? '';
+      const asked = new URLSearchParams(query);
+      asked.delete('fragment');
+      const typing = how === 'typed' || how === 'submit';
+      const before = this.path;
+      if (!kind) {
+        // An empty search: a search being typed that was cleared goes.
+        if (typing && this.typing) this.path = dropCurrent(this.path);
+        this.typing = false;
+      } else {
+        /** @type {import('../lib/trail.js').Step} */
+        const step = { query: asked.toString(), label, kind };
+        if (asked.has('q')) step.typed = typed;
+        this.path = record(this.path, step, typing && this.typing);
+        // Typing goes on in the same step until Enter, or until something
+        // else is opened.
+        this.typing = how === 'typed';
+      }
+      if (this.path !== before) {
+        this.paintTrail();
+        this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
+      }
+    },
+
+    /**
+     * Goes to a step of the trail.
+     *
+     * @param {number} index
+     */
+    async go(index) {
+      const step = this.path.steps[index];
+      if (!step || index === this.path.index) return;
+      const results = /** @type {HTMLElement | null} */ (this.querySelector('.search__results'));
+      const leaving = this.path.steps[this.path.index];
+      if (leaving && results) leaving.scroll = results.scrollTop;
+      this.path = { ...this.path, index };
+      this.typing = false;
+      this.paintTrail();
+      this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
+      await this.show(step);
+    },
+
+    /**
+     * Shows a step's view again: its search text in the field, its list where
+     * it was scrolled to, and for a guide, the table's notes on the passage.
+     *
+     * @param {import('../lib/trail.js').Step} step
+     */
+    async show(step) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      if (this.collapsed) this.setCollapsed(false);
+      const query = new URLSearchParams(step.query);
+      const guide = query.get('guide');
+      if (guide) {
+        await this.showGuide(guide, this.notesFor?.(guide) ?? [], 'trail');
+        const results = this.querySelector('.search__results');
+        if (results) results.scrollTop = step.scroll ?? 0;
+        return;
+      }
+      input.value = step.typed ?? '';
+      query.set('fragment', 'results');
+      await this.run(query, 'trail', step.scroll ?? 0);
+    },
+
+    /** The trail, to keep with the workspace. */
+    trail() {
+      return {
+        steps: this.path.steps.map(({ query, label, kind, typed }) => (typed ? { query, label, kind, typed } : { query, label, kind })),
+        index: this.path.index,
+      };
+    },
+
+    /**
+     * Puts a trail back, such as a workspace's, and shows its step.
+     *
+     * @param {Trail} trail
+     * @param {boolean} [showStep]
+     */
+    setTrail(trail, showStep = true) {
+      this.path = { steps: trail.steps.map((step) => ({ ...step })), index: trail.index };
+      this.typing = false;
+      this.wholeTrail = false;
+      this.paintTrail();
+      const step = this.path.steps[this.path.index];
+      if (showStep && step) this.show(step);
+    },
+
+    /** Draws the chips, Back and Forward. */
+    paintTrail() {
+      const nav = /** @type {HTMLElement | null} */ (this.querySelector('.search__trail'));
+      const list = this.querySelector('.trail__chips');
+      if (!nav || !list) return;
+      const { steps, index } = this.path;
+      nav.hidden = steps.length === 0;
+      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', index <= 0);
+      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
+      // Four chips fit the panel with their names; "…" shows the rest.
+      const shown = this.wholeTrail ? { start: 0, end: steps.length, before: false, after: false } : windowOf(this.path, CHIPS);
+      const more = !this.wholeTrail && (shown.before || shown.after);
+      nav.classList.toggle('is-whole', this.wholeTrail);
+      /** @param {string} label @param {string} where @param {string} [title] */
+      const chip = (label, where, title) => {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'trail__chip';
+        button.dataset.trail = where;
+        if (title) button.title = title;
+        button.textContent = label;
+        item.append(button);
+        return item;
+      };
+      const items = [];
+      if (more && shown.before) items.push(chip('…', 'all', 'The whole trail'));
+      for (let i = shown.start; i < shown.end; i += 1) {
+        const step = steps[i];
+        const item = chip('', String(i), step.label);
+        const button = /** @type {HTMLButtonElement} */ (item.firstChild);
+        button.classList.add(`trail__chip--${step.kind}`);
+        if (i === index) button.setAttribute('aria-current', 'step');
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('class', 'trail__icon');
+        icon.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `/kinds.svg#${PICTOGRAMS[step.kind] ?? 'search'}`);
+        icon.append(use);
+        const text = document.createElement('span');
+        text.className = 'trail__label';
+        text.textContent = step.label;
+        button.append(icon, text);
+        items.push(item);
+      }
+      if (more && !shown.before && shown.after) items.push(chip('…', 'all', 'The whole trail'));
+      if (this.wholeTrail && steps.length > CHIPS) items.push(chip('Fewer', 'all'));
+      list.replaceChildren(...items);
+      list.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     },
 
     /** @param {PointerEvent} event */
@@ -378,6 +594,97 @@
   :scope:not(:state(keys)) touch-keys {
     display: none;
   }
+  /* The trail: Back, Forward, and the chips of the steps around the one on
+     show, each with the pictogram of its kind. The step on show is lapis. */
+  .search__trail {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem var(--bar-padding);
+    border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
+  }
+  .search__trail[hidden],
+  :scope:state(collapsed) .search__trail {
+    display: none;
+  }
+  .trail__step {
+    flex: none;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    font: 500 1.2rem/1 var(--sans);
+  }
+  .trail__chips {
+    display: flex;
+    flex: 1;
+    gap: 0.25rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    list-style: none;
+  }
+  .search__trail.is-whole .trail__chips {
+    flex-wrap: wrap;
+  }
+  /* The step on show keeps its whole name; the others share what is left,
+     down to their pictogram alone, and their names show on hover. */
+  .trail__chips li {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 2.2rem;
+  }
+  .trail__chips li:has([aria-current]) {
+    flex: none;
+    max-width: 60%;
+  }
+  .search__trail.is-whole .trail__chips li {
+    flex: none;
+  }
+  .trail__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    max-width: 10rem;
+    height: 2.2rem;
+    padding: 0 0.65rem;
+    border: 0;
+    border-radius: 1.1rem;
+    background: var(--tint);
+    color: var(--ink);
+    font: 500 0.55rem/1 var(--sans);
+  }
+  .trail__chip:hover {
+    background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
+  }
+  .trail__chip[aria-current='step'] {
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .trail__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .trail__icon {
+    flex: none;
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+  }
+  .trail__chip--person .trail__icon { color: var(--ochre); }
+  .trail__chip--place .trail__icon { color: var(--verdigris); }
+  .trail__chip--group .trail__icon { color: var(--slate); }
+  .trail__chip--event .trail__icon,
+  .trail__chip--world .trail__icon { color: var(--purple); }
+  .trail__chip--passage .trail__icon,
+  .trail__chip--refs .trail__icon,
+  .trail__chip--word .trail__icon { color: var(--lapis); }
+  .trail__chip--search .trail__icon { color: var(--ink-soft); }
+  .trail__chip[aria-current='step'] .trail__icon {
+    color: inherit;
+  }
   .search__results {
     flex: 1;
     overflow-y: auto;
@@ -398,5 +705,10 @@
   <input id="search-field" type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
   <button type="submit">Search</button>
 </form>
+<nav class="search__trail" aria-label="Where you have been" hidden>
+  <button type="button" class="trail__step" data-trail="back" aria-label="Back" aria-keyshortcuts="Alt+ArrowLeft" disabled>‹</button>
+  <button type="button" class="trail__step" data-trail="forward" aria-label="Forward" aria-keyshortcuts="Alt+ArrowRight" disabled>›</button>
+  <ol class="trail__chips"></ol>
+</nav>
 <touch-keys for="search-field"></touch-keys>
 <div class="search__results"></div>

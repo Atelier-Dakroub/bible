@@ -123,6 +123,7 @@
   import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
   import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
+  import { emptyTrail } from '../lib/trail.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -339,6 +340,8 @@
     guides: [],
     /** @type {Rule[]} */
     rules: [],
+    /** @type {import('../lib/trail.js').Trail | null} a workspace's trail, until the search panel can take it */
+    pendingTrail: null,
     /** @type {Set<string>} the places the map marks for the panel, besides the one on show */
     shownPlaces: new Set(),
     /** @type {HTMLElement | null} the card whose guide is in the panel */
@@ -353,6 +356,16 @@
         this.name = '';
       }
       const workspace = load();
+      // The search panel takes the trail once it is defined: until then the
+      // table keeps it, so a save does not lose it.
+      this.pendingTrail = workspace.trail;
+      customElements.whenDefined('passage-search').then(() => {
+        const panel = /** @type {any} */ (this.querySelector('passage-search'));
+        if (!panel) return;
+        panel.notesFor = (/** @type {string} */ address) => this.notesAt(address);
+        panel.setTrail(this.pendingTrail ?? emptyTrail(), true);
+        this.pendingTrail = null;
+      });
       this.offset = workspace.offset;
       this.highlights = workspace.highlights;
       this.links = workspace.links;
@@ -420,6 +433,9 @@
       // A move of the map inside its frame is kept, but is not a step to undo,
       // as a pan of the table is not.
       this.addEventListener('map-change', () => this.keep(false), options);
+      // A step on the search panel's trail is kept too, and is not a step to
+      // undo either.
+      this.addEventListener('trail-change', () => this.keep(false), options);
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
@@ -872,6 +888,16 @@
         else if (/^[HG]\d/.test(subject)) panel?.searchFor(subject);
         else if (subject.includes(':')) panel?.showEntity(subject);
       }
+    },
+
+    /**
+     * The notes on a passage of a card on the table, by the card's address.
+     *
+     * @param {string} address
+     */
+    notesAt(address) {
+      const card = this.world().querySelector(`gesture-card[data-address="${CSS.escape(address)}"]`);
+      return card instanceof HTMLElement ? this.notesOn(card) : [];
     },
 
     /**
@@ -1705,7 +1731,9 @@
         if (view && view.w < WIDTH) stored.view = { x: round(view.x), y: round(view.y), w: round(view.w) };
         return [stored];
       });
-      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules };
+      const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      const trail = this.pendingTrail ?? (typeof panel?.trail === 'function' ? panel.trail() : emptyTrail());
+      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail };
     },
 
     /**
@@ -1766,6 +1794,9 @@
         this.links = target.links;
         this.notes = target.notes;
         this.rules = target.rules;
+        // An opened workspace brings its trail, and shows its step; an undo
+        // leaves the trail as it is, as it leaves the pan of the table.
+        if (record) /** @type {any} */ (this.querySelector('passage-search'))?.setTrail?.(target.trail, true);
         if (target.offset.x !== this.offset.x || target.offset.y !== this.offset.y) {
           this.offset = target.offset;
           this.paint();

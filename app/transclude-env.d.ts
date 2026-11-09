@@ -58,6 +58,17 @@ type Rule = {
   label: string;
   style: string;
 };
+type Trail = {
+  steps: Step[];
+  index: number;
+};
+type Step = {
+  query: string;
+  label: string;
+  kind: string;
+  typed?: string | undefined;
+  scroll?: number | undefined;
+};
 type Card = HTMLElement & {
   matrix: Matrix;
   hold(id: number, at: Point, scale?: number | undefined): void;
@@ -123,6 +134,7 @@ type Workspace = {
   links: Link[];
   notes: Note[];
   rules: Rule[];
+  trail: Trail;
 };
 type Box = {
   left: number;
@@ -156,6 +168,7 @@ type Pull_2 = {
   y: number;
   down: boolean;
 };
+type How = 'open' | 'submit' | 'trail' | 'typed';
 type LogEntry = {
   t: number;
   type: string;
@@ -328,6 +341,7 @@ export type BibleTableMembers = {
   keepTimer: number;
   guides: Guide[];
   rules: Rule[];
+  pendingTrail: Trail | null;
   shownPlaces: Set<string>;
   guideCard: HTMLElement | null;
   connected({
@@ -383,6 +397,10 @@ export type BibleTableMembers = {
     target: EventTarget | null;
   }): void;
   headingTapped(card: HTMLElement): void;
+  notesAt(address: string): {
+    id: string;
+    text: string;
+  }[];
   notesOn(card: HTMLElement): {
     id: string;
     text: string;
@@ -689,6 +707,13 @@ export type PassageSearchMembers = {
     pull: Pull_2;
     out: boolean;
   } | null;
+  path: Trail;
+  typing: boolean;
+  wholeTrail: boolean;
+  notesFor: ((address: string) => {
+    id: string;
+    text: string;
+  }[]) | null;
   connected({
     signal
   }: {
@@ -702,13 +727,32 @@ export type PassageSearchMembers = {
   showGuide(address: string, notes: {
     id: string;
     text: string;
-  }[]): Promise<void>;
+  }[], how?: How | undefined): Promise<void>;
   searchFor(text: string): void;
   showRules(rules: {
     kind: string;
     value: string;
   }[]): void;
-  run(query?: URLSearchParams | undefined): Promise<boolean>;
+  run(query?: URLSearchParams | undefined, how?: How | undefined, scroll?: number | undefined): Promise<boolean>;
+  remember(query: URLSearchParams, answer: HTMLElement | null, how: How, typed: string): void;
+  go(index: number): Promise<void>;
+  show(step: Step): Promise<void>;
+  trail(): {
+    steps: ({
+      query: string;
+      label: string;
+      kind: string;
+      typed: string;
+    } | {
+      typed?: undefined;
+      query: string;
+      label: string;
+      kind: string;
+    })[];
+    index: number;
+  };
+  setTrail(trail: Trail, showStep?: boolean | undefined): void;
+  paintTrail(): void;
   down(event: PointerEvent): void;
   move(event: PointerEvent): void;
   up(event: PointerEvent): void;
@@ -1156,6 +1200,10 @@ export type SearchData = {
   guide: Guide_2 | null;
   landscape: string;
   rule: RuleOffer | null;
+  trail: {
+    label: string;
+    kind: string;
+  };
 };
 
 /** The `ctx` argument of `table`'s <script server> loader. */

@@ -1,6 +1,7 @@
 <script server>
-  import { entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
+  import { books, entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
   import { guideResults } from '../data/study.js';
+  import { formatReference, parseAddress } from '../lib/reference.js';
 
   export const prerender = false;
 
@@ -8,18 +9,51 @@
   // lists the cross-references of one verse. `word` studies one word address.
   // `entity` shows a person, place, group or event, such as person:david_994.
   // `guide` shows the passage guide for a card's address.
+  //
+  // Each answer also says what it is, for the search panel's research trail
+  // (lib/trail.js): a label and a kind, on the results as data-trail-label
+  // and data-trail-kind. An empty search has no kind, and makes no step.
   export default async ({ url }) => {
     const params = new URL(url).searchParams;
     const refs = params.get('refs');
     const word = params.get('word');
     const entity = params.get('entity');
     const guide = params.get('guide');
-    if (guide) return guideResults(guide);
-    if (entity?.startsWith('world:')) return worldResults(entity);
-    if (entity) return entityResults(entity);
-    if (word) return wordResults(word);
-    return refs ? referenceResults(refs) : search(params.get('q') ?? '');
+    const q = (params.get('q') ?? '').trim();
+    const results = guide
+      ? await guideResults(guide)
+      : entity?.startsWith('world:')
+        ? await worldResults(entity)
+        : entity
+          ? await entityResults(entity)
+          : word
+            ? await wordResults(word)
+            : refs
+              ? await referenceResults(refs)
+              : await search(q);
+    return { ...results, trail: trailOf(results, { refs, q }) };
   };
+
+  /**
+   * The label and kind of an answer, for its chip in the trail.
+   *
+   * @param {Awaited<ReturnType<typeof search>>} results
+   * @param {{ refs: string | null, q: string }} asked
+   */
+  function trailOf(results, { refs, q }) {
+    if (results.guide) return { label: results.guide.title, kind: 'passage' };
+    if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
+    if (results.entry) return { label: `${results.entry.code} ${results.entry.xlit}`, kind: 'word' };
+    if (results.dictionary) return { label: results.dictionary.term, kind: 'word' };
+    if (refs) {
+      const ref = parseAddress(refs, books);
+      return { label: `${ref ? formatReference(ref, books) : refs}, cross-references`, kind: 'refs' };
+    }
+    if (!q) return { label: '', kind: '' };
+    // A reference typed in the field, such as John 3:16, is a passage.
+    if (/^Passage/.test(results.summary)) return { label: q, kind: 'passage' };
+    return { label: `“${q.length > 40 ? `${q.slice(0, 40)}…` : q}”`, kind: 'search' };
+  }
 </script>
 
 <title>Search</title>
@@ -31,7 +65,7 @@
     <button type="submit">Search</button>
   </form>
 
-  <div id="results" fragment class="results" data-code="${entry ? entry.code : ''}" data-entity="${entity ? entity.id : ''}">
+  <div id="results" fragment class="results" data-code="${entry ? entry.code : ''}" data-entity="${entity ? entity.id : ''}" data-trail-label="${trail.label}" data-trail-kind="${trail.kind}">
     <section if="entity" class="entity" aria-label="${entity ? entity.title : ''}">
       <!-- The heading is a result too: pull it out and the entity is a card. -->
       <button type="button" class="entity__title result" data-address="${entity ? entity.id : ''}">${entity ? entity.title : ''}</button>

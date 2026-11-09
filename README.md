@@ -232,6 +232,20 @@ It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
 
+## The research trail
+
+The search panel keeps a trail of what you looked at (`app/lib/trail.js`):
+a row of chips under the field, each with the pictogram of its kind, and ‹
+and › to step back and forward (Alt and the arrow keys too). A tap on a chip
+goes back to that view, and the table's marks, the map and the timeline
+follow, as they did the first time. "…" shows the whole trail.
+
+A new view goes after the one on show, as a browser's page does. A search
+being typed is one step, not one per letter. Opening something that is
+already in the trail goes to its chip and adds nothing. The trail is kept
+with the workspace, so a saved table has its own path; it is not a step for
+Undo.
+
 ## The reading room (the design system)
 
 Every page is in the reading room: warm paper cards on a linen desk,

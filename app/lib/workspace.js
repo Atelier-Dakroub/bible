@@ -2,7 +2,8 @@
 //
 // A card is stored as its id, its address and its matrix, a highlight as two
 // word addresses and a style, a note as its own text and the spans it
-// quotes, and a rule mark as what it marks (app/lib/rules.js). Never the text of the Bible: that comes back from the server by
+// quotes, a rule mark as what it marks (app/lib/rules.js), and the search
+// panel's research trail as the addresses of its views (app/lib/trail.js). Never the text of the Bible: that comes back from the server by
 // address. That keeps the stored state small, and it is the shape a shared or
 // linked workspace will need later.
 //
@@ -20,11 +21,12 @@
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ id: string, text: string, quotes: Span[] }} Note */
 /** @typedef {import('./rules.js').Rule} Rule */
-/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[] }} Workspace */
+/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], trail: import('./trail.js').Trail }} Workspace `trail` is the search panel's research trail (lib/trail.js); like the offset, it is not a step to undo */
 
 import { isWordAddress, STYLES } from './words.js';
 import { sameRule, toRule } from './rules.js';
 import { TYPES } from './links.js';
+import { emptyTrail, toTrail } from './trail.js';
 
 const KEY = 'bible.table.v1';
 const NAMED_KEY = 'bible.workspaces.v1';
@@ -32,7 +34,7 @@ const VERSIONS = ['kjv', 'bsb', 'both'];
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [] };
+  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], trail: emptyTrail() };
 }
 
 /**
@@ -114,7 +116,7 @@ function fromValue(value) {
     const rule = toRule(each);
     if (rule && !rules.some((kept) => sameRule(kept, rule))) rules.push(rule);
   }
-  return { offset, cards, highlights, links, notes, rules };
+  return { offset, cards, highlights, links, notes, rules, trail: toTrail(value.trail) };
 }
 
 /** @returns {Workspace} */
