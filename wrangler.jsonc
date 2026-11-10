@@ -48,7 +48,7 @@
   // (app/lib/access.js). The secret TABLE_TOKEN is set with
   // `npx wrangler secret put TABLE_TOKEN`.
   "vars": {
-    "ACCESS_TEAM": "",
+    "ACCESS_TEAM": "https://falling-breeze-3136.cloudflareaccess.com",
     "ACCESS_AUD": "f5913065fa61f485db13743698f1cd06162f2c1893576647c1b2693e4dc606ef"
   }
 
