@@ -371,6 +371,13 @@
   <script>
     try {
       const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
+      // ?ui=m (or s, l, xl, far) in the address sets the Interface size: a
+      // way back when a size is too large to reach the settings.
+      const asked = new URLSearchParams(location.search).get('ui');
+      if (asked && /^(s|m|l|xl|far)$/.test(asked)) {
+        settings.ui = asked;
+        localStorage.setItem('bible.reading', JSON.stringify(settings));
+      }
       const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout', 'ui'];
       for (const key of keys) {
         const value = settings[key];
@@ -385,15 +392,19 @@
     // not in inches, so the kind is a guess: a phone is narrow; a screen
     // 2560 or more across at one device pixel to the CSS pixel is a large
     // touch panel or wall, read at arm's length (the 32-inch panel); the
-    // rest are laptops, desktops and tablets.
+    // rest are laptops, desktops and tablets. However large the setting, a
+    // rem is at most a 22nd of the window's shorter side, so the panels and
+    // the settings always fit on the screen (on a phone, about 17px).
     globalThis.applyInterfaceSize = () => {
       const short = Math.min(screen.width, screen.height);
       const long = Math.max(screen.width, screen.height);
       const base = short < 600 ? 16 : long >= 2560 ? 24 : 18;
       const scale = { s: 0.85, l: 1.2, xl: 1.5, far: 2 }[document.documentElement.dataset.ui ?? ''] ?? 1;
-      document.documentElement.style.fontSize = Math.round(base * scale) + 'px';
+      const most = Math.min(innerWidth, innerHeight) / 22;
+      document.documentElement.style.fontSize = Math.round(Math.max(12, Math.min(base * scale, most))) + 'px';
     };
     globalThis.applyInterfaceSize();
+    addEventListener('resize', () => globalThis.applyInterfaceSize());
   </script>
   <header class="design__head">
     <p class="rr-kicker">Design system</p>

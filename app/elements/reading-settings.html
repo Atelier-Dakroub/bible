@@ -263,6 +263,12 @@
   .reading__button--l span { width: 1.6rem; height: 0.95rem; font-size: 0.5rem; }
   .reading__button--xl span { width: 2rem; height: 1.2rem; font-size: 0.62rem; }
   .reading__button--far span { width: 2.3rem; height: 1.4rem; font-size: 0.75rem; }
+  /* Far is for a wall; a phone has no room for it. */
+  @media (max-width: 700px), (max-height: 500px) {
+    .reading__grid [data-value='far'] {
+      display: none;
+    }
+  }
   /* Line spacing and layout: lines, drawn. */
   .reading__lines {
     width: 2.4rem;

@@ -401,7 +401,10 @@ knows a screen's size in CSS pixels, not in inches, so the kind is a guess:
 
 Interface, in the Reading sheet, makes the whole interface smaller or larger
 on this device: S, M (the guess), L, XL, and Far, twice M, for a wall seen
-from across the room. Text size is a size on top of it. The controls' text
+from across the room (not offered on a phone). However large the setting, a
+rem is at most a 22nd of the window's shorter side, so the panels and the
+settings always fit. `?ui=m` in the address sets the size back to M. Text
+size is a size on top of it. The controls' text
 is two thirds of the rem, and the rem itself on a phone.
 
 At Far, the table works with a remote's keys (`app/lib/spatial.js`): the
