@@ -196,6 +196,7 @@ npm run dev      # http://localhost:1960
 npm test         # the gesture math, the import parser and the KJV data
 npm run check    # types
 npm run verify   # the tests, the types and a build: the build compiles every template
+npm run deploy   # build, prepare for Cloudflare (tools/build-edge.js) and deploy
 ```
 
 ## Layout
@@ -206,6 +207,9 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
+| `app/data/store.js` | Reads a data file by its name in `app/data`: from the disk under Node, from the static assets on Cloudflare. |
+| `app/server.js` | The app's own endpoints: the table relay and, on Cloudflare, the sync of the named workspaces. |
+| `worker.js`, `edge/`, `wrangler.jsonc` | The app on Cloudflare: the Worker, its two Durable Objects (`table-relay.js`, `workspaces.js`) and its settings. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
@@ -218,6 +222,43 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022; the names of the ranges (`ranges.js`). |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
+
+## On Cloudflare
+
+`npm run deploy` puts the app on Cloudflare Workers, behind Cloudflare
+Access, so only the people that Access lets in can open it.
+
+- **The data is static assets.** The data (about 60 MB of JSON), the map's
+  images and the design page are too large for a Worker, whose code has a
+  limit of 10 MB. `tools/build-edge.js` puts them, with the prerendered
+  pages and the built scripts, in `dist/edge/assets`, which Cloudflare
+  serves before the Worker runs. The Worker renders the rest (cards, the
+  search panel, the endpoints), and reads the data through the assets
+  binding (`app/data/store.js`). A request for `/data` itself goes to the
+  Worker, which has no page there.
+- **Memory.** A Worker has 128 MB. On Cloudflare the caches of the Hebrew
+  and Greek, the BSB and the cross-references keep only their most recently
+  used books, and a search by grammar keeps only the words it finds. The
+  largest search holds about 95 MB.
+- **The plan.** A search of every book takes 0.1 to 0.4 seconds of CPU. The
+  free plan gives a request 10 ms, so the app needs Workers Paid.
+- **The relay** is a Durable Object (`edge/table-relay.js`), because a
+  Worker keeps nothing between requests. A command needs a reader that Access
+  signed in and the secret `TABLE_TOKEN` (`npx wrangler secret put
+  TABLE_TOKEN`).
+- **Saved tables follow the reader.** Each reader's named workspaces are kept
+  in a Durable Object of their own (`edge/workspaces.js`), by the email
+  that Access signed in, and each device sends its own and takes the result
+  (`app/lib/sync.js`): for each name, the one saved last wins, and a
+  deletion is kept as a mark so it reaches every device. The table in use
+  stays on each device.
+- **Access** sends the Worker a signed token with each request, and
+  `app/lib/access.js` checks it against the team's keys:
+  `ACCESS_TEAM` (such as `https://example.cloudflareaccess.com`) and
+  `ACCESS_AUD` (the application's audience tag) in `wrangler.jsonc`.
+  Until they are set, the relay and the sync refuse every request.
+
+To test the Worker on this Mac, `npm run start:worker`.
 
 ## Colors
 
@@ -709,8 +750,10 @@ A command must carry the secret in `TABLE_TOKEN`, from the project's `.env`
 (copy `.env.example` and fill it in): the server listens on the network, so
 the panel can reach it, and a command changes the table. The table tools
 need the app running (`npm run dev`) and a table open; `BIBLE_URL` says
-where the app is, if not `http://127.0.0.1:1960`. On Cloudflare there is no
-relay, and a table stops listening after its first try.
+where the app is, if not `http://127.0.0.1:1960`. For the app on Cloudflare,
+set `BIBLE_URL` to its address, and `CF_ACCESS_CLIENT_ID` and
+`CF_ACCESS_CLIENT_SECRET` to an Access service token that the Access
+application allows (`.env.example`).
 
 Every answer gives addresses (JHN.3.16) beside references, and names its
 sources. To use it in Claude Code, from this folder:

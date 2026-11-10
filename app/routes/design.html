@@ -1,6 +1,7 @@
 <script server>
   import { books, entityView, passage, search, strongsResults } from '../data/bible.js';
   import { mapDetail, mapOf, timeline } from '../data/entities.js';
+  import { load as loadData } from '../data/store.js';
   import { KM_PER_UNIT, nameLevels, project } from '../lib/map.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
   import { ERAS, positionOf, yearLabel } from '../lib/timeline.js';
@@ -72,10 +73,10 @@
       search('love one another', 3),
       strongsResults('H2617', 1),
       mapOf(),
-      import('../data/xrefs/JHN.json', { with: { type: 'json' } }).then((module) => module.default),
+      loadData('xrefs/JHN.json'),
     ]);
     // The relief (tools/import-relief.js): the land at or above each level.
-    const { default: relief } = await import('../data/map/relief.json', { with: { type: 'json' } });
+    const relief = await loadData('map/relief.json');
     const detail = await mapDetail();
 
     // Margin notes from the cross-references: the first three of a verse.

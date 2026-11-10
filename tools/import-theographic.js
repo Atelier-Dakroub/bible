@@ -214,15 +214,9 @@ await mkdir(path.join(out, 'verses'), { recursive: true });
 await writeFile(path.join(out, 'entities.json'), JSON.stringify(entities));
 await writeFile(path.join(out, 'timeline.json'), JSON.stringify(timeline));
 await writeFile(path.join(out, 'easton.json'), JSON.stringify(dictionary));
-const loaderLines = [];
 for (const [, id] of OSIS) {
   await writeFile(path.join(out, 'verses', `${id}.json`), JSON.stringify(byBook.get(id) ?? {}));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
 }
-await writeFile(
-  path.join(out, 'verses', 'index.js'),
-  ['// Written by tools/import-theographic.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
-);
 await writeFile(
   path.join(out, 'source.json'),
   JSON.stringify(

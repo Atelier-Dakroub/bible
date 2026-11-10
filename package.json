@@ -8,12 +8,13 @@
     "start": "node --env-file-if-exists=.env node_modules/.bin/transclude-serve",
     "preview": "npm run build && npm start",
     "check": "transclude-check",
-    "start:worker": "npx wrangler dev",
-    "deploy": "npm run build && npx wrangler deploy",
+    "start:worker": "npm run build:edge && npx wrangler dev",
+    "deploy": "npm run build:edge && npx wrangler deploy",
     "test": "node --test",
     "import:kjv": "node tools/import-kjv.js",
     "mcp": "node tools/mcp-server.js",
-    "verify": "npm test && npm run check && npm run build"
+    "verify": "npm test && npm run check && npm run build",
+    "build:edge": "npm run build && node tools/build-edge.js"
   },
   "dependencies": {
     "@transclude/core": "^1.5.0"

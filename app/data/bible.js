@@ -1,14 +1,11 @@
 // The text, for the server: passages by reference, and search.
 //
-// A book is loaded the first time something asks for it and kept. Search asks
+// A book is loaded the first time something asks for it and kept (on
+// Cloudflare, only the most recent of some kinds: data/store.js). Search asks
 // for all 66, so the first search takes longer than the rest.
 
 import index from './kjv/books.json' with { type: 'json' };
-import { loaders } from './kjv/index.js';
-import { loaders as referenceLoaders } from './xrefs/index.js';
-import { loaders as strongsLoaders } from './strongs/index.js';
-import { loaders as bsbLoaders } from './bsb/index.js';
-import { loaders as originalLoaders } from './original/index.js';
+import { load, loadOr, shelf } from './store.js';
 import { journeysFor } from './journeys.js';
 import { imagesFor } from './images.js';
 import { findBook, formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
@@ -117,18 +114,15 @@ export function answer(fields) {
 
 export const books = index;
 
-/** @type {Map<string, Promise<Book>>} */
-const loaded = new Map();
+// Search reads every book of the KJV, so all are kept.
+const loaded = shelf(Infinity);
 
-/** @param {string} id */
+/**
+ * @param {string} id
+ * @returns {Promise<Book>}
+ */
 export function book(id) {
-  let promise = loaded.get(id);
-  if (!promise) {
-    const load = loaders[/** @type {keyof typeof loaders} */ (id)];
-    promise = load().then((module) => /** @type {Book} */ (module.default));
-    loaded.set(id, promise);
-  }
-  return promise;
+  return loaded(id, () => load(`kjv/${id}.json`));
 }
 
 /**
@@ -201,8 +195,7 @@ export async function phrase(range) {
 /** @typedef {{ style: string, text: string, numbered: boolean, parts: { text: string, d: boolean }[] }} PlainBlock a block of the BSB; `parts` mark the words the KJV does not share */
 /** @typedef {{ verse: WordVerse, bsb: PlainBlock[] }} Row */
 
-/** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
-const bsbBooks = new Map();
+const bsbBooks = shelf(12);
 
 // ---- The original languages (tools/import-original.js) ----
 
@@ -216,8 +209,8 @@ const bsbBooks = new Map();
  */
 /** @typedef {{ id: string, label: string, words: OriginalWord[] }} OriginalVerse */
 
-/** @type {Map<string, Promise<Record<string, (string | number)[][]>>>} */
-const originalBooks = new Map();
+// A search of the grammar reads all 66 books; on Cloudflare 8 are kept.
+const originalBooks = shelf(8);
 /** @type {Promise<Record<string, string>> | null} */
 let grammarCodes = null;
 
@@ -248,18 +241,12 @@ function grammarIn(code, codes) {
  * @returns {Promise<Record<string, (string | number)[][]>>}
  */
 function originalBook(id) {
-  let book = originalBooks.get(id);
-  if (!book) {
-    const load = originalLoaders[/** @type {keyof typeof originalLoaders} */ (id)];
-    book = load ? load().then((module) => /** @type {Record<string, (string | number)[][]>} */ (module.default)) : Promise.resolve({});
-    originalBooks.set(id, book);
-  }
-  return book;
+  return originalBooks(id, () => loadOr(`original/${id}.json`, {}));
 }
 
 /** @returns {Promise<Record<string, string>>} the grammar codes in words */
 function grammarOf() {
-  grammarCodes ??= import('./original/grammar.json', { with: { type: 'json' } }).then((module) => module.default);
+  grammarCodes ??= load('original/grammar.json');
   return grammarCodes;
 }
 
@@ -299,10 +286,12 @@ export async function grammarQuery(text) {
 
 /**
  * The words that answer a search by grammar, verse by verse in canon order:
- * each verse's address, its words, and which of them answer.
+ * each verse's address and the words in it that answer. Only those words are
+ * kept, not their books: a search of every book would otherwise hold the
+ * whole Hebrew and Greek text at once.
  *
  * @param {import('../lib/grammar.js').GrammarQuery} query
- * @returns {Promise<{ address: string, words: (string | number)[][], found: number[] }[]>}
+ * @returns {Promise<{ address: string, words: (string | number)[][] }[]>}
  */
 export async function grammarFind(query) {
   const grammar = await grammarOf();
@@ -327,7 +316,7 @@ export async function grammarFind(query) {
         if (query.language === 'aramaic' && !code.startsWith('A')) return;
         if (test(code)) found.push(n);
       });
-      if (found.length) hits.push({ address, words, found });
+      if (found.length) hits.push({ address, words: found.map((n) => words[n]) });
     }
   }
   return hits;
@@ -361,14 +350,14 @@ export async function grammarResults(text, query, limit = 50) {
     if (!ref) continue;
     const { title, verses } = await passage(ref);
     const greek = books.findIndex((entry) => entry.id === ref.book) >= nt;
-    const codes = new Set(hit.found.map((n) => String(hit.words[n][3])));
+    const codes = new Set(hit.words.map((word) => String(word[3])));
     results.push({
       address: hit.address,
       title,
       parts: verses[0] ? markCode(verses[0], codes) : [],
       // Each word as a word, without the stops and the paragraph mark of the
       // text around it.
-      original: hit.found.map((n) => ({ text: bare(hit.words[n][0]), translit: String(hit.words[n][1]), gloss: bare(hit.words[n][2]) })),
+      original: hit.words.map((word) => ({ text: bare(word[0]), translit: String(word[1]), gloss: bare(word[2]) })),
       lang: greek ? 'grc' : 'hbo',
       dir: greek ? 'ltr' : 'rtl',
     });
@@ -382,8 +371,8 @@ export async function grammarResults(text, query, limit = 50) {
   let total = 0;
   for (const hit of hits) {
     const id = hit.address.split('.')[0];
-    for (const n of hit.found) {
-      const code = String(hit.words[n][3]);
+    for (const word of hit.words) {
+      const code = String(word[3]);
       if (code) perWord.set(code, (perWord.get(code) ?? 0) + 1);
       perBook.set(id, (perBook.get(id) ?? 0) + 1);
       total += 1;
@@ -524,12 +513,8 @@ export function reverse(verses, source) {
  * @returns {Promise<{ title: string, rows: Row[] }>}
  */
 export async function parallel(ref) {
-  let promise = bsbBooks.get(ref.book);
-  if (!promise) {
-    const load = bsbLoaders[/** @type {keyof typeof bsbLoaders} */ (ref.book)];
-    promise = load().then((module) => /** @type {Record<string, { style: string, text: string }[]>} */ (module.default));
-    bsbBooks.set(ref.book, promise);
-  }
+  /** @type {Promise<Record<string, { style: string, text: string }[]>>} */
+  const promise = bsbBooks(ref.book, () => load(`bsb/${ref.book}.json`));
   const [{ title, verses }, bsb] = await Promise.all([passage(ref), promise]);
   const rows = verses.map((verse) => {
     const blocks = bsb[verse.id] ?? [];
@@ -577,8 +562,8 @@ function partsOf(tokens, diff) {
   return parts;
 }
 
-/** @type {Map<string, Promise<Record<string, string>>>} */
-const strongsBooks = new Map();
+// A word study reads every book, so all are kept.
+const strongsBooks = shelf(Infinity);
 
 /**
  * Each verse's Strong's numbers, one per word, "-" for none (tools/import-strongs.js).
@@ -586,13 +571,7 @@ const strongsBooks = new Map();
  * @param {string} id
  */
 export function strongsBook(id) {
-  let promise = strongsBooks.get(id);
-  if (!promise) {
-    const load = strongsLoaders[/** @type {keyof typeof strongsLoaders} */ (id)];
-    promise = load().then((module) => /** @type {Record<string, string>} */ (module.default));
-    strongsBooks.set(id, promise);
-  }
-  return promise;
+  return /** @type {Promise<Record<string, string>>} */ (strongsBooks(id, () => load(`strongs/${id}.json`)));
 }
 
 /** @type {Promise<Record<string, { lemma: string, xlit: string, pron: string, def: string, kjv: string }>> | null} */
@@ -606,7 +585,7 @@ let lexicon = null;
  * @returns {Promise<Entry | null>}
  */
 async function entryFor(code, verseCount) {
-  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  lexicon ??= load('strongs/lexicon.json');
   const found = (await lexicon)[code];
   if (!found) return null;
   const hebrew = code.startsWith('H');
@@ -705,7 +684,7 @@ let used = null;
 export async function lemmaCodes(text) {
   const said = SAID[text.toLowerCase()];
   if (said) return [said];
-  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  lexicon ??= load('strongs/lexicon.json');
   lemmas ??= lemmaIndex(/** @type {Record<string, { xlit: string }>} */ (await lexicon));
   const codes = lemmas.get(plain(text)) ?? [];
   if (codes.length < 2) return codes;
@@ -1127,20 +1106,11 @@ export function verseCount(count) {
 
 /** @typedef {[string, number]} CrossReference a target address and its votes */
 
-/** @type {Map<string, Promise<Record<string, CrossReference[]>>>} */
-const referenceBooks = new Map();
+const referenceBooks = shelf(16);
 
 /** @param {string} id */
 export function referenceBook(id) {
-  let promise = referenceBooks.get(id);
-  if (!promise) {
-    const load = referenceLoaders[/** @type {keyof typeof referenceLoaders} */ (id)];
-    promise = load
-      ? load().then((module) => /** @type {Record<string, CrossReference[]>} */ (module.default))
-      : Promise.resolve({});
-    referenceBooks.set(id, promise);
-  }
-  return promise;
+  return /** @type {Promise<Record<string, CrossReference[]>>} */ (referenceBooks(id, () => loadOr(`xrefs/${id}.json`, {})));
 }
 
 /**
@@ -1244,7 +1214,7 @@ export async function search(query, limit = 50) {
     const codes = await lemmaCodes(text);
     if (codes.length) {
       const [first, ...rest] = codes;
-      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      lexicon ??= load('strongs/lexicon.json');
       const known = await lexicon;
       const also = rest.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
       return { ...(await strongsResults(first, limit)), also };
@@ -1266,7 +1236,7 @@ export async function search(query, limit = 50) {
   if (/^[\p{L}ʼʻ'’-]+$/u.test(text)) {
     const codes = await lemmaCodes(text);
     if (codes.length) {
-      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      lexicon ??= load('strongs/lexicon.json');
       const known = await lexicon;
       also = codes.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
     }

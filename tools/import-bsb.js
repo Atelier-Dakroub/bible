@@ -47,7 +47,6 @@ await mkdir(out, { recursive: true });
 
 let total = 0;
 const missing = [];
-const loaderLines = [];
 
 for (const { id, verses: counts } of books) {
   const file = files.find((name) => name.slice(3, 6) === id && name.endsWith('.usfm'));
@@ -115,13 +114,8 @@ for (const { id, verses: counts } of books) {
   });
   total += Object.keys(result).length;
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(result));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
 }
 
-await writeFile(
-  path.join(out, 'index.js'),
-  ['// Written by tools/import-bsb.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
-);
 await writeFile(
   path.join(out, 'source.json'),
   JSON.stringify(

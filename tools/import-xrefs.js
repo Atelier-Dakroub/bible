@@ -100,13 +100,6 @@ for (const [book, verses] of byBook) {
   await writeFile(path.join(out, `${book}.json`), JSON.stringify(file));
 }
 
-const loaderLines = OSIS.filter(([, id]) => byBook.has(id)).map(
-  ([, id]) => `  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`,
-);
-await writeFile(
-  path.join(out, 'index.js'),
-  ['// Written by tools/import-xrefs.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
-);
 await writeFile(
   path.join(out, 'source.json'),
   JSON.stringify(

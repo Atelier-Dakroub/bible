@@ -397,6 +397,7 @@ export type BibleTableMembers = {
     canUndo(): boolean;
     canRedo(): boolean;
   } | null;
+  syncOff: boolean;
   applying: number;
   later: boolean | null;
   name: string;
@@ -640,6 +641,7 @@ export type BibleTableMembers = {
   openWorkspace(workspace: Workspace, name: string, message: string): Promise<void>;
   setName(name: string): void;
   saveAs(name: string): void;
+  syncWorkspaces(): Promise<void>;
   openNamed(name: string): void;
   exportFile(): void;
   importFile({
@@ -1008,6 +1010,7 @@ export type TableMenuMembers = {
   setHistory(canUndo: boolean, canRedo: boolean): void;
   setName(name: string): void;
   setRules(rules: Rule[]): void;
+  relist(): void;
   refresh(message: string): void;
 };
 
@@ -1275,23 +1278,8 @@ export type DesignData = {
     }[];
     font: number;
     halo: number;
-    relief: {
-      id: string;
-      n: number;
-    }[];
-    shade: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    } | {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    };
+    relief: any;
+    shade: any;
     waters: {
       x: number;
       y: number;
@@ -1318,23 +1306,8 @@ export type DesignData = {
     }[];
     font: number;
     halo: number;
-    relief: {
-      id: string;
-      n: number;
-    }[];
-    shade: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    } | {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    };
+    relief: any;
+    shade: any;
     waters: {
       x: number;
       y: number;
@@ -1342,10 +1315,7 @@ export type DesignData = {
       size: number;
     }[];
   };
-  relief: {
-    id: string;
-    d: string;
-  }[];
+  relief: any[];
   eras: {
     name: string;
     label: string;
@@ -1453,6 +1423,43 @@ export type SearchData = __Shape<{
   fact: null;
   next: number;
 }>;
+
+/** The `ctx` argument of `sources`'s <script server> loader. */
+export type SourcesContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `sources`'s <script server> block. */
+export type SourcesData = {
+  sources: {
+    group: string;
+    items: {
+      name: string;
+      by: string;
+      url: string;
+      license: string;
+      use: string;
+    }[];
+  }[];
+};
 
 /** The `ctx` argument of `table`'s <script server> loader. */
 export type TableContext = {

@@ -9,6 +9,9 @@
 //
 // The table in use is kept under one key. Named workspaces are kept apart,
 // under another, and a workspace can also go out to a file and come back.
+// On Cloudflare the named workspaces are the same on every device
+// (lib/sync.js): a deleted one is kept as a mark with the time, so that the
+// deletion reaches the other devices.
 //
 // localStorage can be missing or full, and a stored value can be old or
 // broken. Every one of those cases gives an empty table, not an error.
@@ -181,8 +184,9 @@ export function diffCards(current, target) {
 // Named workspaces.
 
 /** @typedef {{ name: string, saved: string, workspace: Workspace }} Named */
+/** @typedef {import('./sync.js').Entries} Entries */
 
-/** @returns {Record<string, { saved: string, workspace: any }>} */
+/** @returns {Entries} */
 function readNamed() {
   try {
     const value = JSON.parse(localStorage.getItem(NAMED_KEY) ?? '{}');
@@ -192,7 +196,7 @@ function readNamed() {
   }
 }
 
-/** @param {Record<string, { saved: string, workspace: any }>} all */
+/** @param {Entries} all */
 function writeNamed(all) {
   try {
     localStorage.setItem(NAMED_KEY, JSON.stringify(all));
@@ -209,6 +213,7 @@ function writeNamed(all) {
  */
 export function listNamed() {
   return Object.entries(readNamed())
+    .filter(([, entry]) => entry && !entry.removed)
     .map(([name, entry]) => ({ name, saved: String(entry?.saved ?? '') }))
     .sort((x, y) => (x.saved < y.saved ? 1 : x.saved > y.saved ? -1 : 0));
 }
@@ -230,14 +235,33 @@ export function saveNamed(name, workspace) {
  */
 export function loadNamed(name) {
   const entry = readNamed()[name];
-  return entry ? fromValue(entry.workspace) : null;
+  return entry && !entry.removed ? fromValue(entry.workspace) : null;
 }
 
 /** @param {string} name */
 export function removeNamed(name) {
   const all = readNamed();
-  delete all[name];
+  all[name] = { saved: new Date().toISOString(), removed: true };
   writeNamed(all);
+}
+
+/**
+ * Every named workspace as it is stored, deleted ones included: for
+ * lib/sync.js.
+ *
+ * @returns {Entries}
+ */
+export function namedEntries() {
+  return readNamed();
+}
+
+/**
+ * Keeps the named workspaces that came back from the server.
+ *
+ * @param {Entries} all
+ */
+export function keepNamed(all) {
+  return writeNamed(all);
 }
 
 // Files.
