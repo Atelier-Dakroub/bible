@@ -281,6 +281,32 @@
   }
 
   /**
+   * A line from the edge of a box to a dot: aimed at the dot's middle, and
+   * ending at its rim, so that it points at the dot and the name beside it.
+   * (A line to the facing edge of the dot's box ends at a corner of the box
+   * when it comes in at a slant, beside the dot.)
+   *
+   * @param {DOMRect} from
+   * @param {DOMRect} dot the dot's box
+   * @param {string} kind the class
+   */
+  function lineToDot(from, dot, kind) {
+    const centre = middle(dot);
+    const start = edge(from, centre);
+    const length = Math.hypot(centre.x - start.x, centre.y - start.y);
+    // A little clear of the rim, so the line does not run into the dot.
+    const rim = Math.min(dot.width / 2 + 2, length);
+    const end = length ? { x: centre.x - ((centre.x - start.x) * rim) / length, y: centre.y - ((centre.y - start.y) * rim) / length } : centre;
+    const element = document.createElementNS(SVG, 'line');
+    element.setAttribute('class', kind);
+    element.setAttribute('x1', String(start.x));
+    element.setAttribute('y1', String(start.y));
+    element.setAttribute('x2', String(end.x));
+    element.setAttribute('y2', String(end.y));
+    return element;
+  }
+
+  /**
    * The place in `places` nearest to `from`, on another card when there is one.
    *
    * @param {Place} from
@@ -1218,7 +1244,7 @@
           const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
           if (!dot) continue;
           const box = dot.getBoundingClientRect();
-          if (box.width > 0) lines.push(line(edgeBox, box, 'place'));
+          if (box.width > 0) lines.push(lineToDot(edgeBox, box, 'place'));
         }
       }
       return lines;
