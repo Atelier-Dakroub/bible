@@ -1230,6 +1230,52 @@ gesture-card[data-zoom='far'] .note__text {
 .map__view[data-level='4'] .map__range--near {
   display: inline;
 }
+/* The waters, as an atlas names them: spaced italic capitals in lapis, on
+   the water, and under them the Bible's name in small italic letters. Each
+   shows at its levels of zoom (data/map/waters.js; map-view sets is-named).
+   A name that stands for a place takes a tap, as a dot does. */
+.map__water {
+  display: none;
+  pointer-events: none;
+}
+.map__water.is-named {
+  display: inline;
+}
+.map__water[data-place] text {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.map__water text {
+  fill: color-mix(in srgb, var(--lapis) 70%, var(--sea));
+  font: italic 500 max(0.66rem, 12px) var(--serif);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  paint-order: stroke;
+  stroke: color-mix(in srgb, var(--sea) 75%, transparent);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.map__water--small text {
+  font-size: max(0.56rem, 10px);
+  letter-spacing: 0.14em;
+}
+.map__water text.map__bible {
+  font-size: max(0.56rem, 10px);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.map__water:is(.is-on-table, .is-shown) text {
+  fill: var(--lapis);
+  font-weight: 700;
+}
+/* A water's own dot shows only while a card names it or the panel shows
+   it: its name is on the water. */
+.map__place--water {
+  display: none;
+}
+.map__place--water:is(.is-on-table, .is-shown) {
+  display: inline;
+}
 /* A journey: the route in ochre, the pigment of people, solid by land and
    dashed by sea, with an arrow on each leg and a ring at the start. Its
    name sits in the top left corner, with a × that takes it away. */

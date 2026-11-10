@@ -1301,6 +1301,7 @@ export type DesignData = {
       y: string;
       verses: number;
       peak: boolean;
+      water: boolean;
       r: number;
       dx: number;
       dy: number;
@@ -1344,6 +1345,7 @@ export type DesignData = {
       y: string;
       verses: number;
       peak: boolean;
+      water: boolean;
       r: number;
       dx: number;
       dy: number;

@@ -29,8 +29,9 @@ export { timeline, world };
  *     far: { n: number, d: string }[],
  *     shades: Record<string, { x: number, y: number, w: number, h: number }>
  *   },
- *   places: { id: string, name: string, x: string, y: string, verses: number, peak: boolean }[],
+ *   places: { id: string, name: string, x: string, y: string, verses: number, peak: boolean, water: boolean }[],
  *   ranges: { name: string, scale: string, angle: number, x: string, y: string }[],
+ *   waters: { name: string, bible: string, place: string | null, angle: number, from: number, to: number, small: boolean, x: string, y: string }[],
  *   ancient: {
  *     layers: { id: string, name: string, when: string, kind: string, d: string }[],
  *     shores: { id: string, name: string, when: string, d: string }[]
@@ -88,20 +89,23 @@ export async function mapDetail() {
  * @returns {Promise<BaseMap>}
  */
 export async function mapOf() {
-  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, known, { default: ancient }] = await Promise.all([
+  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, { waters }, known, { default: ancient }] = await Promise.all([
     import('./map/near-east.json', { with: { type: 'json' } }),
     import('./map/relief.json', { with: { type: 'json' } }),
     import('../lib/map.js'),
     import('./map/ranges.js'),
+    import('./map/waters.js'),
     entities(),
     import('./map/ancient.json', { with: { type: 'json' } }),
   ]);
+  // The places that the names of the waters stand for (data/map/waters.js).
+  const named = new Set(waters.flatMap((water) => [water.place ?? '', ...(water.also ?? [])]).filter(Boolean));
   const places = Object.entries(known)
     .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
     .map(([id, place]) => {
       const { x, y } = project(place.lon, place.lat);
       // A mountain is marked as a peak, not a dot.
-      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1), verses: place.verses.length, peak: place.type === 'Mountain' };
+      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1), verses: place.verses.length, peak: place.type === 'Mountain', water: named.has(id) };
     })
     // The least named first, so the most named are drawn on top. The map
     // names the most named first (lib/map.js nameLevels).
@@ -128,6 +132,22 @@ export async function mapOf() {
       .map((range) => {
         const { x, y } = project(range.lon, range.lat);
         return { name: range.name, scale: range.scale, angle: range.angle, x: x.toFixed(1), y: y.toFixed(1) };
+      }),
+    waters: waters
+      .filter((water) => onMap(water.lon, water.lat))
+      .map((water) => {
+        const { x, y } = project(water.lon, water.lat);
+        return {
+          name: water.name,
+          bible: water.bible ?? '',
+          place: water.place ?? null,
+          angle: water.angle,
+          from: water.levels[0],
+          to: water.levels[1],
+          small: Boolean(water.small),
+          x: x.toFixed(1),
+          y: y.toFixed(1),
+        };
       }),
   };
 }

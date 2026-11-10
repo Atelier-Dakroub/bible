@@ -132,3 +132,25 @@ test('the ancient world: seven extents and the shores of four ages, each a path 
   for (const each of [...ancient.layers, ...ancient.shores]) assert.match(each.d, /^M[\d.-]+ [\d.-]+L/);
   assert.match(ancient.license, /ODbL/);
 });
+
+test('the waters are named on the water, at levels the map has, and stand for places it has', async () => {
+  const { waters } = await import('../app/data/map/waters.js');
+  const { books, passage } = await import('../app/data/bible.js');
+  const { parseAddress } = await import('../app/lib/reference.js');
+  const map = await mapOf();
+  assert.equal(map.waters.length, waters.length);
+  const ids = new Set(map.places.map((place) => place.id));
+  for (const water of waters) {
+    assert.ok(water.levels[0] <= water.levels[1] && water.levels[1] < LEVELS.length, water.name);
+    for (const id of [water.place, ...(water.also ?? [])].filter(Boolean)) assert.ok(ids.has(id), `${water.name}: ${id}`);
+    if (water.ref) {
+      const ref = parseAddress(water.ref, books);
+      assert.ok(ref && (await passage(ref)).verses.length === 1, `${water.name}: ${water.ref}`);
+    }
+  }
+  // A water's own dot is marked, so that the map hides it until a card names it.
+  assert.ok(map.places.find((place) => place.id === 'place:salt_sea_1021')?.water);
+  assert.ok(!map.places.find((place) => place.id === 'place:jerusalem_636')?.water);
+  const dead = map.waters.find((water) => water.name === 'Dead Sea');
+  assert.equal(dead?.bible, 'the Salt Sea');
+});

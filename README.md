@@ -121,6 +121,17 @@ countries (Mount Ephraim, the Mountain of Judah, Mount Gilead), in the KJV's
 words and with the verse that names each, only at the closest zoom, where
 there is room among the places.
 
+The seas, gulfs and great lakes have their names on the water, in spaced
+italic capitals in lapis (`app/data/map/waters.js`, placed by hand). Where the
+Bible gives the water a name of its own, that name is under the modern one,
+in the KJV's words: the Mediterranean is "the Great Sea", the Dead Sea "the
+Salt Sea", the Gulf of Suez "the Egyptian Sea", the Ionian Sea "Adria". A
+large sea is named from the whole map, and a small lake or a narrow gulf only
+close in, where it has room. A tap on a name shows the place in the panel.
+The dots that Theographic gives these waters show only while a card names
+them or the panel shows them. The map has no ocean: of the Indian Ocean, only
+the Arabian Sea is inside its frame.
+
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
 verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
@@ -215,7 +226,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
-| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022; the names of the ranges (`ranges.js`). |
+| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022; the names of the ranges (`ranges.js`) and of the waters (`waters.js`). |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -486,6 +497,9 @@ reference with no book, such as "(2:1, 4; 7:7)", is in the book named last,
 as Easton writes it. A word such as "Is" is not taken for a book: a short
 form needs its stop ("Isa."), and a chapter alone ("Gen. 12") too. A verse
 that does not exist stays text. About 25,000 references in Easton are links.
+
+The summary on an entity's card on the table has the same links: a tap puts
+the passage down beside the card.
 
 ## The research trail
 

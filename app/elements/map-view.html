@@ -282,7 +282,8 @@
 
     /** The places, the most named first. */
     places() {
-      return /** @type {SVGGElement[]} */ ([...this.querySelectorAll('.map__place')]).reverse();
+      // A water's own dot is left out: its name is on the water.
+      return /** @type {SVGGElement[]} */ ([...this.querySelectorAll('.map__place:not(.map__place--water)')]).reverse();
     },
 
     /**
@@ -336,6 +337,10 @@
           bottom: y + (font * 0.5) / unit,
         };
       };
+      // The waters named at this level (data/map/waters.js).
+      for (const water of /** @type {NodeListOf<SVGGElement>} */ (this.querySelectorAll('.map__water'))) {
+        water.classList.toggle('is-named', this.level >= Number(water.dataset.from) && this.level <= Number(water.dataset.to));
+      }
       const places = this.places();
       const always = places.filter((place) => place.classList.contains('is-on-table') || place.classList.contains('is-shown'));
       const taken = always.map(box);
