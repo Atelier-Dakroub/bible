@@ -1891,6 +1891,13 @@
         if (verse) /** @type {any} */ (this.querySelector('passage-search'))?.showQuotes(verse);
         return;
       }
+      // A reference in an entity's text, such as "John 3:16": the passage
+      // goes down beside its card.
+      if (button.dataset.cite) {
+        const box = card.getBoundingClientRect();
+        this.place({ address: button.dataset.cite, pointer: { id: -1, x: box.right + ROW_GAP, y: button.getBoundingClientRect().top, down: false } });
+        return;
+      }
       // A person, place or event named on a card, such as on a picture.
       if (button.dataset.entity) {
         /** @type {any} */ (this.querySelector('passage-search'))?.showEntity(button.dataset.entity);

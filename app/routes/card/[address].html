@@ -205,7 +205,18 @@
               <g class="map__mark"><text transform="rotate(${range.angle})" text-anchor="middle" dy="0.35em">${range.name}</text></g>
             </g>
           </g>
-          <g each="place of map ? map.places : []" class="map__place ${place.peak ? 'map__place--peak' : ''}" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
+          <!-- The names of the seas, gulfs and lakes, each at its levels of
+               zoom (map-view); a name the Bible gives the water shows under
+               it. A tap on a name that stands for a place shows the place. -->
+          <g class="map__waters">
+            <g each="water of map ? map.waters : []" class="map__water ${water.small ? 'map__water--small' : ''}" data-place="${water.place}" data-x="${water.x}" data-y="${water.y}" data-from="${water.from}" data-to="${water.to}" transform="translate(${water.x} ${water.y})">
+              <g class="map__mark"><g transform="rotate(${water.angle})">
+                <text text-anchor="middle" dy="${water.bible ? '-0.1em' : '0.35em'}">${water.name}</text>
+                <text if="water.bible" class="map__bible" text-anchor="middle" dy="1.15em">${water.bible}</text>
+              </g></g>
+            </g>
+          </g>
+          <g each="place of map ? map.places : []" class="map__place ${place.peak ? 'map__place--peak' : ''} ${place.water ? 'map__place--water' : ''}" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
             <g class="map__mark">
               <circle r="4"></circle>
               <path if="place.peak" class="map__peak" d="M0 -5.5 L5.5 4 L-5.5 4 Z"></path>
@@ -297,7 +308,7 @@
     </figure>
     <div if="entity" class="entity-card">
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
-      <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>
+      <p if="entity && entity.summary" class="entity__summary"><template each="part of entity ? entity.summaryParts : []"><button if="part.address" type="button" class="cite" data-cite="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </div>
     <!-- A note: the reader's own words, which the table fills in, and the
