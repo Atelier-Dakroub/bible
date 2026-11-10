@@ -17,6 +17,7 @@ import { entities, entity, formatYear, namedIn } from './entities.js';
 import { onMap } from '../lib/map.js';
 import { formatReference, parseAddress, toAddress, versesIn } from '../lib/reference.js';
 import { parseSpanAddress } from '../lib/words.js';
+import { journeysFor } from './journeys.js';
 
 /** @typedef {import('./bible.js').Result} Result */
 /** @typedef {import('./bible.js').Results} Results */
@@ -222,7 +223,7 @@ export async function guideResults(address) {
     mapIds,
     credit,
   };
-  return answer({ summary: `Guide to ${title}: ${verseCount(ids.length)}.`, guide });
+  return answer({ summary: `Guide to ${title}: ${verseCount(ids.length)}.`, guide, journeys: await journeysFor({ address }) });
 }
 
 // The landscape.

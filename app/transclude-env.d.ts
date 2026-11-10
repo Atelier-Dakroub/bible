@@ -16,6 +16,9 @@ type __Cookies = {
     set(name: string, value: string, options?: __CookieOptions): Promise<void>
   }
 };
+type __Shape<T> = {
+  [K in keyof T]: T[K] extends never[] ? any[] : T[K]
+};
 type __CookieOptions = {
   path?: string;
   domain?: string;
@@ -102,6 +105,24 @@ type View = {
   x: number;
   y: number;
   w: number;
+};
+type JourneyView = {
+  id: string;
+  title: string;
+  passage: string;
+  passageTitle: string;
+  years: string;
+  km: number;
+  stops: {
+    place: string;
+    name: string;
+    x: number;
+    y: number;
+    ref: string;
+    refTitle: string;
+    by: string;
+    reading: boolean;
+  }[];
 };
 type Place = {
   card: Element;
@@ -267,6 +288,15 @@ type RuleOffer = {
   value: string;
   label: string;
 };
+type Fact = {
+  text: string;
+  source: string;
+  entity: string;
+  address: string;
+  version: string;
+  search: string;
+  journey: string;
+};
 type PlacedSpan = Span & {
   at: number;
   width: number;
@@ -364,10 +394,11 @@ export type BibleTableMembers = {
   release(event: PointerEvent): void;
   paint(): void;
   place({
-    address, pointer
+    address, pointer, version
   }: {
     address: string;
     pointer: Pull | null;
+    version?: string | undefined;
   }): Promise<void>;
   mark({
     from, to
@@ -423,6 +454,7 @@ export type BibleTableMembers = {
   toggleCard(address: string): Promise<void>;
   openMap(): Promise<void>;
   showOnMap(ids: string): Promise<void>;
+  showJourney(journey: JourneyView): Promise<void>;
   glide(dx: number, dy: number): void;
   paintMap(): void;
   placeLines(): Element[];
@@ -616,6 +648,7 @@ export type MapViewProps = {};
 /** Members of `<map-view>`, from its `export const prototype`. */
 export type MapViewMembers = {
   view: View | null;
+  journey: JourneyView | null;
   points: Map<number, Point_2> | null;
   tap: {
     id: number;
@@ -662,6 +695,8 @@ export type MapViewMembers = {
   trackpad(signal: AbortSignal): void;
   zoomBy(factor: number): Promise<void>;
   key(event: KeyboardEvent): void;
+  showJourney(journey: JourneyView): void;
+  clearJourney(): void;
   act(event: MouseEvent): void;
 };
 
@@ -700,6 +735,7 @@ export type PassageSearchMembers = {
   request: AbortController | null;
   press: {
     address: string;
+    version: string;
     start: {
       x: number;
       y: number;
@@ -728,6 +764,7 @@ export type PassageSearchMembers = {
     id: string;
     text: string;
   }[], how?: How | undefined): Promise<void>;
+  discover(which?: string | undefined): void;
   searchFor(text: string): void;
   showRules(rules: {
     kind: string;
@@ -757,7 +794,7 @@ export type PassageSearchMembers = {
   move(event: PointerEvent): void;
   up(event: PointerEvent): void;
   cancel(event: PointerEvent): void;
-  send(address: string, pointer: Pull_2 | null): void;
+  send(address: string, pointer: Pull_2 | null, version?: string | undefined): void;
 };
 
 /** Properties of `<reading-settings>`, from its <script element> block. */
@@ -1183,7 +1220,7 @@ export type SearchContext = {
 };
 
 /** Data returned by `search`'s <script server> block. */
-export type SearchData = {
+export type SearchData = __Shape<{
   query: string;
   summary: string;
   results: Result[];
@@ -1200,11 +1237,48 @@ export type SearchData = {
   guide: Guide_2 | null;
   landscape: string;
   rule: RuleOffer | null;
+  journeys: JourneyView[];
+  seeAlso: {
+    id: string;
+    title: string;
+    kind: string;
+  }[];
   trail: {
     label: string;
     kind: string;
   };
-};
+  fact: Fact;
+  next: number;
+}> | __Shape<{
+  query: string;
+  summary: string;
+  results: Result[];
+  entry: Entry | null;
+  stats: WordStats | null;
+  entity: EntityView | null;
+  dictionary: {
+    term: string;
+    text: string;
+  } | null;
+  refsFor: string;
+  refsTitle: string;
+  studyCode: string;
+  guide: Guide_2 | null;
+  landscape: string;
+  rule: RuleOffer | null;
+  journeys: JourneyView[];
+  seeAlso: {
+    id: string;
+    title: string;
+    kind: string;
+  }[];
+  trail: {
+    label: string;
+    kind: string;
+  };
+  fact: null;
+  next: number;
+}>;
 
 /** The `ctx` argument of `table`'s <script server> loader. */
 export type TableContext = {

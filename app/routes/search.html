@@ -1,6 +1,7 @@
 <script server>
-  import { books, entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
+  import { answer, books, entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
   import { guideResults } from '../data/study.js';
+  import { didYouKnow } from '../data/facts.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
 
   export const prerender = false;
@@ -20,6 +21,12 @@
     const entity = params.get('entity');
     const guide = params.get('guide');
     const q = (params.get('q') ?? '').trim();
+    // `discover` shows a "Did you know?" (data/facts.js): that number, or a
+    // random one. It is not a step on the trail.
+    if (params.has('discover')) {
+      const { fact, next } = await didYouKnow(Number.parseInt(params.get('discover') ?? '', 10));
+      return { ...answer({}), trail: { label: '', kind: '' }, fact, next };
+    }
     const results = guide
       ? await guideResults(guide)
       : entity?.startsWith('world:')
@@ -31,7 +38,7 @@
             : refs
               ? await referenceResults(refs)
               : await search(q);
-    return { ...results, trail: trailOf(results, { refs, q }) };
+    return { ...results, trail: trailOf(results, { refs, q }), fact: null, next: 0 };
   };
 
   /**
@@ -66,6 +73,20 @@
   </form>
 
   <div id="results" fragment class="results" data-code="${entry ? entry.code : ''}" data-entity="${entity ? entity.id : ''}" data-trail-label="${trail.label}" data-trail-kind="${trail.kind}">
+    <!-- Did you know? A fact worked out from the data, with a way to see it,
+         and Another. -->
+    <section if="fact" class="discover" aria-label="Did you know?">
+      <p class="discover__kicker"><span aria-hidden="true">✦</span> Did you know?</p>
+      <p class="discover__text">${fact ? fact.text : ''}</p>
+      <div class="results__actions">
+        <button if="fact && fact.entity" type="button" class="results__switch" data-entity="${fact ? fact.entity : ''}">Show me</button>
+        <button if="fact && fact.address" type="button" class="results__switch result--pull" data-address="${fact ? fact.address : ''}" data-version="${fact ? fact.version : ''}">Show me</button>
+        <button if="fact && fact.search" type="button" class="results__switch" data-search="${fact ? fact.search : ''}">Show me</button>
+        <button if="fact && fact.journey" type="button" class="results__switch" data-journey="${fact ? fact.journey : ''}">Show me</button>
+        <button type="button" class="results__switch" data-discover="${next}">Another</button>
+      </div>
+      <p class="entity__credit">${fact ? fact.source : ''}</p>
+    </section>
     <section if="entity" class="entity" aria-label="${entity ? entity.title : ''}">
       <!-- The heading is a result too: pull it out and the entity is a card. -->
       <button type="button" class="entity__title result" data-address="${entity ? entity.id : ''}">${entity ? entity.title : ''}</button>
@@ -76,6 +97,9 @@
           <dt>${relation.label}</dt>
           <dd><button each="item of relation.items" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
         </template>
+        <!-- See also: the names most often in the same verses. -->
+        <dt if="seeAlso.length">Often named with</dt>
+        <dd if="seeAlso.length"><button each="item of seeAlso" type="button" class="entity__link entity__link--${item.kind}" data-entity="${item.id}">${item.title}</button></dd>
       </dl>
       <!-- The actions on the entry, side by side, as many to a row as fit. -->
       <div class="results__actions">
@@ -156,6 +180,19 @@
       </dl>
       <button if="guide && guide.mapIds" type="button" class="results__switch" data-show-map="${guide ? guide.mapIds : ''}">Show its places on the map</button>
       <p class="entity__credit">${guide ? guide.credit : ''}</p>
+    </section>
+    <!-- Journeys on the map: a person's, or the ones a passage tells part of.
+         A tap draws the route on the map card (data/journeys.js). -->
+    <section if="journeys.length" class="journeys" aria-label="Journeys on the map">
+      <h3 class="guide__heading">Journeys on the map</h3>
+      <ul class="journeys__list">
+        <li each="journey of journeys">
+          <button type="button" class="journey" data-journey="${JSON.stringify(journey)}">
+            <span class="journey__title">${journey.title}</span>
+            <span class="journey__line">${journey.passageTitle} · ${journey.years} · about ${journey.km.toLocaleString('en')} km</span>
+          </button>
+        </li>
+      </ul>
     </section>
     <button if="studyCode" type="button" class="results__switch" data-strongs="${studyCode}">Original word: ${studyCode}</button>
     <button if="refsFor" type="button" class="results__switch" data-refs="${refsFor}">Cross-references of ${refsTitle}</button>

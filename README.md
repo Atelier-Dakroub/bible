@@ -232,6 +232,27 @@ It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
 
+## Exploring
+
+- **Did you know?** The ✦ at the start of the search panel's trail shows a
+  fact worked out from the data (`app/data/facts.js`): the shortest verse,
+  Methuselah's years, how the KJV renders *chesed*, the Aramaic of Daniel,
+  the length of Paul's journeys. "Show me" opens what it is about; "Another"
+  goes through them all. A panel with nothing on it opens on one.
+- **Often named with:** an entry for a person, place or group lists the
+  others named most often in the same verses, scored so that a name found
+  everywhere (God) gives way to the ones that belong to it (Barnabas, for
+  Paul).
+- **Journeys on the map:** Paul's three journeys and his voyage to Rome
+  (`app/data/journeys.js`), written by hand from Acts, each stop with the
+  verse that names it. Paul's entry, and the guide of a passage of Acts that
+  a journey covers, list them; a tap draws the route on the map: ochre,
+  solid by land, dashed by sea, with an arrow on each leg. The dates are
+  Theographic's events, by Jones's chronology, as the timeline shows them.
+  Where Acts names only a region (Macedonia), the usual city is used and
+  marked as a reading. Places with no coordinates, or passed by at sea, are
+  left out, and a test checks every stop against its verse.
+
 ## The original languages
 
 A passage card has two more versions beside KJV, BSB and Both:

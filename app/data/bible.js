@@ -9,6 +9,7 @@ import { loaders as referenceLoaders } from './xrefs/index.js';
 import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
 import { loaders as originalLoaders } from './original/index.js';
+import { journeysFor } from './journeys.js';
 import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
@@ -59,13 +60,18 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
  *   guide       everything the data has on one passage (data/study.js)
  *   landscape   the address of a landscape card for what is on show, or ""
  *   rule        what the panel can mark on every card, or null
+ *   journeys    journeys on the map: a person's, or the ones a passage tells
+ *               part of (data/journeys.js)
+ *   seeAlso     the people, places, groups and events named most often in
+ *               the same verses as the entity: its "See also"
  *
  * @typedef {{
  *   query: string, summary: string, results: Result[], entry: Entry | null,
  *   stats: WordStats | null, entity: EntityView | null,
  *   dictionary: { term: string, text: string } | null,
  *   refsFor: string, refsTitle: string, studyCode: string,
- *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null
+ *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
+ *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[]
  * }} Results
  */
 
@@ -90,6 +96,8 @@ export function answer(fields) {
     guide: null,
     landscape: '',
     rule: null,
+    journeys: [],
+    seeAlso: [],
     ...fields,
   };
 }
@@ -740,7 +748,50 @@ export async function entityResults(id, limit = 50) {
     ? 'No verses are linked yet.'
     : `${found.kind === 'event' ? 'Told in' : 'Named in'} ${verseCount(total)}${results.length < total ? `. The first ${results.length}, in canon order.` : '.'}`;
   const rule = ['person', 'place', 'group'].includes(found.kind) ? { kind: 'entity', value: id, label: view.title } : null;
-  return answer({ summary, results, entity: view, rule, landscape: total ? `landscape:${id}` : '' });
+  const [journeys, seeAlso] = await Promise.all([
+    found.kind === 'person' ? journeysFor({ person: id }) : [],
+    seeAlsoFor(id, found.verses, view),
+  ]);
+  return answer({ summary, results, entity: view, rule, landscape: total ? `landscape:${id}` : '', journeys, seeAlso });
+}
+
+// How many of an entity's verses "See also" reads: enough to find who is
+// named with whom, quick for God or Jerusalem.
+const SEE_ALSO_VERSES = 800;
+const SEE_ALSO_COUNT = 8;
+
+/**
+ * The entities named most often in the same verses as one entity, leaving out
+ * the ones its own relations already list: its "See also".
+ *
+ * @param {string} id
+ * @param {string[]} addresses its verses
+ * @param {EntityView} view
+ */
+async function seeAlsoFor(id, addresses, view) {
+  const related = new Set(view.relations.flatMap((relation) => relation.items.map((item) => item.id)));
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  const byBook = Map.groupBy(addresses.slice(0, SEE_ALSO_VERSES), (address) => address.split('.')[0]);
+  for (const [book, verses] of byBook) {
+    const named = await namedIn(book).catch(() => ({}));
+    for (const address of verses) {
+      for (const other of /** @type {Record<string, string[]>} */ (named)[address] ?? []) {
+        if (other !== id && !related.has(other)) counts.set(other, (counts.get(other) ?? 0) + 1);
+      }
+    }
+  }
+  // A name shared in many verses counts, but less if it is named everywhere:
+  // the count over the square root of all its verses, so Barnabas comes
+  // before God for Paul.
+  const all = await entities();
+  /** @param {string} other @param {number} count */
+  const score = (other, count) => count / Math.sqrt(Math.max(1, all[other]?.verses.length ?? 1));
+  return [...counts]
+    .filter(([other, count]) => count >= 2 && all[other])
+    .sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]))
+    .slice(0, SEE_ALSO_COUNT)
+    .map(([other]) => ({ id: other, title: all[other].title, kind: all[other].kind }));
 }
 
 /**

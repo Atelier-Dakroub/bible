@@ -453,6 +453,11 @@
       this.addEventListener('toggle-map', () => this.toggleCard(MAP), options);
       this.addEventListener('toggle-books', () => this.toggleCard(BOOKS), options);
       this.addEventListener('show-on-map', (event) => this.showOnMap(/** @type {CustomEvent} */ (event).detail.ids), options);
+      this.addEventListener('show-journey', (event) => this.showJourney(/** @type {CustomEvent} */ (event).detail.journey), options);
+      this.addEventListener('journey-off', () => {
+        this.shownPlaces = new Set();
+        this.paintMap();
+      }, options);
       this.addEventListener('rule-add', (event) => this.setRules(toggleRule(this.rules, /** @type {CustomEvent} */ (event).detail)), options);
       this.addEventListener('rule-remove', (event) => {
         const index = /** @type {CustomEvent} */ (event).detail.index;
@@ -710,10 +715,10 @@
     },
 
     /**
-     * @param {{ address: string, pointer: Pull | null }} detail
+     * @param {{ address: string, pointer: Pull | null, version?: string }} detail
      */
-    async place({ address, pointer }) {
-      const card = await this.fetchCard(address, {});
+    async place({ address, pointer, version }) {
+      const card = await this.fetchCard(address, version ? { version } : {});
       if (!card) return;
       const scale = Number(card.dataset.verses) > LONG ? LONG_SCALE : 1;
       if (pointer?.down) card.hold(pointer.id, pointer, scale);
@@ -1132,6 +1137,22 @@
       const right = Math.max(...boxes.map((box) => /** @type {DOMRect} */ (box).right));
       const bottom = Math.max(...boxes.map((box) => /** @type {DOMRect} */ (box).bottom));
       this.glideTo(new DOMRect(left, top, right - left, bottom - top));
+    },
+
+    /**
+     * Draws a journey on the map: the map comes onto the table if it is not
+     * there, its stops are named, and the view fits the route.
+     *
+     * @param {import('../data/journeys.js').JourneyView} journey
+     */
+    async showJourney(journey) {
+      await this.openMap();
+      const map = this.mapCard();
+      if (!(map instanceof HTMLElement)) return;
+      await customElements.whenDefined('map-view');
+      const frame = /** @type {any} */ (this.mapView(map));
+      frame?.showJourney(journey);
+      await this.showOnMap(journey.stops.map((stop) => stop.place).join(','));
     },
 
     /**

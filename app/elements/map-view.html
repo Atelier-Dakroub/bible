@@ -31,6 +31,11 @@
      again, sharp and with its names placed, when the movement stops. During
      the movement the names grow and shrink with the picture.
 
+     A journey (showJourney, data/journeys.js): its route drawn over the
+     relief, a line from stop to stop, solid by land and dashed by sea, with
+     an arrow on each leg that points the way, and a ring at the start. A
+     label in the corner names it, with a × that takes it away.
+
      The view is { x, y, w } in map units (lib/map.js). The table keeps it
      with the workspace. Events, all bubbling:
        card-paint   the view changed, so the lines to the places move too
@@ -80,6 +85,8 @@
   export const prototype = {
     /** @type {View | null} */
     view: null,
+    /** @type {import('../data/journeys.js').JourneyView | null} the journey drawn, if any */
+    journey: null,
     /** @type {Map<number, Point> | null} pointer id to position, on screen */
     points: null,
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
@@ -537,11 +544,76 @@
       event.stopPropagation();
     },
 
+    /**
+     * Draws a journey's route, and names it in the corner.
+     *
+     * @param {import('../data/journeys.js').JourneyView} journey
+     */
+    showJourney(journey) {
+      this.clearJourney();
+      const svg = this.svg();
+      if (!svg) return;
+      this.journey = journey;
+      const NS = 'http://www.w3.org/2000/svg';
+      /** @param {string} name @param {Record<string, string | number>} attributes */
+      const make = (name, attributes) => {
+        const element = document.createElementNS(NS, name);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+        return element;
+      };
+      const layer = make('g', { class: 'map__journey', 'aria-hidden': 'true' });
+      const { stops } = journey;
+      for (let i = 1; i < stops.length; i += 1) {
+        const a = stops[i - 1];
+        const b = stops[i];
+        if (a.x === b.x && a.y === b.y) continue;
+        layer.append(make('path', { d: `M${a.x} ${a.y}L${b.x} ${b.y}`, class: `map__leg map__leg--${b.by || 'land'}` }));
+        // An arrow at the middle of the leg, in pixels, pointing the way.
+        const turn = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+        const arrow = make('g', { transform: `translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2}) rotate(${turn})` });
+        const mark = make('g', { class: 'map__mark' });
+        mark.append(make('path', { d: 'M-5 -4.5L5 0L-5 4.5z', class: 'map__arrow' }));
+        arrow.append(mark);
+        layer.append(arrow);
+      }
+      if (stops[0]) {
+        const start = make('g', { transform: `translate(${stops[0].x} ${stops[0].y})` });
+        const mark = make('g', { class: 'map__mark' });
+        mark.append(make('circle', { r: 9, class: 'map__start' }));
+        start.append(mark);
+        layer.append(start);
+      }
+      svg.querySelector('.map__place')?.before(layer);
+      const legend = document.createElement('p');
+      legend.className = 'map__legend';
+      const name = document.createElement('span');
+      name.textContent = `${journey.title} · about ${journey.km.toLocaleString('en')} km, in straight legs`;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.dataset.map = 'journey-off';
+      close.setAttribute('aria-label', `Take ${journey.title} off the map`);
+      close.textContent = '×';
+      legend.append(name, close);
+      this.append(legend);
+    },
+
+    /** Takes the journey off the map. */
+    clearJourney() {
+      this.journey = null;
+      this.querySelector('.map__journey')?.remove();
+      this.querySelector('.map__legend')?.remove();
+    },
+
     /** @param {MouseEvent} event */
     act(event) {
       const button = event.target instanceof Element ? event.target.closest('[data-map]') : null;
       if (!(button instanceof HTMLElement)) return;
       const what = button.dataset.map;
+      if (what === 'journey-off') {
+        this.clearJourney();
+        this.dispatchEvent(new CustomEvent('journey-off', { bubbles: true }));
+        return;
+      }
       if (what === 'in') this.zoomBy(BUTTON_ZOOM);
       else if (what === 'out') this.zoomBy(1 / BUTTON_ZOOM);
       else if (what === 'all') this.glideTo(wholeMap());

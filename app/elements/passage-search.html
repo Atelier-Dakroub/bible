@@ -36,6 +36,8 @@
                      stop (app/lib/rules.js)
        place-beside  detail { addresses }: the guide's parallels, beside the card
        show-note     detail { id }: a note on the passage
+       show-journey  detail { journey }: draw a journey on the map
+                     (data/journeys.js JourneyView)
      showRules(rules) shows which offers to mark are on.
 
      After each answer it sends `study` (bubbling) with { code, entity }: the
@@ -89,7 +91,7 @@
     timer: 0,
     /** @type {AbortController | null} */
     request: null,
-    /** @type {{ address: string, start: { x: number, y: number }, pull: Pull, out: boolean } | null} */
+    /** @type {{ address: string, version: string, start: { x: number, y: number }, pull: Pull, out: boolean } | null} */
     press: null,
     /** @type {Trail} */
     path: emptyTrail(),
@@ -138,6 +140,14 @@
         if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
           input.value = strongs.dataset.strongs;
           this.run(undefined, 'open');
+        }
+        const search = target?.closest('[data-search]');
+        if (search instanceof HTMLElement && search.dataset.search) this.searchFor(search.dataset.search);
+        const discover = target?.closest('[data-discover]');
+        if (discover instanceof HTMLElement) this.discover(discover.dataset.discover);
+        const journey = target?.closest('[data-journey]');
+        if (journey instanceof HTMLElement && journey.dataset.journey) {
+          this.dispatchEvent(new CustomEvent('show-journey', { bubbles: true, detail: { journey: JSON.parse(journey.dataset.journey) } }));
         }
         const step = target?.closest('[data-trail]');
         if (step instanceof HTMLElement) {
@@ -267,6 +277,19 @@
       }
       holder.replaceChildren(heading, list);
       holder.hidden = false;
+    },
+
+    /**
+     * Shows a "Did you know?" (data/facts.js): that one, or a random one. It
+     * is not a step on the trail.
+     *
+     * @param {string} [which] the number of the fact
+     */
+    discover(which = 'random') {
+      if (this.collapsed) this.setCollapsed(false);
+      /** @type {HTMLInputElement} */ (this.querySelector('input')).value = '';
+      this.typing = false;
+      this.run(new URLSearchParams({ discover: which, fragment: 'results' }), 'trail');
     },
 
     /** @param {string} text */
@@ -419,6 +442,8 @@
       this.paintTrail();
       const step = this.path.steps[this.path.index];
       if (showStep && step) this.show(step);
+      // With nothing to go back to, the panel opens on a "Did you know?".
+      else if (showStep) this.discover();
     },
 
     /** Draws the chips, Back and Forward. */
@@ -427,7 +452,8 @@
       const list = this.querySelector('.trail__chips');
       if (!nav || !list) return;
       const { steps, index } = this.path;
-      nav.hidden = steps.length === 0;
+      // The row is always there: it holds the ✦ for "Did you know?".
+      nav.hidden = false;
       /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', index <= 0);
       /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
       // Four chips fit the panel with their names; "…" shows the rest.
@@ -478,6 +504,7 @@
       if (!(item instanceof HTMLElement)) return;
       this.press = {
         address: item.dataset.address ?? '',
+        version: item.dataset.version ?? '',
         start: { x: event.clientX, y: event.clientY },
         pull: { id: event.pointerId, x: event.clientX, y: event.clientY, down: true },
         out: false,
@@ -502,7 +529,7 @@
         return;
       }
       press.out = true;
-      this.send(press.address, press.pull);
+      this.send(press.address, press.pull, press.version);
     },
 
     /** @param {PointerEvent} event */
@@ -510,7 +537,7 @@
       const press = this.press;
       if (!press || press.pull.id !== event.pointerId) return;
       press.pull.down = false;
-      if (!press.out) this.send(press.address, null);
+      if (!press.out) this.send(press.address, null, press.version);
       this.press = null;
     },
 
@@ -524,9 +551,10 @@
     /**
      * @param {string} address
      * @param {Pull | null} pointer
+     * @param {string} [version] the version to open it in, such as original
      */
-    send(address, pointer) {
-      this.dispatchEvent(new CustomEvent('place', { bubbles: true, detail: { address, pointer } }));
+    send(address, pointer, version = '') {
+      this.dispatchEvent(new CustomEvent('place', { bubbles: true, detail: { address, pointer, version } }));
     },
   };
 </script>
@@ -606,6 +634,9 @@
   .search__trail[hidden],
   :scope:state(collapsed) .search__trail {
     display: none;
+  }
+  .trail__discover {
+    color: var(--ochre);
   }
   .trail__step {
     flex: none;
@@ -706,6 +737,7 @@
   <button type="submit">Search</button>
 </form>
 <nav class="search__trail" aria-label="Where you have been" hidden>
+  <button type="button" class="trail__step trail__discover" data-discover="random" aria-label="Did you know?" title="Did you know?">✦</button>
   <button type="button" class="trail__step" data-trail="back" aria-label="Back" aria-keyshortcuts="Alt+ArrowLeft" disabled>‹</button>
   <button type="button" class="trail__step" data-trail="forward" aria-label="Forward" aria-keyshortcuts="Alt+ArrowRight" disabled>›</button>
   <ol class="trail__chips"></ol>

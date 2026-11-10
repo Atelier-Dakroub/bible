@@ -840,6 +840,55 @@ gesture-card[data-zoom='far'] .note__text {
   fill: var(--lapis);
   font-weight: 700;
 }
+/* A journey: the route in ochre, the pigment of people, solid by land and
+   dashed by sea, with an arrow on each leg and a ring at the start. Its
+   name sits in the top left corner, with a × that takes it away. */
+.map__leg {
+  fill: none;
+  stroke: var(--ochre);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.map__leg--sea {
+  stroke-dasharray: 7 5;
+}
+.map__arrow {
+  fill: var(--ochre);
+  stroke: var(--paper);
+  stroke-width: 1px;
+}
+.map__start {
+  fill: var(--paper);
+  stroke: var(--ochre);
+  stroke-width: 3px;
+}
+.map__legend {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.15rem 0.2rem 0.15rem 0.7rem;
+  border-left: 0.25rem solid var(--ochre);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  box-shadow: 0 1px 3px var(--shade-near);
+  color: var(--ink);
+  font: 600 0.6rem/1.3 var(--sans);
+}
+.map__legend button {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: 1rem/1 var(--sans);
+}
+
 /* The zoom buttons and the scale bar sit on the map. */
 .map__zoom {
   position: absolute;
@@ -933,6 +982,63 @@ gesture-card[data-compare] .bsb__d {
   cursor: grab;
 }
 
+
+/* Did you know? A fact in the panel, set as a museum's wall text: a small
+   ochre kicker, the fact in the book face, and a way to see it. */
+.discover {
+  padding: 1rem 0.9rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+.discover__kicker {
+  margin: 0 0 0.4rem;
+  color: var(--ochre);
+  font: 700 0.55rem/1.4 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.discover__text {
+  margin: 0;
+  font: calc(0.95rem * var(--read-scale)) / 1.45 var(--serif);
+  text-wrap: pretty;
+}
+
+/* Journeys in the search panel: one row each, with an ochre edge, as the
+   route on the map. */
+.journeys {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.journeys .guide__heading {
+  margin-top: 0;
+}
+.journeys__list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.journey {
+  display: grid;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-left: 0.25rem solid var(--ochre);
+  border-radius: var(--radius-small);
+  background: var(--tint);
+  text-align: start;
+}
+.journey:hover {
+  background: color-mix(in srgb, var(--ochre) 12%, var(--tint));
+}
+.journey__title {
+  font: 600 0.8rem/1.3 var(--serif);
+}
+.journey__line {
+  color: var(--ink-soft);
+  font: 0.55rem/1.4 var(--sans);
+}
 
 /* Word statistics in a word study. */
 .stats {
