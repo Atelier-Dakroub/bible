@@ -841,6 +841,7 @@ gesture-card[data-zoom='far'] .note__text {
 /* A place far from being named: no dot (map-view). */
 .map__place.is-far {
   display: none;
+  opacity: 0;
 }
 /* The dots and names are in pixels: the group is scaled back by the size of
    a map unit (map-view sets --map-unit), so they keep their size at every
@@ -860,6 +861,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__place text {
   display: none;
+  opacity: 0;
   fill: var(--ink);
   font: 600 0.65rem var(--sans);
   /* A paper edge keeps a name readable where it crosses a coast or a
@@ -873,6 +875,7 @@ gesture-card[data-zoom='far'] .note__text {
 @media (hover: hover) {
   .map__place:hover text {
     display: inline;
+    opacity: 1;
   }
   .map__place:hover circle {
     fill: var(--verdigris);
@@ -885,6 +888,33 @@ gesture-card[data-zoom='far'] .note__text {
 .map__place.is-on-table text,
 .map__place.is-shown text {
   display: inline;
+  opacity: 1;
+}
+/* Names and dots cross-fade as the map names more or fewer places at a new
+   level (map-view relabel): each fades in from clear, and fades out before
+   it is hidden. The fade is in the overlay layer, so the land is not drawn
+   again for it. Where a browser cannot transition display (Firefox), a name
+   still fades in, and goes at once. */
+.map__place,
+.map__place text {
+  transition:
+    display 0.3s,
+    opacity 0.3s ease-out;
+  transition-behavior: allow-discrete;
+}
+@starting-style {
+  .map__place,
+  .map__place.is-named text,
+  .map__place.is-on-table text,
+  .map__place.is-shown text {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map__place,
+  .map__place text {
+    transition-duration: 0.1s;
+  }
 }
 .map__place.is-on-table circle {
   r: 6px;

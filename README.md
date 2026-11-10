@@ -467,6 +467,7 @@ The map card is in the reading room's style, and is drawn to be light:
   and this is a quarter of the pixels. The names keep the screen's density.
 - A place shows its dot from one level before its name, so the whole map
   shows about 80 dots, not 1,257; at the closest level every place shows.
+  Names and dots cross-fade as they come and go at a new level.
 
 The relief: `app/data/map/relief.json` holds, for each
 of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or
