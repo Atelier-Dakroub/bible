@@ -354,6 +354,143 @@
       "title": "Petra in Transjordan. Mountains of Petra from Elji",
       "date": "[approximately 1900 to 1920]",
       "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00100/00105r.jpg"
+    },
+    {
+      "pk": "2019698806",
+      "entities": [
+        "place:samaria_1022"
+      ],
+      "caption": "Samaria, a general view",
+      "title": "Northern views. General view of Samaria",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06900/06978r.jpg"
+    },
+    {
+      "pk": "2019695477",
+      "entities": [
+        "place:shiloh_1081"
+      ],
+      "caption": "The site of Shiloh",
+      "title": "Northern views. Site of Shiloh",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05500/05523r.jpg"
+    },
+    {
+      "pk": "2019698795",
+      "entities": [
+        "place:joppa_652"
+      ],
+      "caption": "Jaffa (Joppa) from the sea",
+      "title": "Jaffa (Joppa) and environs. View of Jaffa from the sea",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06500/06513r.jpg"
+    },
+    {
+      "pk": "2019694270",
+      "entities": [
+        "place:caesarea_266"
+      ],
+      "caption": "Caesarea: the castle and the harbour from the north",
+      "title": "Caesarea. (Kaisarieh). The castle and harbour from the north",
+      "date": "1938 June.",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/03900/03969r.jpg"
+    },
+    {
+      "pk": "2019712869",
+      "entities": [
+        "place:salt_sea_1021",
+        "place:jordan_653",
+        "place:moab_815"
+      ],
+      "caption": "The Jordan flows into the Dead Sea, with the mountains of Moab, from the air",
+      "title": "Air views of Palestine. North end of Dead Sea. Jordan entering the Dead Sea. Looking S. showing mts. of Moab in distance",
+      "date": "[1931 Oct.]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/22000/22093r.jpg"
+    },
+    {
+      "pk": "2019695697",
+      "entities": [
+        "place:mount_sinai_855",
+        "place:sinai_1098"
+      ],
+      "caption": "Mount Sinai",
+      "title": "To Sinai via the Red Sea, Tor, and Wady Hebran. Near view of Mount Sinai",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/02000/02008r.jpg"
+    },
+    {
+      "pk": "2019693186",
+      "entities": [
+        "place:mount_nebo_849"
+      ],
+      "caption": "Mount Nebo from the Springs of Moses",
+      "title": "East of the Jordan and Dead Sea. Mt. Nebo from the Springs of Moses",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01700/01705r.jpg"
+    },
+    {
+      "pk": "2019692634",
+      "entities": [
+        "place:damascus_322"
+      ],
+      "caption": "Straight Street, Damascus",
+      "title": "Damascus (Esh-Sham). In Straight Street",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01100/01138r.jpg"
+    },
+    {
+      "pk": "2019692580",
+      "entities": [
+        "place:mount_tabor_857",
+        "place:tabor_1128"
+      ],
+      "caption": "Mount Tabor from the west",
+      "title": "Northern views. Mt. Tabor from the west",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01000/01084r.jpg"
+    },
+    {
+      "pk": "2019694518",
+      "entities": [
+        "place:gethsemane_462",
+        "place:mount_of_olives_861",
+        "place:kidron_687"
+      ],
+      "caption": "The Garden of Gethsemane and the Mount of Olives, across the Kidron",
+      "title": "Garden of Gethsemane & Olivet across Kedron [i.e., Kidron]",
+      "date": "[between 1934 and 1939]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/04200/04218r.jpg"
+    },
+    {
+      "pk": "2019694541",
+      "entities": [
+        "place:siloam_1096",
+        "place:jerusalem_636"
+      ],
+      "caption": "The Pool of Siloam, Jerusalem",
+      "title": "Pool of Siloam",
+      "date": "[between 1934 and 1939]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/04200/04245r.jpg"
+    },
+    {
+      "pk": "2019696610",
+      "entities": [
+        "place:lachish_711"
+      ],
+      "caption": "The mound of Lachish (Tell ed-Duweir)",
+      "title": "Tel Deweir (Lachish)",
+      "date": "1936 Feb. 10.",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/03300/03321r.jpg"
+    },
+    {
+      "pk": "2019695885",
+      "entities": [
+        "place:antioch_68"
+      ],
+      "caption": "Antioch of Syria and Mount Silpius, from the west",
+      "title": "Antioch (Antakiyeh) and environs. Antioch and Mt. Silpius from west",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/02100/02182r.jpg"
     }
   ],
   "met": [
@@ -476,6 +613,22 @@
         "place:egypt_362"
       ],
       "caption": "An Egyptian brick mold, ca. 1550–1300 BC: bricks were made so in Exodus 5"
+    },
+    {
+      "id": 321672,
+      "entities": [
+        "person:esar-haddon_1215",
+        "place:assyria_111"
+      ],
+      "caption": "A clay cylinder inscribed for Esarhaddon, king of Assyria, ca. 680–669 BC"
+    },
+    {
+      "id": 557848,
+      "entities": [
+        "person:darius_978",
+        "place:egypt_362"
+      ],
+      "caption": "Darius I offers to the god Amun: a painted copy of a relief in the temple at Hibis, Egypt, 521–486 BC"
     }
   ]
 }

@@ -495,6 +495,195 @@
   ]
  },
  {
+  "id": "matson-2019698806",
+  "file": "/images/matson-2019698806.jpg",
+  "width": 1100,
+  "height": 893,
+  "caption": "Samaria, a general view",
+  "title": "Northern views. General view of Samaria",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698806/",
+  "entities": [
+   "place:samaria_1022"
+  ]
+ },
+ {
+  "id": "matson-2019695477",
+  "file": "/images/matson-2019695477.jpg",
+  "width": 1100,
+  "height": 820,
+  "caption": "The site of Shiloh",
+  "title": "Northern views. Site of Shiloh",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695477/",
+  "entities": [
+   "place:shiloh_1081"
+  ]
+ },
+ {
+  "id": "matson-2019698795",
+  "file": "/images/matson-2019698795.jpg",
+  "width": 1100,
+  "height": 887,
+  "caption": "Jaffa (Joppa) from the sea",
+  "title": "Jaffa (Joppa) and environs. View of Jaffa from the sea",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698795/",
+  "entities": [
+   "place:joppa_652"
+  ]
+ },
+ {
+  "id": "matson-2019694270",
+  "file": "/images/matson-2019694270.jpg",
+  "width": 1100,
+  "height": 816,
+  "caption": "Caesarea: the castle and the harbour from the north",
+  "title": "Caesarea. (Kaisarieh). The castle and harbour from the north",
+  "date": "1938 June.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019694270/",
+  "entities": [
+   "place:caesarea_266"
+  ]
+ },
+ {
+  "id": "matson-2019712869",
+  "file": "/images/matson-2019712869.jpg",
+  "width": 1100,
+  "height": 723,
+  "caption": "The Jordan flows into the Dead Sea, with the mountains of Moab, from the air",
+  "title": "Air views of Palestine. North end of Dead Sea. Jordan entering the Dead Sea. Looking S. showing mts. of Moab in distance",
+  "date": "1931 Oct.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019712869/",
+  "entities": [
+   "place:salt_sea_1021",
+   "place:jordan_653",
+   "place:moab_815"
+  ]
+ },
+ {
+  "id": "matson-2019695697",
+  "file": "/images/matson-2019695697.jpg",
+  "width": 1100,
+  "height": 567,
+  "caption": "Mount Sinai",
+  "title": "To Sinai via the Red Sea, Tor, and Wady Hebran. Near view of Mount Sinai",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695697/",
+  "entities": [
+   "place:mount_sinai_855",
+   "place:sinai_1098"
+  ]
+ },
+ {
+  "id": "matson-2019693186",
+  "file": "/images/matson-2019693186.jpg",
+  "width": 1100,
+  "height": 804,
+  "caption": "Mount Nebo from the Springs of Moses",
+  "title": "East of the Jordan and Dead Sea. Mt. Nebo from the Springs of Moses",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019693186/",
+  "entities": [
+   "place:mount_nebo_849"
+  ]
+ },
+ {
+  "id": "matson-2019692634",
+  "file": "/images/matson-2019692634.jpg",
+  "width": 1100,
+  "height": 801,
+  "caption": "Straight Street, Damascus",
+  "title": "Damascus (Esh-Sham). In Straight Street",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692634/",
+  "entities": [
+   "place:damascus_322"
+  ]
+ },
+ {
+  "id": "matson-2019692580",
+  "file": "/images/matson-2019692580.jpg",
+  "width": 1100,
+  "height": 808,
+  "caption": "Mount Tabor from the west",
+  "title": "Northern views. Mt. Tabor from the west",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692580/",
+  "entities": [
+   "place:mount_tabor_857",
+   "place:tabor_1128"
+  ]
+ },
+ {
+  "id": "matson-2019694518",
+  "file": "/images/matson-2019694518.jpg",
+  "width": 1100,
+  "height": 820,
+  "caption": "The Garden of Gethsemane and the Mount of Olives, across the Kidron",
+  "title": "Garden of Gethsemane & Olivet across Kedron [i.e., Kidron]",
+  "date": "between 1934 and 1939",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019694518/",
+  "entities": [
+   "place:gethsemane_462",
+   "place:mount_of_olives_861",
+   "place:kidron_687"
+  ]
+ },
+ {
+  "id": "matson-2019694541",
+  "file": "/images/matson-2019694541.jpg",
+  "width": 1100,
+  "height": 818,
+  "caption": "The Pool of Siloam, Jerusalem",
+  "title": "Pool of Siloam",
+  "date": "between 1934 and 1939",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019694541/",
+  "entities": [
+   "place:siloam_1096",
+   "place:jerusalem_636"
+  ]
+ },
+ {
+  "id": "matson-2019696610",
+  "file": "/images/matson-2019696610.jpg",
+  "width": 1100,
+  "height": 811,
+  "caption": "The mound of Lachish (Tell ed-Duweir)",
+  "title": "Tel Deweir (Lachish)",
+  "date": "1936 Feb. 10.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019696610/",
+  "entities": [
+   "place:lachish_711"
+  ]
+ },
+ {
+  "id": "matson-2019695885",
+  "file": "/images/matson-2019695885.jpg",
+  "width": 1100,
+  "height": 814,
+  "caption": "Antioch of Syria and Mount Silpius, from the west",
+  "title": "Antioch (Antakiyeh) and environs. Antioch and Mt. Silpius from west",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695885/",
+  "entities": [
+   "place:antioch_68"
+  ]
+ },
+ {
   "id": "met-322617",
   "file": "/images/met-322617.jpg",
   "width": 559,
@@ -723,6 +912,36 @@
   "credit": "The Metropolitan Museum of Art, Rogers Fund, 1925. Public domain (CC0).",
   "url": "https://www.metmuseum.org/art/collection/search/568270",
   "entities": [
+   "place:egypt_362"
+  ]
+ },
+ {
+  "id": "met-321672",
+  "file": "/images/met-321672.jpg",
+  "width": 1100,
+  "height": 786,
+  "caption": "A clay cylinder inscribed for Esarhaddon, king of Assyria, ca. 680–669 BC",
+  "title": "Cuneiform cylinder: inscription of Esarhaddon, Assyrian",
+  "date": "ca. 680–669 BCE",
+  "credit": "The Metropolitan Museum of Art, Purchase, 1886. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/321672",
+  "entities": [
+   "person:esar-haddon_1215",
+   "place:assyria_111"
+  ]
+ },
+ {
+  "id": "met-557848",
+  "file": "/images/met-557848.jpg",
+  "width": 782,
+  "height": 1100,
+  "caption": "Darius I offers to the god Amun: a painted copy of a relief in the temple at Hibis, Egypt, 521–486 BC",
+  "title": "Darius I Offering to Amun, Temple of Amun at Hibis",
+  "date": "521–486 BCE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1948. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/557848",
+  "entities": [
+   "person:darius_978",
    "place:egypt_362"
   ]
  }
