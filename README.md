@@ -256,6 +256,15 @@ It uses each item's start and end time (P580, P582), else its inception and
 dissolution (P571, P576), in astronomical years. Wikidata is CC0. The script
 makes network requests to query.wikidata.org.
 
+Beside the polities, the track has the rulers the Bible names, as ochre
+bars (Shishak, Tiglath-pileser, Sennacherib, Nebuchadnezzar, Cyrus, the
+Caesars, Pilate: 33), and dated events of the world around it, as purple
+marks (Kadesh, Qarqar, Lachish, Carchemish, the fall of Babylon, Gaugamela:
+9). A reign is the office a ruler held, a monarch's where there is one.
+Seven reigns that Wikidata does not date (Shishak, Tirhakah, Belshazzar,
+Mesha, Herod the Great, Herod Antipas, Artaxerxes I) have the usual dates,
+entered by hand and marked `dates: "conventional"`; their entries say so.
+
 ## Exploring
 
 - **Dates in the text:** a verse where a dated event's passage begins has a

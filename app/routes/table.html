@@ -28,10 +28,11 @@
       world.map((each) => ({
         id: `world:${each.id}`,
         name: each.name,
-        label: `${yearLabel(each.start)} to ${yearLabel(each.end)}`,
+        label: each.start === each.end ? yearLabel(each.start) : `${yearLabel(each.start)} to ${yearLabel(each.end)}`,
         region: each.region,
         start: each.start,
         end: each.end,
+        kind: each.kind ?? 'polity',
       })),
     ),
   });
@@ -133,11 +134,12 @@
             <button
               each="span of lane"
               type="button"
-              class="world__span ${span.outside ? 'is-outside' : ''}"
+              class="world__span world__span--${span.kind} ${span.outside ? 'is-outside' : ''}"
               data-entity="${span.id}"
               data-name="${span.name}"
               style="--at: ${span.at}; --width: ${span.width}"
               title="${span.name}, ${span.label}"
+              aria-label="${span.name}, ${span.kind === 'ruler' ? 'reigned ' : ''}${span.label}"
             >${span.outside ? '' : span.name}</button>
           </div>
         </div>

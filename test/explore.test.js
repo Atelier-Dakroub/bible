@@ -81,3 +81,14 @@ test('the kings reign by four modern chronologies beside Jones', async () => {
   const view = await entityView('event:165');
   assert.ok(view?.facts.some((fact) => fact.includes('Thiele: 931–913 BC')));
 });
+
+test('the world track has the rulers the Bible names and dated events, each with its kind', async () => {
+  const { world } = await import('../app/data/entities.js');
+  const find = (/** @type {string} */ name) => world.find((each) => each.name === name);
+  // Nebuchadnezzar II, 605–562 BC; Qarqar, 853 BC (astronomical years).
+  assert.equal(find('Nebuchadnezzar II')?.kind, 'ruler');
+  assert.equal(find('Nebuchadnezzar II')?.start, -604);
+  assert.equal(find('Battle of Qarqar')?.start, -852);
+  assert.equal(find('Herod the Great')?.dates, 'conventional');
+  assert.ok(world.filter((each) => each.kind === 'polity').length >= 48);
+});

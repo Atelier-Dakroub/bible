@@ -874,10 +874,14 @@ function worldView(id) {
     id,
     kind: 'world',
     title: found.name,
-    facts: ['World history', `${formatYear(found.start)} to ${formatYear(found.end)}`, found.region],
+    facts: [
+      found.kind === 'ruler' ? 'Ruler' : found.kind === 'event' ? 'World event' : 'World history',
+      found.start === found.end ? formatYear(found.start) : `${found.kind === 'ruler' ? 'reigned ' : ''}${formatYear(found.start)} to ${formatYear(found.end)}`,
+      found.region,
+    ],
     summary: '',
     relations: [],
-    credit: `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
+    credit: `${found.dates === 'conventional' ? `Dates: the usual scholarly dates, entered by hand, as Wikidata (${found.id}, CC0) has none` : `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates`}. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
     mapped: false,
   };
 }

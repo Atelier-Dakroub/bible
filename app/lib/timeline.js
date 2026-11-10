@@ -47,7 +47,7 @@ export function yearLabel(year) {
 }
 
 /**
- * @typedef {{ id: string, name: string, label: string, region: string, start: number, end: number }} Span
+ * @typedef {{ id: string, name: string, label: string, region: string, start: number, end: number, kind?: string }} Span `kind` is polity, ruler or event
  * @typedef {Span & { at: number, width: number }} PlacedSpan
  */
 

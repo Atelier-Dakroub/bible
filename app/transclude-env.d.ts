@@ -325,6 +325,7 @@ type Span = {
   region: string;
   start: number;
   end: number;
+  kind?: string | undefined;
 };
 type WordVerse = {
   n: number;

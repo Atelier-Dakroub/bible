@@ -13,7 +13,13 @@
 // scholarly dates, as Wikidata records them; the biblical events beside them
 // follow Floyd Nolen Jones. The app shows both and names both sources.
 //
-// This script makes network requests. It sends the item list and nothing else.
+// Beside the polities, the rulers the Bible names (their reigns: the start
+// and end time of the office they held, a monarch's where they held one)
+// and dated events of the world around it (their point in time, or start
+// and end). Each entry has `kind`: polity, ruler or event.
+//
+// This script makes network requests. It sends the item lists and nothing
+// else.
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -77,6 +83,102 @@ const POLITIES = [
   ['Q7209', 'Han dynasty', 'Africa and Asia'],
 ];
 
+/** [Wikidata item, the name the track shows, region] */
+const RULERS = [
+  ['Q311811', 'Shishak (Shoshenq I)', 'Egypt'],
+  ['Q315714', 'Tirhakah (Taharqa)', 'Egypt'],
+  ['Q125102', 'Necho II', 'Egypt'],
+  ['Q349291', 'Hophra (Apries)', 'Egypt'],
+  ['Q211928', 'Shalmaneser III', 'Mesopotamia'],
+  ['Q210074', 'Tiglath-pileser III', 'Mesopotamia'],
+  ['Q310640', 'Shalmaneser V', 'Mesopotamia'],
+  ['Q208336', 'Sargon II', 'Mesopotamia'],
+  ['Q207140', 'Sennacherib', 'Mesopotamia'],
+  ['Q193912', 'Esarhaddon', 'Mesopotamia'],
+  ['Q171191', 'Ashurbanipal', 'Mesopotamia'],
+  ['Q356505', 'Merodach-baladan', 'Mesopotamia'],
+  ['Q12591', 'Nebuchadnezzar II', 'Mesopotamia'],
+  ['Q313234', 'Evil-merodach (Amel-Marduk)', 'Mesopotamia'],
+  ['Q239414', 'Nabonidus', 'Mesopotamia'],
+  ['Q225198', 'Belshazzar', 'Mesopotamia'],
+  ['Q127170', 'Hazael', 'Levant and Anatolia'],
+  ['Q350258', 'Mesha', 'Levant and Anatolia'],
+  ['Q467115', 'Hiram I', 'Levant and Anatolia'],
+  ['Q51672', 'Herod the Great', 'Levant and Anatolia'],
+  ['Q192950', 'Herod Antipas', 'Levant and Anatolia'],
+  ['Q17131', 'Pontius Pilate', 'Levant and Anatolia'],
+  ['Q8423', 'Cyrus the Great', 'Persia'],
+  ['Q182483', 'Cambyses II', 'Persia'],
+  ['Q44387', 'Darius I', 'Persia'],
+  ['Q129165', 'Xerxes I (Ahasuerus)', 'Persia'],
+  ['Q189689', 'Artaxerxes I', 'Persia'],
+  ['Q3356', 'Antiochus IV Epiphanes', 'Persia'],
+  ['Q8409', 'Alexander the Great', 'Greece and Rome'],
+  ['Q1405', 'Augustus', 'Greece and Rome'],
+  ['Q1407', 'Tiberius', 'Greece and Rome'],
+  ['Q1411', 'Claudius', 'Greece and Rome'],
+  ['Q1413', 'Nero', 'Greece and Rome'],
+];
+
+/** [Wikidata item, the name the track shows, region] */
+const EVENTS = [
+  ['Q203729', 'Battle of Kadesh', 'Levant and Anatolia'],
+  ['Q1059758', 'Bronze Age collapse', 'Levant and Anatolia'],
+  ['Q849474', 'Battle of Qarqar', 'Levant and Anatolia'],
+  ['Q1160074', 'Siege of Lachish', 'Levant and Anatolia'],
+  ['Q1267122', 'Assyrian siege of Jerusalem', 'Levant and Anatolia'],
+  ['Q633560', 'Battle of Carchemish', 'Mesopotamia'],
+  ['Q28169617', 'Fall of Babylon', 'Mesopotamia'],
+  ['Q179670', 'Battle of Gaugamela', 'Persia'],
+  ['Q7930888', 'Maccabean Revolt', 'Levant and Anatolia'],
+];
+
+// Reigns that Wikidata does not date (no start and end on an office held):
+// the usual dates, entered by hand, in astronomical years, and marked as
+// such in the output (`dates: 'conventional'`).
+/** @type {Record<string, [number, number]>} */
+const CONVENTIONAL = {
+  Q311811: [-942, -921], // Shoshenq I, about 943–922 BC
+  Q315714: [-689, -663], // Taharqa, 690–664 BC
+  Q225198: [-552, -538], // Belshazzar, regent about 553–539 BC
+  Q350258: [-849, -829], // Mesha, about 850–830 BC
+  Q51672: [-36, -3], // Herod the Great, 37–4 BC
+  Q192950: [-3, 39], // Herod Antipas, 4 BC to AD 39
+  Q189689: [-464, -423], // Artaxerxes I, 465–424 BC
+};
+
+// A ruler's reigns: each office held (P39) with its start and end, and
+// whether the office is a monarch's (an instance or subclass of monarch,
+// Q116), so Augustus's reign is not his consulship.
+const rulerQuery = `
+SELECT ?item ?start ?end ?monarch WHERE {
+  VALUES ?item { ${RULERS.map(([id]) => `wd:${id}`).join(' ')} }
+  ?item p:P39 ?held .
+  ?held ps:P39 ?office .
+  OPTIONAL { ?held pq:P580 ?start . }
+  OPTIONAL { ?held pq:P582 ?end . }
+  BIND(EXISTS { ?office (wdt:P31|wdt:P279)/wdt:P279* wd:Q116 } AS ?monarch)
+}`;
+
+// An event's point in time, or its start and end.
+const eventQuery = `
+SELECT ?item ?itemLabel ?point ?start ?end WHERE {
+  VALUES ?item { ${EVENTS.map(([id]) => `wd:${id}`).join(' ')} }
+  OPTIONAL { ?item wdt:P585 ?point . }
+  OPTIONAL { ?item wdt:P580 ?start . }
+  OPTIONAL { ?item wdt:P582 ?end . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`;
+
+/** @param {string} text */
+async function ask(text) {
+  const answer = await fetch(`https://query.wikidata.org/sparql?query=${encodeURIComponent(text)}`, {
+    headers: { Accept: 'application/sparql-results+json', 'User-Agent': 'bible-table-research/0.1 (local research app)' },
+  });
+  if (!answer.ok) throw new Error(`Wikidata answered ${answer.status}`);
+  return (await answer.json()).results.bindings;
+}
+
 const query = `
 SELECT ?item ?itemLabel ?inception ?dissolved ?start ?end WHERE {
   VALUES ?item { ${POLITIES.map(([id]) => `wd:${id}`).join(' ')} }
@@ -87,11 +189,7 @@ SELECT ?item ?itemLabel ?inception ?dissolved ?start ?end WHERE {
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`;
 
-const response = await fetch(`https://query.wikidata.org/sparql?query=${encodeURIComponent(query)}`, {
-  headers: { Accept: 'application/sparql-results+json', 'User-Agent': 'bible-table-research/0.1 (local research app)' },
-});
-if (!response.ok) throw new Error(`Wikidata answered ${response.status}`);
-const rows = (await response.json()).results.bindings;
+const rows = await ask(query);
 
 /** An xsd:dateTime from Wikidata to an astronomical year: "-0549-01-01T…" is -549. */
 const year = (/** @type {any} */ value) => (value ? Number.parseInt(value.value, 10) : null);
@@ -118,7 +216,51 @@ for (const [id, name, region] of POLITIES) {
     missing.push(`${name} (${id})`);
     continue;
   }
-  polities.push({ id, name, label: entry.label, region, start: Math.min(...starts), end: Math.max(...ends) });
+  polities.push({ id, name, label: entry.label, region, start: Math.min(...starts), end: Math.max(...ends), kind: 'polity' });
+}
+
+// The rulers: the reign as a monarch where there is one, else every office.
+/** @type {Map<string, { monarch: [number, number][], any: [number, number][] }>} */
+const reigns = new Map();
+for (const row of await ask(rulerQuery)) {
+  const id = row.item.value.split('/').at(-1);
+  const start = year(row.start);
+  const end = year(row.end) ?? start;
+  if (start === null || end === null) continue;
+  const entry = reigns.get(id) ?? { monarch: [], any: [] };
+  (row.monarch?.value === 'true' ? entry.monarch : entry.any).push([start, end]);
+  reigns.set(id, entry);
+}
+for (const [id, name, region] of RULERS) {
+  const entry = reigns.get(id);
+  const spans = entry?.monarch.length ? entry.monarch : (entry?.any ?? []);
+  if (!spans.length) {
+    const usual = CONVENTIONAL[id];
+    if (usual) polities.push({ id, name, label: name, region, start: usual[0], end: usual[1], kind: 'ruler', dates: 'conventional' });
+    else missing.push(`${name} (${id})`);
+    continue;
+  }
+  polities.push({ id, name, label: name, region, start: Math.min(...spans.map(([a]) => a)), end: Math.max(...spans.map(([, b]) => b)), kind: 'ruler' });
+}
+
+// The events: a point in time, or a start and end.
+/** @type {Map<string, { label: string, starts: number[], ends: number[] }>} */
+const happened = new Map();
+for (const row of await ask(eventQuery)) {
+  const id = row.item.value.split('/').at(-1);
+  const entry = happened.get(id) ?? { label: row.itemLabel?.value ?? id, starts: [], ends: [] };
+  for (const key of ['point', 'start']) if (year(row[key]) !== null) entry.starts.push(/** @type {number} */ (year(row[key])));
+  for (const key of ['point', 'end']) if (year(row[key]) !== null) entry.ends.push(/** @type {number} */ (year(row[key])));
+  happened.set(id, entry);
+}
+for (const [id, name, region] of EVENTS) {
+  const entry = happened.get(id);
+  if (!entry?.starts.length) {
+    missing.push(`${name} (${id})`);
+    continue;
+  }
+  const start = Math.min(...entry.starts);
+  polities.push({ id, name, label: entry.label, region, start, end: entry.ends.length ? Math.max(...entry.ends) : start, kind: 'event' });
 }
 
 await mkdir(path.dirname(out), { recursive: true });
@@ -138,4 +280,4 @@ await writeFile(
   ) + '\n',
 );
 
-console.log(`${polities.length} polities written to ${out}.${missing.length ? ` No dates for: ${missing.join(', ')}.` : ''}`);
+console.log(`${polities.length} polities, rulers and events written to ${out}.${missing.length ? ` No dates for: ${missing.join(', ')}.` : ''}`);
