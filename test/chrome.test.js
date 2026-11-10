@@ -79,3 +79,20 @@ test('on a phone the rail is at the bottom, the width of the screen, and nothing
   assert.deepEqual(placed.search, { x: 10, y: 10, w: 380, h: 800 - 2 * 10 - 60 - 10 });
   assert.equal(placed.timeline?.w, 380);
 });
+
+test("the chrome keeps clear of a phone's notch and home bar; the table runs under them", () => {
+  const safe = { top: 47, right: 0, bottom: 34, left: 0 };
+  const placed = layout(input({ phone: true, width: 400, height: 800, rail: { w: 380, h: 60 }, safe, search: { open: true, float: null, expanded: true, w: 400, h: 60 } }));
+  // The rail above the home bar; the search below the notch.
+  assert.equal(placed.rail.y, 800 - 34 - 10 - 60);
+  assert.equal(placed.search?.y, 47 + 10);
+  assert.equal((placed.search?.y ?? 0) + (placed.search?.h ?? 0), placed.rail.y - 10);
+  // In landscape, the notch at the side.
+  const side = layout(input({ safe: { top: 0, right: 0, bottom: 21, left: 59 } }));
+  assert.equal(side.rail.x, 59 + 10);
+  assert.equal(side.search?.x, 59 + 10 + 70 + 10);
+  assert.equal(side.free.left, (side.search?.x ?? 0) + (side.search?.w ?? 0) + 10);
+  // A floating panel stays inside the safe area.
+  const floating = layout(input({ safe: { top: 47, right: 0, bottom: 0, left: 0 }, search: { open: true, float: { x: 300, y: 0 }, expanded: false, w: 400, h: 60 } }));
+  assert.equal(floating.search?.y, 47);
+});

@@ -1040,7 +1040,8 @@
       const width = card instanceof HTMLElement ? card.offsetWidth : 0;
       const fit = width ? Math.min(scale, (innerWidth - 2 * EDGE) / width) : scale;
       const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
-      const top = EDGE + step * 24;
+      // Below the notch: the free part of the screen begins under it.
+      const top = Math.max(EDGE, this.free().top) + step * 24;
       // The grip is GRIP (gesture-card) from the card's corner, at its scale.
       return { at: { x: EDGE + 48 * fit, y: top + 32 * fit }, scale: fit };
     },
@@ -2505,7 +2506,7 @@
   .table__toast {
     position: absolute;
     left: 50%;
-    bottom: 1.5rem;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
     z-index: 3000000;
     margin: 0;
     padding: 0.6rem 1rem;

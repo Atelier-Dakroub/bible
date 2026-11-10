@@ -340,6 +340,32 @@
       return this.cleared ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight } : free;
     },
 
+    /** @type {HTMLElement | null} a hidden element padded by the safe-area insets */
+    probe: null,
+
+    /**
+     * The screen's safe-area insets, in CSS pixels: what a phone's notch,
+     * its rounded corners and its home bar take (0 elsewhere).
+     *
+     * @returns {import('../lib/chrome.js').Insets}
+     */
+    insets() {
+      if (!this.probe) {
+        const probe = document.createElement('div');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.cssText = 'position:fixed;inset:0 auto auto 0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+        document.body.append(probe);
+        this.probe = probe;
+      }
+      const style = getComputedStyle(this.probe);
+      return {
+        top: parseFloat(style.paddingTop) || 0,
+        right: parseFloat(style.paddingRight) || 0,
+        bottom: parseFloat(style.paddingBottom) || 0,
+        left: parseFloat(style.paddingLeft) || 0,
+      };
+    },
+
     arrangeSoon() {
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.arrange());
@@ -380,13 +406,14 @@
       const W = innerWidth;
       const H = innerHeight;
       const gap = Math.round(0.5 * rem);
+      const safe = this.insets();
       // Hidden, the rail is its Show button alone, as large as the button.
       if (this.cleared) this.style.width = '';
       const railBox = this.getBoundingClientRect();
       const rail = { w: railBox.width, h: railBox.height };
       // A first pass at the widths, so the heights can be measured at them.
       const guess = layout({
-        width: W, height: H, gap, phone, edge: settings.edge, rail,
+        width: W, height: H, gap, phone, edge: settings.edge, rail, safe,
         search: { open: this.search, float: settings.float.search, expanded: Boolean(search?.expanded), w: WIDTHS.search * rem, h: 0 },
         timeline: { open: this.timeline, float: settings.float.timeline, w: Math.min(WIDTHS.timeline * rem, W * 0.9), h: 0 },
         tools: { open: this.tools, float: settings.float.tools, w: WIDTHS.tools * rem, h: 0, anchor: { x: 0, y: 0 } },
@@ -397,7 +424,7 @@
       const toolsButton = this.querySelector('[data-action="tools"]')?.getBoundingClientRect();
       const height = (/** @type {HTMLElement | null} */ element) => element?.getBoundingClientRect().height ?? 0;
       const placed = layout({
-        width: W, height: H, gap, phone, edge: settings.edge, rail,
+        width: W, height: H, gap, phone, edge: settings.edge, rail, safe,
         search: { open: this.search, float: settings.float.search, expanded: Boolean(search?.expanded), w: WIDTHS.search * rem, h: height(search) },
         timeline: { open: this.timeline, float: settings.float.timeline, w: Math.min(WIDTHS.timeline * rem, W * 0.9), h: height(strip) },
         tools: {
@@ -418,7 +445,7 @@
       // or the bottom (a phone's too), where a thumb finds it; at the top of
       // a rail on the left or the right, where the rail began.
       const across = phone || settings.edge === 'top' || settings.edge === 'bottom';
-      const x = this.cleared && across ? W - gap - railBox.width : placed.rail.x;
+      const x = this.cleared && across ? W - safe.right - gap - railBox.width : placed.rail.x;
       this.style.left = `${x / zoom}px`;
       this.style.top = `${placed.rail.y / zoom}px`;
       this.style.width = phone && !this.cleared ? `${placed.rail.w / zoom}px` : '';

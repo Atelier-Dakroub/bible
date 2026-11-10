@@ -4,7 +4,10 @@
      (styles/reading-room.css). Night, or the computer's choice, follows the
      reader's setting, which a script applies before the page paints. -->
 <meta name="color-scheme" content="light" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- viewport-fit=cover: the page runs under a phone's notch and home bar;
+     the table's chrome keeps clear of them by the safe-area insets
+     (lib/chrome.js layout, table-rail). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
 <!-- No navigation here. The table fills the screen, so each page brings what
      it needs around itself. -->

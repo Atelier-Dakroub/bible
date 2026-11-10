@@ -32,8 +32,12 @@
   --on-accent: var(--on-pigment);
 }
 
+/* The page runs under a phone's notch and home bar (viewport-fit=cover):
+   its text keeps clear of them. The table is fixed to the whole screen and
+   keeps its own chrome clear (table-rail). */
 body {
   margin: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   background: var(--desk);
   color: var(--ink);
   font: var(--ui-text)/1.6 var(--sans);

@@ -224,6 +224,12 @@ type Box_2 = {
   w: number;
   h: number | null;
 };
+type Insets = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+};
 type LogEntry = {
   t: number;
   type: string;
@@ -1159,6 +1165,8 @@ export type TableRailMembers = {
     right: number;
     bottom: number;
   };
+  probe: HTMLElement | null;
+  insets(): Insets;
   arrangeSoon(): void;
   arrange(): void;
   railDown(event: PointerEvent): void;

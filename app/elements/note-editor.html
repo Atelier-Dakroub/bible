@@ -98,7 +98,7 @@
   :scope {
     position: absolute;
     right: 0;
-    bottom: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     left: 0;
     z-index: 2000001;
     display: none;
@@ -121,7 +121,7 @@
      from the bottom. */
   @media (max-width: 700px), (max-height: 500px) {
     :scope {
-      top: 0.5rem;
+      top: calc(0.5rem + env(safe-area-inset-top, 0px));
       bottom: auto;
     }
   }

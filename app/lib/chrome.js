@@ -104,9 +104,14 @@ export const upright = (edge) => edge === 'left' || edge === 'right';
  *   rail: { w: number, h: number },
  *   search: { open: boolean, float: Point | null, expanded: boolean, w: number, h: number },
  *   timeline: { open: boolean, float: Point | null, w: number, h: number },
- *   tools: { open: boolean, float: Point | null, w: number, h: number, anchor: Point }
- * }} LayoutInput the screen, the edge, and each part's own size as measured
+ *   tools: { open: boolean, float: Point | null, w: number, h: number, anchor: Point },
+ *   safe?: Insets
+ * }} LayoutInput the screen, the edge, each part's own size as measured, and
+ *   the screen's safe-area insets (a phone's notch and home bar), which the
+ *   chrome keeps clear of
  */
+
+/** @typedef {{ top: number, right: number, bottom: number, left: number }} Insets */
 
 /**
  * @typedef {{
@@ -133,12 +138,43 @@ function kept(at, w, h, width, height) {
 }
 
 /**
- * Where each part of the chrome goes.
+ * Where each part of the chrome goes: laid out inside the screen's safe
+ * area, so the notch and the home bar cover none of it, while the table
+ * itself runs to the screen's edges.
  *
  * @param {LayoutInput} input
  * @returns {Layout}
  */
 export function layout(input) {
+  const s = input.safe ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  /** @param {Point | null} p */
+  const into = (p) => (p ? { x: p.x - s.left, y: p.y - s.top } : null);
+  const inner = place({
+    ...input,
+    width: input.width - s.left - s.right,
+    height: input.height - s.top - s.bottom,
+    search: { ...input.search, float: into(input.search.float) },
+    timeline: { ...input.timeline, float: into(input.timeline.float) },
+    tools: { ...input.tools, float: into(input.tools.float), anchor: /** @type {Point} */ (into(input.tools.anchor)) },
+  });
+  /** @template {Box | null} T @param {T} box @returns {T} */
+  const out = (box) => (box ? { ...box, x: box.x + s.left, y: box.y + s.top } : box);
+  return {
+    rail: out(inner.rail),
+    search: out(inner.search),
+    timeline: out(inner.timeline),
+    tools: out(inner.tools),
+    free: { left: inner.free.left + s.left, right: inner.free.right + s.left, top: inner.free.top + s.top, bottom: inner.free.bottom + s.top },
+  };
+}
+
+/**
+ * The layout inside a rectangle from 0, 0 (the safe area).
+ *
+ * @param {LayoutInput} input
+ * @returns {Layout}
+ */
+function place(input) {
   const { width: W, height: H, gap: g, phone } = input;
   // A phone has the rail at the bottom, the width of the screen, and each
   // panel is a sheet above it, the width of the screen too; nothing floats.
