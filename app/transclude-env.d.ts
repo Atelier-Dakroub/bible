@@ -97,7 +97,10 @@ type Pull = {
 type MapView = HTMLElement & {
   view: View | null;
   setView(view: View): void;
-  fit(ids: string[]): Promise<void>;
+  fit(ids: string[], more?: {
+    x: number;
+    y: number;
+  }[] | undefined): Promise<void>;
   shows(id: string): boolean;
   relabel(): void;
 };
@@ -109,6 +112,8 @@ type View = {
 type JourneyView = {
   id: string;
   title: string;
+  route: string;
+  basis: string;
   passage: string;
   passageTitle: string;
   years: string;
@@ -122,6 +127,7 @@ type JourneyView = {
     refTitle: string;
     by: string;
     reading: boolean;
+    proposed: boolean;
   }[];
 };
 type Place = {
@@ -487,7 +493,10 @@ export type BibleTableMembers = {
   mapView(card?: Element | null | undefined): MapView | null;
   toggleCard(address: string): Promise<void>;
   openMap(): Promise<void>;
-  showOnMap(ids: string): Promise<void>;
+  showOnMap(ids: string, more?: {
+    x: number;
+    y: number;
+  }[] | undefined): Promise<void>;
   showJourney(journey: JourneyView): Promise<void>;
   glide(dx: number, dy: number): void;
   paintMap(): void;
@@ -725,7 +734,10 @@ export type MapViewMembers = {
   relabel(): void;
   setView(view: View): void;
   glideTo(target: View): Promise<void>;
-  fit(ids: string[]): Promise<void>;
+  fit(ids: string[], more?: {
+    x: number;
+    y: number;
+  }[] | undefined): Promise<void>;
   shows(id: string): boolean;
   fraction(at: Point_2): {
     x: number;

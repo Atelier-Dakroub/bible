@@ -229,8 +229,9 @@
       <ul class="journeys__list">
         <li each="journey of journeys">
           <button type="button" class="journey" data-journey="${JSON.stringify(journey)}">
-            <span class="journey__title">${journey.title}</span>
-            <span class="journey__line">${journey.passageTitle} · ${journey.years} · about ${journey.km.toLocaleString('en')} km</span>
+            <span class="journey__title">${journey.title}${journey.route ? ' · ' + journey.route : ''}</span>
+            <span class="journey__line">${journey.passageTitle}${journey.years ? ' · ' + journey.years : ''} · about ${journey.km.toLocaleString('en')} km</span>
+            <span if="journey.basis" class="journey__basis">${journey.basis}</span>
           </button>
         </li>
       </ul>

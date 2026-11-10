@@ -901,12 +901,12 @@ gesture-card[data-zoom='far'] .note__text {
   stroke-width: calc(1 / var(--map-unit, 1));
   stroke-dasharray: calc(4 / var(--map-unit, 1)) calc(2 / var(--map-unit, 1));
 }
-/* The Show choice, in the frame's bottom right corner. */
+/* The Show choice, under the zoom buttons, at the frame's right. */
 .map__show {
   position: absolute;
+  top: calc(0.9rem + max(1.5rem, 24px));
   right: 0.5rem;
-  bottom: 0.5rem;
-  max-width: calc(100% - 12rem);
+  max-width: min(14rem, calc(100% - 1rem));
   min-height: 24px;
   padding: 0.15rem 0.4rem;
   border: 1px solid var(--edge);
@@ -1072,6 +1072,21 @@ gesture-card[data-zoom='far'] .note__text {
   stroke: var(--paper);
   stroke-width: 1px;
 }
+/* A proposed site on a journey's route: an ochre ring, its name in
+   italics. */
+.map__proposed circle {
+  fill: var(--paper);
+  stroke: var(--ochre);
+  stroke-width: 2.5px;
+}
+.map__proposed text {
+  fill: var(--ochre);
+  font: italic 600 0.65rem var(--sans);
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
 .map__start {
   fill: var(--paper);
   stroke: var(--ochre);
@@ -1081,6 +1096,8 @@ gesture-card[data-zoom='far'] .note__text {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
+  /* Clear of the zoom buttons at the top right; a long name wraps. */
+  max-width: calc(100% - 12rem);
   display: flex;
   align-items: center;
   gap: 0.3rem;
@@ -1325,6 +1342,11 @@ gesture-card[data-compare] .bsb__d {
 .journey__line {
   color: var(--ink-soft);
   font: max(0.55rem, 11px)/1.4 var(--sans);
+}
+/* What a route rests on: who proposes it, or what text. */
+.journey__basis {
+  color: var(--ink-soft);
+  font: italic max(0.55rem, 11px)/1.4 var(--serif);
 }
 
 /* Word statistics in a word study. */

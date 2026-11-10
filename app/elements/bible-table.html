@@ -134,7 +134,7 @@
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
-  /** @typedef {HTMLElement & { view: import('../lib/map.js').View | null, setView(view: import('../lib/map.js').View): void, fit(ids: string[]): Promise<void>, shows(id: string): boolean, relabel(): void }} MapView */
+  /** @typedef {HTMLElement & { view: import('../lib/map.js').View | null, setView(view: import('../lib/map.js').View): void, fit(ids: string[], more?: { x: number, y: number }[]): Promise<void>, shows(id: string): boolean, relabel(): void }} MapView */
   /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void, zoomAt(at: Point, factor: number): void, turnAt(at: Point, radians: number): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
@@ -1265,8 +1265,9 @@
      * the screen: right of the search panel, above the timeline.
      *
      * @param {string} ids place ids, with commas between, such as place:damascus_310
+     * @param {{ x: number, y: number }[]} [more] other points the map's view takes in, in map units
      */
-    async showOnMap(ids) {
+    async showOnMap(ids, more = []) {
       const list = String(ids).split(',').filter(Boolean);
       await this.openMap();
       const map = this.mapCard();
@@ -1275,7 +1276,7 @@
       this.paintMap();
       this.raise(map);
       await customElements.whenDefined('map-view');
-      await this.mapView()?.fit(list);
+      await this.mapView()?.fit(list, more);
 
       const boxes = list
         .map((id) => map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect())
@@ -1304,7 +1305,10 @@
       await customElements.whenDefined('map-view');
       const frame = /** @type {any} */ (this.mapView(map));
       frame?.showJourney(journey);
-      await this.showOnMap(journey.stops.map((stop) => stop.place).join(','));
+      // The stops that are places are marked; a proposed site has none, so
+      // map-view draws it with the route, and the view takes it in too.
+      const proposed = journey.stops.filter((stop) => stop.proposed).map(({ x, y }) => ({ x, y }));
+      await this.showOnMap(journey.stops.map((stop) => stop.place).filter(Boolean).join(','), proposed);
     },
 
     /**

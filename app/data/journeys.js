@@ -11,13 +11,53 @@
 //   by      how Paul came to it: 'land' or 'sea' (the first stop has none)
 //   reading true where Acts names only a region and the city is the usual
 //           reading of it, such as Macedonia for Philippi; the map says so
+//   point   in place of `place`, a site Theographic does not have, such as
+//           a proposed Mount Sinai: its name, its longitude and latitude
+//           (approximate: the map says so), and `named`, the word the verse
+//           uses for it
 // Places Acts names only in passing, or that have no coordinates (Chios,
 // Salmone, Clauda, Lasea), are left out; the route goes straight past them.
 // A leg is a straight line, as an atlas draws a route at this scale: the
 // real roads and sea lanes curve.
+//
+// A journey that scholars trace in more than one way has `routes`: every
+// route proposed, each with its name and what it rests on, in place of one
+// list of stops. The panel offers each, and the map draws the one chosen.
 
-/** @typedef {{ place: string, ref: string, by?: 'land' | 'sea', reading?: boolean }} Stop */
-/** @typedef {{ id: string, title: string, person: string, passage: string, event: string, startOnly?: boolean, stops: Stop[] }} Journey `event` is Theographic's event for it, which gives its date by Jones's chronology, as the timeline does */
+/** @typedef {{ name: string, lon: number, lat: number, named: string }} Point */
+/** @typedef {{ place?: string, point?: Point, ref: string, by?: 'land' | 'sea', reading?: boolean }} Stop */
+/** @typedef {{ id: string, name: string, basis: string, stops: Stop[] }} Route */
+/** @typedef {{ id: string, title: string, person: string, passage: string, event?: string, startOnly?: boolean, stops?: Stop[], routes?: Route[] }} Journey `event` is Theographic's event for it, which gives its date by Jones's chronology, as the timeline does */
+
+/** The Exodus as far as Etham: the same on every route. @type {Stop[]} */
+const OUT_OF_EGYPT = [
+  { place: 'place:rameses_980', ref: 'EXO.12.37' },
+  { place: 'place:succoth_1114', ref: 'EXO.12.37', by: 'land' },
+  { place: 'place:etham_417', ref: 'EXO.13.20', by: 'land' },
+];
+
+/** From Kadesh to the plains of Moab, round Edom: the same on most routes. @type {Stop[]} */
+const TO_MOAB = [
+  { place: 'place:kadesh-barnea_663', ref: 'NUM.32.8', by: 'land' },
+  { place: 'place:mount_hor_842', ref: 'NUM.20.22', by: 'land' },
+  { place: 'place:arnon_92', ref: 'NUM.21.13', by: 'land' },
+  { place: 'place:shittim_1086', ref: 'NUM.25.1', by: 'land' },
+  { place: 'place:mount_nebo_849', ref: 'DEU.34.1', by: 'land' },
+];
+
+/** Abraham in Canaan and Egypt, from Haran on. @type {Stop[]} */
+const ABRAHAM_IN_CANAAN = [
+  { place: 'place:haran_527', ref: 'GEN.11.31', by: 'land' },
+  { place: 'place:shechem_1069', ref: 'GEN.12.6', by: 'land' },
+  { place: 'place:bethel_202', ref: 'GEN.12.8', by: 'land' },
+  { place: 'place:negeb_885', ref: 'GEN.12.9', by: 'land', reading: true },
+  { point: { name: 'Egypt (the Delta)', lon: 31.6, lat: 30.85, named: 'Egypt' }, ref: 'GEN.12.10', by: 'land' },
+  { place: 'place:bethel_202', ref: 'GEN.13.3', by: 'land' },
+  { place: 'place:hebron_551', ref: 'GEN.13.18', by: 'land' },
+  { place: 'place:gerar_459', ref: 'GEN.20.1', by: 'land' },
+  { place: 'place:beersheba_170', ref: 'GEN.21.31', by: 'land' },
+  { place: 'place:moriah_821', ref: 'GEN.22.2', by: 'land' },
+];
 
 /** @type {Journey[]} */
 export const journeys = [
@@ -127,21 +167,162 @@ export const journeys = [
       { place: 'place:rome_1013', ref: 'ACT.28.16', by: 'land' },
     ],
   },
+  {
+    id: 'abraham',
+    title: "Abraham's journey",
+    person: 'person:abraham_58',
+    passage: 'GEN.11.31-13.18',
+    event: 'event:71',
+    routes: [
+      {
+        id: 'south',
+        name: 'From Ur in the south',
+        basis: 'Ur as Tell el-Muqayyar in southern Mesopotamia, as Leonard Woolley identified it, up the Euphrates to Haran.',
+        stops: [{ place: 'place:ur_1189', ref: 'GEN.11.31' }, ...ABRAHAM_IN_CANAAN],
+      },
+      {
+        id: 'north',
+        name: 'From a northern Ur',
+        basis: 'Ur as a northern city near Haran, at Urfa (Şanlıurfa), as Cyrus Gordon and others proposed.',
+        stops: [{ point: { name: 'Ur at Urfa', lon: 38.79, lat: 37.16, named: 'Ur' }, ref: 'GEN.11.31' }, ...ABRAHAM_IN_CANAAN],
+      },
+    ],
+  },
+  {
+    id: 'jacob',
+    title: "Jacob's journey to Haran and back",
+    person: 'person:israel_682',
+    passage: 'GEN.28.10-35.27',
+    stops: [
+      { place: 'place:beersheba_170', ref: 'GEN.28.10' },
+      { place: 'place:bethel_202', ref: 'GEN.28.19', by: 'land' },
+      { place: 'place:haran_527', ref: 'GEN.29.4', by: 'land' },
+      { place: 'place:gilead_475', ref: 'GEN.31.21', by: 'land' },
+      { place: 'place:mahanaim_756', ref: 'GEN.32.2', by: 'land' },
+      { place: 'place:penuel_931', ref: 'GEN.32.31', by: 'land' },
+      { place: 'place:succoth_1113', ref: 'GEN.33.17', by: 'land' },
+      { place: 'place:shechem_1069', ref: 'GEN.33.18', by: 'land' },
+      { place: 'place:bethel_202', ref: 'GEN.35.6', by: 'land' },
+      { place: 'place:ephrath_403', ref: 'GEN.35.19', by: 'land' },
+      { place: 'place:mamre_762', ref: 'GEN.35.27', by: 'land' },
+    ],
+  },
+  {
+    id: 'exodus',
+    title: 'The Exodus',
+    person: 'person:moses_2108',
+    passage: 'EXO.12.37-19.2',
+    event: 'event:125',
+    startOnly: true,
+    routes: [
+      {
+        id: 'south',
+        name: 'The southern route',
+        basis: 'The route held since the fourth century: the sea crossed near the Gulf of Suez, and Mount Sinai at Jebel Musa, in the south of the peninsula.',
+        stops: [
+          ...OUT_OF_EGYPT,
+          { place: 'place:pi-hahiroth_948', ref: 'EXO.14.2', by: 'land' },
+          { place: 'place:marah_765', ref: 'EXO.15.23', by: 'sea' },
+          { place: 'place:elim_369', ref: 'EXO.15.27', by: 'land' },
+          { place: 'place:sin_1097', ref: 'EXO.16.1', by: 'land' },
+          { place: 'place:rephidim_996', ref: 'EXO.17.1', by: 'land' },
+          { point: { name: 'Mount Sinai at Jebel Musa', lon: 33.975, lat: 28.539, named: 'Sinai' }, ref: 'EXO.19.2', by: 'land' },
+          { place: 'place:ezion-geber_423', ref: 'NUM.33.35', by: 'land' },
+          ...TO_MOAB,
+        ],
+      },
+      {
+        id: 'north',
+        name: 'The northern route',
+        basis: 'The sea crossed by the coast at Lake Bardawil, the Sirbonian lake, and Mount Sinai in the north of the peninsula, at Jebel Helal.',
+        stops: [
+          ...OUT_OF_EGYPT,
+          { place: 'place:migdol_799', ref: 'EXO.14.2', by: 'land' },
+          { point: { name: 'Lake Bardawil', lon: 33.1, lat: 31.15, named: 'sea' }, ref: 'EXO.14.22', by: 'land' },
+          { place: 'place:shur_1090', ref: 'EXO.15.22', by: 'sea' },
+          { point: { name: 'Mount Sinai at Jebel Helal', lon: 33.95, lat: 30.67, named: 'Sinai' }, ref: 'EXO.19.2', by: 'land' },
+          ...TO_MOAB,
+        ],
+      },
+      {
+        id: 'central',
+        name: 'The central route',
+        basis: 'The sea crossed at the Bitter Lakes, and Mount Sinai at Har Karkom in the Negev, as Emmanuel Anati proposed.',
+        stops: [
+          ...OUT_OF_EGYPT,
+          { point: { name: 'The Bitter Lakes', lon: 32.37, lat: 30.35, named: 'sea' }, ref: 'EXO.14.22', by: 'land' },
+          { place: 'place:shur_1090', ref: 'EXO.15.22', by: 'sea' },
+          { point: { name: 'Mount Sinai at Har Karkom', lon: 34.74, lat: 30.29, named: 'Sinai' }, ref: 'EXO.19.2', by: 'land' },
+          ...TO_MOAB,
+        ],
+      },
+      {
+        id: 'arabia',
+        name: 'The Arabian route',
+        basis: 'The sea crossed at the Gulf of Aqaba, from Nuweiba, and Mount Sinai in Midian, at Jebel al-Lawz, reading “mount Sinai in Arabia” (Galatians 4:25).',
+        stops: [
+          ...OUT_OF_EGYPT,
+          { point: { name: 'Nuweiba', lon: 34.66, lat: 28.98, named: 'sea' }, ref: 'EXO.14.22', by: 'land' },
+          { point: { name: 'The shore of Midian', lon: 34.83, lat: 28.93, named: 'sea' }, ref: 'EXO.14.29', by: 'sea' },
+          { point: { name: 'Mount Sinai at Jebel al-Lawz', lon: 35.31, lat: 28.65, named: 'Sinai' }, ref: 'EXO.19.2', by: 'land' },
+          { place: 'place:ezion-geber_423', ref: 'NUM.33.35', by: 'land' },
+          ...TO_MOAB.slice(1),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'jesus-jerusalem',
+    title: "Jesus' last journey to Jerusalem",
+    person: 'person:jesus_905',
+    passage: 'LUK.9.51-19.28',
+    event: 'event:432',
+    routes: [
+      {
+        id: 'samaria',
+        name: 'Through Samaria',
+        basis: 'Through Samaria, as Luke tells it (Luke 9:51–53; 17:11), and down to Jericho.',
+        stops: [
+          { place: 'place:capernaum_274', ref: 'MRK.9.33' },
+          { place: 'place:samaria_1022', ref: 'LUK.17.11', by: 'land' },
+          { place: 'place:jericho_634', ref: 'LUK.19.1', by: 'land' },
+          { place: 'place:bethany_186', ref: 'JHN.12.1', by: 'land' },
+          { place: 'place:jerusalem_636', ref: 'LUK.19.28', by: 'land' },
+        ],
+      },
+      {
+        id: 'perea',
+        name: 'Through Perea',
+        basis: 'East of the Jordan, through Perea, as Matthew and Mark tell it (Matthew 19:1; Mark 10:1), crossing back at Jericho.',
+        stops: [
+          { place: 'place:capernaum_274', ref: 'MRK.9.33' },
+          { point: { name: 'Perea, beyond Jordan', lon: 35.66, lat: 32.3, named: 'side of Jordan' }, ref: 'MRK.10.1', by: 'land' },
+          { place: 'place:bethany_187', ref: 'JHN.10.40', by: 'land', reading: true },
+          { place: 'place:jericho_634', ref: 'MRK.10.46', by: 'land' },
+          { place: 'place:bethany_186', ref: 'MRK.11.1', by: 'land' },
+          { place: 'place:jerusalem_636', ref: 'MRK.11.1', by: 'land' },
+        ],
+      },
+    ],
+  },
 ];
 
 /**
- * A journey, ready for the map and the panel: each stop with its place's
- * name and position in map units, and the length of the route in km.
+ * A journey, ready for the map and the panel: one route of it, each stop
+ * with its name and position in map units, and the length of the route in
+ * km. A journey with several routes is one view for each; `route` names
+ * it, and `basis` says what it rests on. A stop at a proposed site that
+ * Theographic does not have is `proposed`, and has no place.
  *
  * @typedef {{
- *   id: string, title: string, passage: string, passageTitle: string, years: string, km: number,
- *   stops: { place: string, name: string, x: number, y: number, ref: string, refTitle: string, by: string, reading: boolean }[]
+ *   id: string, title: string, route: string, basis: string, passage: string, passageTitle: string, years: string, km: number,
+ *   stops: { place: string, name: string, x: number, y: number, ref: string, refTitle: string, by: string, reading: boolean, proposed: boolean }[]
  * }} JourneyView
  */
 
 /**
  * @param {Journey} journey
- * @returns {Promise<JourneyView>}
+ * @returns {Promise<JourneyView[]>}
  */
 async function view(journey) {
   const [{ entities }, { project, KM_PER_UNIT }, { books }, { formatReference, parseAddress }] = await Promise.all([
@@ -153,24 +334,39 @@ async function view(journey) {
   const known = await entities();
   // The date, from the journey's event: by Jones's chronology, as the
   // timeline shows it. A duration is such as 1Y or 4Y.
-  const event = known[journey.event];
+  const event = journey.event ? known[journey.event] : null;
   const start = typeof event?.start === 'number' ? event.start : null;
   const length = Number(/^(\d+)Y$/.exec(String(event?.duration ?? ''))?.[1] ?? 0);
-  const years = start === null ? '' : `AD ${start}${length && !journey.startOnly ? `–${start + length}` : ''}, by Jones`;
+  const year = (/** @type {number} */ at) => (at <= 0 ? `${1 - at} BC` : `AD ${at}`);
+  const years = start === null ? '' : `${year(start)}${length && !journey.startOnly ? `–${year(start + length).replace(/^AD /, '')}` : ''}, by Jones`;
   /** @param {string} address */
   const title = (address) => {
     const ref = parseAddress(address, books);
     return ref ? formatReference(ref, books) : address;
   };
-  const stops = journey.stops.flatMap((stop) => {
-    const place = known[stop.place];
-    if (!place || place.lat === null || place.lon === null) return [];
-    const { x, y } = project(place.lon, place.lat);
-    return [{ place: stop.place, name: place.title, x, y, ref: stop.ref, refTitle: title(stop.ref), by: stop.by ?? '', reading: Boolean(stop.reading) }];
+  const routes = journey.routes ?? [{ id: '', name: '', basis: '', stops: journey.stops ?? [] }];
+  return routes.map((route) => {
+    const stops = route.stops.flatMap((stop) => {
+      const at = stop.point ?? known[stop.place ?? ''];
+      if (!at || at.lat === null || at.lon === null) return [];
+      const { x, y } = project(at.lon, at.lat);
+      const name = stop.point ? stop.point.name : at.title;
+      return [{ place: stop.place ?? '', name, x, y, ref: stop.ref, refTitle: title(stop.ref), by: stop.by ?? '', reading: Boolean(stop.reading), proposed: Boolean(stop.point) }];
+    });
+    let km = 0;
+    for (let i = 1; i < stops.length; i += 1) km += Math.hypot(stops[i].x - stops[i - 1].x, stops[i].y - stops[i - 1].y) * KM_PER_UNIT;
+    return {
+      id: route.id ? `${journey.id}:${route.id}` : journey.id,
+      title: journey.title,
+      route: route.name,
+      basis: route.basis,
+      passage: journey.passage,
+      passageTitle: title(journey.passage),
+      years,
+      km: Math.round(km / 10) * 10,
+      stops,
+    };
   });
-  let km = 0;
-  for (let i = 1; i < stops.length; i += 1) km += Math.hypot(stops[i].x - stops[i - 1].x, stops[i].y - stops[i - 1].y) * KM_PER_UNIT;
-  return { id: journey.id, title: journey.title, passage: journey.passage, passageTitle: title(journey.passage), years, km: Math.round(km / 10) * 10, stops };
 }
 
 /**
@@ -194,5 +390,5 @@ export async function journeysFor({ person, address }) {
     const told = verses(journey.passage);
     return [...asked].some((verse) => told.has(verse));
   });
-  return Promise.all(found.map(view));
+  return (await Promise.all(found.map(view))).flat();
 }

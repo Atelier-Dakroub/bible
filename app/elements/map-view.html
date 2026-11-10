@@ -406,15 +406,18 @@
     },
 
     /**
-     * Glides to a view that shows the places.
+     * Glides to a view that shows the places, and any other points (in map
+     * units), such as a journey's proposed sites.
      *
      * @param {string[]} ids
+     * @param {{ x: number, y: number }[]} [more]
      */
-    fit(ids) {
+    fit(ids, more = []) {
       const points = ids.flatMap((id) => {
         const place = this.querySelector(`[data-place="${CSS.escape(id)}"]`);
         return place instanceof SVGElement ? [{ x: Number(place.dataset.x), y: Number(place.dataset.y) }] : [];
       });
+      points.push(...more);
       return points.length ? this.glideTo(fitView(points)) : Promise.resolve();
     },
 
@@ -715,6 +718,19 @@
         arrow.append(mark);
         layer.append(arrow);
       }
+      // A proposed site, which is not one of the map's places: its own dot
+      // and name, in italics, as the legend says it is placed roughly.
+      for (const stop of stops) {
+        if (!stop.proposed) continue;
+        const at = make('g', { transform: `translate(${stop.x} ${stop.y})`, class: 'map__proposed' });
+        const mark = make('g', { class: 'map__mark' });
+        mark.append(make('circle', { r: 5 }));
+        const name = make('text', { x: 9, y: 5 });
+        name.textContent = stop.name;
+        mark.append(name);
+        at.append(mark);
+        layer.append(at);
+      }
       if (stops[0]) {
         const start = make('g', { transform: `translate(${stops[0].x} ${stops[0].y})` });
         const mark = make('g', { class: 'map__mark' });
@@ -727,7 +743,8 @@
       const legend = document.createElement('p');
       legend.className = 'map__legend';
       const name = document.createElement('span');
-      name.textContent = `${journey.title} · about ${journey.km.toLocaleString('en')} km, in straight legs`;
+      const proposed = journey.stops.some((stop) => stop.proposed) ? '; names in italics are proposed sites, placed roughly' : '';
+      name.textContent = `${journey.title}${journey.route ? ` · ${journey.route}` : ''} · about ${journey.km.toLocaleString('en')} km, in straight legs${proposed}`;
       const close = document.createElement('button');
       close.type = 'button';
       close.dataset.map = 'journey-off';

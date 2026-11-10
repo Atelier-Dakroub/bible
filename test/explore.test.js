@@ -5,22 +5,39 @@ import { entities } from '../app/data/entities.js';
 import { facts, didYouKnow } from '../app/data/facts.js';
 import { entityResults } from '../app/data/bible.js';
 
-test('every stop of every journey is a place on the map, named in its verse', async () => {
+test('every stop of every route is a place on the map, named in its verse', async () => {
   const known = await entities();
+  const { passage, books, plainText } = await import('../app/data/bible.js');
+  const { parseAddress } = await import('../app/lib/reference.js');
   for (const journey of journeys) {
-    for (const stop of journey.stops) {
-      const place = known[stop.place];
-      assert.ok(place, `${journey.id}: ${stop.place}`);
-      assert.ok(place.lat !== null && place.lon !== null, `${journey.id}: ${stop.place} has no coordinates`);
-      // The verse names the place, or names the region the stop reads it from.
-      if (!stop.reading) assert.ok(place.verses.includes(stop.ref), `${journey.id}: ${place.title} is not in ${stop.ref}`);
+    for (const route of journey.routes ?? [{ id: '', stops: journey.stops ?? [] }]) {
+      for (const stop of route.stops) {
+        const where = `${journey.id}${route.id ? `:${route.id}` : ''}`;
+        if (stop.point) {
+          // A proposed site: on the map, and the verse names it.
+          const ref = parseAddress(stop.ref, books);
+          assert.ok(ref, `${where}: ${stop.ref}`);
+          const text = plainText((await passage(ref)).verses[0]).toLowerCase();
+          assert.ok(text.includes(stop.point.named.toLowerCase()), `${where}: ${stop.ref} does not name ${stop.point.named}`);
+          continue;
+        }
+        const place = known[stop.place ?? ''];
+        assert.ok(place, `${where}: ${stop.place}`);
+        assert.ok(place.lat !== null && place.lon !== null, `${where}: ${stop.place} has no coordinates`);
+        // The verse names the place, or names the region the stop reads it from.
+        if (!stop.reading) assert.ok(place.verses.includes(stop.ref), `${where}: ${place.title} is not in ${stop.ref}`);
+      }
     }
-    assert.ok(known[journey.event]?.kind === 'event', `${journey.id}: ${journey.event}`);
+    if (journey.event) assert.ok(known[journey.event]?.kind === 'event', `${journey.id}: ${journey.event}`);
   }
+  // Every route proposed for the Exodus, each with what it rests on.
+  const exodus = await journeysFor({ person: 'person:moses_2108' });
+  assert.deepEqual(exodus.map((each) => each.route), ['The southern route', 'The northern route', 'The central route', 'The Arabian route']);
+  assert.ok(exodus.every((each) => each.basis && each.years.endsWith('BC, by Jones')));
   const viewed = await journeysFor({ person: 'person:paul_2479' });
   assert.equal(viewed.length, 4);
   for (const journey of viewed) {
-    assert.equal(journey.stops.length, journeys.find((each) => each.id === journey.id)?.stops.length);
+    assert.equal(journey.stops.length, journeys.find((each) => each.id === journey.id)?.stops?.length);
     assert.ok(journey.km > 1000, `${journey.title}: ${journey.km} km`);
     assert.match(journey.years, /^AD \d+/);
   }

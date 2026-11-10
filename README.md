@@ -292,6 +292,16 @@ entered by hand and marked `dates: "conventional"`; their entries say so.
   Where Acts names only a region (Macedonia), the usual city is used and
   marked as a reading. Places with no coordinates, or passed by at sea, are
   left out, and a test checks every stop against its verse.
+- **Journeys with every proposed route:** Abraham's (from Ur in the south,
+  or from a northern Ur at Urfa), Jacob's to Haran and back, the Exodus
+  (the southern route to Jebel Musa, the northern by Lake Bardawil to Jebel
+  Helal, the central by the Bitter Lakes to Har Karkom, and the Arabian
+  across the Gulf of Aqaba to Jebel al-Lawz), and Jesus' last journey to
+  Jerusalem (through Samaria, or through Perea). The panel lists each route
+  with what it rests on, and the map draws the one tapped. A proposed site
+  that Theographic does not have (a Mount Sinai, Lake Bardawil, Nuweiba) is
+  an ochre ring with its name in italics, placed roughly, as the legend
+  says; the test checks that its verse names it.
 
 ## Pictures
 
@@ -544,7 +554,7 @@ The map card is in the reading room's style, and is drawn to be light:
   shows about 80 dots, not 1,257; at the closest level every place shows.
   Names and dots cross-fade as they come and go at a new level.
 
-The ancient world: the map's Show choice, in its bottom right corner, puts
+The ancient world: the map's Show choice, under its zoom buttons, puts
 one layer over today's map: the extent of the Persian Empire (about 500
 BC), of Alexander's empire (323 BC), of the Hasmonean kingdom (about 76
 BC), of Rome (60 BC), of Herod's kingdom (4 BC) and of the Roman Empire
