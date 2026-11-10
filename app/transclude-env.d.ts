@@ -196,6 +196,34 @@ type Pull_2 = {
   down: boolean;
 };
 type How = 'open' | 'submit' | 'trail' | 'typed';
+type Settings = {
+  edge: 'bottom' | 'left' | 'right' | 'top';
+  size: 'l' | 'm' | 's';
+  hidden: boolean;
+  float: Record<'search' | 'timeline' | 'tools', Point_3 | null>;
+};
+type Point_3 = {
+  x: number;
+  y: number;
+};
+type Layout = {
+  rail: Box_2;
+  search: Box_2 | null;
+  timeline: Box_2 | null;
+  tools: Box_2 | null;
+  free: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+};
+type Box_2 = {
+  x: number;
+  y: number;
+  w: number;
+  h: number | null;
+};
 type LogEntry = {
   t: number;
   type: string;
@@ -661,6 +689,12 @@ export type BibleTableMembers = {
     version, replacing, id, sync, compare
   }: FetchOptions): Promise<Card | null>;
   openSpot(): Point;
+  free(): {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
   current(): Workspace;
   keep(record?: boolean | undefined): void;
   finish(): void;
@@ -909,6 +943,7 @@ export type PassageSearchProps = {};
 export type PassageSearchState = {
   collapsed: boolean;
   keys: boolean;
+  expanded: boolean;
 };
 
 /** Members of `<passage-search>`, from its `export const prototype`. */
@@ -940,6 +975,10 @@ export type PassageSearchMembers = {
     signal: any;
   }): () => void;
   announce(results: HTMLElement): void;
+  quiet: boolean;
+  reveal(): void;
+  fold(): void;
+  setExpanded(expanded: boolean): void;
   setCollapsed(collapsed: boolean): Promise<void>;
   queueSearch(): void;
   showReferences(address: string): void;
@@ -951,7 +990,7 @@ export type PassageSearchMembers = {
     id: string;
     text: string;
   }[], how?: How | undefined): Promise<void>;
-  discover(which?: string | undefined): void;
+  discover(which?: string | undefined): Promise<boolean>;
   searchFor(text: string): void;
   showRules(rules: {
     kind: string;
@@ -1013,16 +1052,14 @@ export type TableMenuProps = {};
 
 /** Internal state of `<table-menu>`, from its <script element> block. */
 export type TableMenuState = {
-  open: boolean;
+  shown: boolean;
+  tab: string;
   keys: boolean;
   pen: string;
-  canUndo: boolean;
-  canRedo: boolean;
   name: string;
   snap: boolean;
-  marks: boolean;
-  reading: boolean;
-  more: boolean;
+  edge: string;
+  size: string;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */
@@ -1034,13 +1071,88 @@ export type TableMenuMembers = {
   }: {
     signal: any;
   }): void;
-  closeSheets(): void;
+  setShown(shown: boolean): void;
+  showTab(tab: string): void;
+  roveTabs(event: KeyboardEvent): void;
+  setChrome({
+    edge, size
+  }: {
+    edge: string;
+    size: string;
+  }): void;
   act(event: MouseEvent): void;
   send(type: string, detail?: object | undefined): void;
-  setHistory(canUndo: boolean, canRedo: boolean): void;
   setName(name: string): void;
   setRules(rules: Rule[]): void;
   refresh(message: string): void;
+};
+
+/** Properties of `<table-rail>`, from its <script element> block. */
+export type TableRailProps = {};
+
+/** Internal state of `<table-rail>`, from its <script element> block. */
+export type TableRailState = {
+  edge: string;
+  size: string;
+  cleared: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  search: boolean;
+  timeline: boolean;
+  tools: boolean;
+  map: boolean;
+  books: boolean;
+  preview: string;
+  docking: boolean;
+};
+
+/** Members of `<table-rail>`, from its `export const prototype`. */
+export type TableRailMembers = {
+  settings: Settings | null;
+  frame: number;
+  last: Layout | null;
+  tap: {
+    id: number;
+    x: number;
+    y: number;
+    t: number;
+  } | null;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): () => void;
+  panel(panel: 'search' | 'timeline' | 'tools'): HTMLElement | null;
+  markCards(): void;
+  applyLook(): void;
+  act(event: MouseEvent): void;
+  dragged: boolean;
+  toggle(panel: 'search' | 'timeline' | 'tools'): void;
+  close(panel: 'search' | 'timeline' | 'tools'): void;
+  send(type: string): void;
+  setHistory(canUndo: boolean, canRedo: boolean): void;
+  save(): void;
+  setEdge(edge: string): void;
+  setSize(size: string): void;
+  setHidden(hidden: boolean): void;
+  setFloat(panel: 'search' | 'timeline' | 'tools', at: {
+    x: number;
+    y: number;
+  } | null): void;
+  floatSpot(panel: 'search' | 'timeline' | 'tools'): {
+    x: number;
+    y: number;
+  };
+  freeBox(): {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+  arrangeSoon(): void;
+  arrange(): void;
+  railDown(event: PointerEvent): void;
+  gripDown(event: PointerEvent): void;
 };
 
 /** Properties of `<time-line>`, from its <script element> block. */
@@ -1050,6 +1162,7 @@ export type TimeLineProps = {};
 export type TimeLineState = {
   collapsed: boolean;
   world: boolean;
+  about: boolean;
   kings: string;
 };
 
@@ -1673,6 +1786,7 @@ declare global {
     "reading-settings": HTMLElement & ReadingSettingsProps & ReadingSettingsMembers;
     "svg-icon": HTMLElement;
     "table-menu": HTMLElement & TableMenuProps & TableMenuState & TableMenuMembers;
+    "table-rail": HTMLElement & TableRailProps & TableRailState & TableRailMembers;
     "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;
     "touch-keys": HTMLElement & TouchKeysProps & TouchKeysState & TouchKeysMembers;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;

@@ -1,0 +1,583 @@
+<!-- The rail: one strip of tools on an edge of the screen, and the arranger
+     of the panels it opens.
+
+     The rail has, in order: Search, Timeline, Map, Books, Note, Undo, Redo,
+     Tools, and Hide. Search, Timeline and Tools open and close their panels
+     (passage-search, time-line, table-menu); Map and Books put their cards on
+     the table or take them away; Note puts a new note down; Hide clears the
+     screen of the rail and every panel, and leaves one small Show button on
+     the rail's edge.
+
+     The rail goes on any edge: a drag on its grip moves it to the edge
+     nearest where the finger lets go, and a tap on the grip moves it to the
+     next edge. The Tools panel has the same choice, and the chrome's size
+     (small, medium, large), which scales the rail and the panels only, not
+     the cards.
+
+     A panel is docked beside the rail or floating (lib/chrome.js layout). A
+     drag on a panel's grip pulls it off to float where the finger leaves it;
+     a drag back onto the rail docks it. Each panel's float button does the
+     same without a drag. The settings are kept in this browser, so each
+     screen keeps its own.
+
+     The rail arranges the panels whenever one opens, closes, or changes
+     size, and when the window does. It sets each one's box as inline styles,
+     with data-dock="docked" or "floating" for their own styles.
+
+     A tap on the empty table folds the search panel to its field (fold), so
+     the results do not cover the table when they are not wanted.
+
+     It sends, bubbling: table-undo, table-redo, note-new, toggle-map,
+     toggle-books, and chrome-arrange when the panels have moved (the table
+     draws its lines again). The table calls setHistory(canUndo, canRedo),
+     and freeBox() for the part of the screen free for cards. -->
+
+<script element>
+  import { EDGES, ZOOM, layout, loadSettings, nearestEdge, saveSettings } from '../lib/chrome.js';
+  import { isPhone } from '../lib/screen.js';
+
+  /** @typedef {import('../lib/chrome.js').Panel} Panel */
+  /** @typedef {import('../lib/chrome.js').Settings} Settings */
+
+  // The panels' widths, in rem at the chrome's medium size.
+  const WIDTHS = { search: 26, tools: 30, timeline: 64 };
+  const SELECTORS = { search: 'passage-search', timeline: 'time-line', tools: 'table-menu' };
+  // How far a finger moves on a grip before it drags, in CSS pixels.
+  const SLOP = 6;
+  // A tap on the empty table: at most this far, and this long.
+  const TAP_PX = 10;
+  const TAP_MS = 400;
+
+  export const state = {
+    edge: 'left',
+    size: 'm',
+    cleared: false,
+    canUndo: false,
+    canRedo: false,
+    search: false,
+    timeline: false,
+    tools: false,
+    map: false,
+    books: false,
+    /** the edge a dragged rail would go to, or '' */
+    preview: '',
+    /** true while a dragged panel is over the rail, where it would dock */
+    docking: false,
+  };
+
+  export const prototype = {
+    /** @type {Settings | null} */
+    settings: null,
+    frame: 0,
+    /** @type {import('../lib/chrome.js').Layout | null} */
+    last: null,
+    /** @type {{ id: number, x: number, y: number, t: number } | null} */
+    tap: null,
+
+    connected({ signal }) {
+      const settings = loadSettings();
+      this.settings = settings;
+      this.edge = settings.edge;
+      this.size = settings.size;
+      this.cleared = settings.hidden;
+      const table = /** @type {HTMLElement} */ (this.parentElement);
+      this.applyLook();
+
+      this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('pointerdown', (event) => this.railDown(event), { signal });
+
+      // The panels' own buttons: grip, float and close.
+      table.addEventListener('pointerdown', (event) => this.gripDown(event), { signal });
+      table.addEventListener('click', (event) => {
+        const button = event.target instanceof Element ? event.target.closest('[data-chrome]') : null;
+        if (!(button instanceof HTMLElement) || button.closest('table-rail')) return;
+        const panel = /** @type {Panel} */ (button.dataset.panel);
+        if (button.dataset.chrome === 'float') this.setFloat(panel, this.settings?.float[panel] ? null : this.floatSpot(panel));
+        if (button.dataset.chrome === 'close') this.close(panel);
+      }, { signal });
+
+      // A tap on the empty table folds the search panel.
+      table.addEventListener('pointerdown', (event) => {
+        const world = table.querySelector('.table__world');
+        if (event.target !== table && event.target !== world) return;
+        this.tap = { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp };
+      }, { signal });
+      table.addEventListener('pointerup', (event) => {
+        const tap = this.tap;
+        this.tap = null;
+        if (!tap || tap.id !== event.pointerId) return;
+        if (Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > TAP_PX || event.timeStamp - tap.t > TAP_MS) return;
+        // After the table's palm guard has seen it: a palm does not fold.
+        setTimeout(() => {
+          if (!event.defaultPrevented) /** @type {any} */ (this.panel('search'))?.fold?.();
+        });
+      }, { signal });
+
+      // Arrange whenever a panel or the window changes size.
+      const watch = new ResizeObserver(() => this.arrangeSoon());
+      watch.observe(this);
+      customElements.whenDefined('passage-search').then(() => {
+        for (const panel of /** @type {Panel[]} */ (['search', 'timeline', 'tools'])) {
+          const element = this.panel(panel);
+          if (element) watch.observe(element);
+        }
+        this.arrangeSoon();
+      });
+      addEventListener('resize', () => this.arrangeSoon(), { signal });
+      table.addEventListener('panel-change', () => this.arrangeSoon(), { signal });
+
+      // Map and Books are pressed while their cards are on the table.
+      const world = table.querySelector('.table__world');
+      const cards = new MutationObserver(() => this.markCards());
+      if (world) cards.observe(world, { childList: true });
+      this.markCards();
+
+      return () => {
+        watch.disconnect();
+        cards.disconnect();
+        cancelAnimationFrame(this.frame);
+      };
+    },
+
+    /** @param {Panel} panel @returns {HTMLElement | null} */
+    panel(panel) {
+      return this.parentElement?.querySelector(SELECTORS[panel]) ?? null;
+    },
+
+    markCards() {
+      const world = this.parentElement?.querySelector('.table__world');
+      this.map = Boolean(world?.querySelector('gesture-card[data-address="map:near-east"]'));
+      this.books = Boolean(world?.querySelector('gesture-card[data-address="landscape:books"]'));
+    },
+
+    /** The edge and the size on the table, for the styles. */
+    applyLook() {
+      const table = /** @type {HTMLElement} */ (this.parentElement);
+      table.dataset.rail = isPhone() ? 'bottom' : this.edge;
+      this.dataset.edge = table.dataset.rail;
+      table.style.setProperty('--chrome-zoom', String(ZOOM[/** @type {keyof typeof ZOOM} */ (this.size)] ?? 1));
+      table.toggleAttribute('data-chrome-hidden', this.cleared);
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('button') : null;
+      if (!(button instanceof HTMLButtonElement)) return;
+      const action = button.dataset.action ?? '';
+      if (action === 'search' || action === 'timeline' || action === 'tools') this.toggle(action);
+      if (action === 'map') this.send('toggle-map');
+      if (action === 'books') this.send('toggle-books');
+      if (action === 'note') this.send('note-new');
+      if (action === 'undo') this.send('table-undo');
+      if (action === 'redo') this.send('table-redo');
+      if (action === 'hide') this.setHidden(true);
+      if (action === 'show') this.setHidden(false);
+      if (action === 'edge' && !this.dragged) this.setEdge(EDGES[(EDGES.indexOf(/** @type {any} */ (this.edge)) + 1) % EDGES.length]);
+      this.dragged = false;
+    },
+
+    /** whether the last press on the grip dragged the rail, so its click is not a tap */
+    dragged: false,
+
+    /**
+     * Opens or closes a panel.
+     *
+     * @param {Panel} panel
+     */
+    toggle(panel) {
+      const element = /** @type {any} */ (this.panel(panel));
+      if (!element) return;
+      if (panel === 'tools') element.setShown(!element.shown);
+      else element.setCollapsed(!element.collapsed);
+    },
+
+    /** @param {Panel} panel */
+    close(panel) {
+      const element = /** @type {any} */ (this.panel(panel));
+      if (!element) return;
+      if (panel === 'tools') element.setShown(false);
+      else element.setCollapsed(true);
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`[data-action="${panel}"]`))?.focus());
+    },
+
+    /** @param {string} type */
+    send(type) {
+      this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail: {} }));
+    },
+
+    /** @param {boolean} canUndo @param {boolean} canRedo */
+    setHistory(canUndo, canRedo) {
+      this.canUndo = canUndo;
+      this.canRedo = canRedo;
+    },
+
+    save() {
+      if (this.settings) saveSettings(this.settings);
+    },
+
+    /** @param {string} edge */
+    setEdge(edge) {
+      if (!this.settings || !EDGES.includes(/** @type {any} */ (edge))) return;
+      this.settings.edge = /** @type {any} */ (edge);
+      this.edge = edge;
+      this.save();
+      this.applyLook();
+      this.arrangeSoon();
+      /** @type {any} */ (this.panel('tools'))?.setChrome?.(this.settings);
+    },
+
+    /** @param {string} size */
+    setSize(size) {
+      if (!this.settings || !(size in ZOOM)) return;
+      this.settings.size = /** @type {any} */ (size);
+      this.size = size;
+      this.save();
+      this.applyLook();
+      this.arrangeSoon();
+      /** @type {any} */ (this.panel('tools'))?.setChrome?.(this.settings);
+    },
+
+    /** @param {boolean} hidden */
+    setHidden(hidden) {
+      if (!this.settings) return;
+      this.settings.hidden = hidden;
+      this.cleared = hidden;
+      this.save();
+      this.applyLook();
+      this.arrangeSoon();
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(hidden ? '[data-action="show"]' : '[data-action="hide"]'))?.focus());
+    },
+
+    /**
+     * Docks a panel (null) or floats it at a point.
+     *
+     * @param {Panel} panel
+     * @param {{ x: number, y: number } | null} at
+     */
+    setFloat(panel, at) {
+      if (!this.settings) return;
+      this.settings.float[panel] = at;
+      this.save();
+      this.arrangeSoon();
+    },
+
+    /**
+     * Where a panel floats when its float button is pressed: a little way
+     * into the free part of the screen.
+     *
+     * @param {Panel} panel
+     */
+    floatSpot(panel) {
+      const free = this.last?.free ?? { left: 0, top: 0 };
+      const box = this.panel(panel)?.getBoundingClientRect();
+      return { x: Math.round(free.left + 48), y: Math.round(panel === 'timeline' ? innerHeight - (box?.height ?? 200) - 96 : free.top + 48) };
+    },
+
+    /** The part of the screen that the rail and the docked panels leave free. */
+    freeBox() {
+      const free = this.last?.free ?? { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+      return this.cleared ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight } : free;
+    },
+
+    arrangeSoon() {
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => this.arrange());
+    },
+
+    /**
+     * Places the rail and the open panels (lib/chrome.js layout), measuring
+     * each one's own size first.
+     */
+    arrange() {
+      const settings = this.settings;
+      const table = /** @type {HTMLElement | null} */ (this.parentElement);
+      if (!settings || !table) return;
+      const phone = isPhone();
+      const zoom = ZOOM[settings.size] ?? 1;
+      const rem = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * zoom;
+      const search = /** @type {any} */ (this.panel('search'));
+      const strip = /** @type {any} */ (this.panel('timeline'));
+      const tools = /** @type {any} */ (this.panel('tools'));
+      this.search = Boolean(search && !search.collapsed);
+      this.timeline = Boolean(strip && !strip.collapsed);
+      this.tools = Boolean(tools?.shown);
+      table.dataset.rail = phone ? 'bottom' : settings.edge;
+      this.dataset.edge = table.dataset.rail;
+
+      /**
+       * Gives a panel its width and lets its height follow its content, so
+       * that height can be measured.
+       *
+       * @param {HTMLElement | null} element
+       * @param {number} width in CSS pixels on the screen
+       */
+      const free = (element, width) => {
+        if (!element) return;
+        element.style.width = `${width / zoom}px`;
+        element.style.height = '';
+      };
+      const W = innerWidth;
+      const H = innerHeight;
+      const gap = Math.round(0.5 * rem);
+      const railBox = this.getBoundingClientRect();
+      const rail = { w: railBox.width, h: railBox.height };
+      // A first pass at the widths, so the heights can be measured at them.
+      const guess = layout({
+        width: W, height: H, gap, phone, edge: settings.edge, rail,
+        search: { open: this.search, float: settings.float.search, expanded: Boolean(search?.expanded), w: WIDTHS.search * rem, h: 0 },
+        timeline: { open: this.timeline, float: settings.float.timeline, w: Math.min(WIDTHS.timeline * rem, W * 0.9), h: 0 },
+        tools: { open: this.tools, float: settings.float.tools, w: WIDTHS.tools * rem, h: 0, anchor: { x: 0, y: 0 } },
+      });
+      free(search, guess.search?.w ?? 0);
+      free(strip, guess.timeline?.w ?? 0);
+      free(tools, guess.tools?.w ?? 0);
+      const toolsButton = this.querySelector('[data-action="tools"]')?.getBoundingClientRect();
+      const height = (/** @type {HTMLElement | null} */ element) => element?.getBoundingClientRect().height ?? 0;
+      const placed = layout({
+        width: W, height: H, gap, phone, edge: settings.edge, rail,
+        search: { open: this.search, float: settings.float.search, expanded: Boolean(search?.expanded), w: WIDTHS.search * rem, h: height(search) },
+        timeline: { open: this.timeline, float: settings.float.timeline, w: Math.min(WIDTHS.timeline * rem, W * 0.9), h: height(strip) },
+        tools: {
+          open: this.tools, float: settings.float.tools, w: WIDTHS.tools * rem, h: height(tools),
+          anchor: toolsButton ? { x: toolsButton.left + toolsButton.width / 2, y: toolsButton.top } : { x: 0, y: 0 },
+        },
+      });
+      this.last = placed;
+
+      /** @param {HTMLElement} element @param {import('../lib/chrome.js').Box} box */
+      const put = (element, box) => {
+        element.style.left = `${box.x / zoom}px`;
+        element.style.top = `${box.y / zoom}px`;
+        element.style.width = `${box.w / zoom}px`;
+        element.style.height = box.h === null ? '' : `${box.h / zoom}px`;
+      };
+      this.style.left = `${placed.rail.x / zoom}px`;
+      this.style.top = `${placed.rail.y / zoom}px`;
+      this.style.width = phone ? `${placed.rail.w / zoom}px` : '';
+      /** @type {[Panel, HTMLElement | null, import('../lib/chrome.js').Box | null][]} */
+      const parts = [['search', search, placed.search], ['timeline', strip, placed.timeline], ['tools', tools, placed.tools]];
+      for (const [panel, element, box] of parts) {
+        if (!element) continue;
+        element.dataset.dock = !phone && settings.float[panel] ? 'floating' : 'docked';
+        if (box) put(element, box);
+      }
+      this.dispatchEvent(new Event('chrome-arrange', { bubbles: true }));
+    },
+
+    /**
+     * A press on the rail's grip: a drag moves the rail to the edge nearest
+     * where it ends.
+     *
+     * @param {PointerEvent} event
+     */
+    railDown(event) {
+      const grip = event.target instanceof Element ? event.target.closest('[data-action="edge"]') : null;
+      if (!(grip instanceof HTMLElement) || isPhone()) return;
+      const start = { x: event.clientX, y: event.clientY };
+      grip.setPointerCapture(event.pointerId);
+      let moving = false;
+      this.dragged = false;
+      const move = (/** @type {PointerEvent} */ e) => {
+        if (!moving && Math.hypot(e.clientX - start.x, e.clientY - start.y) < SLOP) return;
+        moving = true;
+        this.dragged = true;
+        this.preview = nearestEdge({ x: e.clientX, y: e.clientY }, innerWidth, innerHeight);
+      };
+      const up = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        if (moving && this.preview) this.setEdge(this.preview);
+        this.preview = '';
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    },
+
+    /**
+     * A press on a panel's grip: a drag pulls the panel off to float, and
+     * over the rail docks it again.
+     *
+     * @param {PointerEvent} event
+     */
+    gripDown(event) {
+      const grip = event.target instanceof Element ? event.target.closest('[data-grip]') : null;
+      if (!(grip instanceof HTMLElement) || isPhone() || !this.settings) return;
+      const panel = /** @type {Panel} */ (grip.dataset.grip);
+      const element = this.panel(panel);
+      if (!element) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const zoom = ZOOM[this.settings.size] ?? 1;
+      const box = element.getBoundingClientRect();
+      const start = { x: event.clientX, y: event.clientY };
+      const offset = { x: event.clientX - box.left, y: event.clientY - box.top };
+      grip.setPointerCapture(event.pointerId);
+      let moving = false;
+      const overRail = (/** @type {PointerEvent} */ e) => {
+        const rail = this.getBoundingClientRect();
+        const margin = 24;
+        return e.clientX >= rail.left - margin && e.clientX <= rail.right + margin && e.clientY >= rail.top - margin && e.clientY <= rail.bottom + margin;
+      };
+      const move = (/** @type {PointerEvent} */ e) => {
+        if (!moving && Math.hypot(e.clientX - start.x, e.clientY - start.y) < SLOP) return;
+        moving = true;
+        element.dataset.dock = 'floating';
+        element.classList.add('is-dragged');
+        element.style.left = `${(e.clientX - offset.x) / zoom}px`;
+        element.style.top = `${(e.clientY - offset.y) / zoom}px`;
+        this.docking = overRail(e);
+      };
+      const up = (/** @type {PointerEvent} */ e) => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        element.classList.remove('is-dragged');
+        this.docking = false;
+        if (!moving) return;
+        this.setFloat(panel, overRail(e) ? null : { x: Math.round(e.clientX - offset.x), y: Math.round(e.clientY - offset.y) });
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    position: absolute;
+    /* With the panels: over the cards at rest and the lines, under a held
+       card. */
+    z-index: 1000001;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.3rem;
+    border: 1px solid var(--card-edge);
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: 0 2px 12px var(--shade-far);
+    zoom: var(--chrome-zoom, 1);
+    font: var(--control-font);
+  }
+  :scope:is([data-edge='top'], [data-edge='bottom']) {
+    flex-direction: row;
+  }
+  .rail__button {
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    min-width: 3.4rem;
+    min-height: 3.1rem;
+    padding: 0.3rem 0.2rem 0.25rem;
+    border: 0;
+    border-radius: var(--radius-small);
+    background: transparent;
+    color: var(--ink);
+    font: 500 max(0.5rem, 10px)/1.1 var(--sans);
+    cursor: pointer;
+  }
+  .rail__button svg-icon {
+    font-size: 1.35rem;
+  }
+  .rail__button:hover {
+    background: var(--tint);
+  }
+  .rail__button:disabled {
+    color: var(--muted);
+    opacity: 0.55;
+    cursor: default;
+  }
+  .rail__button:disabled:hover {
+    background: transparent;
+  }
+  /* An open panel's button, and a card that is on the table: lapis. */
+  .rail__button:is([aria-expanded='true'], [aria-pressed='true']) {
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .rail__rule {
+    flex: none;
+    align-self: stretch;
+    margin: 0.2rem 0.4rem;
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+  :scope:is([data-edge='top'], [data-edge='bottom']) .rail__rule {
+    margin: 0.4rem 0.2rem;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .rail__grip {
+    min-height: 1.6rem;
+    color: var(--muted);
+    cursor: grab;
+    touch-action: none;
+  }
+  :scope:is([data-edge='top'], [data-edge='bottom']) .rail__grip {
+    min-width: 1.6rem;
+  }
+  /* A panel dragged over the rail would dock: the rail says so. */
+  :scope:state(docking) {
+    outline: 3px solid var(--lapis);
+    outline-offset: 2px;
+  }
+  /* The edge a dragged rail would go to. */
+  .rail__preview {
+    position: fixed;
+    z-index: -1;
+    background: color-mix(in srgb, var(--lapis) 18%, transparent);
+    pointer-events: none;
+  }
+  .rail__preview[hidden] {
+    display: none;
+  }
+  .rail__preview[data-edge='left'] { inset: 0 auto 0 0; width: 6rem; }
+  .rail__preview[data-edge='right'] { inset: 0 0 0 auto; width: 6rem; }
+  .rail__preview[data-edge='top'] { inset: 0 0 auto 0; height: 6rem; }
+  .rail__preview[data-edge='bottom'] { inset: auto 0 0 0; height: 6rem; }
+  /* Hidden: the rail is one Show button. */
+  :scope:state(cleared) > :not(.rail__show),
+  :scope:not(:state(cleared)) .rail__show {
+    display: none;
+  }
+  :scope:state(cleared) {
+    padding: 0.15rem;
+    opacity: 0.7;
+  }
+  /* On a phone: the rail is the width of the screen at the bottom, its
+     buttons share it, and they show their icons only. */
+  @media (max-width: 700px), (max-height: 500px) {
+    :scope {
+      flex-direction: row;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+    .rail__button {
+      min-width: 0;
+      flex: 1;
+    }
+    .rail__label,
+    .rail__grip,
+    .rail__rule {
+      display: none;
+    }
+  }
+</style>
+
+<div class="rail__preview" data-edge="${preview}" hidden="${!preview}"></div>
+<button type="button" class="rail__button rail__grip" data-action="edge" aria-label="Move the tools to the next edge of the screen" title="Drag to an edge of the screen, or tap for the next edge"><svg-icon library="ui" name="grip"></svg-icon></button>
+<button type="button" class="rail__button" data-action="search" aria-expanded="${search ? 'true' : 'false'}" aria-keyshortcuts="/"><svg-icon library="ui" name="search"></svg-icon><span class="rail__label">Search</span></button>
+<button type="button" class="rail__button" data-action="timeline" aria-expanded="${timeline ? 'true' : 'false'}"><svg-icon library="ui" name="timeline"></svg-icon><span class="rail__label">Timeline</span></button>
+<button type="button" class="rail__button" data-action="map" aria-pressed="${map ? 'true' : 'false'}"><svg-icon library="ui" name="map"></svg-icon><span class="rail__label">Map</span></button>
+<button type="button" class="rail__button" data-action="books" aria-pressed="${books ? 'true' : 'false'}" title="The books compared"><svg-icon library="ui" name="books"></svg-icon><span class="rail__label">Books</span></button>
+<hr class="rail__rule" />
+<button type="button" class="rail__button" data-action="note"><svg-icon library="ui" name="note"></svg-icon><span class="rail__label">Note</span></button>
+<button type="button" class="rail__button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z"><svg-icon library="ui" name="undo"></svg-icon><span class="rail__label">Undo</span></button>
+<button type="button" class="rail__button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><svg-icon library="ui" name="redo"></svg-icon><span class="rail__label">Redo</span></button>
+<hr class="rail__rule" />
+<button type="button" class="rail__button" data-action="tools" aria-expanded="${tools ? 'true' : 'false'}"><svg-icon library="ui" name="tools"></svg-icon><span class="rail__label">Tools</span></button>
+<button type="button" class="rail__button" data-action="hide" title="Clear the screen of the tools and panels"><svg-icon library="ui" name="hide"></svg-icon><span class="rail__label">Hide</span></button>
+<button type="button" class="rail__button rail__show" data-action="show" aria-label="Show the tools" title="Show the tools"><svg-icon library="ui" name="tools"></svg-icon></button>

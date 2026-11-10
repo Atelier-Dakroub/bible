@@ -1,31 +1,28 @@
-<!-- The menu at the top right of the table.
+<!-- The Tools panel, which the rail (table-rail) opens, closes and places:
+     beside its Tools button, or floating.
 
-     The bar: Undo and Redo, Note (a new note card), the marking style for new
-     highlights, Reading, which opens the reading sheet, Marks, which opens
-     the marks sheet, and Workspace, which opens the workspace sheet. One
-     sheet is open at a time.
+     Four tabs:
+       Table      the style of new highlights; Snap; which edge the rail is
+                  on; and the size of the rail and the panels
+       Reading    the reader's settings (reading-settings): theme, paper, text
+                  size, line spacing, and what the text shows
+       Marks      rule marks (app/lib/rules.js), words marked on every card by
+                  what they are: the words of Christ, the supplied words, the
+                  divine name and every person, place or group; and the rules
+                  that are on, each with its style and a Remove button. A word
+                  study or a person in the search panel adds its own.
+       Workspace  save the table under a name, open or delete a saved one,
+                  start a new table, and send the table to a file or take one
+                  in. A finger on the name field opens the on-screen keyboard.
 
-     The reading sheet: the reader's settings (reading-settings): theme,
-     paper, text size, line spacing, and what the text shows.
+     Docked, a tap or a click outside the panel closes it, as Escape does; a
+     resting palm does not (the table's palm guard marks its touches, and the
+     panel looks once the touch has gone through the table). Floating, it
+     stays open until it is closed.
 
-     A tap or a click outside the menu closes the open sheet, as Escape does.
-     A resting palm does not: the table's palm guard marks its touches (it
-     prevents their default), and the menu looks once the touch has gone
-     through the table.
-
-     The marks sheet: rule marks (app/lib/rules.js), words marked on every
-     card by what they are. It offers the words of Christ, the supplied words,
-     the divine name and every person, place or group, and lists the rules
-     that are on, each with its style and a Remove button. A word study or a
-     person in the search panel adds its own.
-
-     The sheet: save the table under a name, open or delete a saved one, start
-     a new table, and send the table to a file or take one in. A finger on the
-     name field opens the on-screen keyboard.
-
-     The menu only asks. It sends these events (bubbling), and the table does
+     The panel only asks. It sends these events (bubbling), and the table does
      the work, then calls refresh() with a message to show:
-       table-undo, table-redo, note-new
+       table-undo, table-redo (Control or Command and Z, with Shift to redo)
        rule-add         detail { kind, value, label }: add the rule, or remove it
        rule-style       detail { index }: the next style for that rule
        rule-remove      detail { index }
@@ -36,10 +33,10 @@
        workspace-new
        workspace-export detail { name }
        workspace-import detail { name, text }
+     The rail's edge and the chrome's size go to the rail (table-rail).
 
-     setHistory(canUndo, canRedo) turns the two buttons on and off,
-     setName(name) shows which saved workspace is on the table, and
-     setRules(rules) lists the rules. -->
+     setName(name) shows which saved workspace is on the table, setRules(rules)
+     lists the rules, and setChrome(settings) shows the rail's edge and size. -->
 
 <script element>
   import { isPhone } from '../lib/screen.js';
@@ -50,18 +47,19 @@
   /** @typedef {import('../lib/rules.js').Rule} Rule */
 
   export const state = {
-    open: false,
+    /** whether the panel is open */
+    shown: false,
+    /** the tab on show: table, reading, marks or workspace */
+    tab: 'table',
     keys: false,
     pen: 'inverse',
-    canUndo: false,
-    canRedo: false,
     name: '',
     snap: true,
-    marks: false,
-    reading: false,
-    /** on a phone, whether the bar's buttons are open under the Menu button */
-    more: false,
+    /** the rail's edge and the chrome's size, from the rail */
+    edge: 'left',
+    size: 'm',
   };
+  const TABS = ['table', 'reading', 'marks', 'workspace'];
 
   const PEN_KEY = 'bible.pen';
   const SNAP_KEY = 'bible.snap';
@@ -74,18 +72,24 @@
 
     connected({ signal }) {
       document.addEventListener('pointerdown', (event) => {
-        if (!this.open && !this.marks && !this.reading && !this.more) return;
+        if (!this.shown || this.dataset.dock === 'floating') return;
         if (event.target instanceof Node && this.contains(event.target)) return;
+        // The rail's Tools button closes the panel itself.
+        if (event.target instanceof Element && event.target.closest('table-rail [data-action="tools"]')) return;
         // After the event has gone through: the palm guard runs later in the
         // same dispatch, and a palm's touch arrives with its default
         // prevented.
         setTimeout(() => {
-          if (!event.defaultPrevented) this.closeSheets();
+          if (!event.defaultPrevented) this.setShown(false);
         });
       }, { signal, capture: true });
       document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') this.closeSheets();
+        if (event.key === 'Escape' && this.shown && (this.dataset.dock !== 'floating' || this.contains(document.activeElement))) {
+          if (this.keys) this.keys = false;
+          else this.setShown(false);
+        }
       }, { signal });
+      this.addEventListener('keydown', (event) => this.roveTabs(event), { signal });
       try {
         const pen = localStorage.getItem(PEN_KEY);
         if (pen) this.pen = pen;
@@ -138,16 +142,55 @@
       }, { signal });
     },
 
-    /** Closes whichever sheet is open; the focus, if it was in the sheet, goes to the sheet's button. */
-    closeSheets() {
-      const sheet = this.querySelector('.menu__sheet:focus-within');
-      const opener = sheet?.classList.contains('menu__workspace') ? 'sheet' : sheet?.classList.contains('menu__marks') ? 'marks' : sheet ? 'reading' : '';
-      if (opener) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`.menu__bar [data-action="${opener}"]`))?.focus());
-      this.open = false;
-      this.marks = false;
-      this.reading = false;
+    /**
+     * Opens or closes the panel. The focus, if it was in the panel as it
+     * closes, goes to the rail's Tools button.
+     *
+     * @param {boolean} shown
+     */
+    setShown(shown) {
+      if (shown === this.shown) return;
+      const inside = !shown && this.contains(document.activeElement);
+      this.shown = shown;
       this.keys = false;
-      this.more = false;
+      if (shown) {
+        this.showTab(this.tab);
+        requestAnimationFrame(() => slideIn(this, { y: -8 }));
+        // On a phone, one panel is open at a time (bible-table closes the
+        // others).
+        if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
+      }
+      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="tools"]'))?.focus());
+      this.dispatchEvent(new Event('panel-change', { bubbles: true }));
+    },
+
+    /** @param {string} tab */
+    showTab(tab) {
+      this.tab = TABS.includes(tab) ? tab : 'table';
+      if (this.tab === 'marks') this.setRules(this.rules);
+      if (this.tab === 'workspace') this.refresh('');
+      this.dispatchEvent(new Event('panel-change', { bubbles: true }));
+    },
+
+    /**
+     * The arrow keys move between the tabs, as in any tab list.
+     *
+     * @param {KeyboardEvent} event
+     */
+    roveTabs(event) {
+      const tab = event.target instanceof HTMLElement ? event.target.closest('[role="tab"]') : null;
+      if (!(tab instanceof HTMLElement) || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const at = TABS.indexOf(tab.dataset.tab ?? '');
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : (at + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length;
+      this.showTab(TABS[next]);
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`[role="tab"][data-tab="${TABS[next]}"]`))?.focus());
+    },
+
+    /** @param {{ edge: string, size: string }} settings */
+    setChrome({ edge, size }) {
+      this.edge = edge;
+      this.size = size;
     },
 
     /** @param {MouseEvent} event */
@@ -155,16 +198,10 @@
       const button = event.target instanceof Element ? event.target.closest('button') : null;
       if (!(button instanceof HTMLButtonElement)) return;
       const action = button.dataset.action ?? '';
-      if (action === 'more') {
-        this.more = !this.more;
-        if (!this.more) this.closeSheets();
-        // On a phone, one panel is open at a time (bible-table closes the
-        // others).
-        else if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
-      }
-      if (action === 'undo') this.send('table-undo');
-      if (action === 'redo') this.send('table-redo');
-      if (action === 'note') this.send('note-new');
+      const rail = /** @type {any} */ (document.querySelector('table-rail'));
+      if (action === 'tab') this.showTab(button.dataset.tab ?? 'table');
+      if (action === 'edge') rail?.setEdge(button.dataset.edge);
+      if (action === 'size') rail?.setSize(button.dataset.size);
       if (action === 'snap') {
         this.snap = !this.snap;
         try {
@@ -182,39 +219,6 @@
           // No storage: the style lasts until the page closes.
         }
         this.send('pen-change', { style: this.pen });
-      }
-      if (action === 'sheet') {
-        this.open = !this.open;
-        this.keys = false;
-        if (this.open) {
-          this.marks = false;
-          this.reading = false;
-          this.refresh('');
-        }
-      }
-      if (action === 'marks') {
-        this.marks = !this.marks;
-        if (this.marks) {
-          this.open = false;
-          this.reading = false;
-          this.keys = false;
-          this.setRules(this.rules);
-        }
-      }
-      if (action === 'reading') {
-        this.reading = !this.reading;
-        if (this.reading) {
-          this.open = false;
-          this.marks = false;
-          this.keys = false;
-        }
-      }
-      // A sheet that has just opened slides in from the bar: down from it,
-      // or up from it on a phone, where the bar is at the bottom.
-      if (['sheet', 'marks', 'reading', 'more'].includes(action)) {
-        const sheet = action === 'more' ? (this.more ? this.querySelector('.menu__bar') : null) : this.querySelector({ sheet: '.menu__workspace', marks: '.menu__marks', reading: '.menu__reading' }[action] ?? '');
-        const open = action === 'more' ? this.more : { sheet: this.open, marks: this.marks, reading: this.reading }[action];
-        if (sheet && open) requestAnimationFrame(() => slideIn(sheet, { y: isPhone() ? 12 : -12 }));
       }
       if (action === 'rule-preset') {
         const { kind, value, label } = button.dataset;
@@ -248,14 +252,6 @@
       this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
     },
 
-    /**
-     * @param {boolean} canUndo
-     * @param {boolean} canRedo
-     */
-    setHistory(canUndo, canRedo) {
-      this.canUndo = canUndo;
-      this.canRedo = canRedo;
-    },
 
     /** @param {string} name */
     setName(name) {
@@ -372,39 +368,72 @@
 </script>
 
 <style>
+  /* Placed by the rail (table-rail), which sets its box. */
   :scope {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
     /* With the search panel: above the cards at rest, below a held card. */
     z-index: 1000000;
     display: flex;
     flex-direction: column;
-    align-items: end;
-    max-height: calc(100% - var(--timeline-height, 0px) - 3rem);
-    font: var(--control-font);
-  }
-  .menu__bar {
-    display: flex;
-    gap: var(--bar-gap);
-    padding: var(--bar-padding);
+    box-sizing: border-box;
+    max-height: calc(100vh - 1rem);
+    zoom: var(--chrome-zoom, 1);
     border: 1px solid var(--card-edge);
     border-radius: var(--radius);
     background: var(--paper);
     box-shadow: 0 2px 12px var(--shade-far);
+    overflow: hidden;
+    font: var(--control-font);
   }
-  .menu__bar button,
-  .menu__sheet button {
+  :scope:not(:state(shown)),
+  :scope:not(:state(keys)) touch-keys {
+    display: none;
+  }
+  .tools__head {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.25rem var(--bar-padding);
+    border-bottom: 1px solid var(--line);
+  }
+  .tools__tabs {
+    display: flex;
+    flex: 1;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .tools__tabs button {
+    min-height: 2.4rem;
+    padding: 0 0.6rem;
+    border: 0;
+    border-radius: var(--radius-small);
+    background: transparent;
+    color: var(--ink-soft);
+    font: var(--control-font);
+  }
+  .tools__tabs button[aria-selected='true'] {
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .tools__body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .tools__section:not([data-on]) {
+    display: none;
+  }
+  .tools__section button {
     min-height: var(--control-height);
     padding: var(--control-padding);
     font: var(--control-font);
   }
-  .menu__pens {
+  .tools__row {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--bar-gap);
+    padding: var(--bar-padding);
   }
-  /* A sheet that is open: its button is lapis, as a pressed one. */
-  .menu__bar [aria-expanded='true'] {
+  .tools__row [aria-pressed='true'] {
     border-color: var(--lapis);
     background: var(--lapis);
     color: var(--on-pigment);
@@ -426,24 +455,6 @@
   .pen--box span {
     border: 1px solid currentColor;
     padding: 0 0.2em;
-  }
-  .menu__sheet {
-    display: none;
-    box-sizing: border-box;
-    max-width: calc(100vw - 2rem);
-    width: 30rem;
-    margin-top: 0.5rem;
-    border: 1px solid var(--card-edge);
-    border-radius: var(--radius);
-    background: var(--paper);
-    box-shadow: 0 2px 12px var(--shade-far);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-  :scope:state(open) .menu__workspace,
-  :scope:state(marks) .menu__marks,
-  :scope:state(reading) .menu__reading {
-    display: block;
   }
   .menu__presets {
     display: flex;
@@ -482,9 +493,6 @@
     color: var(--muted);
     font-size: 0.8rem;
     line-height: 1.4;
-  }
-  :scope:not(:state(keys)) touch-keys {
-    display: none;
   }
   .menu__heading {
     margin: 0;
@@ -567,86 +575,80 @@
   .menu__file {
     display: none;
   }
-  /* On a phone: one Menu button at the bottom right, in the row with the
-     timeline's button. It opens the bar's buttons above it, and a sheet
-     opens above them, the width of the screen. */
-  .menu__more {
-    display: none;
-  }
+  /* On a phone the tabs share the width, and the panel is a sheet above
+     the rail. */
   @media (max-width: 700px), (max-height: 500px) {
-    :scope {
-      top: auto;
-      right: 0.5rem;
-      bottom: calc(var(--timeline-height, 0px) + 1rem);
-      flex-direction: column-reverse;
-      max-height: calc(100% - var(--timeline-height, 0px) - 1.5rem);
-    }
-    .menu__more {
-      display: inline-block;
-      order: 1;
-    }
-    /* Open, over the timeline's button in the same row. */
-    :scope:state(more) {
-      z-index: 1000001;
-    }
-    .menu__bar {
-      flex-wrap: wrap;
-      justify-content: end;
-      max-width: calc(100vw - 1rem);
-      box-sizing: border-box;
-    }
-    :scope:not(:state(more)) .menu__bar > :not(.menu__more) {
-      display: none;
-    }
-    .menu__sheet {
-      width: calc(100vw - 1rem);
-      max-width: none;
-      margin: 0 0 0.5rem;
+    .tools__tabs button {
+      flex: 1;
+      padding: 0 0.3rem;
     }
   }
 </style>
-
-<div class="menu__bar">
-  <button type="button" class="menu__more" data-action="more" aria-expanded="${more ? 'true' : 'false'}">Menu</button>
-  <button type="button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
-  <button type="button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
-  <button type="button" data-action="note">Note</button>
-  <button type="button" data-action="snap" aria-pressed="${snap ? 'true' : 'false'}" title="Held cards snap upright, to full size, and into line with other cards. Hold Command or Control to drag freely.">Snap</button>
-  <div class="menu__pens" role="group" aria-label="Style of new highlights">
-    <button type="button" class="pen--inverse" data-action="pen" data-pen="inverse" aria-pressed="${pen === 'inverse' ? 'true' : 'false'}" aria-label="Inverse"><span>Aa</span></button>
-    <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>
-    <button type="button" class="pen--box" data-action="pen" data-pen="box" aria-pressed="${pen === 'box' ? 'true' : 'false'}" aria-label="Box"><span>Aa</span></button>
+<div class="tools__head">
+  <button type="button" class="panel__grip" data-grip="tools" aria-label="Move the tools panel" title="Drag to move; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
+  <div class="tools__tabs" role="tablist" aria-label="Tools">
+    <button type="button" role="tab" data-action="tab" data-tab="table" aria-selected="${tab === 'table' ? 'true' : 'false'}" tabindex="${tab === 'table' ? '0' : '-1'}" aria-controls="tools-table">Table</button>
+    <button type="button" role="tab" data-action="tab" data-tab="reading" aria-selected="${tab === 'reading' ? 'true' : 'false'}" tabindex="${tab === 'reading' ? '0' : '-1'}" aria-controls="tools-reading">Reading</button>
+    <button type="button" role="tab" data-action="tab" data-tab="marks" aria-selected="${tab === 'marks' ? 'true' : 'false'}" tabindex="${tab === 'marks' ? '0' : '-1'}" aria-controls="tools-marks">Marks</button>
+    <button type="button" role="tab" data-action="tab" data-tab="workspace" aria-selected="${tab === 'workspace' ? 'true' : 'false'}" tabindex="${tab === 'workspace' ? '0' : '-1'}" aria-controls="tools-workspace">${name ? name : 'Workspace'}</button>
   </div>
-  <button type="button" data-action="reading" aria-expanded="${reading ? 'true' : 'false'}">Reading</button>
-  <button type="button" data-action="marks" aria-expanded="${marks ? 'true' : 'false'}">Marks</button>
-  <button type="button" data-action="sheet" aria-expanded="${open ? 'true' : 'false'}">${name ? name : 'Workspace'}</button>
+  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="tools" aria-label="Float or dock the tools panel" title="Float or dock"><svg-icon library="ui" name="float"></svg-icon></button>
+  <button type="button" class="panel__button" data-chrome="close" data-panel="tools" aria-label="Close the tools panel" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
 </div>
-<div class="menu__sheet menu__reading">
-  <h2 class="menu__heading">Reading</h2>
-  <reading-settings></reading-settings>
-  <p class="menu__hint">Kept in this browser for the next visit.</p>
-</div>
-<div class="menu__sheet menu__marks">
-  <h2 class="menu__heading">Mark on every card</h2>
-  <div class="menu__presets"></div>
-  <h2 class="menu__heading">Marks on now</h2>
-  <ul class="menu__rules"></ul>
-  <p class="menu__hint">To mark one word, person or place: tap it on a card, then Mark it on every card in the search panel. The marks are kept with the table.</p>
-</div>
-<div class="menu__sheet menu__workspace">
-  <h2 class="menu__heading">Save this table</h2>
-  <form class="menu__save">
-    <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" />
-    <button type="submit">Save</button>
-  </form>
-  <touch-keys for="workspace-name" enter="Save"></touch-keys>
-  <h2 class="menu__heading">Saved tables</h2>
-  <ul class="menu__list"></ul>
-  <div class="menu__actions">
-    <button type="button" data-action="new">New table</button>
-    <button type="button" data-action="export">Save to a file</button>
-    <button type="button" data-action="import">Open a file</button>
+<div class="tools__body">
+  <div id="tools-table" class="tools__section" role="tabpanel" aria-label="Table" data-on="${tab === 'table'}">
+    <h2 class="menu__heading">New highlights</h2>
+    <div class="tools__row menu__pens" role="group" aria-label="Style of new highlights">
+      <button type="button" class="pen--inverse" data-action="pen" data-pen="inverse" aria-pressed="${pen === 'inverse' ? 'true' : 'false'}" aria-label="Inverse"><span>Aa</span></button>
+      <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>
+      <button type="button" class="pen--box" data-action="pen" data-pen="box" aria-pressed="${pen === 'box' ? 'true' : 'false'}" aria-label="Box"><span>Aa</span></button>
+    </div>
+    <h2 class="menu__heading">Cards</h2>
+    <div class="tools__row">
+      <button type="button" data-action="snap" aria-pressed="${snap ? 'true' : 'false'}">Snap</button>
+    </div>
+    <p class="menu__hint">With Snap on, a held card turns upright, goes to full size, and lines up with the other cards. Hold Command or Control to drag freely.</p>
+    <h2 class="menu__heading">Tools on the</h2>
+    <div class="tools__row" role="group" aria-label="Edge of the screen for the tools">
+      <button type="button" data-action="edge" data-edge="left" aria-pressed="${edge === 'left' ? 'true' : 'false'}">Left</button>
+      <button type="button" data-action="edge" data-edge="right" aria-pressed="${edge === 'right' ? 'true' : 'false'}">Right</button>
+      <button type="button" data-action="edge" data-edge="top" aria-pressed="${edge === 'top' ? 'true' : 'false'}">Top</button>
+      <button type="button" data-action="edge" data-edge="bottom" aria-pressed="${edge === 'bottom' ? 'true' : 'false'}">Bottom</button>
+    </div>
+    <h2 class="menu__heading">Size of the tools</h2>
+    <div class="tools__row" role="group" aria-label="Size of the tools and panels">
+      <button type="button" data-action="size" data-size="s" aria-pressed="${size === 's' ? 'true' : 'false'}">Small</button>
+      <button type="button" data-action="size" data-size="m" aria-pressed="${size === 'm' ? 'true' : 'false'}">Medium</button>
+      <button type="button" data-action="size" data-size="l" aria-pressed="${size === 'l' ? 'true' : 'false'}">Large</button>
+    </div>
+    <p class="menu__hint">The size of the tools and panels only; the text of the cards has its own size in Reading. A panel's grip drags it off the rail to float, and back onto the rail to dock. Kept in this browser.</p>
   </div>
-  <output class="menu__status" aria-live="polite"></output>
-  <input class="menu__file" type="file" accept="application/json,.json" />
+  <div id="tools-reading" class="tools__section menu__reading" role="tabpanel" aria-label="Reading" data-on="${tab === 'reading'}">
+    <reading-settings></reading-settings>
+    <p class="menu__hint">Kept in this browser for the next visit.</p>
+  </div>
+  <div id="tools-marks" class="tools__section menu__marks" role="tabpanel" aria-label="Marks" data-on="${tab === 'marks'}">
+    <h2 class="menu__heading">Mark on every card</h2>
+    <div class="menu__presets"></div>
+    <h2 class="menu__heading">Marks on now</h2>
+    <ul class="menu__rules"></ul>
+    <p class="menu__hint">To mark one word, person or place: tap it on a card, then Mark it on every card in the search panel. The marks are kept with the table.</p>
+  </div>
+  <div id="tools-workspace" class="tools__section menu__workspace" role="tabpanel" aria-label="Workspace" data-on="${tab === 'workspace'}">
+    <h2 class="menu__heading">Save this table</h2>
+    <form class="menu__save">
+      <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" />
+      <button type="submit">Save</button>
+    </form>
+    <touch-keys for="workspace-name" enter="Save"></touch-keys>
+    <h2 class="menu__heading">Saved tables</h2>
+    <ul class="menu__list"></ul>
+    <div class="menu__actions">
+      <button type="button" data-action="new">New table</button>
+      <button type="button" data-action="export">Save to a file</button>
+      <button type="button" data-action="import">Open a file</button>
+    </div>
+    <output class="menu__status" aria-live="polite"></output>
+    <input class="menu__file" type="file" accept="application/json,.json" />
+  </div>
 </div>

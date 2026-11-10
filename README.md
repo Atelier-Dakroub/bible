@@ -9,12 +9,32 @@ sideways to put the passage on the table as a card. Cards move, turn and
 scale; a drag on the empty table pans everything, and the table has no edge.
 What is on the table is kept in the browser as addresses and positions.
 
+The tools are on one rail (`app/elements/table-rail.html`), on the left at
+first: Search, Timeline, Map, Books, Note, Undo, Redo, Tools and Hide. Search,
+Timeline and Tools open and close their panels beside the rail; Map and Books
+put their cards on the table or take them away, and are lapis while the card
+is there; Hide clears the screen of the rail and the panels, and leaves one
+Show button. The rail goes on any edge: drag its grip (⋮⋮) to an edge, tap
+the grip for the next edge, or choose in Tools, Table. A panel's grip drags
+it off the rail to float anywhere, and back onto the rail to dock; its float
+button does the same without a drag. Tools, Table also sets the size of the
+rail and the panels (Small, Medium, Large), apart from the size of the text.
+Each screen keeps its own choices (`app/lib/chrome.js`). On a phone the rail
+is along the bottom, icons only, and one panel opens at a time, the width of
+the screen.
+
+The search panel grows with use: at rest it is only its field; an answer
+shows the trail and the results under it, and a tap on the empty table, or
+Escape, folds them away again (a tap on the field brings them back). The
+timeline is one compact row of eras with the events' ticks; World shows the
+world-history lanes under it, and ⓘ the note on whose dates these are.
+
 Highlights take two hands: hold a card still with one finger, then run a
 finger of the other hand over the words. A highlight is stored as a span of
 word addresses (`JHN.3.16.w2` to `JHN.3.16.w6`), apart from the text, so
 every card that holds those words shows it. A highlight has one of three
-styles: inverse, a double underline, or a box. The three buttons in the menu
-at the top right pick the style of the next one. Marking the same span again
+styles: inverse, a double underline, or a box. The three buttons in Tools,
+Table pick the style of the next one. Marking the same span again
 in the same style, or a tap on a highlighted word while you hold the card,
 removes it. Marking it in another style changes its style.
 
@@ -30,7 +50,7 @@ what it is: a tap changes it from "link" to "quotes", "fulfills" and
 marked to the words you dropped them on.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked
-words become a card of their own, a phrase card. Note, in the menu, puts a
+words become a card of their own, a phrase card. Note, on the rail, puts a
 note card on the table and opens the note editor with the on-screen
 keyboard; a tap on a note opens it again. Lift the marking finger on a note,
 and the note quotes the words. A quote is the text itself, by address: its
@@ -45,9 +65,9 @@ KJV and the BSB of one chapter. Copy puts the words of the card and their
 reference on the clipboard. A reference can cross a chapter, such as
 `Gen 1:1-2:3`.
 
-Workspaces and undo: Undo and Redo in the menu (or Command-Z and
-Shift-Command-Z) step through every change to the table but a pan. The
-workspace button opens a sheet: save the table under a name, open or delete
+Workspaces and undo: Undo and Redo on the rail (or Command-Z and
+Shift-Command-Z) step through every change to the table but a pan. Tools,
+Workspace saves the table under a name, opens or deletes
 a saved table, start a new table, save the table to a JSON file, or open a
 file. Opening a table, or a new one, is one step that Undo takes back.
 
@@ -69,7 +89,7 @@ People, places and the timeline: a word that names a person, place or group
 Easton's dictionary text, and the verses that name it. Its relations are
 buttons, and its heading pulls out as a card. A people's name with no linked
 entity, such as "Hittite", shows its entry in Easton's dictionary. The
-timeline strip at the bottom shows 450 events on an axis of equal-width eras;
+timeline shows 450 events on an axis of equal-width eras;
 the events that the cards on the table tell are marked, with a line from each
 card. A tap on a tick shows the event.
 
@@ -139,8 +159,8 @@ links and word studies work on the KJV words; the BSB is plain text for now.
 
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses
-arrives in that form. The search panel collapses to one box: "Hide" and
-Escape close it, "Search" and "/" open it.
+arrives in that form. Search on the rail, or "/", opens the search panel;
+its × closes it.
 
 Mouse, trackpad and keyboard: everything the hands do has another way.
 
@@ -160,7 +180,7 @@ Snapping: a card that a hand or a mouse holds snaps upright when it is within
 5° of upright (or of a quarter turn), and to full size within 4%. An upright
 card lines up with the edges and middles of the other upright cards, or sits
 one gap (1rem) beside them, within 12 px, and dotted guides show where.
-Snap in the menu turns it off and on. With a mouse, hold Command or Control
+Snap, in Tools, Table, turns it off and on. With a mouse, hold Command or Control
 while you drag to move freely. The wheel and the keys do not snap.
 
 Study tools:
@@ -181,7 +201,7 @@ Study tools:
 - **Marks** mark words on every card by what they are, live, so a card put
   down later shows them too. In a word study or on a person, place or group,
   "Mark it on every card" marks every word that renders that Strong's number
-  or names that entity. Marks, in the menu, offers the words of Christ, the
+  or names that entity. Tools, Marks offers the words of Christ, the
   words the translators supplied, the divine name, and every person, place
   or group, and lists the marks that are on. Each mark takes a shape of its
   own (a bar over, dots under, a dashed box, a wavy line), and the marks are
@@ -195,7 +215,7 @@ Study tools:
 - **The landscape.** "Where, chapter by chapter" in a word study, on a person
   or place, or under a text search, puts a card with one cell per chapter of
   the Bible, marked larger where the subject occurs more. A tap on a chapter
-  puts the chapter beside it. Books, on the timeline strip, compares the 66
+  puts the chapter beside it. Books, on the rail, compares the 66
   books: each a bar as long as its verses, cut into chapters, with its group
   and the author tradition gives it.
 
@@ -214,7 +234,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | Path | What it holds |
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
-| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
+| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `table-rail`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
 | `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `citations.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
@@ -528,11 +548,11 @@ The KJV runs in paragraphs: a verse that starts with the KJV's ¶ starts a
 new one, and the mark itself is not shown. A chapter opens with an initial in
 lapis. A highlight is a wash under the words.
 
-The Reading button in the table's menu opens the reader's settings
+Tools, Reading has the reader's settings
 (`reading-settings`), as `/design` does. They are tiles that show what they
 do: each theme and paper in its own colors, five letters for the text sizes,
 drawn lines for the spacing and the layout, and a sample of each thing the
-text shows. A tap outside a sheet of the menu, or outside the note editor,
+text shows. A tap outside the docked Tools panel, or outside the note editor,
 closes it (a resting palm does not), and so does Escape. The settings are: Day, Night, or as
 the computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
@@ -563,8 +583,9 @@ sizes, text sizes, headings, live regions) and with the keyboard:
   each (Home and End to the ends).
 - The search panel says what each answer found, in a status region that
   stays (`.search__status`).
-- When a sheet of the menu, the search panel or the timeline closes with the
-  focus inside it, the focus goes to the button that opens it.
+- When the Tools panel, the search panel or the timeline closes with the
+  focus inside it, the focus goes to its button on the rail. The Tools tabs
+  are a tab list: the arrow keys move between them.
 - No text is under 11px: the smallest sizes are `max(<rem>, 11px)`, as they
   were set for the panel's 24px rem. Targets are at least 24px each way,
   but for the timeline's ticks, which stand close together; each event is

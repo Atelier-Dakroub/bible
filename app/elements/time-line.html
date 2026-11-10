@@ -1,4 +1,5 @@
-<!-- The timeline strip at the bottom of the table.
+<!-- The timeline strip, which the rail (table-rail) opens, closes and
+     places: docked beside the rail, or floating.
 
      One tick per event, on an axis of equal-width eras (app/lib/timeline.js).
      The page renders the axis into the slot: a light element that re-renders
@@ -8,21 +9,19 @@
      events that the cards on it tell, and draws a line from each card to them.
 
      The dates are Theographic's, which follow Floyd Nolen Jones's chronology;
-     the strip says so. It collapses to one box, like the search panel, and
-     remembers its state in this browser.
+     the strip says so (its About button shows the note). It remembers in this
+     browser whether it is open.
 
+     It is compact: one row of eras as bands, with the events' ticks on it.
      The World button shows the world-history lanes under the events: polities
      and periods from Wikidata (data/world), with conventional scholarly dates
      on the same axis. A tap on a span sends `show-entity` too, with a world:
      id, and the panel lists the biblical events inside it.
 
-     The Map button sends `toggle-map` (bubbling): the table puts the map card
-     down, or takes it away. The Books button sends `toggle-books`, for the
-     card that compares the books (the landscape, data/study.js).
-
-     It keeps --timeline-height on its parent up to date, so the search panel
-     can stop above it. On a phone it starts closed, and sends `panel-open`
-     (bubbling) when it opens, as the other panels do. -->
+     It sends `timeline-toggle` (bubbling) when its size or its ticks change,
+     so the table draws its lines again, and `panel-change` when it opens or
+     closes. On a phone it starts closed, and sends `panel-open` (bubbling)
+     when it opens, as the other panels do. -->
 
 <script element>
   import { isPhone } from '../lib/screen.js';
@@ -31,7 +30,9 @@
 
   export const state = {
     collapsed: false,
-    world: true,
+    world: false,
+    /** whether the note on the dates shows */
+    about: false,
     /** whose dates the kings' reigns have on the axis */
     kings: 'jones',
   };
@@ -43,7 +44,9 @@
   const CHRONOLOGIES = { jones: 'Jones', thiele: 'Thiele', galil: 'Galil', albright: 'Albright', kitchen: 'Kitchen' };
   // The groups the arrow keys move within, each one stop for the Tab key.
   const ROVING = ['.timeline__tick', '.world__span'];
-  const WORLD_KEY = 'bible.timeline.world';
+  // The world lanes start hidden, to keep the strip small (a new key, so the
+  // old default of shown does not hold).
+  const WORLD_KEY = 'bible.timeline.lanes';
 
   /**
    * @param {string} key
@@ -67,31 +70,22 @@
         // screen.
         const stored = localStorage.getItem(COLLAPSED_KEY);
         this.collapsed = stored === null ? isPhone() : stored === 'true';
-        this.world = localStorage.getItem(WORLD_KEY) !== 'false';
+        this.world = localStorage.getItem(WORLD_KEY) === 'true';
       } catch {
-        // No storage: the strip starts open, with the world lanes.
+        // No storage: the strip starts open, without the world lanes.
       }
 
-      // The search panel stops above the strip, however tall the strip is.
-      const parent = /** @type {HTMLElement | null} */ (this.parentElement);
+      // The table draws its lines to the ticks again when the strip changes
+      // size.
       const measure = new ResizeObserver(() => {
-        parent?.style.setProperty('--timeline-height', `${this.offsetHeight}px`);
         this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
       });
       measure.observe(this);
 
       this.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest('[data-action="toggle"]')) {
-          this.setCollapsed(!this.collapsed);
-          return;
-        }
-        if (target?.closest('[data-action="map"]')) {
-          this.dispatchEvent(new Event('toggle-map', { bubbles: true }));
-          return;
-        }
-        if (target?.closest('[data-action="books"]')) {
-          this.dispatchEvent(new Event('toggle-books', { bubbles: true }));
+        if (target?.closest('[data-action="about"]')) {
+          this.about = !this.about;
           return;
         }
         if (target?.closest('[data-action="world"]')) {
@@ -204,9 +198,10 @@
         if (step !== this.moves) return;
       }
       this.collapsed = collapsed;
-      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('[data-action="toggle"]'))?.focus());
+      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="timeline"]'))?.focus());
       slideIn(this, collapsed ? {} : { y: 16 });
       remember(COLLAPSED_KEY, collapsed);
+      this.dispatchEvent(new Event('panel-change', { bubbles: true }));
       // On a phone, one panel is open at a time (bible-table closes the
       // others).
       if (!collapsed && isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'timeline' } }));
@@ -225,11 +220,11 @@
 </script>
 
 <style>
+  /* Placed by the rail (table-rail), which sets its box. */
   :scope {
     position: absolute;
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
+    box-sizing: border-box;
+    zoom: var(--chrome-zoom, 1);
     /* Under the table's lines (bible-table, 999999), so a line from a card
        runs over the strip to its event's tick; over the cards at rest; under
        the search panel and the menu (1000000). */
@@ -241,50 +236,46 @@
     box-shadow: 0 2px 12px var(--shade-far);
   }
   :scope:state(collapsed) {
-    right: auto;
+    display: none;
   }
-  /* On a phone: the width of the screen, and the strip and the world lanes
-     at a width they can be read at, moved sideways with a finger; the
-     buttons stay put. The note goes under the buttons. */
+  /* On a phone: the strip and the world lanes at a width they can be read
+     at, moved sideways with a finger; the buttons stay put. */
   @media (max-width: 700px), (max-height: 500px) {
     :scope {
-      right: 0.5rem;
-      bottom: 0.5rem;
-      left: 0.5rem;
       max-height: 55vh;
       overflow: auto;
       overscroll-behavior: contain;
     }
-    :scope:state(collapsed) {
-      right: auto;
-      overflow: visible;
-    }
-    :scope:not(:state(collapsed)) .timeline__bar {
+    .timeline__bar {
       position: sticky;
       left: 0;
       flex-wrap: wrap;
       box-sizing: border-box;
       width: calc(100vw - 1rem - 2px);
     }
-    .timeline__note {
-      flex-basis: 100%;
-      font-size: 0.65rem;
-    }
     :scope .timeline__axis,
     :scope .timeline__world {
       min-width: 60rem;
     }
   }
+  /* One low row of controls: the strip's height is mostly its axis. */
   .timeline__bar {
     display: flex;
     align-items: center;
     gap: var(--bar-gap);
-    padding: var(--bar-padding);
+    padding: 0.25rem var(--bar-padding) 0;
+  }
+  .timeline__bar .panel__grip,
+  .timeline__bar .panel__button {
+    min-height: 2.2rem;
+  }
+  .timeline__bar [data-action='about'] {
+    margin-left: auto;
   }
   .timeline__toggle,
   .timeline__kings {
-    min-height: var(--control-height);
-    padding: var(--control-padding);
+    min-height: 2.2rem;
+    padding: 0 0.75rem;
     font: var(--control-font);
   }
   .timeline__kings {
@@ -299,13 +290,12 @@
   }
   .timeline__note {
     margin: 0;
+    padding: 0.25rem 1rem 0;
     color: var(--muted);
-    font-size: 0.75rem;
+    font-size: 0.65rem;
+    line-height: 1.4;
   }
-  :scope:state(collapsed) .timeline__note,
-  :scope:state(collapsed) .timeline__axis,
-  :scope:state(collapsed) .timeline__world,
-  :scope:state(collapsed) .timeline__world-toggle,
+  :scope:not(:state(about)) .timeline__note,
   :scope:not(:state(world)) .timeline__world {
     display: none;
   }
@@ -318,7 +308,7 @@
     margin: 0 1rem 0.75rem 1rem;
     /* Room after the last lane, so it does not end on the panel's edge. */
     padding-bottom: 0.5rem;
-    padding-left: 8rem;
+    padding-left: 4rem;
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -330,11 +320,14 @@
   }
   .world__name {
     position: absolute;
-    left: -8rem;
+    left: -4rem;
     top: 0.2rem;
+    max-width: 3.8rem;
+    overflow: hidden;
     color: var(--muted);
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     white-space: nowrap;
+    text-overflow: ellipsis;
   }
   /* A span is at least 24 px tall, the least a finger or a pointer needs. */
   .world__lane {
@@ -390,10 +383,12 @@
     background: var(--lapis);
     color: var(--on-pigment);
   }
+  /* The axis: the eras as bands in one row, with the ticks along their
+     foot. */
   .timeline__axis {
     position: relative;
-    height: 4.5rem;
-    margin: 0 1rem 0.75rem 9rem;
+    height: 2.6rem;
+    margin: 0.35rem 1rem 0.5rem 5rem;
   }
   .timeline__axis::before {
     content: 'Bible';
@@ -401,23 +396,31 @@
     right: calc(100% + 0.5rem);
     bottom: 0;
     color: var(--muted);
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
   .timeline__era {
     position: absolute;
     top: 0;
     bottom: 0;
     left: calc(var(--at) * 100%);
-    padding-left: 0.3rem;
+    box-sizing: border-box;
+    /* Each era is an eighth of the strip. */
+    width: calc(100% / 8);
+    padding: 0.15rem 0.3rem 0;
+    overflow: hidden;
     border-left: 1px solid var(--edge);
     color: var(--ink-soft);
-    font-size: 0.7rem;
-    line-height: 1.25;
-    /* Each era is an eighth of the strip: a long name wraps inside it. */
-    width: calc(100% / 8 - 0.6rem);
+    font-size: 0.6rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
-  .timeline__era span {
-    display: block;
+  .timeline__era:nth-of-type(even) {
+    background: color-mix(in srgb, var(--tint) 70%, transparent);
+  }
+  .timeline__era span + span {
+    margin-left: 0.35em;
+    color: var(--muted);
   }
   /* The hit area is wider than the mark, so a finger can find a tick. */
   .timeline__tick {
@@ -425,7 +428,7 @@
     bottom: 0;
     left: calc(var(--at) * 100%);
     width: 14px;
-    height: 1.8rem;
+    height: 1.5rem;
     margin-left: -7px;
     padding: 0;
     border: 0;
@@ -443,35 +446,32 @@
   }
   .timeline__tick.is-on-table::before,
   .timeline__tick.is-shown::before {
-    height: 1.8rem;
+    height: 1.5rem;
     background: var(--lapis);
   }
 </style>
 
 <div class="timeline__bar">
+  <button type="button" class="panel__grip" data-grip="timeline" aria-label="Move the timeline" title="Drag to move; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
   <button
     type="button"
     class="timeline__toggle"
-    data-action="toggle"
-    aria-expanded="${collapsed ? 'false' : 'true'}"
-  >${collapsed ? 'Timeline' : 'Hide'}</button>
-  <button
-    type="button"
-    class="timeline__world-toggle timeline__toggle"
     data-action="world"
     aria-pressed="${world ? 'true' : 'false'}"
+    title="World history under the events"
   >World</button>
-  <button type="button" class="timeline__toggle timeline__world-toggle" data-action="map">Map</button>
-  <button type="button" class="timeline__toggle timeline__world-toggle" data-action="books">Books</button>
-  <select class="timeline__kings timeline__world-toggle" data-action="kings" aria-label="Whose dates the kings' reigns have">
+  <select class="timeline__kings" data-action="kings" aria-label="Whose dates the kings' reigns have">
     <option value="jones" selected="${kings === 'jones'}">Kings: Jones</option>
     <option value="thiele" selected="${kings === 'thiele'}">Kings: Thiele</option>
     <option value="galil" selected="${kings === 'galil'}">Kings: Galil</option>
     <option value="albright" selected="${kings === 'albright'}">Kings: Albright</option>
     <option value="kitchen" selected="${kings === 'kitchen'}">Kings: Kitchen</option>
   </select>
-  <p class="timeline__note">
+  <button type="button" class="panel__button" data-action="about" aria-expanded="${about ? 'true' : 'false'}" aria-label="About the dates" title="About the dates"><svg-icon library="ui" name="info"></svg-icon></button>
+  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="timeline" aria-label="Float or dock the timeline" title="Float or dock"><svg-icon library="ui" name="float"></svg-icon></button>
+  <button type="button" class="panel__button" data-chrome="close" data-panel="timeline" aria-label="Close the timeline" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
+</div>
+<p class="timeline__note">
     Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher${kings === 'jones' ? '' : '; the kings’ reigns by ' + kings.charAt(0).toUpperCase() + kings.slice(1) + ' (Wikipedia, CC BY-SA)'}. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
   </p>
-</div>
 <slot></slot>

@@ -1785,3 +1785,57 @@ gesture-card[data-compare] .bsb__d {
 gesture-card[data-zoom='far'] .landscape__summary {
   display: none;
 }
+
+/* The panels the rail opens (table-rail): the search, the timeline and the
+   tools. Each has a grip, to drag it off the rail to float or back onto the
+   rail to dock, and small float and close buttons. */
+.panel__grip,
+.panel__button {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.2rem;
+  min-height: var(--control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+}
+.panel__grip {
+  min-width: 1.6rem;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+.panel__grip:active {
+  cursor: grabbing;
+}
+.panel__button:hover,
+.panel__grip:hover {
+  background: var(--tint);
+}
+/* Floating, the float button docks: it is pressed. */
+[data-dock='floating'] .panel__float {
+  color: var(--lapis);
+}
+/* A floating panel lies a little higher off the table. */
+[data-dock='floating'] {
+  box-shadow: 0 6px 24px var(--shade-far);
+}
+.is-dragged {
+  opacity: 0.85;
+  transition: none;
+}
+/* Hidden by the rail's Hide: every panel goes, until Show. */
+bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
+  display: none;
+}
+/* On a phone nothing floats: no grip and no float button. */
+@media (max-width: 700px), (max-height: 500px) {
+  .panel__grip,
+  .panel__float {
+    display: none;
+  }
+}

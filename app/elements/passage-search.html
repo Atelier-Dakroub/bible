@@ -12,9 +12,14 @@
      goes on changing until the card takes the finger, so the table always
      reads where the finger is now.
 
-     The toggle collapses the panel to one small box and expands it again.
-     Escape in the field collapses it, and "/" anywhere expands it and puts the
-     cursor in the field. The panel remembers its state in this browser.
+     The rail (table-rail) opens and closes the panel, and places it: docked
+     beside the rail or floating. Its grip, float and close buttons are the
+     rail's to handle. Open, the panel grows with use: at rest it is only its
+     field; an answer, or a tap on the field when there is one, shows the
+     trail and the results under it; Escape in the field, or a tap on the
+     empty table (the rail's fold), folds it to the field again. "/" anywhere
+     opens it and puts the cursor in the field. It remembers whether it is
+     open in this browser.
 
      A finger on the field opens the on-screen keyboard (touch-keys), because
      the kiosk has no keyboard; a mouse or a real keyboard does not. Done or
@@ -91,6 +96,8 @@
   export const state = {
     collapsed: false,
     keys: false,
+    /** whether the trail and the results show under the field */
+    expanded: false,
   };
 
   export const prototype = {
@@ -124,7 +131,6 @@
 
       this.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest('[data-action="toggle"]')) this.setCollapsed(!this.collapsed);
         const refs = target?.closest('[data-refs]');
         if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
         const link = target?.closest('button[data-entity]');
@@ -185,11 +191,14 @@
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           if (this.keys) this.keys = false;
+          else if (this.expanded) this.fold();
           else this.setCollapsed(true);
         }
       }, { signal });
       input.addEventListener('pointerdown', (event) => {
         if (event.pointerType === 'touch') this.keys = true;
+        // The answer folded away comes back.
+        if (this.querySelector('.search__results')?.childElementCount) this.setExpanded(true);
       }, { signal });
       this.addEventListener('keys-done', () => {
         this.keys = false;
@@ -197,7 +206,8 @@
       document.addEventListener('keydown', (event) => {
         if (event.key !== '/' || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         event.preventDefault();
-        this.setCollapsed(false);
+        if (this.collapsed) this.setCollapsed(false);
+        else input.focus();
       }, { signal });
 
       input.addEventListener('input', () => this.queueSearch(), { signal });
@@ -234,8 +244,34 @@
       if (text) setTimeout(() => (status.textContent = text), 100);
     },
 
+    /** whether an answer arrives without opening the panel (setTrail) */
+    quiet: false,
+
+    /** Opens the panel, with its trail and results, for an answer. */
+    reveal() {
+      if (this.quiet) return;
+      if (this.collapsed) this.setCollapsed(false);
+      this.setExpanded(true);
+    },
+
+    /** Folds the panel to its field, if it is open with an answer. */
+    fold() {
+      if (!this.collapsed && this.expanded) this.setExpanded(false);
+    },
+
+    /** @param {boolean} expanded */
+    setExpanded(expanded) {
+      if (expanded === this.expanded) return;
+      this.expanded = expanded;
+      if (expanded) {
+        const results = this.querySelector('.search__results');
+        if (results) slideIn(results, { y: -8 });
+      }
+      this.dispatchEvent(new Event('panel-change', { bubbles: true }));
+    },
+
     /**
-     * Opens or closes the panel, with a short slide from the left edge.
+     * Opens or closes the panel, with a short fade.
      *
      * @param {boolean} collapsed
      */
@@ -247,13 +283,14 @@
       // The focus, inside the panel as it closes, goes to its button.
       const inside = collapsed && this.contains(document.activeElement);
       if (collapsed) {
-        await slideOut(this, { x: -16 });
+        await slideOut(this, { y: -8 });
         // Opened again during the slide: the later call holds.
         if (step !== this.moves) return;
       }
       this.collapsed = collapsed;
-      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('.search__toggle'))?.focus());
-      slideIn(this, collapsed ? {} : { x: -16 });
+      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="search"]'))?.focus());
+      slideIn(this, collapsed ? {} : { y: -8 });
+      this.dispatchEvent(new Event('panel-change', { bubbles: true }));
       try {
         localStorage.setItem(COLLAPSED_KEY, String(collapsed));
       } catch {
@@ -276,7 +313,7 @@
     showReferences(address) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(new URLSearchParams({ refs: address, fragment: 'results' }), 'open');
     },
 
@@ -289,7 +326,7 @@
     showQuotes(address) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(new URLSearchParams({ quotes: address, fragment: 'results' }), 'open');
     },
 
@@ -297,7 +334,7 @@
     showEntity(id) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(new URLSearchParams({ entity: id, fragment: 'results' }), 'open');
     },
 
@@ -305,7 +342,7 @@
     showTopic(key) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(new URLSearchParams({ topic: key, fragment: 'results' }), 'open');
     },
 
@@ -313,7 +350,7 @@
     showWord(address) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(new URLSearchParams({ word: address, fragment: 'results' }), 'open');
     },
 
@@ -325,7 +362,7 @@
     async showGuide(address, notes, how = 'open') {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       if (!(await this.run(new URLSearchParams({ guide: address, fragment: 'results' }), how))) return;
       const holder = this.querySelector('.guide__notes');
       if (!(holder instanceof HTMLElement) || !notes.length) return;
@@ -356,21 +393,21 @@
      * @param {string} [which] the number of the fact
      */
     discover(which = 'random') {
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       /** @type {HTMLInputElement} */ (this.querySelector('input')).value = '';
       this.typing = false;
       // The trail's step is not on show while the fact is: no chip is lapis,
       // and a tap on any chip, the last one too, goes back to it.
       this.away = true;
       this.paintTrail();
-      this.run(new URLSearchParams({ discover: which, fragment: 'results' }), 'trail');
+      return this.run(new URLSearchParams({ discover: which, fragment: 'results' }), 'trail');
     },
 
     /** @param {string} text */
     searchFor(text) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = text;
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       this.run(undefined, 'open');
     },
 
@@ -412,6 +449,7 @@
       const leaving = this.path.steps[this.path.index];
       if (leaving && how !== 'typed') leaving.scroll = results.scrollTop;
       results.setHTMLUnsafe(text);
+      if (results.childElementCount && !this.quiet) this.setExpanded(true);
       results.scrollTop = scroll;
       this.announce(results);
       const answer = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
@@ -486,7 +524,7 @@
      */
     async show(step) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
-      if (this.collapsed) this.setCollapsed(false);
+      this.reveal();
       const query = new URLSearchParams(step.query);
       const guide = query.get('guide');
       if (guide) {
@@ -520,9 +558,16 @@
       this.wholeTrail = false;
       this.paintTrail();
       const step = this.path.steps[this.path.index];
-      if (showStep && step) this.show(step);
-      // With nothing to go back to, the panel opens on a "Did you know?".
-      else if (showStep) this.discover();
+      // The step comes back folded under the field: a table that opens does
+      // not cover itself with its last answer.
+      this.quiet = true;
+      const done = () => {
+        this.quiet = false;
+      };
+      if (showStep && step) this.show(step).finally(done);
+      // With nothing to go back to, the panel has a "Did you know?" ready.
+      else if (showStep) this.discover().finally(done);
+      else done();
     },
 
     /**
@@ -664,16 +709,15 @@
 </script>
 
 <style>
+  /* Placed by the rail (table-rail), which sets its box. */
   :scope {
     position: absolute;
-    top: 1rem;
-    bottom: 1rem;
-    left: 1rem;
     /* Above every card at rest, below a card a finger holds (gesture-card). */
     z-index: 1000000;
     display: flex;
     flex-direction: column;
-    width: 26rem;
+    box-sizing: border-box;
+    zoom: var(--chrome-zoom, 1);
     border: 1px solid var(--card-edge);
     border-radius: var(--radius);
     background: var(--paper);
@@ -702,43 +746,21 @@
   input::placeholder {
     color: var(--muted);
   }
-  button[type='submit'],
-  .search__toggle {
+  button[type='submit'] {
     min-height: var(--control-height);
     padding: var(--control-padding);
     font: var(--control-font);
   }
-  /* Clear of the timeline strip, which sets its own height on the table. */
-  :scope {
-    bottom: calc(var(--timeline-height, 0px) + 2rem);
-  }
-  /* On a phone: a sheet the width of the screen, from the top to the row of
-     buttons at the bottom (the timeline's and the menu's). */
-  @media (max-width: 700px), (max-height: 500px) {
-    :scope {
-      top: 0.5rem;
-      right: 0.5rem;
-      left: 0.5rem;
-      width: auto;
-      bottom: calc(var(--timeline-height, 0px) + 1rem);
-    }
-    :scope:state(collapsed) {
-      right: auto;
-    }
-  }
-  /* Collapsed, the panel is one box around the toggle. */
-  :scope:state(collapsed) {
-    bottom: auto;
-    width: auto;
-  }
-  :scope:state(collapsed) form {
-    border-bottom: 0;
-  }
-  :scope:state(collapsed) form > :not(.search__toggle),
-  :scope:state(collapsed) .search__results,
-  :scope:state(collapsed) touch-keys,
+  :scope:state(collapsed),
   :scope:not(:state(keys)) touch-keys {
     display: none;
+  }
+  /* At rest, only the field: the trail and the results fold away. */
+  :scope:not(:state(expanded)) :is(.search__trail, .trail__all, .search__results) {
+    display: none;
+  }
+  :scope:not(:state(expanded)) form {
+    border-bottom: 0;
   }
   /* The trail: Back, Forward, and the chips of the steps around the one on
      show, each with the pictogram of its kind. The step on show is lapis. */
@@ -749,8 +771,7 @@
     padding: 0.35rem var(--bar-padding);
     border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
   }
-  .search__trail[hidden],
-  :scope:state(collapsed) .search__trail {
+  .search__trail[hidden] {
     display: none;
   }
   .trail__discover {
@@ -817,8 +838,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
     list-style: none;
   }
-  .trail__all[hidden],
-  :scope:state(collapsed) .trail__all {
+  .trail__all[hidden] {
     display: none;
   }
   .trail__row {
@@ -883,14 +903,11 @@
 </style>
 
 <form action="/search" role="search">
-  <button
-    type="button"
-    class="search__toggle"
-    data-action="toggle"
-    aria-expanded="${collapsed ? 'false' : 'true'}"
-  >${collapsed ? 'Search' : 'Hide'}</button>
+  <button type="button" class="panel__grip" data-grip="search" aria-label="Move the search panel" title="Drag to move; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
   <input id="search-field" type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
   <button type="submit">Search</button>
+  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="search" aria-label="Float or dock the search panel" title="Float or dock"><svg-icon library="ui" name="float"></svg-icon></button>
+  <button type="button" class="panel__button" data-chrome="close" data-panel="search" aria-label="Close the search panel" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
 </form>
 <nav class="search__trail" aria-label="Where you have been" hidden>
   <button type="button" class="trail__step trail__discover" data-discover="random" aria-label="Did you know?" title="Did you know?">✦</button>

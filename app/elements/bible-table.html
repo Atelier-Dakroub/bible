@@ -481,6 +481,8 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
+      // The rail has moved the panels: the lines to the timeline follow.
+      this.addEventListener('chrome-arrange', () => this.drawSoon(), options);
       // On a phone, one panel is open at a time: the one that opens closes
       // the others (each sends panel-open only on a phone).
       this.addEventListener('panel-open', (event) => {
@@ -490,7 +492,7 @@
         const menu = /** @type {any} */ (this.querySelector('table-menu'));
         if (opened !== 'search' && search && !search.collapsed) search.setCollapsed(true);
         if (opened !== 'timeline' && strip && !strip.collapsed) strip.setCollapsed(true);
-        if (opened !== 'menu') menu?.closeSheets();
+        if (opened !== 'menu') menu?.setShown?.(false);
       }, options);
       // A new text size or line spacing changes the size of the cards, so the
       // lines between them move.
@@ -628,7 +630,7 @@
      * @param {EventTarget | null} target
      */
     overPanel(target) {
-      return target instanceof Element && Boolean(target.closest('passage-search, table-menu, note-editor, time-line'));
+      return target instanceof Element && Boolean(target.closest('passage-search, table-menu, note-editor, time-line, table-rail'));
     },
 
     /** @param {WheelEvent} event */
@@ -878,7 +880,7 @@
     navigable() {
       const cards = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
       const controls = /** @type {HTMLElement[]} */ (
-        [...this.querySelectorAll(':is(passage-search, table-menu, time-line, note-editor) :is(button, input, textarea)')]
+        [...this.querySelectorAll(':is(table-rail, passage-search, table-menu, time-line, note-editor) :is(button, input, textarea, select)')]
       ).filter((each) => !(/** @type {HTMLButtonElement} */ (each).disabled) && (each.checkVisibility?.() ?? each.getClientRects().length > 0));
       return [...cards, ...controls];
     },
@@ -992,8 +994,8 @@
 
     /**
      * Where a new card goes on a phone, and at what size: the width of the
-     * screen at most, at the left edge, under the search button, and a
-     * little lower for each card after it.
+     * screen at most, at the left edge, near the top, and a little lower
+     * for each card after it.
      *
      * @param {Element} card
      * @param {number} scale the size the card would have elsewhere
@@ -1003,10 +1005,7 @@
       const width = card instanceof HTMLElement ? card.offsetWidth : 0;
       const fit = width ? Math.min(scale, (innerWidth - 2 * EDGE) / width) : scale;
       const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
-      // Under the search button, which is where it is whether the panel is
-      // open, closed, or sliding closed.
-      const button = this.querySelector('passage-search .search__toggle')?.getBoundingClientRect();
-      const top = (button ? button.bottom + 2 * EDGE : EDGE) + step * 24;
+      const top = EDGE + step * 24;
       // The grip is GRIP (gesture-card) from the card's corner, at its scale.
       return { at: { x: EDGE + 48 * fit, y: top + 32 * fit }, scale: fit };
     },
@@ -1282,16 +1281,13 @@
 
     /**
      * Pans the table so a box on the screen is in the middle of its open
-     * part: right of the search panel, above the timeline.
+     * part: the part the rail and its docked panels leave free.
      *
      * @param {DOMRect} box
      */
     glideTo(box) {
-      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
-      const strip = this.querySelector('time-line')?.getBoundingClientRect();
-      const left = panel ? panel.right : 0;
-      const bottom = strip ? strip.top : innerHeight;
-      const target = { x: (left + innerWidth) / 2, y: bottom / 2 };
+      const free = this.free();
+      const target = { x: (free.left + free.right) / 2, y: (free.top + free.bottom) / 2 };
       this.glide(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2));
     },
 
@@ -1393,15 +1389,15 @@
       }
       const card = await this.fetchCard(MAP, {});
       if (!card) return;
-      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
-      card.placeAt({ x: (panel?.right ?? 0) + 80, y: 80 });
+      const free = this.free();
+      card.placeAt({ x: free.left + 80, y: free.top + 80 });
       this.keep();
     },
 
     /**
      * Puts the map on the table if it is not there, brings it to the top,
      * marks the places, and pans the table so they are in the open part of
-     * the screen: right of the search panel, above the timeline.
+     * the screen: the part the rail and its docked panels leave free.
      *
      * @param {string} ids place ids, with commas between, such as place:damascus_310
      * @param {{ x: number, y: number }[]} [more] other points the map's view takes in, in map units
@@ -2064,16 +2060,27 @@
     },
 
     /**
-     * Where a tapped result goes: near the top, right of the search panel, and
+     * Where a tapped result goes: near the top of the free part of the screen, and
      * a step lower and further right each time, so cards placed one after
      * another do not cover each other's headings.
      *
      * @returns {Point}
      */
     openSpot() {
-      const panel = this.querySelector('passage-search')?.getBoundingClientRect();
+      const free = this.free();
       const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
-      return { x: (panel?.right ?? 0) + 96 + step * 72, y: 96 + step * 72 };
+      return { x: free.left + 96 + step * 72, y: free.top + 96 + step * 72 };
+    },
+
+    /**
+     * The part of the screen that the rail and its docked panels leave free
+     * for the cards (table-rail).
+     *
+     * @returns {{ left: number, top: number, right: number, bottom: number }}
+     */
+    free() {
+      const rail = /** @type {any} */ (this.querySelector('table-rail'));
+      return rail?.freeBox?.() ?? { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
     },
 
     /** @returns {Workspace} what is on the table now */
@@ -2122,7 +2129,7 @@
     },
 
     showHistory() {
-      /** @type {any} */ (this.querySelector('table-menu'))?.setHistory?.(this.history?.canUndo(), this.history?.canRedo());
+      /** @type {any} */ (this.querySelector('table-rail'))?.setHistory?.(this.history?.canUndo(), this.history?.canRedo());
     },
 
     undo() {
