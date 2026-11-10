@@ -30,7 +30,7 @@ import { emptyTrail, toTrail } from './trail.js';
 
 const KEY = 'bible.table.v1';
 const NAMED_KEY = 'bible.workspaces.v1';
-const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse'];
+const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'];
 
 /** @returns {Workspace} */
 export function empty() {

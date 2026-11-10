@@ -1257,6 +1257,12 @@ export async function search(query, limit = 50) {
   const ref = parseReference(text, books);
   if (ref) return referenceResult(text, ref);
 
+  // Roles of a clause, each with a word, such as "subject God verb love",
+  // search the syntax of the Hebrew and the Greek (data/syntax.js).
+  const syntax = await import('./syntax.js');
+  const roles = await syntax.syntaxQuery(text);
+  if (roles) return syntax.syntaxResults(text, roles, limit);
+
   // Words of the grammar, such as "aorist imperative in John", search the
   // Hebrew and Greek (lib/grammar.js). One word alone that the KJV also
   // has, such as "perfect", is a search of the text.

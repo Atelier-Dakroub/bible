@@ -827,6 +827,70 @@ gesture-card[data-zoom='far'] .note__text {
 .rev__group--plain .rev__en {
   color: var(--ink-soft);
 }
+/* Syntax: a clause to a row, its parts as boxes with their role above, the
+   words of the original, and their gloss under them. A clause inside another
+   is indented, with where it is (data/syntax.js). The Hebrew rows run from
+   the right. */
+.syntax__sentence {
+  margin: 0 0 0.75rem;
+}
+.syntax__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.syntax__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.25rem 0.4rem;
+  margin: 0 0 0.35rem;
+  padding-inline-start: calc(var(--syntax-depth, 0) * 1.1rem);
+  border-inline-start: 2px solid transparent;
+}
+.syntax__row--d1 { --syntax-depth: 1; }
+.syntax__row--d2 { --syntax-depth: 2; }
+.syntax__row--d3 { --syntax-depth: 3; }
+.syntax__row--d4 { --syntax-depth: 4; }
+.syntax__row--d5 { --syntax-depth: 5; }
+.syntax__row--d6 { --syntax-depth: 6; }
+.syntax__where {
+  flex-basis: 100%;
+  color: var(--muted);
+  font: italic max(0.55rem, 11px) var(--sans);
+}
+.syntax__part {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  text-align: center;
+}
+.syntax__part--none {
+  border-color: transparent;
+}
+.syntax__part--v,
+.syntax__part--vc {
+  border-color: var(--lapis);
+  border-width: 2px;
+}
+.syntax__part--s {
+  background: color-mix(in srgb, var(--lapis) 9%, transparent);
+}
+.syntax__role {
+  color: var(--muted);
+  font: max(0.5rem, 11px) / 1.2 var(--sans);
+  text-transform: lowercase;
+}
+.syntax__text {
+  font: calc(0.95rem * var(--read-scale)) / 1.35 var(--serif);
+}
+.syntax__gloss {
+  color: var(--muted);
+  font: max(0.55rem, 11px) / 1.25 var(--sans);
+}
 .passage__reverse .inter__words {
   gap: 0.35rem 0.15rem;
 }

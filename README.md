@@ -394,6 +394,40 @@ Amalgamated OT+NT" and "Morphology codes"). The fonts are Ezra SIL for
 Hebrew and Gentium Plus for Greek (SIL Open Font License), in
 `app/public/fonts`.
 
+## Syntax
+
+`app/data/syntax/` holds every sentence of the Hebrew and the Greek as its
+clauses, and each clause as its parts: subject, verb, object, indirect
+object, predicate, adverbial. It comes from the syntax trees of MACULA Greek
+and MACULA Hebrew (© Biblica, CC BY 4.0), and `tools/import-syntax.js`
+writes it, one file for each book (23 MB in all):
+
+```sh
+node tools/import-syntax.js <macula-greek> <macula-hebrew> <directory with STEPBible's TAHOT files>
+```
+
+- **The Syntax version of a card** shows the passage's sentences whole,
+  each clause on a row of its own: its parts as boxes, each with its role,
+  the words of the original and their gloss. A clause inside another is
+  indented under it, with where it is ("object", "in the subject"). The
+  Hebrew runs from the right. A word with no role, such as "and", goes in
+  front of the clause it joins.
+- **A search by syntax** names roles, each with a word: "subject God verb
+  love", "verb love object world", "subject theos verb agapao in John". A
+  word is a Strong's number, a word of the original as it is said, or an
+  English word, which stands for the words of the original that the KJV
+  renders by it (at least 3 times, and at least 5% of its renderings). The
+  answer is the sentences with a clause that has each word in its role, with
+  those words marked in the KJV.
+
+The Greek is Nestle's text of 1904, which differs in places from the Textus
+Receptus that the KJV translated; the card says so. The Hebrew is the
+Leningrad Codex, as the app's Hebrew is; MACULA numbers its words as the
+Hebrew Bible does, and the import gives each word its KJV verse
+(`tools/lib/versification.js`), so a psalm's title stays out of verse 1.
+MACULA's senses and domains are not taken: they are UBS data used by
+permission.
+
 ## Word senses
 
 A word study lists the senses of the word: `app/data/senses.json`, from
@@ -786,7 +820,7 @@ In the Claude desktop app, add it to `claude_desktop_config.json` under
 A New Testament verse where a quotation of the Old Testament begins, and an
 Old Testament verse quoted in the New, has a lapis quotation mark in the
 card's right margin; a tap lists the other side in the search panel, and
-the passage guide has a section for it. There are 610 quotations
+the passage guide has a section for it. There are 603 quotations
 (`app/data/quotations.json`), from two sources. Both mark quotations, not
 allusions.
 
@@ -797,11 +831,11 @@ allusions.
   (Romans 1:23 with Habakkuk 2:4) is left out.
 - **The UBS Parallel Passages Database** (© 2023 United Bible Societies,
   CC BY-SA 4.0), for every book: the quotations Nestle's markup does not
-  have (134), most of them in Hebrews, 1 and 2 Corinthians, James and
+  have (127), most of them in Hebrews, 1 and 2 Corinthians, James and
   1 Peter. A pair that Nestle has already is not added twice. The database
   numbers the Old Testament as the Hebrew Bible does (its Psalm 22:2 is the
   KJV's 22:1), and the import turns those numbers into the KJV's with
-  STEPBible's Hebrew files, which give both.
+  STEPBible's Hebrew files, which give both (`tools/lib/versification.js`).
 
 ```sh
 node tools/import-quotations.js <MACULA Greek's Nestle1904/tei> --ubs <ParallelPassages.xml> --tahot <directory with STEPBible's TAHOT files>

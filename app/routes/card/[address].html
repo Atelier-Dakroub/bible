@@ -1,5 +1,6 @@
 <script server>
   import { books, entityView, original, parallel, phrase, preview, reverse, verseCount } from '../../data/bible.js';
+  import { syntaxOf } from '../../data/syntax.js';
   import { entities, eventMarks, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
@@ -27,7 +28,7 @@
   // `version` picks the text: kjv (the default), bsb, both side by side, the
   // original (Hebrew or Greek), the original word by word (interlinear), or
   // the KJV with the original under each word (reverse).
-  const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse'];
+  const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'];
   const NOTE = /^note:([a-z0-9]{1,40})$/i;
   const MAX_QUOTES = 20;
 
@@ -57,7 +58,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -134,7 +135,8 @@
     const back = stepAddress(address, -1, books) ?? '';
     const next = stepAddress(address, 1, books) ?? '';
     const reversed = version === 'reverse' && source ? reverse(verses, source) : [];
-    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed });
+    const syntax = version === 'syntax' ? await syntaxOf(ref) : null;
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed, syntax });
   };
 </script>
 
@@ -252,6 +254,7 @@
         <button type="button" data-version="original" aria-pressed="${version === 'original' ? 'true' : 'false'}" title="The Hebrew or the Greek">Original</button>
         <button type="button" data-version="interlinear" aria-pressed="${version === 'interlinear' ? 'true' : 'false'}" title="The Hebrew or the Greek, word by word, with the English and the grammar">Word by word</button>
         <button type="button" data-version="reverse" aria-pressed="${version === 'reverse' ? 'true' : 'false'}" title="The KJV in its own order, with the Hebrew or the Greek under each word">Reverse</button>
+        <button type="button" data-version="syntax" aria-pressed="${version === 'syntax' ? 'true' : 'false'}" title="The Hebrew or the Greek, clause by clause: subject, verb, object and the rest">Syntax</button>
       </div>
       <button if="version === 'both'" type="button" data-action="compare" aria-pressed="false" title="Bold: words the other translation does not have">Compare</button>
     </div>
@@ -371,6 +374,20 @@
         </ol>
       </section>
       <p class="entity__credit">KJV with Strong's numbers (eBible.org); Hebrew and Greek: STEPBible.org, from Tyndale House, Cambridge (CC BY 4.0). Each English word is matched to the word of the original with its Strong's number. English with nothing under it, in a softer ink, has no number of its own: it renders part of a word (a prefix such as “in the”), or the translators supplied it.</p>
+    </div>
+    <!-- Syntax: each clause of the passage's sentences on a row of its own,
+         its parts as labeled boxes with the words and their glosses; a
+         clause inside another is indented under it, with where it is
+         (data/syntax.js). A sentence is shown whole. -->
+    <div if="kind === 'passage' && version === 'syntax' && syntax" class="passage__syntax">
+      <p if="syntax && !syntax.sentences.length" class="verse__missing">No syntax for this passage.</p>
+      <section each="sentence of syntax ? syntax.sentences : []" class="syntax__sentence">
+        <p class="inter__ref">${sentence.label}</p>
+        <ol class="syntax__rows" dir="${syntax ? syntax.dir : 'ltr'}">
+          <li each="row of sentence.rows" class="syntax__row syntax__row--d${row.depth > 6 ? 6 : row.depth}"><span if="row.label" class="syntax__where" dir="ltr">${row.label}</span><span each="part of row.parts" class="syntax__part syntax__part--${part.role || 'none'}"><span if="part.label" class="syntax__role" dir="ltr">${part.label}</span><span class="syntax__text" lang="${syntax ? syntax.lang : ''}">${part.text}</span><span if="part.gloss" class="syntax__gloss" dir="ltr">${part.gloss}</span></span></li>
+        </ol>
+      </section>
+      <p class="entity__credit" lang="en" dir="ltr">Syntax: MACULA Greek and MACULA Hebrew (© Biblica, CC BY 4.0). The Greek is Nestle 1904, which differs in places from the Textus Receptus the KJV translated; the Hebrew is the Leningrad Codex. A sentence that runs past the passage is shown whole.</p>
     </div>
     <!-- Both, verse by verse: the KJV on the left, the BSB on the right. -->
     <div if="kind === 'passage' && version === 'both'" class="passage__parallel">

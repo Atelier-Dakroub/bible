@@ -41,6 +41,7 @@
 
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { hebrewToKjv } from './lib/versification.js';
 
 const args = process.argv.slice(2);
 const ubsAt = args.indexOf('--ubs');
@@ -195,20 +196,12 @@ if (ubs) {
     const quoted = new Set(quotation.ot.flatMap(versesOf));
     for (const verse of versesOf(quotation.nt)) known.set(verse, new Set([...(known.get(verse) ?? []), ...quoted]));
   }
-  // The Hebrew Bible's verse numbers to the KJV's, where they differ.
-  /** @type {Map<string, string>} */
-  const english = new Map();
-  for (const name of (await readdir(tahot)).filter((each) => /^TAHOT.*\.txt$/.test(each))) {
-    const text = await readFile(path.join(tahot, name), 'utf8');
-    for (const [, book, chapter, verse, hebrewChapter, hebrewVerse] of text.matchAll(/^([1-3]?[A-Za-z]+)\.(\d+)\.(\d+)\((\d+)\.(\d+)\)/gm)) {
-      const key = `${book.toUpperCase()}.${hebrewChapter}.${hebrewVerse}`;
-      if (!english.has(key)) english.set(key, `${chapter}.${verse}`);
-    }
-  }
+  // The Hebrew Bible's verse numbers to the KJV's.
+  const versification = await hebrewToKjv(tahot);
   /** @param {string} book @param {number} chapter @param {number} verse @returns {[number, number]} */
   const kjv = (book, chapter, verse) => {
-    const found = english.get(`${book}.${chapter}.${verse}`);
-    return found ? /** @type {[number, number]} */ (found.split('.').map(Number)) : [chapter, verse];
+    const [, c, v] = versification.verse(`${book}.${chapter}.${verse}`).split('.');
+    return [Number(c), Number(v)];
   };
   /**
    * "MRK 10:7-8" to MRK.10.7-8, the Old Testament in the KJV's numbers, or

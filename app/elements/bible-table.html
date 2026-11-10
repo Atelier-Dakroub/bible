@@ -795,7 +795,7 @@
      * own size, as one step that Undo takes back; returns what it put down.
      *
      * @param {string[]} addresses
-     * @param {string} version kjv, bsb, both, original, interlinear or reverse; '' for the KJV
+     * @param {string} version kjv, bsb, both, original, interlinear, reverse or syntax; '' for the KJV
      */
     async placeRow(addresses, version) {
       const start = this.openSpot();
@@ -1949,8 +1949,10 @@
       const reversed = [...card.querySelectorAll('.rev__verse')].map((verse) =>
         [...verse.querySelectorAll('.rev__en')].map((words) => words.textContent?.trim()).join(' '),
       );
-      const original = version === 'original' || version === 'interlinear';
-      const parts = original ? originals : version === 'reverse' ? reversed : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
+      // The syntax copies its clauses, one to a line.
+      const clauses = [...card.querySelectorAll('.syntax__row')].map((row) => [...row.querySelectorAll('.syntax__text')].map((words) => words.textContent?.trim()).join(' '));
+      const original = version === 'original' || version === 'interlinear' || version === 'syntax';
+      const parts = version === 'syntax' ? clauses : original ? originals : version === 'reverse' ? reversed : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
       const name = original ? (source?.getAttribute('lang') === 'hbo' ? 'Hebrew' : 'Greek') : version === 'bsb' ? 'BSB' : 'KJV';
       const text = `${parts.join(' ')}\n— ${title} (${name})`;
       const done = await copyText(text);

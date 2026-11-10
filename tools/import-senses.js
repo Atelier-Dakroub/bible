@@ -27,8 +27,9 @@
 //   { source, license, senses: { "G4151": [{ lemma, gloss, def, domain, verses }] } }
 // with `verses` the addresses of the verses, in canon order.
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { hebrewToKjv } from './lib/versification.js';
 
 const [folder, tahot, out = 'app/data/senses.json'] = process.argv.slice(2);
 if (!folder || !tahot) {
@@ -39,16 +40,8 @@ if (!folder || !tahot) {
 /** @type {{ id: string, name: string, verses: number[] }[]} */
 const books = JSON.parse(await readFile('app/data/kjv/books.json', 'utf8'));
 
-// The Hebrew Bible's verse numbers to the KJV's, where they differ.
-/** @type {Map<string, string>} */
-const english = new Map();
-for (const name of (await readdir(tahot)).filter((each) => /^TAHOT.*\.txt$/.test(each))) {
-  const text = await readFile(path.join(tahot, name), 'utf8');
-  for (const [, book, chapter, verse, hebrewChapter, hebrewVerse] of text.matchAll(/^([1-3]?[A-Za-z]+)\.(\d+)\.(\d+)\((\d+)\.(\d+)\)/gm)) {
-    const key = `${book.toUpperCase()}.${hebrewChapter}.${hebrewVerse}`;
-    if (!english.has(key)) english.set(key, `${book.toUpperCase()}.${chapter}.${verse}`);
-  }
-}
+// The Hebrew Bible's verse numbers to the KJV's.
+const kjv = await hebrewToKjv(tahot);
 
 let dropped = 0;
 
@@ -63,7 +56,8 @@ function addressOf(code) {
   if (!book) return '';
   const chapter = Number(code.slice(3, 6));
   const verse = Number(code.slice(6, 9));
-  const address = english.get(`${book.id}.${chapter}.${verse}`) ?? `${book.id}.${chapter}.${verse}`;
+  const hebrew = Number(code.slice(0, 3)) <= 39;
+  const address = hebrew ? kjv.verse(`${book.id}.${chapter}.${verse}`) : `${book.id}.${chapter}.${verse}`;
   const [, c, v] = address.split('.').map(Number);
   if (!book.verses[c - 1] || v < 1 || v > book.verses[c - 1]) {
     dropped += 1;

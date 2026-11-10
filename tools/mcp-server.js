@@ -111,12 +111,12 @@ const TOOLS = {
   },
 
   table_place: {
-    description: "Put passages on the open table, as cards in a row in its open part, in one step that Undo takes back. Up to 12. The version is kjv (the default), bsb, both (the two side by side), original, interlinear or reverse.",
+    description: "Put passages on the open table, as cards in a row in its open part, in one step that Undo takes back. Up to 12. The version is kjv (the default), bsb, both (the two side by side), original, interlinear, reverse, or syntax (the original clause by clause).",
     inputSchema: {
       type: 'object',
       properties: {
         references: { type: 'array', items: { type: 'string' }, description: 'Passages, such as ["Genesis 15:1-6", "Romans 4:1-5"].' },
-        version: { type: 'string', enum: ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse'] },
+        version: { type: 'string', enum: ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'] },
       },
       required: ['references'],
     },
@@ -225,7 +225,7 @@ const TOOLS = {
 
   search: {
     description:
-      "Search the Bible as the app's search field does. Takes words or a phrase in quotes (searches the KJV); a reference (John 3:16); a Strong's number (G26, H2617); a word of the original by its name (agape, chesed, shalom); or the grammar of the Hebrew and Greek, with an optional scope (\"aorist imperative in John\", \"wayyiqtol in Ruth\", \"G26 accusative\"). Returns the verses found, with addresses.",
+      "Search the Bible as the app's search field does. Takes words or a phrase in quotes (searches the KJV); a reference (John 3:16); a Strong's number (G26, H2617); a word of the original by its name (agape, chesed, shalom); the grammar of the Hebrew and Greek, with an optional scope (\"aorist imperative in John\", \"wayyiqtol in Ruth\", \"G26 accusative\"); the syntax, as roles each with a word (\"subject God verb love\", \"verb love object world in John\": a word is a Strong's number, a word of the original, or an English word); one sense of a word (\"G4151 sense 7\"); or a topic of Nave's (\"prayer\"). Returns the verses found, with addresses.",
     inputSchema: {
       type: 'object',
       properties: {

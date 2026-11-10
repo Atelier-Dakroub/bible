@@ -1,0 +1,5 @@
+{
+ "name": "MACULA Greek and MACULA Hebrew Linguistic Datasets: the syntax trees (lowfat)",
+ "source": "https://github.com/Clear-Bible/macula-greek, https://github.com/Clear-Bible/macula-hebrew",
+ "license": "CC BY 4.0, © Biblica. The Greek is Nestle 1904 (public domain); the Hebrew is the Westminster Leningrad Codex (public domain) with the Westminster Hebrew Syntax (Groves Center, CC BY 4.0)."
+}
