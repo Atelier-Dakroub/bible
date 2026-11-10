@@ -20,6 +20,7 @@ import { differences } from '../lib/compare.js';
 
 /** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
+import kings from './chronology/kings.json' with { type: 'json' };
 
 /** @typedef {import('../lib/reference.js').Reference} Reference */
 /** @typedef {{ text: string, marks: string[] }} Run */
@@ -831,6 +832,12 @@ export async function entityView(id) {
   }
   if (found.kind === 'event') {
     facts.push(`${found.approx ? 'about ' : ''}${formatYear(found.start)}${found.duration ? `, lasting ${duration(found.duration)}` : ''}`);
+    // A king's reign, by the modern chronologies too (data/chronology).
+    const reign = /** @type {Record<string, Record<string, number[]>>} */ (kings.reigns)[id];
+    if (reign) {
+      const span = (/** @type {number[]} */ [from, to]) => (from === to ? formatYear(from) : `${1 - from}–${formatYear(to)}`);
+      facts.push(Object.entries(reign).map(([key, years]) => `${/** @type {Record<string, string>} */ (kings.chronologies)[key]}: ${span(years)}`).join('; '));
+    }
     relations = [
       ['Part of', named(found.partOf)],
       ['People', many(found.participants)],
@@ -840,7 +847,8 @@ export async function entityView(id) {
   if (found.kind === 'group') relations = [['Members', many(found.members)]];
 
   const dated = found.kind === 'event' || (found.kind === 'person' && (found.born !== null || found.died !== null));
-  const credit = `From Theographic (CC BY-SA)${found.summary ? " and Easton's Bible Dictionary" : ''}.${dated ? ` ${CHRONOLOGY}` : ''}`;
+  const reigned = found.kind === 'event' && id in kings.reigns;
+  const credit = `From Theographic (CC BY-SA)${found.summary ? " and Easton's Bible Dictionary" : ''}.${dated ? ` ${CHRONOLOGY}` : ''}${reigned ? ' The reign by Albright, Thiele, Galil and Kitchen: Wikipedia, "Kings of Israel and Judah" (CC BY-SA).' : ''}`;
   return {
     id,
     kind: found.kind,

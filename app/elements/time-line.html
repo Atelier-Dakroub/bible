@@ -32,9 +32,15 @@
   export const state = {
     collapsed: false,
     world: true,
+    /** whose dates the kings' reigns have on the axis */
+    kings: 'jones',
   };
 
   const COLLAPSED_KEY = 'bible.timeline.collapsed';
+  const CHRONOLOGY_KEY = 'bible.timeline.kings';
+  // The kings' reigns by Jones (Theographic's dates, the default) or by a
+  // modern chronology (data/chronology/kings.json).
+  const CHRONOLOGIES = { jones: 'Jones', thiele: 'Thiele', galil: 'Galil', albright: 'Albright', kitchen: 'Kitchen' };
   // The groups the arrow keys move within, each one stop for the Tab key.
   const ROVING = ['.timeline__tick', '.world__span'];
   const WORLD_KEY = 'bible.timeline.world';
@@ -107,8 +113,51 @@
         });
       }
       this.addEventListener('keydown', (event) => this.rove(event), { signal });
+      try {
+        const kings = localStorage.getItem(CHRONOLOGY_KEY) ?? 'jones';
+        if (kings in CHRONOLOGIES) this.kings = kings;
+      } catch {
+        // No storage: Jones's dates.
+      }
+      this.placeReigns();
+      this.addEventListener('change', (event) => {
+        const select = event.target instanceof HTMLSelectElement ? event.target : null;
+        if (select?.dataset.action !== 'kings') return;
+        this.kings = select.value in CHRONOLOGIES ? select.value : 'jones';
+        try {
+          localStorage.setItem(CHRONOLOGY_KEY, this.kings);
+        } catch {
+          // No storage: the choice lasts until the page closes.
+        }
+        this.placeReigns();
+        this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
+      }, { signal });
 
       return () => measure.disconnect();
+    },
+
+    /**
+     * Puts each reign's tick at its start by the chosen chronology, and
+     * names the chronology in its label. A reign the chronology does not
+     * date keeps Jones's date, and says so.
+     */
+    placeReigns() {
+      const chosen = this.kings;
+      for (const tick of /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('.timeline__tick[data-alts]'))) {
+        if (!tick.dataset.alts) continue;
+        // Jones's place and label, kept from the page.
+        tick.dataset.jonesAt ??= tick.style.getPropertyValue('--at').trim();
+        tick.dataset.jonesLabel ??= tick.getAttribute('aria-label') ?? '';
+        /** @type {Record<string, [number, string]>} */
+        const alts = JSON.parse(tick.dataset.alts);
+        const alt = chosen === 'jones' ? null : alts[chosen];
+        const title = tick.dataset.jonesLabel.replace(/, [^,]*$/, '');
+        tick.style.setProperty('--at', alt ? String(alt[0]) : tick.dataset.jonesAt);
+        const label = chosen === 'jones' ? tick.dataset.jonesLabel : alt ? `${title}, ${alt[1]} (${CHRONOLOGIES[/** @type {keyof typeof CHRONOLOGIES} */ (chosen)]})` : `${tick.dataset.jonesLabel} (Jones; ${CHRONOLOGIES[/** @type {keyof typeof CHRONOLOGIES} */ (chosen)]} gives no date)`;
+        tick.setAttribute('aria-label', label);
+        tick.setAttribute('title', label);
+        tick.classList.toggle('is-alt', Boolean(alt));
+      }
     },
 
     /**
@@ -229,10 +278,21 @@
     gap: var(--bar-gap);
     padding: var(--bar-padding);
   }
-  .timeline__toggle {
+  .timeline__toggle,
+  .timeline__kings {
     min-height: var(--control-height);
     padding: var(--control-padding);
     font: var(--control-font);
+  }
+  .timeline__kings {
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-small);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  /* A reign at a modern chronology's date: lapis, so it shows which moved. */
+  .timeline__tick.is-alt::before {
+    background: var(--lapis);
   }
   .timeline__note {
     margin: 0;
@@ -392,8 +452,15 @@
   >World</button>
   <button type="button" class="timeline__toggle timeline__world-toggle" data-action="map">Map</button>
   <button type="button" class="timeline__toggle timeline__world-toggle" data-action="books">Books</button>
+  <select class="timeline__kings timeline__world-toggle" data-action="kings" aria-label="Whose dates the kings' reigns have">
+    <option value="jones" selected="${kings === 'jones'}">Kings: Jones</option>
+    <option value="thiele" selected="${kings === 'thiele'}">Kings: Thiele</option>
+    <option value="galil" selected="${kings === 'galil'}">Kings: Galil</option>
+    <option value="albright" selected="${kings === 'albright'}">Kings: Albright</option>
+    <option value="kitchen" selected="${kings === 'kitchen'}">Kings: Kitchen</option>
+  </select>
   <p class="timeline__note">
-    Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
+    Bible: Theographic's dates, after Floyd Nolen Jones's chronology in the tradition of Ussher${kings === 'jones' ? '' : '; the kings’ reigns by ' + kings.charAt(0).toUpperCase() + kings.slice(1) + ' (Wikipedia, CC BY-SA)'}. World: Wikidata's conventional scholarly dates. The two can disagree. Each era has the same width.
   </p>
 </div>
 <slot></slot>

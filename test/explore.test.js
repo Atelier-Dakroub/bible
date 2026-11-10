@@ -71,3 +71,13 @@ test('a dated event is marked where its passage begins, once for a run of verses
   const birth = marks.get('LUK.2.1')?.find((mark) => mark.title === 'Birth of Jesus');
   assert.match(birth?.label ?? '', /BC$/);
 });
+
+test('the kings reign by four modern chronologies beside Jones', async () => {
+  const { default: kings } = await import('../app/data/chronology/kings.json', { with: { type: 'json' } });
+  assert.equal(Object.keys(kings.reigns).length, 42);
+  // Rehoboam: the division of the kingdom, 931 BC by Thiele.
+  assert.deepEqual(/** @type {any} */ (kings.reigns)['event:165'].thiele, [-930, -912]);
+  const { entityView } = await import('../app/data/bible.js');
+  const view = await entityView('event:165');
+  assert.ok(view?.facts.some((fact) => fact.includes('Thiele: 931–913 BC')));
+});

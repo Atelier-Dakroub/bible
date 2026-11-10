@@ -226,6 +226,21 @@ for the words of Christ. No rounded corners, shadows, fills or texture. Each
 text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
 `app/styles/global.css` lists the values and the rule for changing them.
 
+## The kings' chronologies
+
+The timeline's Kings choice puts the reigns of the kings of Israel and Judah
+at Jones's dates (Theographic's, the default) or by Thiele, Galil, Albright
+or Kitchen; a reign at another chronology's date is lapis, and the note
+names the chronology. A reign's entry lists all of them. The data is
+`app/data/chronology/kings.json`, from the tables of Wikipedia's "Kings of
+Israel and Judah" (CC BY-SA), matched to Theographic's "Reign of …" events
+by hand:
+
+```sh
+curl -o kings.json 'https://en.wikipedia.org/w/api.php?action=parse&page=Kings_of_Israel_and_Judah&prop=wikitext&format=json&formatversion=2'
+node tools/import-kings.js kings.json
+```
+
 ## The world-history data
 
 `app/data/world/polities.json` lists the polities and periods on the

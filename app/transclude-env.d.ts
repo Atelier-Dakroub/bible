@@ -911,6 +911,7 @@ export type TimeLineProps = {};
 export type TimeLineState = {
   collapsed: boolean;
   world: boolean;
+  kings: string;
 };
 
 /** Members of `<time-line>`, from its `export const prototype`. */
@@ -921,6 +922,7 @@ export type TimeLineMembers = {
   }: {
     signal: any;
   }): () => void;
+  placeReigns(): void;
   rove(event: KeyboardEvent): void;
   setCollapsed(collapsed: boolean): Promise<void>;
   tickFor(id: string): HTMLElement | null;
@@ -1367,6 +1369,7 @@ export type TableData = {
     title: string;
     label: string;
     at: number;
+    alts: string;
   }[];
   eras: {
     name: string;

@@ -1,6 +1,17 @@
 <script server>
   import { timeline, world } from '../data/entities.js';
   import { ERAS, packLanes, positionOf, yearLabel } from '../lib/timeline.js';
+  import kings from '../data/chronology/kings.json' with { type: 'json' };
+
+  // A reign's start by each modern chronology (data/chronology/kings.json):
+  // its place on the axis and its label, as JSON on the tick, for the
+  // timeline's choice of the kings' dates.
+  /** @param {string} id */
+  const altsOf = (id) => {
+    const reign = /** @type {Record<string, Record<string, number[]>>} */ (kings.reigns)[id];
+    if (!reign) return '';
+    return JSON.stringify(Object.fromEntries(Object.entries(reign).map(([key, [from]]) => [key, [positionOf(from), yearLabel(from)]])));
+  };
 
   // The timeline strip's ticks and era marks, placed on the axis here so the
   // strip arrives drawn.
@@ -10,6 +21,7 @@
       title: event.title,
       label: `${event.approx ? 'about ' : ''}${yearLabel(event.start)}`,
       at: positionOf(event.start),
+      alts: altsOf(event.id),
     })),
     eras: ERAS.map((era) => ({ name: era.name, label: yearLabel(era.from), at: positionOf(era.from) })),
     regions: packLanes(
@@ -108,6 +120,7 @@
           type="button"
           class="timeline__tick"
           data-entity="${event.id}"
+          data-alts="${event.alts}"
           style="--at: ${event.at}"
           aria-label="${event.title}, ${event.label}"
           title="${event.title}, ${event.label}"
