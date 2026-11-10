@@ -74,3 +74,15 @@ for (const [name, palette] of Object.entries(settings)) {
     assert.ok(Math.abs(contrast(palette['on-pigment'], palette.lapis)) >= 60, 'a pressed button');
   });
 }
+
+test('the table and the design page set the reader\'s settings and the rem with the same script', async () => {
+  const { readFile } = await import('node:fs/promises');
+  /** @param {string} file */
+  const script = async (file) => {
+    const html = await readFile(new URL(`../app/routes/${file}`, import.meta.url), 'utf8');
+    return /<script>\s*try \{[\s\S]*?<\/script>/.exec(html)?.[0] ?? '';
+  };
+  const table = await script('table.html');
+  assert.match(table, /applyInterfaceSize/);
+  assert.equal(await script('design.html'), table);
+});

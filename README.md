@@ -387,6 +387,32 @@ its SIL Open Font License: Literata for the text and Atkinson Hyperlegible
 Next for the interface. They came from Fontsource on npm (version 5.3). The pictograms are in
 `app/icons/kinds`.
 
+## Screens, from a phone to a wall
+
+The table sets its rem for the kind of screen, before the page paints (the
+script in `routes/table.html`, and the same in `routes/design.html`). A page
+knows a screen's size in CSS pixels, not in inches, so the kind is a guess:
+
+| Screen | The rem |
+| --- | --- |
+| a phone: narrower than 600 CSS pixels | 16px |
+| 2560 or more across: a 4K panel or wall at one device pixel to the CSS pixel | 24px, for arm's length |
+| a laptop, a desktop or a tablet | 18px |
+
+Interface, in the Reading sheet, makes the whole interface smaller or larger
+on this device: S, M (the guess), L, XL. Text size is a size on top of it.
+The controls' text is two thirds of the rem, and the rem itself on a phone.
+
+On a phone (narrower than 700 pixels, or shorter than 500 on its side) the
+panels are sheets the width of the screen, and one is open at a time:
+Search at the top, and Timeline and Menu in a row at the bottom, where a
+thumb reaches. Menu opens the bar's buttons, and a sheet opens above them.
+The timeline starts closed; open, its strip moves sideways under a finger.
+A card from the search panel goes on the table at the width of the screen,
+and the panel steps aside so the card shows. A field's text is 16px, so the
+phone does not zoom in on it. The table takes every touch (`touch-action:
+none`), so a pinch on it scales a card, not the page.
+
 ## The map data
 
 `app/data/map/near-east.json` is the base map: land, natural lakes and rivers

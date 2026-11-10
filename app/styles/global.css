@@ -9,6 +9,9 @@
    ones that the parts of the table were written with; each points to a
    reading-room token, so a part follows the theme and the paper setting. */
 :root {
+  /* The text of the controls and panels. A page at the table's size makes
+     it two thirds of its rem (routes/table.html). */
+  --ui-text: 1rem;
   --table: var(--desk);
   --surface: var(--paper);
   --text: var(--ink);
@@ -22,7 +25,7 @@
   --bar-gap: 0.4rem;
   --control-height: 2.75rem;
   --control-padding: 0 1rem;
-  --control-font: 500 16px/1.6 var(--sans);
+  --control-font: 500 var(--ui-text)/1.6 var(--sans);
   /* The older names, for the touch test elements. */
   --panel: var(--paper);
   --accent: var(--lapis);
@@ -33,9 +36,24 @@ body {
   margin: 0;
   background: var(--desk);
   color: var(--ink);
-  font: 16px/1.6 var(--sans);
+  font: var(--ui-text)/1.6 var(--sans);
   font-size-adjust: from-font;
   -webkit-font-smoothing: antialiased;
+}
+
+/* On a phone the timeline's button and the menu's share the bottom row; the
+   menu goes up above the timeline when the timeline is open
+   (elements/table-menu.html). */
+@media (max-width: 700px), (max-height: 500px) {
+  bible-table:has(> time-line:state(collapsed)) > table-menu {
+    bottom: 0.5rem;
+  }
+  /* A phone zooms the page in on a field with text under 16px. */
+  input[type='search'],
+  input[type='text'],
+  textarea {
+    font-size: max(1rem, 16px);
+  }
 }
 
 /* Cursors are for a mouse or a trackpad. After a touch the table hides them
@@ -515,7 +533,7 @@ gesture-card[data-zoom='far'] .note__text {
   min-height: 2.75rem;
   margin: 0.75rem;
   padding: 0 0.75rem;
-  font: 500 16px/1.3 var(--sans);
+  font: 500 var(--ui-text)/1.3 var(--sans);
   text-align: start;
 }
 

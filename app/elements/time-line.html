@@ -21,9 +21,12 @@
      card that compares the books (the landscape, data/study.js).
 
      It keeps --timeline-height on its parent up to date, so the search panel
-     can stop above it. -->
+     can stop above it. On a phone it starts closed, and sends `panel-open`
+     (bubbling) when it opens, as the other panels do. -->
 
 <script element>
+  import { isPhone } from '../lib/screen.js';
+
   export const state = {
     collapsed: false,
     world: true,
@@ -47,7 +50,10 @@
   export const prototype = {
     connected({ signal }) {
       try {
-        this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
+        // On a phone the strip starts closed, as it would cover half the
+        // screen.
+        const stored = localStorage.getItem(COLLAPSED_KEY);
+        this.collapsed = stored === null ? isPhone() : stored === 'true';
         this.world = localStorage.getItem(WORLD_KEY) !== 'false';
       } catch {
         // No storage: the strip starts open, with the world lanes.
@@ -64,8 +70,7 @@
       this.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest('[data-action="toggle"]')) {
-          this.collapsed = !this.collapsed;
-          remember(COLLAPSED_KEY, this.collapsed);
+          this.setCollapsed(!this.collapsed);
           return;
         }
         if (target?.closest('[data-action="map"]')) {
@@ -88,6 +93,15 @@
       }, { signal });
 
       return () => measure.disconnect();
+    },
+
+    /** @param {boolean} collapsed */
+    setCollapsed(collapsed) {
+      this.collapsed = collapsed;
+      remember(COLLAPSED_KEY, collapsed);
+      // On a phone, one panel is open at a time (bible-table closes the
+      // others).
+      if (!collapsed && isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'timeline' } }));
     },
 
     /**
@@ -117,6 +131,38 @@
   }
   :scope:state(collapsed) {
     right: auto;
+  }
+  /* On a phone: the width of the screen, and the strip and the world lanes
+     at a width they can be read at, moved sideways with a finger; the
+     buttons stay put. The note goes under the buttons. */
+  @media (max-width: 700px), (max-height: 500px) {
+    :scope {
+      right: 0.5rem;
+      bottom: 0.5rem;
+      left: 0.5rem;
+      max-height: 55vh;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+    :scope:state(collapsed) {
+      right: auto;
+      overflow: visible;
+    }
+    :scope:not(:state(collapsed)) .timeline__bar {
+      position: sticky;
+      left: 0;
+      flex-wrap: wrap;
+      box-sizing: border-box;
+      width: calc(100vw - 1rem - 2px);
+    }
+    .timeline__note {
+      flex-basis: 100%;
+      font-size: 0.65rem;
+    }
+    :scope .timeline__axis,
+    :scope .timeline__world {
+      min-width: 60rem;
+    }
   }
   .timeline__bar {
     display: flex;

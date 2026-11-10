@@ -209,10 +209,10 @@
 <title>The reading room</title>
 
 <style>
-  /* The page is set at the table's size: 24px to the rem, for arm's length
-     on the 32-inch panel. */
-  html {
-    font-size: 24px;
+  /* The page is set at the table's size: the rem for the screen (the script
+     in the page, as on the table), and the controls' text two thirds of it. */
+  :root {
+    --ui-text: calc(2rem / 3);
   }
   body {
     margin: 0;
@@ -363,12 +363,14 @@
 </style>
 
 <main class="rr design">
-  <!-- The reader's settings, applied before the page paints, so it does not
-       show the default first (reading-settings applies them again). -->
+  <!-- The reader's settings and the size of the interface, applied before
+       the page paints, so it does not show the default first
+       (reading-settings applies them again). The same script is in
+       routes/table.html. -->
   <script>
     try {
       const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
-      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout'];
+      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout', 'ui'];
       for (const key of keys) {
         const value = settings[key];
         if (typeof value === 'string' && /^[a-z0-9-]{1,20}$/.test(value)) document.documentElement.dataset[key] = value;
@@ -376,6 +378,21 @@
     } catch {
       // No storage: the defaults hold.
     }
+    // The size of the interface: the rem, from the kind of screen, made
+    // smaller or larger by the Interface setting (reading-settings, which
+    // calls this again). A page knows a screen's size in CSS pixels only,
+    // not in inches, so the kind is a guess: a phone is narrow; a screen
+    // 2560 or more across at one device pixel to the CSS pixel is a large
+    // touch panel or wall, read at arm's length (the 32-inch panel); the
+    // rest are laptops, desktops and tablets.
+    globalThis.applyInterfaceSize = () => {
+      const short = Math.min(screen.width, screen.height);
+      const long = Math.max(screen.width, screen.height);
+      const base = short < 600 ? 16 : long >= 2560 ? 24 : 18;
+      const scale = { s: 0.85, l: 1.2, xl: 1.5 }[document.documentElement.dataset.ui ?? ''] ?? 1;
+      document.documentElement.style.fontSize = Math.round(base * scale) + 'px';
+    };
+    globalThis.applyInterfaceSize();
   </script>
   <header class="design__head">
     <p class="rr-kicker">Design system</p>

@@ -98,8 +98,9 @@ async function workOut() {
     const renderings = (stats?.renderings ?? []).filter((each) => !/^the /.test(each.text));
     if (renderings.length < 2) continue;
     const [first, second, third] = renderings;
-    const more = third ? `, “${third.text}” ${third.count} times` : '';
-    found.push(fact({ text: `${name} (${code}) is rendered “${first.text}” ${first.count} times in the KJV, “${second.text}” ${second.count} times${more}.`, search: code, source: `${KJV} Strong's numbers: eBible.org.` }));
+    const times = (/** @type {number} */ n) => (n === 1 ? 'once' : `${n} times`);
+    const more = third ? `, “${third.text}” ${times(third.count)}` : '';
+    found.push(fact({ text: `${name} (${code}) is rendered “${first.text}” ${times(first.count)} in the KJV, “${second.text}” ${times(second.count)}${more}.`, search: code, source: `${KJV} Strong's numbers: eBible.org.` }));
   }
 
   // The Aramaic of the Old Testament.

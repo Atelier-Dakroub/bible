@@ -55,6 +55,7 @@
      setTrail(trail, show) puts one back and shows its step. -->
 
 <script element>
+  import { isPhone } from '../lib/screen.js';
   import { dropCurrent, emptyTrail, record, windowOf } from '../lib/trail.js';
 
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
@@ -83,6 +84,7 @@
   // How far a finger moves before a press on a result is a drag, in CSS pixels.
   const SLOP = 16;
   const COLLAPSED_KEY = 'bible.search.collapsed';
+
 
   export const state = {
     collapsed: false,
@@ -218,6 +220,9 @@
       } catch {
         // No storage: the state lasts until the page closes.
       }
+      // On a phone, one panel is open at a time (bible-table closes the
+      // others).
+      if (!collapsed && isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'search' } }));
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       if (collapsed) input.blur();
       else requestAnimationFrame(() => input.focus());
@@ -590,6 +595,9 @@
      */
     send(address, pointer, version = '') {
       this.dispatchEvent(new CustomEvent('place', { bubbles: true, detail: { address, pointer, version } }));
+      // On a phone the panel covers the table: it steps aside, so the card
+      // it put there shows.
+      if (isPhone()) this.setCollapsed(true);
     },
   };
 </script>
@@ -642,6 +650,20 @@
   /* Clear of the timeline strip, which sets its own height on the table. */
   :scope {
     bottom: calc(var(--timeline-height, 0px) + 2rem);
+  }
+  /* On a phone: a sheet the width of the screen, from the top to the row of
+     buttons at the bottom (the timeline's and the menu's). */
+  @media (max-width: 700px), (max-height: 500px) {
+    :scope {
+      top: 0.5rem;
+      right: 0.5rem;
+      left: 0.5rem;
+      width: auto;
+      bottom: calc(var(--timeline-height, 0px) + 1rem);
+    }
+    :scope:state(collapsed) {
+      right: auto;
+    }
   }
   /* Collapsed, the panel is one box around the toggle. */
   :scope:state(collapsed) {

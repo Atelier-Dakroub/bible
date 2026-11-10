@@ -417,6 +417,13 @@ export type BibleTableMembers = {
     pointer: Pull | null;
     version?: string | undefined;
   }): Promise<void>;
+  phoneSpot(card: Element, scale: number): {
+    at: {
+      x: number;
+      y: number;
+    };
+    scale: number;
+  };
   mark({
     from, to
   }: {
@@ -854,6 +861,7 @@ export type TableMenuState = {
   snap: boolean;
   marks: boolean;
   reading: boolean;
+  more: boolean;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */
@@ -890,6 +898,7 @@ export type TimeLineMembers = {
   }: {
     signal: any;
   }): () => void;
+  setCollapsed(collapsed: boolean): void;
   tickFor(id: string): HTMLElement | null;
 };
 

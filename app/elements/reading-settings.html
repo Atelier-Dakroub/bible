@@ -1,5 +1,5 @@
-<!-- The reader's settings: theme, paper, text size, line spacing, and what
-     the text shows. Each is an attribute on <html> that the stylesheet reads
+<!-- The reader's settings: theme, paper, text size, the size of the
+     interface, line spacing, and what the text shows. Each is an attribute on <html> that the stylesheet reads
      (styles/reading-room.css), and the browser keeps them for the next visit.
      A page that uses them also applies them in a small inline script before
      it paints (see routes/design.html), so the page does not flash the
@@ -10,6 +10,11 @@
      lines, and each thing the text shows as a sample. A chosen tile has a
      lapis ring. The theme tiles take their colors from the tokens with the
      tile's own color scheme, so Night shows night's colors in the day.
+
+     Interface: S, M, L or XL. M is the size the page picks for the kind of
+     screen (the script in routes/table.html); the others make the whole
+     interface smaller or larger on this device, as the browser keeps the
+     settings for each device. Text size is a size on top of it.
 
      Theme: Day, Night, or As the computer, which follows the computer's own
      light or dark setting and changes with it.
@@ -32,7 +37,11 @@
     numbers: ['on', 'off'],
     initials: ['on', 'off'],
     layout: ['paragraphs', 'verses'],
+    ui: ['m', 's', 'l', 'xl'],
   };
+
+  /** Sets the rem again, for the Interface setting (the page's script). */
+  const resize = () => /** @type {any} */ (globalThis).applyInterfaceSize?.();
 
   /** @returns {Record<string, string>} */
   function load() {
@@ -52,6 +61,7 @@
       if (values.includes(value) && value !== values[0]) root.dataset[name] = value;
       else delete root.dataset[name];
     }
+    resize();
   }
 
   export const prototype = {
@@ -233,6 +243,23 @@
   .reading__letter--3 { font-size: 0.9rem; }
   .reading__letter--4 { font-size: 1.1rem; }
   .reading__letter--5 { font-size: 1.35rem; }
+  /* Interface size: a button of that size. */
+  .reading__button {
+    display: grid;
+    place-items: end center;
+    height: 1.6rem;
+  }
+  .reading__button span {
+    display: grid;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font: 600 0.5rem/1 var(--sans);
+  }
+  .reading__button--s span { width: 1.1rem; height: 0.65rem; font-size: 0.35rem; }
+  .reading__button--m span { width: 1.35rem; height: 0.8rem; font-size: 0.42rem; }
+  .reading__button--l span { width: 1.6rem; height: 0.95rem; font-size: 0.5rem; }
+  .reading__button--xl span { width: 2rem; height: 1.2rem; font-size: 0.62rem; }
   /* Line spacing and layout: lines, drawn. */
   .reading__lines {
     width: 2.4rem;
@@ -304,6 +331,16 @@
       <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="3" aria-label="Text size 3"><span class="reading__letter reading__letter--3">A</span>3</button>
       <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="4" aria-label="Text size 4"><span class="reading__letter reading__letter--4">A</span>4</button>
       <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="5" aria-label="Text size 5, the largest"><span class="reading__letter reading__letter--5">A</span>5</button>
+    </div>
+  </fieldset>
+
+  <fieldset class="reading__group">
+    <legend class="reading__name">Interface</legend>
+    <div class="reading__tiles">
+      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="s" aria-label="Interface: small, on this device"><span class="reading__button reading__button--s"><span>Aa</span></span>S</button>
+      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="m" aria-label="Interface: medium, the size for this kind of screen"><span class="reading__button reading__button--m"><span>Aa</span></span>M</button>
+      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="l" aria-label="Interface: large, on this device"><span class="reading__button reading__button--l"><span>Aa</span></span>L</button>
+      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="xl" aria-label="Interface: extra large, on this device"><span class="reading__button reading__button--xl"><span>Aa</span></span>XL</button>
     </div>
   </fieldset>
 

@@ -27,22 +27,30 @@
 
 <title>Table</title>
 
-<!-- The panel is 32 inches at 4K and one device pixel per CSS pixel, so text at
-     the browser's 16px is about 3 mm tall. The table reads at arm's length. -->
+<!-- The rem is set for the screen before the page paints (the script below):
+     24px on the 32-inch 4K panel, read at arm's length, 18px on a laptop,
+     16px on a phone. The text of the controls is two thirds of a rem. -->
 <style>
-  html {
-    font-size: 24px;
+  :root {
+    --ui-text: calc(2rem / 3);
+  }
+  /* On a phone, held close, the controls' text is the rem itself: 16px,
+     which is also the size below which a phone zooms in on a field. */
+  @media (max-width: 700px), (max-height: 500px) {
+    :root {
+      --ui-text: 1rem;
+    }
   }
 </style>
 
 <main>
-  <!-- The reader's settings (reading-settings, on /design), applied before the
-       page paints. They reach the parts of the table that are in the reading
-       room so far: the map card. The same script is in routes/design.html. -->
+  <!-- The reader's settings (reading-settings, on /design) and the size of
+       the interface, applied before the page paints. The same script is in
+       routes/design.html (a test keeps the two the same). -->
   <script>
     try {
       const settings = JSON.parse(localStorage.getItem('bible.reading') || '{}');
-      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout'];
+      const keys = ['theme', 'paper', 'size', 'leading', 'red', 'numbers', 'initials', 'layout', 'ui'];
       for (const key of keys) {
         const value = settings[key];
         if (typeof value === 'string' && /^[a-z0-9-]{1,20}$/.test(value)) document.documentElement.dataset[key] = value;
@@ -50,6 +58,21 @@
     } catch {
       // No storage: the defaults hold.
     }
+    // The size of the interface: the rem, from the kind of screen, made
+    // smaller or larger by the Interface setting (reading-settings, which
+    // calls this again). A page knows a screen's size in CSS pixels only,
+    // not in inches, so the kind is a guess: a phone is narrow; a screen
+    // 2560 or more across at one device pixel to the CSS pixel is a large
+    // touch panel or wall, read at arm's length (the 32-inch panel); the
+    // rest are laptops, desktops and tablets.
+    globalThis.applyInterfaceSize = () => {
+      const short = Math.min(screen.width, screen.height);
+      const long = Math.max(screen.width, screen.height);
+      const base = short < 600 ? 16 : long >= 2560 ? 24 : 18;
+      const scale = { s: 0.85, l: 1.2, xl: 1.5 }[document.documentElement.dataset.ui ?? ''] ?? 1;
+      document.documentElement.style.fontSize = Math.round(base * scale) + 'px';
+    };
+    globalThis.applyInterfaceSize();
   </script>
   <h1 class="visually-hidden">Table</h1>
   <bible-table>

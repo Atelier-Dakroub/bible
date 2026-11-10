@@ -42,6 +42,7 @@
      setRules(rules) lists the rules. -->
 
 <script element>
+  import { isPhone } from '../lib/screen.js';
   import { listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
 
@@ -57,6 +58,8 @@
     snap: true,
     marks: false,
     reading: false,
+    /** on a phone, whether the bar's buttons are open under the Menu button */
+    more: false,
   };
 
   const PEN_KEY = 'bible.pen';
@@ -70,7 +73,7 @@
 
     connected({ signal }) {
       document.addEventListener('pointerdown', (event) => {
-        if (!this.open && !this.marks && !this.reading) return;
+        if (!this.open && !this.marks && !this.reading && !this.more) return;
         if (event.target instanceof Node && this.contains(event.target)) return;
         // After the event has gone through: the palm guard runs later in the
         // same dispatch, and a palm's touch arrives with its default
@@ -140,6 +143,7 @@
       this.marks = false;
       this.reading = false;
       this.keys = false;
+      this.more = false;
     },
 
     /** @param {MouseEvent} event */
@@ -147,6 +151,13 @@
       const button = event.target instanceof Element ? event.target.closest('button') : null;
       if (!(button instanceof HTMLButtonElement)) return;
       const action = button.dataset.action ?? '';
+      if (action === 'more') {
+        this.more = !this.more;
+        if (!this.more) this.closeSheets();
+        // On a phone, one panel is open at a time (bible-table closes the
+        // others).
+        else if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
+      }
       if (action === 'undo') this.send('table-undo');
       if (action === 'redo') this.send('table-redo');
       if (action === 'note') this.send('note-new');
@@ -545,9 +556,47 @@
   .menu__file {
     display: none;
   }
+  /* On a phone: one Menu button at the bottom right, in the row with the
+     timeline's button. It opens the bar's buttons above it, and a sheet
+     opens above them, the width of the screen. */
+  .menu__more {
+    display: none;
+  }
+  @media (max-width: 700px), (max-height: 500px) {
+    :scope {
+      top: auto;
+      right: 0.5rem;
+      bottom: calc(var(--timeline-height, 0px) + 1rem);
+      flex-direction: column-reverse;
+      max-height: calc(100% - var(--timeline-height, 0px) - 1.5rem);
+    }
+    .menu__more {
+      display: inline-block;
+      order: 1;
+    }
+    /* Open, over the timeline's button in the same row. */
+    :scope:state(more) {
+      z-index: 1000001;
+    }
+    .menu__bar {
+      flex-wrap: wrap;
+      justify-content: end;
+      max-width: calc(100vw - 1rem);
+      box-sizing: border-box;
+    }
+    :scope:not(:state(more)) .menu__bar > :not(.menu__more) {
+      display: none;
+    }
+    .menu__sheet {
+      width: calc(100vw - 1rem);
+      max-width: none;
+      margin: 0 0 0.5rem;
+    }
+  }
 </style>
 
 <div class="menu__bar">
+  <button type="button" class="menu__more" data-action="more" aria-expanded="${more ? 'true' : 'false'}">Menu</button>
   <button type="button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
   <button type="button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
   <button type="button" data-action="note">Note</button>

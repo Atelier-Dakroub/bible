@@ -114,6 +114,7 @@
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
+  import { isPhone } from '../lib/screen.js';
   import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
   import { WIDTH } from '../lib/map.js';
@@ -473,6 +474,17 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
+      // On a phone, one panel is open at a time: the one that opens closes
+      // the others (each sends panel-open only on a phone).
+      this.addEventListener('panel-open', (event) => {
+        const opened = /** @type {CustomEvent} */ (event).detail.panel;
+        const search = /** @type {any} */ (this.querySelector('passage-search'));
+        const strip = /** @type {any} */ (this.querySelector('time-line'));
+        const menu = /** @type {any} */ (this.querySelector('table-menu'));
+        if (opened !== 'search' && search && !search.collapsed) search.setCollapsed(true);
+        if (opened !== 'timeline' && strip && !strip.collapsed) strip.setCollapsed(true);
+        if (opened !== 'menu') menu?.closeSheets();
+      }, options);
       // A new text size or line spacing changes the size of the cards, so the
       // lines between them move.
       this.addEventListener('reading-change', () => this.drawSoon(), options);
@@ -749,8 +761,29 @@
       const scale = Number(card.dataset.verses) > LONG ? LONG_SCALE : 1;
       if (pointer?.down) card.hold(pointer.id, pointer, scale);
       else if (pointer) card.placeAt(pointer, scale);
-      else card.placeAt(this.openSpot(), scale);
+      else if (isPhone()) {
+        const spot = this.phoneSpot(card, scale);
+        card.placeAt(spot.at, spot.scale);
+      } else card.placeAt(this.openSpot(), scale);
       this.keep();
+    },
+
+    /**
+     * Where a new card goes on a phone, and at what size: the width of the
+     * screen at most, at the left edge, under the search button, and a
+     * little lower for each card after it.
+     *
+     * @param {Element} card
+     * @param {number} scale the size the card would have elsewhere
+     */
+    phoneSpot(card, scale) {
+      const EDGE = 8;
+      const width = card instanceof HTMLElement ? card.offsetWidth : 0;
+      const fit = width ? Math.min(scale, (innerWidth - 2 * EDGE) / width) : scale;
+      const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
+      const top = (this.querySelector('passage-search')?.getBoundingClientRect().bottom ?? 0) + EDGE + step * 24;
+      // The grip is GRIP (gesture-card) from the card's corner, at its scale.
+      return { at: { x: EDGE + 48 * fit, y: top + 32 * fit }, scale: fit };
     },
 
     /** @param {{ from: string, to: string }} detail */
