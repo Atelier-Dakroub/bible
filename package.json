@@ -12,6 +12,7 @@
     "deploy": "npm run build && npx wrangler deploy",
     "test": "node --test",
     "import:kjv": "node tools/import-kjv.js",
+    "mcp": "node tools/mcp-server.js",
     "verify": "npm test && npm run check && npm run build"
   },
   "dependencies": {

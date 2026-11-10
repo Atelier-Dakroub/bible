@@ -667,6 +667,36 @@ node tools/import-strongs.js <usfm directory> <strongs-hebrew-dictionary.js> <st
   Dictionary data that is published as data must keep the same license; the
   app's code is not affected.
 
+## An MCP server for the data
+
+`tools/mcp-server.js` lets an assistant such as Claude use this app's data
+through the Model Context Protocol: the same search, texts, word studies,
+people, places, events, cross-references, quotations, journeys and passage
+guides the table shows. It only reads; it changes nothing. It speaks MCP
+over stdin and stdout with no library, and reads `app/data` directly, so the
+app need not be running.
+
+| Tool | What it answers |
+| --- | --- |
+| `search` | the search field: words, a reference, a Strong's number, a word's name (agape), or grammar (aorist imperative in John) |
+| `passage` | a passage in the KJV, the BSB, the original, word by word, or the reverse interlinear |
+| `word_study` | a Strong's entry, how the KJV renders it, where it occurs |
+| `entity` | a person, place, group or event, with its relations, dates and verses |
+| `cross_references` | a verse's cross-references, best first |
+| `quotations` | the Old Testament a New Testament verse quotes, or where an Old Testament verse is quoted |
+| `journeys` | a person's journeys, with every proposed route and the verse of each stop |
+| `passage_guide` | a passage's parallels, quotations, cross-references, and what it names |
+
+Every answer gives addresses (JHN.3.16) beside references, and names its
+sources. To use it in Claude Code, from this folder:
+
+```sh
+claude mcp add bible -- node "$PWD/tools/mcp-server.js"
+```
+
+In the Claude desktop app, add it to `claude_desktop_config.json` under
+`mcpServers`: `"bible": { "command": "node", "args": ["<this folder>/tools/mcp-server.js"] }`.
+
 ## The Old Testament in the New
 
 A New Testament verse where a quotation of the Old Testament begins, and an
