@@ -79,11 +79,12 @@
             <button
               each="span of lane"
               type="button"
-              class="world__span"
+              class="world__span ${span.outside ? 'is-outside' : ''}"
               data-entity="${span.id}"
+              data-name="${span.name}"
               style="--at: ${span.at}; --width: ${span.width}"
               title="${span.name}, ${span.label}"
-            >${span.name}</button>
+            >${span.outside ? '' : span.name}</button>
           </div>
         </div>
       </div>

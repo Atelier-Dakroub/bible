@@ -43,17 +43,19 @@ export { timeline, world };
  * @returns {Promise<BaseMap>}
  */
 export async function mapOf() {
-  const [{ default: base }, { default: relief }, { onMap, project }, known] = await Promise.all([
+  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, known] = await Promise.all([
     import('./map/near-east.json', { with: { type: 'json' } }),
     import('./map/relief.json', { with: { type: 'json' } }),
     import('../lib/map.js'),
+    import('./map/ranges.js'),
     entities(),
   ]);
   const places = Object.entries(known)
     .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
     .map(([id, place]) => {
       const { x, y } = project(place.lon, place.lat);
-      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1), verses: place.verses.length };
+      // A mountain is marked as a peak, not a dot.
+      return { id, name: place.title, x: x.toFixed(1), y: y.toFixed(1), verses: place.verses.length, peak: place.type === 'Mountain' };
     })
     // The least named first, so the most named are drawn on top. The map
     // names the most named first (lib/map.js nameLevels).
@@ -76,6 +78,12 @@ export async function mapOf() {
       shades: relief.shades,
     },
     places,
+    ranges: ranges
+      .filter((range) => onMap(range.lon, range.lat))
+      .map((range) => {
+        const { x, y } = project(range.lon, range.lat);
+        return { name: range.name, scale: range.scale, angle: range.angle, x: x.toFixed(1), y: y.toFixed(1) };
+      }),
   };
 }
 

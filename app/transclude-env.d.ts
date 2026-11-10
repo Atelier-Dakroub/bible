@@ -309,10 +309,6 @@ type Fact = {
   search: string;
   journey: string;
 };
-type PlacedSpan = Span & {
-  at: number;
-  width: number;
-};
 type Span = {
   id: string;
   name: string;
@@ -708,6 +704,7 @@ export type MapViewMembers = {
   zoomBy(factor: number): Promise<void>;
   key(event: KeyboardEvent): void;
   showJourney(journey: JourneyView): void;
+  dashLegs(unit: number): void;
   clearJourney(): void;
   act(event: MouseEvent): void;
 };
@@ -758,6 +755,7 @@ export type PassageSearchMembers = {
   path: Trail;
   typing: boolean;
   wholeTrail: boolean;
+  away: boolean;
   notesFor: ((address: string) => {
     id: string;
     text: string;
@@ -1332,7 +1330,12 @@ export type TableData = {
   }[];
   regions: {
     name: string;
-    lanes: PlacedSpan[][];
+    lanes: (Span & {
+      at: number;
+      width: number;
+    } & {
+      outside: boolean;
+    })[][];
   }[];
 };
 

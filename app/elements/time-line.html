@@ -148,6 +148,8 @@
   .timeline__world {
     max-height: 9rem;
     margin: 0 1rem 0.75rem 1rem;
+    /* Room after the last lane, so it does not end on the panel's edge. */
+    padding-bottom: 0.5rem;
     padding-left: 8rem;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -177,7 +179,7 @@
     width: calc(var(--width) * 100%);
     min-width: 4px;
     height: 0.9rem;
-    padding: 0 0.2rem;
+    padding: 0 0.3rem;
     overflow: hidden;
     border: 0;
     border-radius: 3px;
@@ -188,7 +190,21 @@
     font: 0.6rem/0.9rem var(--sans);
     text-align: start;
     white-space: nowrap;
+    text-overflow: ellipsis;
     cursor: pointer;
+  }
+  /* A span too short for its name: the name goes just after it, where the
+     lanes keep room for it (lib/timeline.js packLanes). */
+  .world__span.is-outside {
+    overflow: visible;
+  }
+  .world__span.is-outside::after {
+    content: attr(data-name);
+    position: absolute;
+    top: 0;
+    left: calc(100% + 0.25rem);
+    color: var(--ink-soft);
+    line-height: 0.9rem;
   }
   .world__span:hover {
     background: color-mix(in srgb, var(--purple) 24%, var(--paper));
@@ -219,8 +235,9 @@
     border-left: 1px solid var(--edge);
     color: var(--ink-soft);
     font-size: 0.7rem;
-    line-height: 1.3;
-    white-space: nowrap;
+    line-height: 1.25;
+    /* Each era is an eighth of the strip: a long name wraps inside it. */
+    width: calc(100% / 8 - 0.6rem);
   }
   .timeline__era span {
     display: block;

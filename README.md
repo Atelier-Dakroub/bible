@@ -112,6 +112,15 @@ every zoom, and a scale bar gives the distance. Show on the map zooms to fit
 the places. The workspace keeps the view; Undo leaves it, as it leaves the
 pan of the table.
 
+The mountains that Theographic gives as places (Sinai, Hermon, Carmel, Nebo
+and about 40 more) have a peak, not a dot. The ranges have their names, as an
+atlas sets them, in spaced italic capitals along the range
+(`app/data/map/ranges.js`, placed by hand): the great ranges (Taurus, Zagros)
+from the whole map, Lebanon and Sinai a little closer, and the Bible's hill
+countries (Mount Ephraim, the Mountain of Judah, Mount Gilead), in the KJV's
+words and with the verse that names each, only at the closest zoom, where
+there is room among the places.
+
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
 verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
@@ -206,7 +215,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
-| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022. |
+| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022; the names of the ranges (`ranges.js`). |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -247,7 +256,8 @@ makes network requests to query.wikidata.org.
   (`app/data/journeys.js`), written by hand from Acts, each stop with the
   verse that names it. Paul's entry, and the guide of a passage of Acts that
   a journey covers, list them; a tap draws the route on the map: ochre,
-  solid by land, dashed by sea, with an arrow on each leg. The dates are
+  solid by land, dashed by sea (the dashes fitted to each leg, so that it
+  meets its stops), with an arrow on each leg. The dates are
   Theographic's events, by Jones's chronology, as the timeline shows them.
   Where Acts names only a region (Macedonia), the usual city is used and
   marked as a reading. Places with no coordinates, or passed by at sea, are

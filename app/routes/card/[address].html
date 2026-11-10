@@ -179,9 +179,17 @@
           <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
           <path d="${map ? map.coast.lakes : ''}" class="map__lake map__lake--whole"></path>
           <path d="${map ? map.coast.lakesDetail : ''}" class="map__lake map__lake--detail"></path>
-          <g each="place of map ? map.places : []" class="map__place" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
+          <!-- The names of the ranges, under the places: they are not for
+               tapping, and a place's name goes over them. -->
+          <g class="map__ranges" aria-hidden="true">
+            <g each="range of map ? map.ranges : []" class="map__range map__range--${range.scale}" transform="translate(${range.x} ${range.y})">
+              <g class="map__mark"><text transform="rotate(${range.angle})" text-anchor="middle" dy="0.35em">${range.name}</text></g>
+            </g>
+          </g>
+          <g each="place of map ? map.places : []" class="map__place ${place.peak ? 'map__place--peak' : ''}" data-place="${place.id}" data-x="${place.x}" data-y="${place.y}" transform="translate(${place.x} ${place.y})">
             <g class="map__mark">
               <circle r="4"></circle>
+              <path if="place.peak" class="map__peak" d="M0 -5.5 L5.5 4 L-5.5 4 Z"></path>
               <text x="8" y="6">${place.name}</text>
             </g>
           </g>

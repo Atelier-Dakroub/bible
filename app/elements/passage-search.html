@@ -100,6 +100,8 @@
     typing: false,
     /** whether the whole trail is on show, not only the chips around the step */
     wholeTrail: false,
+    /** whether a "Did you know?" is on show, not the trail's step */
+    away: false,
     /** @type {((address: string) => { id: string, text: string }[]) | null} the notes on a passage, from the table */
     notesFor: null,
 
@@ -153,7 +155,8 @@
         const step = target?.closest('[data-trail]');
         if (step instanceof HTMLElement) {
           const where = step.dataset.trail;
-          if (where === 'back') this.go(this.path.index - 1);
+          // Away on a "Did you know?", Back returns to the step that was left.
+          if (where === 'back') this.go(this.away ? this.path.index : this.path.index - 1);
           else if (where === 'forward') this.go(this.path.index + 1);
           else if (where === 'all') {
             this.wholeTrail = !this.wholeTrail;
@@ -165,7 +168,7 @@
       document.addEventListener('keydown', (event) => {
         if (!event.altKey || event.metaKey || event.ctrlKey) return;
         if (event.target instanceof HTMLTextAreaElement) return;
-        if (event.key === 'ArrowLeft') this.go(this.path.index - 1);
+        if (event.key === 'ArrowLeft') this.go(this.away ? this.path.index : this.path.index - 1);
         else if (event.key === 'ArrowRight') this.go(this.path.index + 1);
         else return;
         event.preventDefault();
@@ -290,6 +293,10 @@
       if (this.collapsed) this.setCollapsed(false);
       /** @type {HTMLInputElement} */ (this.querySelector('input')).value = '';
       this.typing = false;
+      // The trail's step is not on show while the fact is: no chip is lapis,
+      // and a tap on any chip, the last one too, goes back to it.
+      this.away = true;
+      this.paintTrail();
       this.run(new URLSearchParams({ discover: which, fragment: 'results' }), 'trail');
     },
 
@@ -363,6 +370,8 @@
       asked.delete('fragment');
       const typing = how === 'typed' || how === 'submit';
       const before = this.path;
+      const wasAway = this.away;
+      this.away = false;
       if (!kind) {
         // An empty search: a search being typed that was cleared goes.
         if (typing && this.typing) this.path = dropCurrent(this.path);
@@ -376,7 +385,7 @@
         // else is opened.
         this.typing = how === 'typed';
       }
-      if (this.path !== before) {
+      if (this.path !== before || wasAway) {
         this.paintTrail();
         this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
       }
@@ -389,13 +398,14 @@
      */
     async go(index) {
       const step = this.path.steps[index];
-      if (!step || index === this.path.index) return;
+      if (!step || (index === this.path.index && !this.away)) return;
       const results = /** @type {HTMLElement | null} */ (this.querySelector('.search__results'));
       const leaving = this.path.steps[this.path.index];
       if (leaving && results) leaving.scroll = results.scrollTop;
       this.path = { ...this.path, index };
       this.typing = false;
       this.wholeTrail = false;
+      this.away = false;
       this.paintTrail();
       this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
       await this.show(step);
@@ -461,7 +471,8 @@
       const { steps, index } = this.path;
       // The row is always there: it holds the ✦ for "Did you know?".
       nav.hidden = false;
-      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', index <= 0);
+      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', this.away ? index < 0 : index <= 0);
+      this.querySelector('.trail__discover')?.setAttribute('aria-pressed', String(this.away));
       /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
       // A few chips around the step on show; "…" lists them all.
       const shown = windowOf(this.path, CHIPS);
@@ -476,7 +487,7 @@
         button.className = `${className} trail__chip--${step.kind}`;
         button.dataset.trail = String(i);
         button.title = step.label;
-        if (i === index) button.setAttribute('aria-current', 'step');
+        if (i === index && !this.away) button.setAttribute('aria-current', 'step');
         const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         icon.setAttribute('class', 'trail__icon');
         icon.setAttribute('aria-hidden', 'true');

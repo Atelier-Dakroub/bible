@@ -51,31 +51,45 @@ export function yearLabel(year) {
  * @typedef {Span & { at: number, width: number }} PlacedSpan
  */
 
+// The strip as narrow as it is drawn (a laptop), and the width of one
+// letter of a span's name, in pixels: so a name's room on the strip can be
+// worked out on the server. On a wider strip the names have more room.
+export const STRIP_PX = 1300;
+const LETTER_PX = 8;
+const NAME_PAD_PX = 14;
+
 /**
  * The world-history spans, by region, packed into lanes so that no two spans
- * in a lane overlap on the strip. Regions keep the order they first appear
- * in; inside a region, spans go in by start.
+ * in a lane overlap on the strip, and no name runs into the next span. A name
+ * that does not fit inside its span goes just after it (`outside`), and the
+ * lane keeps that room free. Regions keep the order they first appear in;
+ * inside a region, spans go in by start.
  *
  * @param {Span[]} spans
  * @param {Era[]} [eras]
- * @returns {{ name: string, lanes: PlacedSpan[][] }[]}
+ * @param {number} [stripPx] the width of the strip, in pixels
+ * @returns {{ name: string, lanes: (PlacedSpan & { outside: boolean })[][] }[]}
  */
-export function packLanes(spans, eras = ERAS) {
-  /** @type {Map<string, PlacedSpan[][]>} */
+export function packLanes(spans, eras = ERAS, stripPx = STRIP_PX) {
+  /** @type {Map<string, (PlacedSpan & { outside: boolean, ends: number })[][]>} */
   const regions = new Map();
   const sorted = [...spans].sort((a, b) => a.start - b.start);
   for (const region of new Set(spans.map((span) => span.region))) regions.set(region, []);
   for (const span of sorted) {
     const at = positionOf(span.start, eras);
     const width = Math.max(positionOf(span.end, eras) - at, 0.002);
-    const lanes = /** @type {PlacedSpan[][]} */ (regions.get(span.region));
-    const placed = { ...span, at, width };
-    const lane = lanes.find((each) => {
-      const last = /** @type {PlacedSpan} */ (each.at(-1));
-      return last.at + last.width <= at;
-    });
+    const name = (span.name.length * LETTER_PX + NAME_PAD_PX) / stripPx;
+    const outside = name > width;
+    // Where the span stops taking room: its end, or its name's end.
+    const ends = outside ? at + width + name : at + width;
+    const lanes = /** @type {(PlacedSpan & { outside: boolean, ends: number })[][]} */ (regions.get(span.region));
+    const placed = { ...span, at, width, outside, ends };
+    const lane = lanes.find((each) => /** @type {{ ends: number }} */ (each.at(-1)).ends <= at);
     if (lane) lane.push(placed);
     else lanes.push([placed]);
   }
-  return [...regions].map(([name, lanes]) => ({ name, lanes }));
+  return [...regions].map(([name, lanes]) => ({
+    name,
+    lanes: lanes.map((lane) => lane.map(({ ends, ...span }) => span)),
+  }));
 }

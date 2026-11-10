@@ -352,6 +352,7 @@
       // the size of a map unit.
       const unit = (this.pixels || svg.clientWidth / WIDTH || 1) * zoom;
       this.style.setProperty('--map-unit', String(unit));
+      this.dashLegs(unit);
 
       const detail = zoom >= DETAIL_ZOOM;
       if (detail !== this.hasAttribute('data-detail')) {
@@ -362,6 +363,7 @@
       const level = levelOf(zoom);
       if (level !== this.level) {
         this.level = level;
+        this.dataset.level = String(level);
         this.relabel();
       }
 
@@ -567,7 +569,7 @@
         const a = stops[i - 1];
         const b = stops[i];
         if (a.x === b.x && a.y === b.y) continue;
-        layer.append(make('path', { d: `M${a.x} ${a.y}L${b.x} ${b.y}`, class: `map__leg map__leg--${b.by || 'land'}` }));
+        layer.append(make('path', { d: `M${a.x} ${a.y}L${b.x} ${b.y}`, class: `map__leg map__leg--${b.by || 'land'}`, 'data-length': Math.hypot(b.x - a.x, b.y - a.y) }));
         // An arrow at the middle of the leg, in pixels, pointing the way.
         const turn = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
         const arrow = make('g', { transform: `translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2}) rotate(${turn})` });
@@ -584,6 +586,7 @@
         layer.append(start);
       }
       svg.querySelector('.map__place')?.before(layer);
+      this.dashLegs(Number(this.style.getPropertyValue('--map-unit')) || 1);
       const legend = document.createElement('p');
       legend.className = 'map__legend';
       const name = document.createElement('span');
@@ -595,6 +598,33 @@
       close.textContent = '×';
       legend.append(name, close);
       this.append(legend);
+    },
+
+    /**
+     * Fits the dashes of each leg by sea to its length on screen, so that
+     * the leg starts with a dash at the edge of one stop's dot and ends with
+     * one at the edge of the next: a pattern that is not fitted can start
+     * under the dot and end in a gap, and the leg then seems to miss its
+     * stop. Drawn again at each zoom, as the dashes are in pixels.
+     *
+     * @param {number} unit how many pixels a map unit is now
+     */
+    dashLegs(unit) {
+      const DASH = 7;
+      const GAP = 5;
+      // The radius of a stop's dot (styles: .map__place.is-shown circle).
+      const DOT = 6;
+      for (const leg of /** @type {NodeListOf<SVGPathElement>} */ (this.querySelectorAll('.map__leg--sea'))) {
+        const shown = Number(leg.dataset.length) * unit - 2 * DOT;
+        const dashes = Math.round((shown + GAP) / (DASH + GAP));
+        if (dashes < 2) {
+          leg.style.strokeDasharray = 'none';
+          continue;
+        }
+        const gap = (shown - dashes * DASH) / (dashes - 1);
+        leg.style.strokeDasharray = `${DASH} ${gap.toFixed(2)}`;
+        leg.style.strokeDashoffset = String(-DOT);
+      }
     },
 
     /** Takes the journey off the map. */

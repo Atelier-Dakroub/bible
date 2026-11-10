@@ -840,6 +840,52 @@ gesture-card[data-zoom='far'] .note__text {
   fill: var(--lapis);
   font-weight: 700;
 }
+/* A mountain: a peak in the brown of the relief, over a clear dot that
+   takes the pointer as the other places' dots do. */
+.map__place.map__place--peak circle {
+  fill: transparent;
+}
+.map__peak {
+  fill: color-mix(in srgb, var(--ochre) 55%, var(--paper));
+  stroke: var(--paper);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.map__place.is-named .map__peak,
+.map__place.is-on-table .map__peak {
+  fill: var(--ochre);
+}
+.map__place.is-shown .map__peak {
+  fill: var(--lapis);
+}
+@media (hover: hover) {
+  .map__place:hover .map__peak {
+    fill: var(--ochre);
+  }
+}
+/* The ranges, as an atlas names them: spaced italic capitals in the brown
+   of the relief, along the range. Each shows at some levels of zoom only
+   (data/map/ranges.js; map-view sets data-level, 0 to 4). */
+.map__range {
+  display: none;
+  pointer-events: none;
+}
+.map__range text {
+  fill: color-mix(in srgb, var(--ochre) 85%, var(--paper));
+  font: italic 500 0.6rem var(--serif);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  paint-order: stroke;
+  stroke: color-mix(in srgb, var(--paper) 70%, transparent);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.map__view:is([data-level='0'], [data-level='1'], [data-level='2']) .map__range--far,
+.map__view:is([data-level='1'], [data-level='2'], [data-level='3']) .map__range--middle,
+.map__view[data-level='4'] .map__range--near {
+  display: inline;
+}
 /* A journey: the route in ochre, the pigment of people, solid by land and
    dashed by sea, with an arrow on each leg and a ring at the start. Its
    name sits in the top left corner, with a × that takes it away. */
