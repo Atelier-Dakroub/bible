@@ -1,16 +1,22 @@
 <!-- An on-screen keyboard for the kiosk, where no hardware keyboard is near.
+     Its owner shows it only where the screen has no keyboard of its own
+     (lib/keyboard.js wantKeys); the page hides every one once a real key
+     is pressed, or when the reader chooses Never (global.css).
 
      It types into the input or textarea named by `for` (an id): each key adds
      to the end of the value and sends `input`, as typing does. Enter submits
      an input's form, and starts a new line in a textarea. `enter` is the
-     label of that key. Done sends `keys-done` (bubbling), and the owner hides
-     the keyboard.
+     label of that key. Hide sends `keys-done` (bubbling), and the owner hides
+     the keyboard. While it shows, its field asks the system for no keyboard
+     of its own (inputmode none, lib/keyboard.js keysFor).
 
      The keys need no focus: a key is handled on pointerdown, and its default
      is prevented, so the input keeps the caret and the browser opens no
      keyboard of its own. -->
 
 <script element>
+  import { keysFor } from '../lib/keyboard.js';
+
   export const properties = {
     /** The id of the input or textarea to type into. */
     for: '',
@@ -25,6 +31,13 @@
   export const prototype = {
     connected({ signal }) {
       this.addEventListener('pointerdown', (event) => this.press(event), { signal });
+      // Shown or hidden by its owner: the field follows.
+      const watch = new ResizeObserver(() => {
+        const field = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(String(this.for)));
+        if (field) keysFor(field, this.getClientRects().length > 0);
+      });
+      watch.observe(this);
+      return () => watch.disconnect();
     },
 
     /** @param {PointerEvent} event */
@@ -60,10 +73,11 @@
 </script>
 
 <style>
+  /* Compact: keys about as tall as a fingertip, no more. */
   :scope {
     display: grid;
-    gap: 0.25rem;
-    padding: 0.5rem;
+    gap: 0.2rem;
+    padding: 0.35rem;
     border-top: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
     touch-action: none;
     user-select: none;
@@ -71,14 +85,17 @@
   }
   .keys__row {
     display: flex;
-    gap: 0.25rem;
+    gap: 0.2rem;
   }
   button {
     flex: 1;
     min-width: 0;
-    min-height: 2.6rem;
+    min-height: max(2rem, 40px);
     padding: 0;
-    font: 0.9rem var(--sans);
+    font: 0.8rem var(--sans);
+  }
+  .keys__hide {
+    color: var(--ink-soft);
   }
   :scope:state(shift) .keys__letters button {
     text-transform: uppercase;
@@ -104,5 +121,5 @@
   <button type="button" data-key="shift" aria-pressed="${shift ? 'true' : 'false'}" aria-label="Shift">⇧</button><button type="button" data-key="z">z</button><button type="button" data-key="x">x</button><button type="button" data-key="c">c</button><button type="button" data-key="v">v</button><button type="button" data-key="b">b</button><button type="button" data-key="n">n</button><button type="button" data-key="m">m</button><button type="button" data-key="-">-</button><button type="button" data-key="back" aria-label="Delete">⌫</button>
 </div>
 <div class="keys__row">
-  <button type="button" class="keys__wide" data-key="done">Done</button><button type="button" data-key="&quot;" aria-label="Quote">"</button><button type="button" data-key="'" aria-label="Apostrophe">'</button><button type="button" data-key="," aria-label="Comma">,</button><button type="button" data-key="." aria-label="Full stop">.</button><button type="button" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" data-key="?" aria-label="Question mark">?</button><button type="button" class="keys__wide" data-key="clear">Clear</button><button type="button" class="keys__wide" data-key="enter">${enter}</button>
+  <button type="button" class="keys__wide keys__hide" data-key="done" aria-label="Hide the keyboard">Hide ⌄</button><button type="button" data-key="&quot;" aria-label="Quote">"</button><button type="button" data-key="'" aria-label="Apostrophe">'</button><button type="button" data-key="," aria-label="Comma">,</button><button type="button" data-key="." aria-label="Full stop">.</button><button type="button" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" data-key="?" aria-label="Question mark">?</button><button type="button" class="keys__wide" data-key="clear">Clear</button><button type="button" class="keys__wide" data-key="enter">${enter}</button>
 </div>

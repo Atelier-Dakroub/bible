@@ -23,6 +23,13 @@ Each screen keeps its own choices (`app/lib/chrome.js`). On a phone the rail
 is along the bottom, icons only, and one panel opens at a time, the width of
 the screen.
 
+The app's own on-screen keyboard (`touch-keys`) is for a touch screen with
+no keyboard of its own, such as the kiosk panel (`app/lib/keyboard.js`). It
+shows when a finger touches a field, but not on a phone or a tablet, which
+have their own, and not once a real key has been pressed on the visit. Its
+Hide key, Escape, or a tap away from the field hides it; the note stays open.
+Tools, Table chooses Automatic, Always or Never.
+
 The search panel grows with use: at rest it is only its field; an answer
 shows the trail and the results under it, and a tap on the empty table, or
 Escape, folds them away again (a tap on the field brings them back). The
@@ -51,8 +58,8 @@ marked to the words you dropped them on.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked
 words become a card of their own, a phrase card. Note, on the rail, puts a
-note card on the table and opens the note editor with the on-screen
-keyboard; a tap on a note opens it again. Lift the marking finger on a note,
+note card on the table and opens the note editor; a tap on a note opens it
+again. Lift the marking finger on a note,
 and the note quotes the words. A quote is the text itself, by address: its
 words keep their addresses, so a dashed line joins the quote to the
 highlight it came from. A verse that a note quotes has a gray line down its

@@ -1839,3 +1839,11 @@ bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
     display: none;
   }
 }
+
+/* The app's on-screen keyboard (touch-keys) goes once a real key has been
+   pressed on this visit, and when the reader chooses Never; Always keeps it
+   (lib/keyboard.js). */
+:root[data-keys='never'] touch-keys,
+:root[data-real-keys]:not([data-keys='always']) touch-keys {
+  display: none !important;
+}

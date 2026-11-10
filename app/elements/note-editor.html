@@ -1,16 +1,27 @@
-<!-- The sheet that writes a note's text, with the on-screen keyboard.
+<!-- The sheet that writes a note's text.
+
+     The app's on-screen keyboard shows under the field only where the screen
+     has no keyboard of its own (lib/keyboard.js): a finger opened the note
+     on a touch screen that is not a phone or a tablet, and no real key has
+     been pressed. Its Hide key hides it and leaves the note open; a tap on
+     the field brings it back.
 
      edit(id, text) opens it on a note. Each change sends `note-text` (bubbling)
      with { id, text }, so the note card shows the words as they come. Done,
-     the keyboard's Done, Escape, or a tap outside it (and outside the note
-     being written) closes it and sends `note-done` with { id }. A resting
+     Escape, or a tap outside it (and outside the note being written) closes
+     it and sends `note-done` with { id }. On a phone it sits at the top, the
+     width of the screen, clear of the phone's own keyboard. A resting
      palm does not close it (see table-menu).
 
      A real keyboard types into the field as usual. -->
 
 <script element>
+  import { wantKeys } from '../lib/keyboard.js';
+
   export const state = {
     open: false,
+    /** whether the app's on-screen keyboard shows */
+    keys: false,
   };
 
   export const prototype = {
@@ -25,7 +36,12 @@
       field.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') this.close();
       }, { signal });
-      this.addEventListener('keys-done', () => this.close(), { signal });
+      field.addEventListener('pointerdown', (event) => {
+        this.keys = wantKeys({ pointer: event.pointerType });
+      }, { signal });
+      this.addEventListener('keys-done', () => {
+        this.keys = false;
+      }, { signal });
       document.addEventListener('pointerdown', (event) => {
         if (!this.open || !(event.target instanceof Element)) return;
         if (this.contains(event.target)) return;
@@ -50,6 +66,8 @@
       this.note = id;
       const field = /** @type {HTMLTextAreaElement} */ (this.querySelector('textarea'));
       field.value = text;
+      // The keyboard for the finger that opened the note, if any.
+      this.keys = wantKeys();
       this.open = true;
       requestAnimationFrame(() => {
         field.focus({ preventScroll: true });
@@ -60,6 +78,7 @@
     close() {
       if (!this.open) return;
       this.open = false;
+      this.keys = false;
       /** @type {HTMLTextAreaElement} */ (this.querySelector('textarea')).blur();
       this.dispatchEvent(new CustomEvent('note-done', { bubbles: true, detail: { id: this.note } }));
       this.note = '';
@@ -70,12 +89,14 @@
 <style>
   :scope {
     position: absolute;
-    left: 50%;
+    right: 0;
     bottom: 1rem;
+    left: 0;
     z-index: 2000001;
     display: none;
-    width: 40rem;
-    margin-left: -20rem;
+    box-sizing: border-box;
+    width: min(40rem, calc(100% - 1rem));
+    margin: 0 auto;
     border: 1px solid var(--card-edge);
     border-radius: var(--radius);
     background: var(--paper);
@@ -84,6 +105,17 @@
   }
   :scope:state(open) {
     display: block;
+  }
+  :scope:not(:state(keys)) touch-keys {
+    display: none;
+  }
+  /* On a phone: at the top, clear of the phone's keyboard, which rises
+     from the bottom. */
+  @media (max-width: 700px), (max-height: 500px) {
+    :scope {
+      top: 0.5rem;
+      bottom: auto;
+    }
   }
   .editor__bar {
     display: flex;

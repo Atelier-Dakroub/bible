@@ -922,6 +922,7 @@ export type NoteEditorProps = {};
 /** Internal state of `<note-editor>`, from its <script element> block. */
 export type NoteEditorState = {
   open: boolean;
+  keys: boolean;
 };
 
 /** Members of `<note-editor>`, from its `export const prototype`. */
@@ -1060,6 +1061,7 @@ export type TableMenuState = {
   snap: boolean;
   edge: string;
   size: string;
+  keyboard: string;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */
@@ -1197,7 +1199,7 @@ export type TouchKeysMembers = {
     signal
   }: {
     signal: any;
-  }): void;
+  }): () => void;
   press(event: PointerEvent): void;
 };
 

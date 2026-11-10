@@ -21,9 +21,10 @@
      opens it and puts the cursor in the field. It remembers whether it is
      open in this browser.
 
-     A finger on the field opens the on-screen keyboard (touch-keys), because
-     the kiosk has no keyboard; a mouse or a real keyboard does not. Done or
-     Escape closes it.
+     A finger on the field opens the app's on-screen keyboard (touch-keys)
+     where the screen has no keyboard of its own (lib/keyboard.js): not on a
+     phone or a tablet, nor once a real key has been pressed. Its Hide key,
+     Escape, or a tap away from the field closes it.
 
      showReferences(address) lists the cross-references of one verse in place
      of search results, from the same `results` fragment. showWord(address)
@@ -61,6 +62,7 @@
 
 <script element>
   import { isPhone } from '../lib/screen.js';
+  import { wantKeys } from '../lib/keyboard.js';
   import { slideIn, slideOut } from '../lib/motion.js';
   import { dropCurrent, emptyTrail, record, windowOf } from '../lib/trail.js';
 
@@ -196,9 +198,12 @@
         }
       }, { signal });
       input.addEventListener('pointerdown', (event) => {
-        if (event.pointerType === 'touch') this.keys = true;
+        this.keys = wantKeys({ pointer: event.pointerType });
         // The answer folded away comes back.
         if (this.querySelector('.search__results')?.childElementCount) this.setExpanded(true);
+      }, { signal });
+      input.addEventListener('blur', () => {
+        this.keys = false;
       }, { signal });
       this.addEventListener('keys-done', () => {
         this.keys = false;
