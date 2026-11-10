@@ -2058,7 +2058,12 @@
         if (found?.chapters?.length) {
           set(true);
           this.toast(found.credit);
-          new Recording(audio).play(found.chapters, (id) => card.querySelector(`kjv-verse[data-ref="${CSS.escape(id)}"]`), ended, start);
+          const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
+          // The lock screen's Play goes on from where the reading paused.
+          const resume = () => {
+            if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
+          };
+          new Recording(audio, { title, resume }).play(found.chapters, (id) => card.querySelector(`kjv-verse[data-ref="${CSS.escape(id)}"]`), ended, start);
           return;
         }
         audio.pause();

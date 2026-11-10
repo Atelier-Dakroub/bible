@@ -604,7 +604,27 @@ Next for the interface. They came from Fontsource on npm (version 5.3). The pict
 ## Accessibility
 
 Checked on 2026-11-10 with a script over the table (names, roles, target
-sizes, text sizes, headings, live regions) and with the keyboard:
+sizes, text sizes, headings, live regions) and with the keyboard; and again
+against Google's modern-web-guidance guides (accessibility, toolbar, drag,
+color, form-factor-adaptation, navigation-drawer, html):
+
+- The rail is one stop for the Tab key, and the arrow keys move along it
+  (`focusgroup` where Chrome has it, a roving tab index elsewhere); it says
+  its orientation, and Undo and Redo stay in its order when there is nothing
+  to undo (`aria-disabled`). On a phone its names are hidden from sight, not
+  from a screen reader.
+- A panel's grip moves the panel with the arrow keys (Shift for more), as a
+  drag does, and only the main button drags; docking and floating are said
+  in the toast. The float button is pressed while its panel floats.
+- A field's edge has 3:1 contrast on every paper (`--field-edge`, checked in
+  `test/design.test.js` by the WCAG 2 ratio).
+- Hover colors show only where a pointer can hover, so a tap leaves no tint.
+- On a touch screen a timeline tick takes the axis's height, a tap between
+  ticks takes the nearest, and a world span is at least 24px wide.
+- Heights use the small viewport (`svh`), clear of a phone's toolbars.
+- The note editor gives the focus back to its note's card when it closes.
+- The recording shows on a phone's lock screen, whose Play and Pause pause
+  and go on (Media Session).
 
 - Every control has a name. A card is a group a screen reader calls a
   "card", named by its heading, with its keys described (`#card-keys` in

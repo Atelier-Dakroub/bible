@@ -85,6 +85,16 @@
 
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('pointerdown', (event) => this.railDown(event), { signal });
+      // A toolbar is one stop for the Tab key; the arrow keys move along it
+      // (focusgroup where the browser has it, else a roving tab index).
+      if ('focusGroup' in HTMLElement.prototype) this.setAttribute('focusgroup', 'toolbar wrap');
+      else {
+        this.addEventListener('keydown', (event) => this.rove(event), { signal });
+        this.addEventListener('focusin', (event) => this.roveTo(/** @type {Element} */ (event.target)), { signal });
+        queueMicrotask(() => this.roveTo(this.querySelector('[data-action="search"]')));
+      }
+      // A panel's grip with the keys: the arrow keys move the panel.
+      table.addEventListener('keydown', (event) => this.gripKey(event), { signal });
 
       // The panels' own buttons: grip, float and close.
       table.addEventListener('pointerdown', (event) => this.gripDown(event), { signal });
@@ -155,6 +165,7 @@
       const table = /** @type {HTMLElement} */ (this.parentElement);
       table.dataset.rail = isPhone() ? 'bottom' : this.edge;
       this.dataset.edge = table.dataset.rail;
+      this.setAttribute('aria-orientation', table.dataset.rail === 'left' || table.dataset.rail === 'right' ? 'vertical' : 'horizontal');
       table.style.setProperty('--chrome-zoom', String(ZOOM[/** @type {keyof typeof ZOOM} */ (this.size)] ?? 1));
       table.toggleAttribute('data-chrome-hidden', this.cleared);
     },
@@ -162,7 +173,7 @@
     /** @param {MouseEvent} event */
     act(event) {
       const button = event.target instanceof Element ? event.target.closest('button') : null;
-      if (!(button instanceof HTMLButtonElement)) return;
+      if (!(button instanceof HTMLButtonElement) || button.getAttribute('aria-disabled') === 'true') return;
       const action = button.dataset.action ?? '';
       if (action === 'search' || action === 'timeline' || action === 'tools') this.toggle(action);
       if (action === 'map') this.send('toggle-map');
@@ -254,11 +265,61 @@
      * @param {Panel} panel
      * @param {{ x: number, y: number } | null} at
      */
-    setFloat(panel, at) {
+    setFloat(panel, at, quiet = false) {
       if (!this.settings) return;
+      const was = this.settings.float[panel];
       this.settings.float[panel] = at;
       this.save();
       this.arrangeSoon();
+      // Said to a screen reader, and shown: docked, or floating.
+      const name = { search: 'The search panel', timeline: 'The timeline', tools: 'The tools panel' }[panel];
+      if (!quiet && Boolean(was) !== Boolean(at)) /** @type {any} */ (this.parentElement)?.toast?.(at ? `${name} floats. Drag it onto the rail to dock it.` : `${name} is docked.`);
+    },
+
+    /**
+     * The arrow keys along the rail; Home and End to its ends.
+     *
+     * @param {KeyboardEvent} event
+     */
+    rove(event) {
+      const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+      if (!keys.includes(event.key) || event.altKey || event.metaKey || event.ctrlKey) return;
+      const buttons = /** @type {HTMLElement[]} */ ([...this.querySelectorAll('button')]).filter((each) => each.checkVisibility?.() ?? each.offsetParent !== null);
+      const at = buttons.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+      if (at < 0) return;
+      event.preventDefault();
+      const back = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (at + (back ? buttons.length - 1 : 1)) % buttons.length;
+      buttons[next].focus();
+    },
+
+    /** The one button the Tab key stops at: the last one with the focus. @param {Element | null} target */
+    roveTo(target) {
+      const button = target?.closest?.('button');
+      if (!(button instanceof HTMLButtonElement) || !this.contains(button)) return;
+      for (const each of this.querySelectorAll('button')) /** @type {HTMLElement} */ (each).tabIndex = each === button ? 0 : -1;
+    },
+
+    /**
+     * The arrow keys on a panel's grip move the panel, 16px a press, 64px
+     * with Shift; a docked panel floats where it is first.
+     *
+     * @param {KeyboardEvent} event
+     */
+    gripKey(event) {
+      const grip = event.target instanceof Element ? event.target.closest('[data-grip]') : null;
+      const moves = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      const move = /** @type {Record<string, number[]>} */ (moves)[event.key];
+      if (!(grip instanceof HTMLElement) || !move || isPhone() || !this.settings) return;
+      event.preventDefault();
+      const panel = /** @type {Panel} */ (grip.dataset.grip);
+      const box = this.panel(panel)?.getBoundingClientRect();
+      if (!box) return;
+      const step = event.shiftKey ? 64 : 16;
+      const from = this.settings.float[panel] ?? { x: box.left, y: box.top };
+      const to = { x: Math.round(Math.min(Math.max(0, from.x + move[0] * step), innerWidth - box.width)), y: Math.round(Math.min(Math.max(0, from.y + move[1] * step), innerHeight - 40)) };
+      this.setFloat(panel, to, Boolean(this.settings.float[panel]));
+      requestAnimationFrame(() => grip.focus());
     },
 
     /**
@@ -358,7 +419,10 @@
       const parts = [['search', search, placed.search], ['timeline', strip, placed.timeline], ['tools', tools, placed.tools]];
       for (const [panel, element, box] of parts) {
         if (!element) continue;
-        element.dataset.dock = !phone && settings.float[panel] ? 'floating' : 'docked';
+        const floating = !phone && Boolean(settings.float[panel]);
+        element.dataset.dock = floating ? 'floating' : 'docked';
+        // Its float button is pressed while it floats.
+        element.querySelector('[data-chrome="float"]')?.setAttribute('aria-pressed', String(floating));
         if (box) put(element, box);
       }
       this.dispatchEvent(new Event('chrome-arrange', { bubbles: true }));
@@ -372,7 +436,8 @@
      */
     railDown(event) {
       const grip = event.target instanceof Element ? event.target.closest('[data-action="edge"]') : null;
-      if (!(grip instanceof HTMLElement) || isPhone()) return;
+      // The main button only: a right click opens no drag.
+      if (!(grip instanceof HTMLElement) || isPhone() || event.button !== 0) return;
       const start = { x: event.clientX, y: event.clientY };
       grip.setPointerCapture(event.pointerId);
       let moving = false;
@@ -403,7 +468,7 @@
      */
     gripDown(event) {
       const grip = event.target instanceof Element ? event.target.closest('[data-grip]') : null;
-      if (!(grip instanceof HTMLElement) || isPhone() || !this.settings) return;
+      if (!(grip instanceof HTMLElement) || isPhone() || !this.settings || event.button !== 0) return;
       const panel = /** @type {Panel} */ (grip.dataset.grip);
       const element = this.panel(panel);
       if (!element) return;
@@ -482,16 +547,22 @@
   .rail__button svg-icon {
     font-size: 1.35rem;
   }
-  .rail__button:hover {
-    background: var(--tint);
+  @media (hover: hover) {
+    .rail__button:hover {
+      background: var(--tint);
+    }
   }
-  .rail__button:disabled {
+  /* Undo and Redo with nothing to undo: dim, but still in the arrow keys'
+     order (aria-disabled, not disabled). */
+  .rail__button[aria-disabled='true'] {
     color: var(--muted);
     opacity: 0.55;
     cursor: default;
   }
-  .rail__button:disabled:hover {
-    background: transparent;
+  @media (hover: hover) {
+    .rail__button[aria-disabled='true']:hover {
+      background: transparent;
+    }
   }
   /* An open panel's button, and a card that is on the table: lapis. */
   .rail__button:is([aria-expanded='true'], [aria-pressed='true']) {
@@ -559,10 +630,18 @@
       min-width: 0;
       flex: 1;
     }
-    .rail__label,
     .rail__grip,
     .rail__rule {
       display: none;
+    }
+    /* The names stay for a screen reader (as .visually-hidden). */
+    .rail__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   }
 </style>
@@ -575,8 +654,8 @@
 <button type="button" class="rail__button" data-action="books" aria-pressed="${books ? 'true' : 'false'}" title="The books compared"><svg-icon library="ui" name="books"></svg-icon><span class="rail__label">Books</span></button>
 <hr class="rail__rule" />
 <button type="button" class="rail__button" data-action="note"><svg-icon library="ui" name="note"></svg-icon><span class="rail__label">Note</span></button>
-<button type="button" class="rail__button" data-action="undo" disabled="${!canUndo}" aria-keyshortcuts="Control+Z Meta+Z"><svg-icon library="ui" name="undo"></svg-icon><span class="rail__label">Undo</span></button>
-<button type="button" class="rail__button" data-action="redo" disabled="${!canRedo}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><svg-icon library="ui" name="redo"></svg-icon><span class="rail__label">Redo</span></button>
+<button type="button" class="rail__button" data-action="undo" aria-disabled="${canUndo ? 'false' : 'true'}" aria-keyshortcuts="Control+Z Meta+Z"><svg-icon library="ui" name="undo"></svg-icon><span class="rail__label">Undo</span></button>
+<button type="button" class="rail__button" data-action="redo" aria-disabled="${canRedo ? 'false' : 'true'}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><svg-icon library="ui" name="redo"></svg-icon><span class="rail__label">Redo</span></button>
 <hr class="rail__rule" />
 <button type="button" class="rail__button" data-action="tools" aria-expanded="${tools ? 'true' : 'false'}"><svg-icon library="ui" name="tools"></svg-icon><span class="rail__label">Tools</span></button>
 <button type="button" class="rail__button" data-action="hide" title="Clear the screen of the tools and panels"><svg-icon library="ui" name="hide"></svg-icon><span class="rail__label">Hide</span></button>

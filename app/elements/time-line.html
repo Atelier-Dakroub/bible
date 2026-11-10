@@ -93,7 +93,9 @@
           remember(WORLD_KEY, this.world);
           return;
         }
-        const tick = target?.closest('[data-entity]');
+        // A tap on the axis between ticks: the nearest tick, if one is
+        // near, as the ticks stand closer than a finger is wide.
+        const tick = target?.closest('[data-entity]') ?? (target?.closest('.timeline__axis') && event instanceof MouseEvent ? this.nearestTick(event.clientX) : null);
         if (tick instanceof HTMLElement) {
           this.dispatchEvent(new CustomEvent('show-entity', { bubbles: true, detail: { id: tick.dataset.entity } }));
         }
@@ -208,6 +210,27 @@
     },
 
     /**
+     * The tick nearest a point across the axis, within 22 pixels, or null.
+     *
+     * @param {number} x
+     * @returns {HTMLElement | null}
+     */
+    nearestTick(x) {
+      /** @type {HTMLElement | null} */
+      let best = null;
+      let distance = 22;
+      for (const tick of /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('.timeline__tick'))) {
+        const box = tick.getBoundingClientRect();
+        const d = Math.abs(box.left + box.width / 2 - x);
+        if (d < distance) {
+          distance = d;
+          best = tick;
+        }
+      }
+      return best;
+    },
+
+    /**
      * The tick of an event, or null.
      *
      * @param {string} id
@@ -242,7 +265,7 @@
      at, moved sideways with a finger; the buttons stay put. */
   @media (max-width: 700px), (max-height: 500px) {
     :scope {
-      max-height: 55vh;
+      max-height: 55svh;
       overflow: auto;
       overscroll-behavior: contain;
     }
@@ -279,7 +302,7 @@
     font: var(--control-font);
   }
   .timeline__kings {
-    border: 1px solid var(--edge);
+    border: 1px solid var(--field-edge);
     border-radius: var(--radius-small);
     background: var(--paper);
     color: var(--ink);
@@ -376,8 +399,10 @@
     color: var(--ink-soft);
     line-height: 0.9rem;
   }
-  .world__span:hover {
-    background: color-mix(in srgb, var(--purple) 24%, var(--paper));
+  @media (hover: hover) {
+    .world__span:hover {
+      background: color-mix(in srgb, var(--purple) 24%, var(--paper));
+    }
   }
   .world__span.is-shown {
     background: var(--lapis);
@@ -444,6 +469,18 @@
     height: 0.8rem;
     background: var(--purple);
   }
+  /* A finger: each tick takes the axis's height, and a span is at least
+     24px wide (WCAG 2.5.8). The ticks stand close, so a tap between them
+     takes the nearest (nearestTick). */
+  @media (pointer: coarse) {
+    .timeline__tick {
+      top: 0;
+      height: auto;
+    }
+    .world__span {
+      min-width: 24px;
+    }
+  }
   .timeline__tick.is-on-table::before,
   .timeline__tick.is-shown::before {
     height: 1.5rem;
@@ -452,7 +489,7 @@
 </style>
 
 <div class="timeline__bar">
-  <button type="button" class="panel__grip" data-grip="timeline" aria-label="Move the timeline" title="Drag to move; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
+  <button type="button" class="panel__grip" data-grip="timeline" aria-label="Move the timeline: drag it, or use the arrow keys" title="Drag to move, or use the arrow keys; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
   <button
     type="button"
     class="timeline__toggle"
@@ -468,7 +505,7 @@
     <option value="kitchen" selected="${kings === 'kitchen'}">Kings: Kitchen</option>
   </select>
   <button type="button" class="panel__button" data-action="about" aria-expanded="${about ? 'true' : 'false'}" aria-label="About the dates" title="About the dates"><svg-icon library="ui" name="info"></svg-icon></button>
-  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="timeline" aria-label="Float or dock the timeline" title="Float or dock"><svg-icon library="ui" name="float"></svg-icon></button>
+  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="timeline" aria-pressed="false" aria-label="Float the timeline" title="Float: off the rail, where it stays"><svg-icon library="ui" name="float"></svg-icon></button>
   <button type="button" class="panel__button" data-chrome="close" data-panel="timeline" aria-label="Close the timeline" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
 </div>
 <p class="timeline__note">

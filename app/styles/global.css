@@ -165,8 +165,10 @@ gesture-card.is-held > .rr-card {
   height: 24px;
   translate: -50% -50%;
 }
-.verse__event:hover {
-  background: var(--lapis);
+@media (hover: hover) {
+  .verse__event:hover {
+    background: var(--lapis);
+  }
 }
 /* Where a quotation begins: the New Testament quoting the Old, or the Old
    quoted in the New. A lapis quotation mark in the card's right margin,
@@ -623,8 +625,10 @@ gesture-card[data-zoom='far'] .note__text {
   letter-spacing: -0.01em;
   text-align: start;
 }
-.entity__title:hover {
-  background: none;
+@media (hover: hover) {
+  .entity__title:hover {
+    background: none;
+  }
 }
 .entity__facts {
   color: var(--ink-soft);
@@ -666,8 +670,10 @@ gesture-card[data-zoom='far'] .note__text {
   text-underline-offset: 0.15em;
   cursor: pointer;
 }
-.cite:hover {
-  text-decoration-thickness: 2px;
+@media (hover: hover) {
+  .cite:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 .cite:focus-visible {
   outline: 2px solid var(--lapis);
@@ -736,8 +742,10 @@ gesture-card[data-zoom='far'] .note__text {
   background: var(--tint);
   font: 500 0.65rem var(--sans);
 }
-.entity__link:hover {
-  background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
+@media (hover: hover) {
+  .entity__link:hover {
+    background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
+  }
 }
 .entity-card .entity__summary {
   font-size: calc(0.9rem * var(--read-scale));
@@ -789,8 +797,10 @@ gesture-card[data-zoom='far'] .note__text {
   border-radius: 3px;
   cursor: pointer;
 }
-.orig:hover {
-  background: var(--tint);
+@media (hover: hover) {
+  .orig:hover {
+    background: var(--tint);
+  }
 }
 .orig.is-studied,
 .inter__word.is-studied .inter__text {
@@ -923,8 +933,10 @@ gesture-card[data-zoom='far'] .note__text {
   text-align: center;
   cursor: pointer;
 }
-.inter__word:hover {
-  background: var(--tint);
+@media (hover: hover) {
+  .inter__word:hover {
+    background: var(--tint);
+  }
 }
 .inter__text {
   line-height: 1.5;
@@ -1571,8 +1583,10 @@ gesture-card[data-compare] .bsb__d {
   background: var(--tint);
   text-align: start;
 }
-.journey:hover {
-  background: color-mix(in srgb, var(--ochre) 12%, var(--tint));
+@media (hover: hover) {
+  .journey:hover {
+    background: color-mix(in srgb, var(--ochre) 12%, var(--tint));
+  }
 }
 .journey__title {
   font: 600 0.8rem/1.3 var(--serif);
@@ -1636,11 +1650,13 @@ gesture-card[data-compare] .bsb__d {
 /* The sense chosen: a lapis edge and wash, in the ink of the text (the
    general rule for a pressed button, white on lapis, does not fit a pale
    wash). */
-.senses__sense[aria-pressed='true'],
-.senses__sense[aria-pressed='true']:hover {
-  border-color: var(--lapis);
-  background: color-mix(in srgb, var(--lapis) 10%, var(--paper));
-  color: var(--ink);
+@media (hover: hover) {
+  .senses__sense[aria-pressed='true'],
+  .senses__sense[aria-pressed='true']:hover {
+    border-color: var(--lapis);
+    background: color-mix(in srgb, var(--lapis) 10%, var(--paper));
+    color: var(--ink);
+  }
 }
 .senses__gloss {
   font-weight: 600;
@@ -1817,14 +1833,14 @@ gesture-card[data-zoom='far'] .landscape__summary {
 .panel__grip:active {
   cursor: grabbing;
 }
-.panel__button:hover,
-.panel__grip:hover {
-  background: var(--tint);
+@media (hover: hover) {
+  .panel__button:hover,
+  .panel__grip:hover {
+    background: var(--tint);
+  }
 }
-/* Floating, the float button docks: it is pressed. */
-[data-dock='floating'] .panel__float {
-  color: var(--lapis);
-}
+/* Floating, the float button is pressed (aria-pressed, which table-rail
+   sets): lapis, with the paper icon, as every pressed button is. */
 /* A floating panel lies a little higher off the table. */
 [data-dock='floating'] {
   box-shadow: 0 6px 24px var(--shade-far);

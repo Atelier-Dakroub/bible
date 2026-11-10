@@ -72,7 +72,24 @@ for (const [name, palette] of Object.entries(settings)) {
     assert.ok(Math.abs(contrast(palette.ink, palette.tint)) >= 75, 'ink on tint');
     assert.ok(Math.abs(contrast(palette.ink, palette.wash)) >= 75, 'ink on a highlight');
     assert.ok(Math.abs(contrast(palette['on-pigment'], palette.lapis)) >= 60, 'a pressed button');
+    // A field's edge shows where to type: 3:1 by WCAG 2 (1.4.11).
+    assert.ok(wcag(palette['field-edge'], palette.paper) >= 3, `field edge ${palette['field-edge']} on ${palette.paper}: ${wcag(palette['field-edge'], palette.paper).toFixed(2)}:1`);
   });
+}
+
+/**
+ * The WCAG 2 contrast ratio of two colors.
+ *
+ * @param {string} a @param {string} b such as #fcf9f2
+ */
+function wcag(a, b) {
+  /** @param {string} hex */
+  const luminance = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 test('the table and the design page set the reader\'s settings and the rem with the same script', async () => {

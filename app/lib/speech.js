@@ -220,9 +220,37 @@ export class Recording {
   /** @type {AbortController | null} */
   listening = null;
 
-  /** @param {HTMLAudioElement} audio */
-  constructor(audio) {
+  /**
+   * @param {HTMLAudioElement} audio
+   * @param {{ title?: string, resume?: () => void }} [options] the passage's
+   *   name, for the lock screen, and how to go on after a pause there
+   */
+  constructor(audio, options = {}) {
     this.audio = audio;
+    this.options = options;
+  }
+
+  /**
+   * The phone's lock screen and the keyboard's media keys (Media Session):
+   * the passage and its reader, and Play and Pause, which pause the card's
+   * reading as a tap on its verse does, and go on from there.
+   *
+   * @param {'playing' | 'paused' | 'none'} state
+   */
+  session(state) {
+    const media = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    if (!media) return;
+    if (state === 'playing') {
+      media.metadata = new MediaMetadata({ title: this.options.title ?? 'The KJV', artist: 'Michael Armenta', album: 'King James Version, read for LibriVox' });
+      media.setActionHandler('pause', () => this.stop());
+      media.setActionHandler('stop', () => this.stop());
+      media.setActionHandler('play', () => this.options.resume?.());
+    }
+    if (state === 'none') {
+      media.metadata = null;
+      for (const action of /** @type {MediaSessionAction[]} */ (['pause', 'stop', 'play'])) media.setActionHandler(action, null);
+    }
+    media.playbackState = state;
   }
 
   /**
@@ -239,6 +267,7 @@ export class Recording {
     this.onEnd = onEnd ?? null;
     this.stopped = false;
     this.items = chapters.flatMap((chapter) => chapter.verses.map((verse) => ({ element: elementOf(verse.id) }))).filter((item) => item.element);
+    this.session('playing');
     // From a verse: the chapters before it go, and its chapter begins there.
     const at = chapters.findIndex((chapter) => chapter.verses.some((verse) => verse.id === from));
     const left = at < 0 ? chapters : chapters.slice(at).map((chapter, i) => (i ? chapter : { ...chapter, verses: chapter.verses.slice(chapter.verses.findIndex((verse) => verse.id === from)) }));
@@ -246,6 +275,7 @@ export class Recording {
       if (this.stopped) return;
       await this.chapter(chapter, elementOf);
     }
+    this.session('none');
     this.finish();
   }
 
@@ -312,6 +342,7 @@ export class Recording {
     this.stopped = true;
     this.audio.pause();
     this.listening?.abort();
+    this.session('paused');
     this.finish(this.marked);
   }
 

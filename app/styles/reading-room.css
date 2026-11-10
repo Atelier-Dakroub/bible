@@ -178,6 +178,9 @@
   --ink: light-dark(#2a231d, #efe7d8);
   --ink-soft: light-dark(#574c42, #d2c8b6);
   --edge: light-dark(#b9ad97, #685f52);
+  /* The edge of a field, which must show where to type: 3:1 or more on
+     every paper (WCAG 1.4.11), where the quiet edge of the rest is less. */
+  --field-edge: light-dark(#857864, #8a8070);
   --rubric: light-dark(#931f14, #ffc6ba);
   --lapis: light-dark(#1d4580, #b9cff3);
   --verdigris: light-dark(#1f5a4a, #a6dcc8);
@@ -246,7 +249,7 @@
 /* ---- Base ------------------------------------------------------------- */
 
 .rr {
-  min-height: 100vh;
+  min-height: 100svh;
   background: var(--desk);
   color: var(--ink);
   font: 0.75rem/1.5 var(--sans);
@@ -301,8 +304,10 @@ button {
   font-size: 0.7rem;
   line-height: 1;
 }
-button:hover {
-  background: var(--tint);
+@media (hover: hover) {
+  button:hover {
+    background: var(--tint);
+  }
 }
 button[aria-pressed='true'] {
   border-color: var(--lapis);
@@ -313,8 +318,10 @@ button:disabled {
   color: color-mix(in srgb, var(--ink-soft) 55%, var(--paper));
   cursor: default;
 }
-button:disabled:hover {
-  background: var(--paper);
+@media (hover: hover) {
+  button:disabled:hover {
+    background: var(--paper);
+  }
 }
 /* Buttons that are one choice: joined into one bar. */
 .rr-segments {
@@ -337,7 +344,7 @@ input[type='search'],
 input[type='text'] {
   min-height: 2rem;
   padding: 0 0.6rem;
-  border: 1px solid var(--edge);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-small);
   background: var(--paper);
   color: var(--ink);

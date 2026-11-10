@@ -389,7 +389,8 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    max-height: calc(100vh - 1rem);
+    /* The small viewport: the height with a phone's toolbars showing. */
+    max-height: calc(100svh - 1rem);
     zoom: var(--chrome-zoom, 1);
     border: 1px solid var(--card-edge);
     border-radius: var(--radius);
@@ -533,7 +534,7 @@
     min-width: 0;
     min-height: var(--control-height);
     padding: 0 0.75rem;
-    border: 1px solid var(--edge);
+    border: 1px solid var(--field-edge);
     border-radius: var(--radius-small);
     background: var(--paper);
     color: inherit;
@@ -598,14 +599,14 @@
   }
 </style>
 <div class="tools__head">
-  <button type="button" class="panel__grip" data-grip="tools" aria-label="Move the tools panel" title="Drag to move; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
+  <button type="button" class="panel__grip" data-grip="tools" aria-label="Move the tools panel: drag it, or use the arrow keys" title="Drag to move, or use the arrow keys; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
   <div class="tools__tabs" role="tablist" aria-label="Tools">
     <button type="button" role="tab" data-action="tab" data-tab="table" aria-selected="${tab === 'table' ? 'true' : 'false'}" tabindex="${tab === 'table' ? '0' : '-1'}" aria-controls="tools-table">Table</button>
     <button type="button" role="tab" data-action="tab" data-tab="reading" aria-selected="${tab === 'reading' ? 'true' : 'false'}" tabindex="${tab === 'reading' ? '0' : '-1'}" aria-controls="tools-reading">Reading</button>
     <button type="button" role="tab" data-action="tab" data-tab="marks" aria-selected="${tab === 'marks' ? 'true' : 'false'}" tabindex="${tab === 'marks' ? '0' : '-1'}" aria-controls="tools-marks">Marks</button>
     <button type="button" role="tab" data-action="tab" data-tab="workspace" aria-selected="${tab === 'workspace' ? 'true' : 'false'}" tabindex="${tab === 'workspace' ? '0' : '-1'}" aria-controls="tools-workspace">${name ? name : 'Workspace'}</button>
   </div>
-  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="tools" aria-label="Float or dock the tools panel" title="Float or dock"><svg-icon library="ui" name="float"></svg-icon></button>
+  <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="tools" aria-pressed="false" aria-label="Float the tools panel" title="Float: off the rail, where it stays"><svg-icon library="ui" name="float"></svg-icon></button>
   <button type="button" class="panel__button" data-chrome="close" data-panel="tools" aria-label="Close the tools panel" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
 </div>
 <div class="tools__body">

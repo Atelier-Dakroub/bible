@@ -676,6 +676,7 @@ export type BibleTableMembers = {
   setSync(card: HTMLElement, on: boolean): void;
   setCompare(card: HTMLElement, on: boolean): void;
   readAloud(card: HTMLElement, button: HTMLButtonElement, from?: string | undefined): Promise<void>;
+  listenLook(card: HTMLElement, playing?: boolean | undefined): void;
   toast(message: string): void;
   toastTimer: number;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
@@ -1144,7 +1145,10 @@ export type TableRailMembers = {
   setFloat(panel: 'search' | 'timeline' | 'tools', at: {
     x: number;
     y: number;
-  } | null): void;
+  } | null, quiet?: boolean): void;
+  rove(event: KeyboardEvent): void;
+  roveTo(target: Element | null): void;
+  gripKey(event: KeyboardEvent): void;
   floatSpot(panel: 'search' | 'timeline' | 'tools'): {
     x: number;
     y: number;
@@ -1183,6 +1187,7 @@ export type TimeLineMembers = {
   placeReigns(): void;
   rove(event: KeyboardEvent): void;
   setCollapsed(collapsed: boolean): Promise<void>;
+  nearestTick(x: number): HTMLElement | null;
   tickFor(id: string): HTMLElement | null;
 };
 

@@ -31,6 +31,12 @@
   export const prototype = {
     connected({ signal }) {
       this.addEventListener('pointerdown', (event) => this.press(event), { signal });
+      // A click with no pointer (a screen reader's, or the keys of a
+      // switch): the same key. A keyboard has its own keys, so these are
+      // out of the Tab order.
+      this.addEventListener('click', (event) => {
+        if (event.detail === 0) this.press(/** @type {any} */ (event));
+      }, { signal });
       // Shown or hidden by its owner: the field follows.
       const watch = new ResizeObserver(() => {
         const field = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(String(this.for)));
@@ -109,17 +115,17 @@
 </style>
 
 <div class="keys__row">
-  <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button><button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button><button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button><button type="button" data-key="0">0</button>
+  <button type="button" tabindex="-1" data-key="1">1</button><button type="button" tabindex="-1" data-key="2">2</button><button type="button" tabindex="-1" data-key="3">3</button><button type="button" tabindex="-1" data-key="4">4</button><button type="button" tabindex="-1" data-key="5">5</button><button type="button" tabindex="-1" data-key="6">6</button><button type="button" tabindex="-1" data-key="7">7</button><button type="button" tabindex="-1" data-key="8">8</button><button type="button" tabindex="-1" data-key="9">9</button><button type="button" tabindex="-1" data-key="0">0</button>
 </div>
 <div class="keys__row keys__letters">
-  <button type="button" data-key="q">q</button><button type="button" data-key="w">w</button><button type="button" data-key="e">e</button><button type="button" data-key="r">r</button><button type="button" data-key="t">t</button><button type="button" data-key="y">y</button><button type="button" data-key="u">u</button><button type="button" data-key="i">i</button><button type="button" data-key="o">o</button><button type="button" data-key="p">p</button>
+  <button type="button" tabindex="-1" data-key="q">q</button><button type="button" tabindex="-1" data-key="w">w</button><button type="button" tabindex="-1" data-key="e">e</button><button type="button" tabindex="-1" data-key="r">r</button><button type="button" tabindex="-1" data-key="t">t</button><button type="button" tabindex="-1" data-key="y">y</button><button type="button" tabindex="-1" data-key="u">u</button><button type="button" tabindex="-1" data-key="i">i</button><button type="button" tabindex="-1" data-key="o">o</button><button type="button" tabindex="-1" data-key="p">p</button>
 </div>
 <div class="keys__row keys__letters">
-  <button type="button" data-key="a">a</button><button type="button" data-key="s">s</button><button type="button" data-key="d">d</button><button type="button" data-key="f">f</button><button type="button" data-key="g">g</button><button type="button" data-key="h">h</button><button type="button" data-key="j">j</button><button type="button" data-key="k">k</button><button type="button" data-key="l">l</button><button type="button" data-key=":">:</button>
+  <button type="button" tabindex="-1" data-key="a">a</button><button type="button" tabindex="-1" data-key="s">s</button><button type="button" tabindex="-1" data-key="d">d</button><button type="button" tabindex="-1" data-key="f">f</button><button type="button" tabindex="-1" data-key="g">g</button><button type="button" tabindex="-1" data-key="h">h</button><button type="button" tabindex="-1" data-key="j">j</button><button type="button" tabindex="-1" data-key="k">k</button><button type="button" tabindex="-1" data-key="l">l</button><button type="button" tabindex="-1" data-key=":">:</button>
 </div>
 <div class="keys__row keys__letters">
-  <button type="button" data-key="shift" aria-pressed="${shift ? 'true' : 'false'}" aria-label="Shift">⇧</button><button type="button" data-key="z">z</button><button type="button" data-key="x">x</button><button type="button" data-key="c">c</button><button type="button" data-key="v">v</button><button type="button" data-key="b">b</button><button type="button" data-key="n">n</button><button type="button" data-key="m">m</button><button type="button" data-key="-">-</button><button type="button" data-key="back" aria-label="Delete">⌫</button>
+  <button type="button" tabindex="-1" data-key="shift" aria-pressed="${shift ? 'true' : 'false'}" aria-label="Shift">⇧</button><button type="button" tabindex="-1" data-key="z">z</button><button type="button" tabindex="-1" data-key="x">x</button><button type="button" tabindex="-1" data-key="c">c</button><button type="button" tabindex="-1" data-key="v">v</button><button type="button" tabindex="-1" data-key="b">b</button><button type="button" tabindex="-1" data-key="n">n</button><button type="button" tabindex="-1" data-key="m">m</button><button type="button" tabindex="-1" data-key="-">-</button><button type="button" tabindex="-1" data-key="back" aria-label="Delete">⌫</button>
 </div>
 <div class="keys__row">
-  <button type="button" class="keys__wide keys__hide" data-key="done" aria-label="Hide the keyboard">Hide ⌄</button><button type="button" data-key="&quot;" aria-label="Quote">"</button><button type="button" data-key="'" aria-label="Apostrophe">'</button><button type="button" data-key="," aria-label="Comma">,</button><button type="button" data-key="." aria-label="Full stop">.</button><button type="button" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" data-key="?" aria-label="Question mark">?</button><button type="button" class="keys__wide" data-key="clear">Clear</button><button type="button" class="keys__wide" data-key="enter">${enter}</button>
+  <button type="button" tabindex="-1" class="keys__wide keys__hide" data-key="done" aria-label="Hide the keyboard">Hide ⌄</button><button type="button" tabindex="-1" data-key="&quot;" aria-label="Quote">"</button><button type="button" tabindex="-1" data-key="'" aria-label="Apostrophe">'</button><button type="button" tabindex="-1" data-key="," aria-label="Comma">,</button><button type="button" tabindex="-1" data-key="." aria-label="Full stop">.</button><button type="button" tabindex="-1" class="keys__space" data-key="space" aria-label="Space">space</button><button type="button" tabindex="-1" data-key="?" aria-label="Question mark">?</button><button type="button" tabindex="-1" class="keys__wide" data-key="clear">Clear</button><button type="button" tabindex="-1" class="keys__wide" data-key="enter">${enter}</button>
 </div>

@@ -178,8 +178,10 @@
     color: var(--ink);
     font: 500 max(0.45rem, 11px)/1.2 var(--sans);
   }
-  .reading__grid .reading__tile:hover {
-    background: var(--tint);
+  @media (hover: hover) {
+    .reading__grid .reading__tile:hover {
+      background: var(--tint);
+    }
   }
   .reading__grid .reading__tile[aria-pressed='true'] {
     border-color: var(--lapis);
