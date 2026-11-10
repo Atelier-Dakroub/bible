@@ -7,6 +7,7 @@
 import { loaders } from './entities/verses/index.js';
 import timeline from './entities/timeline.json' with { type: 'json' };
 import world from './world/polities.json' with { type: 'json' };
+import books from './kjv/books.json' with { type: 'json' };
 
 /**
  * @typedef {{
@@ -123,6 +124,48 @@ export async function mapOf() {
         return { name: range.name, scale: range.scale, angle: range.angle, x: x.toFixed(1), y: y.toFixed(1) };
       }),
   };
+}
+
+/** @typedef {{ id: string, title: string, label: string }} EventMark a dated event, marked where its passage begins */
+
+/** @type {Promise<Map<string, EventMark[]>> | null} */
+let marks = null;
+
+/**
+ * The dated events, by the verse where each one's passage begins: a verse
+ * that tells an event shows a mark that opens it, and its tick on the
+ * timeline. An event told in several places is marked at the start of
+ * each; the verses that follow on are not marked, so a long event, such as
+ * the Creation, has one mark, not 34.
+ *
+ * @returns {Promise<Map<string, EventMark[]>>}
+ */
+export function eventMarks() {
+  marks ??= entities().then((known) => {
+    /** @type {Map<string, number>} each verse's place in the Bible */
+    const order = new Map();
+    let n = 0;
+    for (const book of /** @type {{ id: string, verses: number[] }[]} */ (books)) {
+      book.verses.forEach((count, i) => {
+        for (let v = 1; v <= count; v += 1) order.set(`${book.id}.${i + 1}.${v}`, n++);
+      });
+    }
+    /** @type {Map<string, EventMark[]>} */
+    const found = new Map();
+    for (const [id, event] of Object.entries(known)) {
+      if (event.kind !== 'event' || typeof event.start !== 'number') continue;
+      const mark = { id, title: event.title, label: `${event.approx ? 'about ' : ''}${event.start <= 0 ? `${1 - event.start} BC` : `AD ${event.start}`}` };
+      const places = event.verses.map((verse) => order.get(verse) ?? -1).filter((at) => at >= 0).sort((a, b) => a - b);
+      const verses = event.verses.filter((verse) => order.has(verse)).sort((a, b) => /** @type {number} */ (order.get(a)) - /** @type {number} */ (order.get(b)));
+      places.forEach((at, i) => {
+        if (i > 0 && places[i - 1] === at - 1) return;
+        const verse = verses[i];
+        found.set(verse, [...(found.get(verse) ?? []), mark]);
+      });
+    }
+    return found;
+  });
+  return marks;
 }
 
 /** @type {Promise<Record<string, Entity>> | null} */

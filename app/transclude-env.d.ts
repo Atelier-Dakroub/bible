@@ -332,6 +332,7 @@ type WordVerse = {
   blocks: WordBlock[];
   label?: string | undefined;
   paragraph?: boolean | undefined;
+  events?: EventMark[] | undefined;
 };
 type WordBlock = {
   style: string;
@@ -351,6 +352,11 @@ type Token = {
   s: string | null;
   e: string | null;
   d: boolean;
+};
+type EventMark = {
+  id: string;
+  title: string;
+  label: string;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -667,6 +673,11 @@ export type GestureCardMembers = {
 export type KjvVerseProps = {
   n: string;
   blocks: Block[];
+  events: {
+    id: string;
+    title: string;
+    label: string;
+  }[];
 };
 
 /** Properties of `<map-view>`, from its <script element> block. */

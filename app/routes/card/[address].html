@@ -1,6 +1,6 @@
 <script server>
   import { books, entityView, original, parallel, phrase, preview, verseCount } from '../../data/bible.js';
-  import { entities, mapDetail, mapOf } from '../../data/entities.js';
+  import { entities, eventMarks, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
   import { parseAddress, stepAddress } from '../../lib/reference.js';
@@ -119,10 +119,13 @@
 
     const ref = parseAddress(address, books);
     if (!ref) return new Response('No passage has that address.', { status: 404 });
-    const [{ title, rows }, source] = await Promise.all([
+    const [{ title, rows: plain }, source, marks] = await Promise.all([
       parallel(ref),
       version === 'original' || version === 'interlinear' ? original(ref) : null,
+      eventMarks(),
     ]);
+    // Each verse with the dated events whose passages begin there.
+    const rows = plain.map((row) => ({ ...row, verse: { ...row.verse, events: marks.get(row.verse.id) ?? [] } }));
     const verses = rows.map((row) => row.verse);
     const back = stepAddress(address, -1, books) ?? '';
     const next = stepAddress(address, 1, books) ?? '';
@@ -295,7 +298,7 @@
     </div>
     <!-- The KJV alone: its words have addresses, so highlights and links show. -->
     <div if="kind === 'passage' && version === 'kjv'" class="passage__text">
-      <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+      <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}" events="${verse.events}"></kjv-verse>
     </div>
     <!-- The BSB alone: plain text, with no word addresses. -->
     <div if="kind === 'passage' && version === 'bsb'" class="passage__text">
@@ -337,7 +340,7 @@
       <p class="parallel__labels"><span>KJV</span><span>BSB</span></p>
       <p class="parallel__legend">Bold: words the other translation does not have. Word forms are compared, not spellings: “believeth” and “believes” are the same word.</p>
       <div each="row of rows" class="parallel__row">
-        <kjv-verse data-ref="${row.verse.id}" n="${row.verse.label}" blocks="${row.verse.blocks}"></kjv-verse>
+        <kjv-verse data-ref="${row.verse.id}" n="${row.verse.label}" blocks="${row.verse.blocks}" events="${row.verse.events}"></kjv-verse>
         <div class="bsb-verse">
           <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="part of block.parts"><span if="part.d" class="bsb__d">${part.text}</span><span else>${part.text}</span></template></p>
           <p if="!row.bsb.length" class="verse__missing">Not in the BSB's main text.</p>

@@ -60,3 +60,14 @@ test('every picture has its file, a credit, a record, and subjects that exist', 
   }
   assert.ok(imagesFor('place:jerusalem_636').length >= 2);
 });
+
+test('a dated event is marked where its passage begins, once for a run of verses', async () => {
+  const { eventMarks } = await import('../app/data/entities.js');
+  const marks = await eventMarks();
+  // The Creation runs from Genesis 1:1 on: one mark, at its start.
+  assert.ok(marks.get('GEN.1.1')?.some((mark) => mark.title === 'Creation of all things'));
+  assert.ok(!marks.get('GEN.1.2')?.some((mark) => mark.title === 'Creation of all things'));
+  // The birth of Jesus, with its date by Jones.
+  const birth = marks.get('LUK.2.1')?.find((mark) => mark.title === 'Birth of Jesus');
+  assert.match(birth?.label ?? '', /BC$/);
+});

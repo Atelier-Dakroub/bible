@@ -243,6 +243,12 @@ makes network requests to query.wikidata.org.
 
 ## Exploring
 
+- **Dates in the text:** a verse where a dated event's passage begins has a
+  small purple diamond in the card's margin (565 of them, from Theographic's
+  events). A tap opens the event in the search panel and marks its tick on
+  the timeline. An event told over many verses is marked once, where it
+  begins.
+
 - **Did you know?** The ✦ at the start of the search panel's trail shows a
   fact worked out from the data (`app/data/facts.js`): the shortest verse,
   Methuselah's years, how the KJV renders *chesed*, the Aramaic of Daniel,

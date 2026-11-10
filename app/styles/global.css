@@ -133,6 +133,41 @@ gesture-card.is-held > .rr-card {
 :root[data-numbers='off'] .verse__number {
   display: none;
 }
+/* A dated event that begins here: a small diamond in the purple of events
+   and eras, in the card's left margin, level with the line where the verse
+   begins, as a note in a book's margin. It is out of the line, so an
+   initial letter still opens the chapter. A tap opens the event, and its
+   tick on the timeline. Its hit area is 24px, wider than the mark. */
+.passage {
+  position: relative;
+}
+.verse__event {
+  position: absolute;
+  left: 0.55rem;
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  min-height: 0;
+  margin: 0.45em 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  background: var(--purple);
+  vertical-align: 0.2em;
+  rotate: 45deg;
+  cursor: pointer;
+}
+.verse__event::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 24px;
+  height: 24px;
+  translate: -50% -50%;
+}
+.verse__event:hover {
+  background: var(--lapis);
+}
 /* Paragraphs: the verses run on, and a verse that starts a paragraph (the
    KJV's ¶) starts a new one. Poetry keeps its lines. Verse by verse (the
    reading setting) puts each verse on a line of its own. Both translations
