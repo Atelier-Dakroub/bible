@@ -8,5 +8,12 @@
     "source": "https://www.soest.hawaii.edu/pwessel/gshhg/ (gshhg-shp-2.3.7.zip: GSHHS_shp/f/GSHHS_f_L1 and L2)",
     "license": "GNU Lesser General Public License, version 3 or later (GSHHG-LICENSE.txt).",
     "note": "Coastlines and lakes. The rivers stay Natural Earth's. Modern shores: ancient ones differed in places."
+  },
+  "rivers": {
+    "name": "HydroRIVERS 1.0 (Lehner and Grill 2013)",
+    "source": "https://www.hydrosheds.org/products/hydrorivers (HydroRIVERS_v10_eu_shp.zip, HydroRIVERS_v10_af_shp.zip)",
+    "license": "HydroSHEDS license: free for non-commercial and commercial use, with attribution; passed on only inside a work made from it. The same reaches are in RiverATLAS (HydroATLAS), under CC BY 4.0.",
+    "attribution": "Lehner, B., Grill G. (2013). Global river hydrography and network routing: baseline data and new approaches to study the world’s large river systems. Hydrological Processes, 27(15): 2171–2186. Data available at www.hydrosheds.org.",
+    "note": "The close view only: the whole map keeps Natural Earth’s rivers. Modern rivers, with a natural flow as modelled."
   }
 }

@@ -42,12 +42,13 @@ export { timeline, world };
 /**
  * The map's detail, which the card loads when it is first zoomed in
  * (map-view): the close coast and lakes, the sea around that coast, the fine
- * relief bands, and the Levant's own sharper relief.
+ * relief bands, the Levant's own sharper relief, and the finer rivers.
  *
  * @typedef {{
  *   coast: { land: string, lakes: string, sea: string },
  *   bands: { n: number, d: string }[],
- *   levant: { n: number, d: string }[]
+ *   levant: { n: number, d: string }[],
+ *   rivers: { kind: string, d: string }[]
  * }} MapDetail
  */
 
@@ -74,6 +75,9 @@ export async function mapDetail() {
     coast: { land, lakes: (base.lakesDetail ?? base.lakes).join(''), sea: seaOf(base.width, base.height, land) },
     bands: relief.bands.map((d, n) => ({ n, d })),
     levant: relief.levant.bands.map((d, n) => ({ n, d })),
+    // HydroRIVERS's rivers (tools/import-rivers.js), the smallest first, so
+    // a great river is drawn over the streams that run into it.
+    rivers: ['dry', 'stream', 'large', 'great'].map((kind) => ({ kind, d: base.riversDetail?.[kind] ?? '' })).filter((river) => river.d),
   };
 }
 

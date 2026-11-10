@@ -195,7 +195,10 @@
                Roman provinces, or the water of an age over today's land. -->
           <g each="layer of map ? map.ancient.layers : []" class="map__ancient" data-layer="${layer.id}"><path d="${layer.d}" class="map__realm map__realm--${layer.kind}"></path></g>
           <g each="shore of map ? map.ancient.shores : []" class="map__ancient" data-layer="${shore.id}"><path d="${shore.d}" class="map__shore"></path></g>
-          <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
+          <!-- The rivers: Natural Earth's for the whole map; closer in,
+               HydroRIVERS's, finer, by size, a wadi dashed. -->
+          <g class="map__whole"><path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path></g>
+          <g class="map__detail" data-slot="rivers"></g>
         </svg>
         <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg map__over" role="img" aria-label="Map of the biblical world">
           <!-- The names of the ranges, under the places: they are not for
@@ -241,7 +244,7 @@
         <p class="map__scale"><span class="map__bar"></span><span class="map__km"></span></p>
       </map-view>
     </div>
-    <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth. Places: Theographic (CC BY-SA). Ancient extents and shores: Ancient World Mapping Center, from the Barrington Atlas (ODbL); their dates are approximate. Modern shores, unless an age's shores are shown.</p>
+    <p class="rr-card__foot">Coast and lakes: GSHHG (LGPL). Relief: ETOPO 2022, NOAA. Rivers: Natural Earth; closer in, HydroRIVERS (Lehner and Grill 2013, hydrosheds.org). Places: Theographic (CC BY-SA). Ancient extents and shores: Ancient World Mapping Center, from the Barrington Atlas (ODbL); their dates are approximate. Modern shores, unless an age's shores are shown.</p>
   </article>
   <article else class="passage passage--${kind === 'passage' ? version : kind} ${entity ? 'kind--' + entity.kind : ''}">
     <!-- The heading, with the steps through the text on either side of it,
@@ -431,5 +434,6 @@
     </g>
   </g>
   <g data-slot="sea"><path d="${detail ? detail.coast.sea : ''}" fill-rule="evenodd" class="map__sea"></path></g>
+  <g data-slot="rivers"><path each="river of detail ? detail.rivers : []" d="${river.d}" class="map__river map__river--${river.kind}"></path></g>
   <g data-slot="lakes"><path d="${detail ? detail.coast.lakes : ''}" class="map__lake"></path></g>
 </g></svg>

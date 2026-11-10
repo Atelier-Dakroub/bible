@@ -1039,6 +1039,22 @@ gesture-card[data-zoom='far'] .note__text {
   stroke: color-mix(in srgb, var(--lapis) 55%, var(--sea));
   stroke-width: calc(1 / var(--map-unit, 1));
 }
+/* Closer in, HydroRIVERS's rivers by size (tools/import-rivers.js): a great
+   river heavier, a stream lighter, a wadi, dry most of the year, dashed. */
+.map__river--great {
+  stroke-width: calc(1.8 / var(--map-unit, 1));
+}
+.map__river--large {
+  stroke-width: calc(1.3 / var(--map-unit, 1));
+}
+.map__river--stream {
+  stroke-width: calc(0.8 / var(--map-unit, 1));
+}
+.map__river--dry {
+  stroke: color-mix(in srgb, var(--lapis) 40%, var(--sea));
+  stroke-width: calc(0.8 / var(--map-unit, 1));
+  stroke-dasharray: calc(4 / var(--map-unit, 1)) calc(3 / var(--map-unit, 1));
+}
 /* Whole or close: map-view sets data-detail closer than DETAIL_ZOOM, once
    the detail has come. */
 .map__detail,

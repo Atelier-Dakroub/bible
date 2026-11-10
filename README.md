@@ -226,7 +226,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
 | `app/data/world/` | The world-history track: polities and periods from Wikidata. |
-| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth, relief from ETOPO 2022; the names of the ranges (`ranges.js`) and of the waters (`waters.js`). |
+| `app/data/map/` | The base map: coast and lakes from GSHHG, rivers from Natural Earth (closer in, HydroRIVERS), relief from ETOPO 2022; the names of the ranges (`ranges.js`) and of the waters (`waters.js`). |
 | `app/data/xrefs/` | The cross-references, one JSON file per book, made by the import. |
 | `docs/touch-setup.md` | How to connect the touch panel through a Linux VM in UTM. |
 
@@ -316,10 +316,10 @@ entered by hand and marked `dates: "conventional"`; their entries say so.
 
 ## Pictures
 
-51 pictures, linked to the people, places and events they show
-(`app/data/images.js`): 35 photographs of the Holy Land from the G. Eric and
+66 pictures, linked to the people, places and events they show
+(`app/data/images.js`): 48 photographs of the Holy Land from the G. Eric and
 Edith Matson Photograph Collection at the Library of Congress (1898–1946, no
-known restrictions on publication), and 16 objects from The Metropolitan
+known restrictions on publication), and 18 objects from The Metropolitan
 Museum of Art's Open Access (CC0), such as the Nimrud reliefs, Sennacherib's
 account of his campaign against Judah, and the lion of Babylon's Processional
 Way. An entry shows its first picture as a plate, with its caption and
@@ -639,13 +639,26 @@ from the entity data at request time.
 The coast and lakes are GSHHG's (full resolution, LGPL; the notice is in
 `app/data/map/GSHHG-LICENSE.txt`), at two levels of detail: simplified to
 about 2 km for the whole map, and to about 150 m for a close view. Natural
-Earth still gives the rivers, and its list of natural lakes decides which of
-GSHHG's lakes stay (a reservoir such as Lake Nasser does not). Run the Natural
-Earth import first, then the coast:
+Earth still gives the rivers of the whole map, and its list of natural lakes
+decides which of GSHHG's lakes stay (a reservoir such as Lake Nasser does
+not).
+
+Closer in, the rivers are HydroRIVERS's (Lehner and Grill 2013,
+hydrosheds.org), finer: every reach with an average flow of 3 m³/s or more,
+which keeps the Kishon, the Arnon and the Abana, drawn by size; and the large
+wadis, dry most of the year, dashed, such as the Brook of Egypt. HydroRIVERS
+has one channel where a river splits, so the Nile's delta keeps Natural
+Earth's branches. HydroRIVERS is under the HydroSHEDS license (free use with
+attribution; passed on only inside a work made from it). RiverATLAS
+(HydroATLAS) holds the same reaches under CC BY 4.0, but its download
+(figshare) stops automated clients; a download of it by hand can replace
+HydroRIVERS with no change to the map. Run the Natural Earth import first,
+then the coast, then the rivers:
 
 ```sh
 node tools/import-map.js <Natural Earth GeoJSON directory>
 node tools/import-coast.js <directory with GSHHS_f_L1.shp and GSHHS_f_L2.shp>
+node tools/import-rivers.js <directory with HydroRIVERS_v10_eu and _af .shp and .dbf>
 ```
 
 The map card is in the reading room's style, and is drawn to be light:
