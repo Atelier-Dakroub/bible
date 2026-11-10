@@ -1888,9 +1888,6 @@ bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
   border-radius: 2px;
   background: color-mix(in srgb, var(--lapis) 22%, transparent);
 }
-.passage__listen[aria-pressed='true'] {
-  color: var(--lapis);
-}
 /* A word's syllables, with the stressed one bold (lib/syllables.js); a tap
    says the word. */
 .inter__translit {

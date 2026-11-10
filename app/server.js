@@ -8,6 +8,8 @@
 //   POST /api/table/command  a command, as JSON; the answer is the table's reply
 //   POST /api/table/reply    a table's reply to a command, by its id
 //
+// And the KJV's recording: GET /audio/GEN.1.m4a (data/audio.js).
+//
 // A command must carry the secret in TABLE_TOKEN (the project's .env, which
 // npm run dev reads, and so does the MCP server): the server listens on the
 // network, so the panel can reach it, and a command changes the table. With
@@ -18,6 +20,7 @@
 // stops listening.
 
 import { streamSSE } from 'hono/streaming';
+import { chapterFile } from './data/audio.js';
 
 /** @typedef {import('hono/streaming').SSEStreamingApi} Stream */
 
@@ -40,6 +43,10 @@ function allowed(c) {
 
 /** @param {import('hono').Hono} app */
 export default (app) => {
+  // The KJV's recording, a chapter to a file (data/audio.js), with byte
+  // ranges so a player can begin at a verse.
+  app.get('/audio/:file', (c) => chapterFile(c.req.param('file'), c.req.header('range')));
+
   app.get('/api/table/events', (c) =>
     streamSSE(c, async (stream) => {
       tables.add(stream);

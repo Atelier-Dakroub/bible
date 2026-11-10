@@ -30,8 +30,17 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
-Reading aloud: the speaker on a passage card reads it in the device's own
-voice (`app/lib/speech.js`), verse by verse, in its version: the KJV or the
+Reading aloud: the speaker on a passage card reads it aloud, verse by verse,
+marking the verse being read; pressed, it is a stop square. Stopped, the card
+keeps its place, and the next press goes on from that verse ("Read aloud from
+verse 1:4"); a reading that ends begins again next time. A tap on a verse's
+number reads from that verse, and while a card reads, a tap on any verse
+moves the reading there. The KJV plays
+LibriVox's recording of the whole KJV, read by Michael Armenta (public
+domain), from the card's first verse to its last (`app/data/audio.js`,
+`/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters).
+Where there is no recording, and for the other versions, the device's own
+voice reads (`app/lib/speech.js`): the KJV or the
 BSB in English, the Hebrew or the Greek in Original, Word by word and Syntax,
 in their modern pronunciations. The verse being read is marked, and the word
 too where the voice says which. A second press stops it. On Word by word, each
@@ -694,6 +703,22 @@ attribution; passed on only inside a work made from it). RiverATLAS
 (figshare) stops automated clients; a download of it by hand can replace
 HydroRIVERS with no change to the map. Run the Natural Earth import first,
 then the coast, then the rivers:
+
+The KJV's recording: LibriVox's "Bible (KJV), Complete" (127 MP3 files,
+about 101 hours, 2.7 GB) is transcribed once with whisper.cpp (`whisper-cli`,
+Homebrew, with the ggml-base.en model), each word with its time; the words
+heard are matched to the KJV's (`tools/lib/align.js`: four-word anchors found
+once in each, the longest chain of them in order, and the words between by
+the least edits), and each verse starts where the reader's voice comes back
+after the pause before it. The chapters are cut to AAC files, one each, in
+`audio/kjv` (about 1.5 GB, outside git; `BIBLE_AUDIO` names another place);
+the times are in `app/data/audio/kjv.json`. The app's server streams the
+files, with byte ranges (`app/server.js`). A test cut of 40 verses began on
+their first words, but for words whisper misheard in the test itself.
+
+```sh
+node tools/import-audio.js <LibriVox directory with sections.json> <work directory> [audio directory]
+```
 
 ```sh
 node tools/import-map.js <Natural Earth GeoJSON directory>

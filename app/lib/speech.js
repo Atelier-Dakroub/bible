@@ -106,16 +106,18 @@ export class Reader {
   /** @type {Item[]} */
   items = [];
   at = -1;
-  /** @type {(() => void) | null} */
+  /** @type {((stoppedAt: Element | null) => void) | null} */
   onEnd = null;
   stopped = true;
 
   /**
    * @param {Item[]} items
-   * @param {() => void} [onEnd] when the last has been read, or the reading stopped
+   * @param {(stoppedAt: Element | null) => void} [onEnd] when the last has
+   *   been read (null), or the reading stopped (the verse it stopped in)
+   * @param {number} [start] the item to begin with
    * @returns {Promise<Lang | null>} the language with no voice on the device, or null
    */
-  async read(items, onEnd) {
+  async read(items, onEnd, start = 0) {
     Reader.current?.stop();
     Reader.current = this;
     const speech = synth();
@@ -123,7 +125,7 @@ export class Reader {
       if (!speech || !(await voiceFor(lang))) return lang;
     }
     this.items = items;
-    this.at = -1;
+    this.at = Math.min(Math.max(0, start), items.length - 1) - 1;
     this.onEnd = onEnd ?? null;
     this.stopped = false;
     speech?.cancel();
@@ -148,7 +150,6 @@ export class Reader {
     }
     utterance.rate = item.lang === 'en' ? 0.95 : 0.85;
     item.element.classList.add('is-read');
-    item.element.scrollIntoView?.({ block: 'nearest' });
     // Hebrew loses its marks before it is read, so its places no longer
     // fit: its words are not marked one by one.
     const words = item.lang === 'he' ? [] : (item.words ?? []);
@@ -177,19 +178,150 @@ export class Reader {
     if (this.stopped) return;
     this.stopped = true;
     synth()?.cancel();
+    const at = this.items[this.at]?.element ?? null;
     for (const item of this.items) item.element.classList.remove('is-read');
-    this.finish();
+    this.finish(at);
   }
 
-  finish() {
+  /** @param {Element | null} [stoppedAt] the verse it stopped in; none when it read to the end */
+  finish(stoppedAt = null) {
     this.stopped = true;
     this.mark(null);
     if (Reader.current === this) Reader.current = null;
     const done = this.onEnd;
     this.onEnd = null;
-    done?.();
+    done?.(stoppedAt);
   }
 
   /** @type {Reader | null} */
   static current = null;
+}
+
+/**
+ * @typedef {{ file: string, verses: { id: string, at: number, until: number }[] }} RecordedChapter
+ *   as routes/listen gives it (data/audio.js)
+ */
+
+/**
+ * Plays a passage from the KJV's recording (data/audio.js), chapter by
+ * chapter, marking the verse being read. It takes the place of a Reader:
+ * one reading at a time on the page.
+ *
+ * The audio element must have begun playing in the reader's tap (muted, on
+ * the first chapter's file), as a phone plays sound only from a tap: play
+ * then seeks it to the first verse and lets it be heard.
+ */
+export class Recording {
+  /** @type {{ element: Element }[]} */
+  items = [];
+  stopped = true;
+  /** @type {((stoppedAt: Element | null) => void) | null} */
+  onEnd = null;
+  /** @type {AbortController | null} */
+  listening = null;
+
+  /** @param {HTMLAudioElement} audio */
+  constructor(audio) {
+    this.audio = audio;
+  }
+
+  /**
+   * @param {RecordedChapter[]} chapters
+   * @param {(id: string) => Element | null} elementOf the verse on the card
+   * @param {(stoppedAt: Element | null) => void} [onEnd] when the last has
+   *   been read (null), or the playing stopped (the verse it stopped in)
+   * @param {string} [from] the verse to begin with, if not the first
+   */
+  async play(chapters, elementOf, onEnd, from = '') {
+    /** @type {any} */ (Reader.current)?.stop();
+    Reader.current = /** @type {any} */ (this);
+    synth()?.cancel();
+    this.onEnd = onEnd ?? null;
+    this.stopped = false;
+    this.items = chapters.flatMap((chapter) => chapter.verses.map((verse) => ({ element: elementOf(verse.id) }))).filter((item) => item.element);
+    // From a verse: the chapters before it go, and its chapter begins there.
+    const at = chapters.findIndex((chapter) => chapter.verses.some((verse) => verse.id === from));
+    const left = at < 0 ? chapters : chapters.slice(at).map((chapter, i) => (i ? chapter : { ...chapter, verses: chapter.verses.slice(chapter.verses.findIndex((verse) => verse.id === from)) }));
+    for (const chapter of left) {
+      if (this.stopped) return;
+      await this.chapter(chapter, elementOf);
+    }
+    this.finish();
+  }
+
+  /**
+   * Plays one chapter's verses, and resolves when the last has been read.
+   *
+   * @param {RecordedChapter} chapter
+   * @param {(id: string) => Element | null} elementOf
+   */
+  chapter(chapter, elementOf) {
+    const audio = this.audio;
+    const first = chapter.verses[0];
+    const last = chapter.verses[chapter.verses.length - 1];
+    this.listening?.abort();
+    const listening = new AbortController();
+    this.listening = listening;
+    return new Promise((resolve) => {
+      const done = () => {
+        listening.abort();
+        resolve(undefined);
+      };
+      const begin = () => {
+        audio.currentTime = first.at;
+        audio.muted = false;
+        audio.play().catch(done);
+      };
+      if (!audio.src.endsWith(chapter.file)) audio.src = chapter.file;
+      if (audio.readyState >= 1) begin();
+      else audio.addEventListener('loadedmetadata', begin, { once: true, signal: listening.signal });
+      audio.addEventListener('timeupdate', () => {
+        if (this.stopped) return done();
+        const t = audio.currentTime;
+        if (t >= last.until - 0.05) {
+          audio.pause();
+          this.mark(null);
+          return done();
+        }
+        const verse = [...chapter.verses].reverse().find((each) => each.at <= t + 0.05);
+        this.mark(verse ? elementOf(verse.id) : null);
+      }, { signal: listening.signal });
+      audio.addEventListener('ended', done, { signal: listening.signal });
+      audio.addEventListener('error', done, { signal: listening.signal });
+    });
+  }
+
+  /** @type {Element | null} */
+  marked = null;
+
+  /**
+   * Marks the verse being read. It does not scroll it into view: the table
+   * moves by its own pan, and a scroll would shift the whole table.
+   *
+   * @param {Element | null} element
+   */
+  mark(element) {
+    if (element === this.marked) return;
+    this.marked?.classList.remove('is-read');
+    element?.classList.add('is-read');
+    this.marked = element;
+  }
+
+  stop() {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.audio.pause();
+    this.listening?.abort();
+    this.finish(this.marked);
+  }
+
+  /** @param {Element | null} [stoppedAt] the verse it stopped in; none when it played to the end */
+  finish(stoppedAt = null) {
+    this.stopped = true;
+    this.mark(null);
+    if (Reader.current === /** @type {any} */ (this)) Reader.current = null;
+    const done = this.onEnd;
+    this.onEnd = null;
+    done?.(stoppedAt);
+  }
 }

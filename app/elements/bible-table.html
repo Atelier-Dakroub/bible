@@ -130,7 +130,7 @@
   import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
-  import { LANGUAGE_NAMES, Reader, sayWord } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, Reader, Recording, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -1166,6 +1166,17 @@
         });
         return;
       }
+      // A verse's number: read aloud from that verse. A verse, while its
+      // card reads: the reading goes there.
+      const number = element?.closest('.verse__number');
+      const tappedVerse = element?.closest('[data-ref]');
+      const reader = element?.closest('gesture-card');
+      const listen = reader?.querySelector('[data-action="listen"]');
+      const reading = Reader.current?.items.some((item) => reader?.contains(item.element));
+      if (tappedVerse && reader instanceof HTMLElement && listen instanceof HTMLButtonElement && (number || reading)) {
+        this.readAloud(reader, listen, tappedVerse.getAttribute('data-ref') ?? '');
+        return;
+      }
       // Read more on an entry's card: the card holds the press, so the
       // details do not open by themselves.
       const more = element?.closest('.entity__more > summary')?.parentElement;
@@ -1987,20 +1998,62 @@
     },
 
     /**
-     * Reads a card aloud in the device's voice, verse by verse, in its
-     * version: the KJV or the BSB in English, the Hebrew or the Greek in
-     * Original, Word by word and Syntax. A second press stops it.
+     * Reads a card aloud, verse by verse, in its version. The KJV plays
+     * LibriVox's recording where the app has it (data/audio.js, routes/listen);
+     * otherwise, and for the BSB, the Hebrew and the Greek (Original, Word by
+     * word, Syntax), the device's voice reads it. A second press stops it,
+     * and the card keeps the verse it stopped in (data-read-at): the next
+     * press goes on from there. A reading that ends begins again next time.
      *
      * @param {HTMLElement} card
      * @param {HTMLButtonElement} button
+     * @param {string} [from] a verse to read from (a tap on its number, or on
+     *   a verse while the card reads)
      */
-    async readAloud(card, button) {
+    async readAloud(card, button, from = '') {
       const reading = Reader.current;
       if (reading && reading.items.some((item) => card.contains(item.element))) {
         reading.stop();
-        return;
+        if (!from) return;
       }
       const version = card.dataset.version ?? 'kjv';
+      const start = from || card.dataset.readAt || '';
+      const label = (/** @type {string} */ id) => (id ? ` from verse ${id.split('.').slice(1).join(':')}` : '');
+      // Pressed while it reads, with a stop square in place of the speaker.
+      const set = (/** @type {boolean} */ on) => {
+        button.setAttribute('aria-pressed', String(on));
+        const rest = card.dataset.readAt ?? '';
+        button.setAttribute('aria-label', on ? 'Stop reading aloud' : `Read aloud${label(rest)}`);
+        button.title = on ? 'Stop reading aloud' : `Read aloud${label(rest)}`;
+        // The icon's drawing, directly: svg-icon draws once, from the page.
+        button.querySelector('svg-icon use')?.setAttribute('href', `/ui.svg#${on ? 'stop' : 'listen'}`);
+      };
+      // Where it stopped, for the next press; nothing when it read to the end.
+      const ended = (/** @type {Element | null} */ at) => {
+        const id = at?.closest('[data-ref]')?.getAttribute('data-ref') ?? '';
+        if (id) card.dataset.readAt = id;
+        else delete card.dataset.readAt;
+        set(false);
+      };
+      // The KJV's recording: its first chapter's file begins now, muted, in
+      // the tap (a phone plays sound only from one), while the times come.
+      const opening = /^([1-3A-Z]{3})\.(\d+)/.exec(start || card.dataset.address || '');
+      if (version === 'kjv' && card.dataset.kind === 'passage' && opening) {
+        const audio = new Audio(`/audio/${opening[1]}.${opening[2]}.m4a`);
+        audio.muted = true;
+        audio.play().catch(() => null);
+        const found = await fetch(`/listen/${encodeURIComponent(card.dataset.address ?? '')}`)
+          .then((response) => (response.ok ? response.json() : null))
+          .catch(() => null);
+        if (found?.chapters?.length) {
+          set(true);
+          this.toast(found.credit);
+          new Recording(audio).play(found.chapters, (id) => card.querySelector(`kjv-verse[data-ref="${CSS.escape(id)}"]`), ended, start);
+          return;
+        }
+        audio.pause();
+        audio.removeAttribute('src');
+      }
       const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]');
       const lang = source?.getAttribute('lang') === 'hbo' || source?.getAttribute('lang') === 'he' ? 'he' : 'el';
       /** @type {import('../lib/speech.js').Item[]} */
@@ -2013,12 +2066,9 @@
       else items = [...card.querySelectorAll('kjv-verse')].map((verse) => readable(verse, '.w', 'en'));
       items = items.filter((item) => item.text.trim());
       if (!items.length) return;
-      const set = (/** @type {boolean} */ on) => {
-        button.setAttribute('aria-pressed', String(on));
-        button.setAttribute('aria-label', on ? 'Stop reading aloud' : 'Read aloud');
-      };
       set(true);
-      const missing = await new Reader().read(items, () => set(false));
+      const first = Math.max(0, items.findIndex((item) => item.element.closest('[data-ref]')?.getAttribute('data-ref') === start));
+      const missing = await new Reader().read(items, ended, first);
       if (missing) {
         set(false);
         this.toast(`This device has no ${LANGUAGE_NAMES[missing]} voice.`);
