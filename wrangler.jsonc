@@ -49,7 +49,7 @@
   // `npx wrangler secret put TABLE_TOKEN`.
   "vars": {
     "ACCESS_TEAM": "",
-    "ACCESS_AUD": ""
+    "ACCESS_AUD": "f5913065fa61f485db13743698f1cd06162f2c1893576647c1b2693e4dc606ef"
   }
 
   // A custom domain goes here, and the deploy then makes the DNS record and the
