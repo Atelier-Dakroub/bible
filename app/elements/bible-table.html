@@ -1166,23 +1166,17 @@
         });
         return;
       }
-      // A verse's number: read aloud from that verse. A verse, while its
-      // card reads: the reading goes there; the verse being read stops it,
-      // as the card's stop button does (and the next press goes on from it).
-      const number = element?.closest('.verse__number');
+      // In the listening mode (the speaker button pressed), a tap on a verse
+      // plays from it, and a tap on the verse being read pauses. Out of the
+      // mode, a tap does what it always does.
       const tappedVerse = element?.closest('[data-ref]');
       const reader = element?.closest('gesture-card');
       const listen = reader?.querySelector('[data-action="listen"]');
-      const reading = Reader.current?.items.some((item) => reader?.contains(item.element));
-      const now = reading ? reader?.querySelector('.is-read')?.closest('[data-ref]') : null;
-      if (now && tappedVerse && now.getAttribute('data-ref') === tappedVerse.getAttribute('data-ref')) {
-        Reader.current?.stop();
-        return;
-      }
-      // The verse it stopped in: the reading goes on (a tap toggles it).
-      const resume = !reading && reader instanceof HTMLElement && tappedVerse && reader.dataset.readAt === tappedVerse.getAttribute('data-ref');
-      if (tappedVerse && reader instanceof HTMLElement && listen instanceof HTMLButtonElement && (number || reading || resume)) {
-        this.readAloud(reader, listen, tappedVerse.getAttribute('data-ref') ?? '');
+      if (tappedVerse && reader instanceof HTMLElement && reader.dataset.listening !== undefined && listen instanceof HTMLButtonElement) {
+        const reading = Reader.current?.items.some((item) => reader.contains(item.element));
+        const now = reading ? reader.querySelector('.is-read')?.closest('[data-ref]') : null;
+        if (now && now.getAttribute('data-ref') === tappedVerse.getAttribute('data-ref')) Reader.current?.stop();
+        else this.readAloud(reader, listen, tappedVerse.getAttribute('data-ref') ?? '');
         return;
       }
       // Read more on an entry's card: the card holds the press, so the
@@ -2020,27 +2014,35 @@
      */
     async readAloud(card, button, from = '') {
       const reading = Reader.current;
-      if (reading && reading.items.some((item) => card.contains(item.element))) {
-        reading.stop();
-        if (!from) return;
+      const mine = Boolean(reading && reading.items.some((item) => card.contains(item.element)));
+      // The button turns the mode off: the reading stops, and its place is
+      // kept for the next time.
+      if (!from && card.dataset.listening !== undefined) {
+        delete card.dataset.listening;
+        if (mine) reading?.stop();
+        this.listenLook(card);
+        return;
       }
+      // One card in the mode at a time.
+      for (const other of this.world().querySelectorAll('gesture-card[data-listening]')) {
+        if (other === card) continue;
+        delete /** @type {HTMLElement} */ (other).dataset.listening;
+        this.listenLook(/** @type {HTMLElement} */ (other));
+      }
+      card.dataset.listening = '';
+      if (mine) reading?.stop();
       const version = card.dataset.version ?? 'kjv';
       const start = from || card.dataset.readAt || '';
-      const label = (/** @type {string} */ id) => (id ? ` from verse ${id.split('.').slice(1).join(':')}` : '');
-      // Pressed while it reads, with a stop square in place of the speaker.
-      const set = (/** @type {boolean} */ on) => {
-        button.setAttribute('aria-pressed', String(on));
-        const rest = card.dataset.readAt ?? '';
-        button.setAttribute('aria-label', on ? 'Stop reading aloud' : `Read aloud${label(rest)}`);
-        button.title = on ? 'Stop reading aloud' : `Read aloud${label(rest)}`;
-        // The icon's drawing, directly: svg-icon draws once, from the page.
-        button.querySelector('svg-icon use')?.setAttribute('href', `/ui.svg#${on ? 'stop' : 'listen'}`);
-      };
-      // Where it stopped, for the next press; nothing when it read to the end.
+      const set = (/** @type {boolean} */ playing) => this.listenLook(card, playing);
+      // Where it stopped, for the next time. A reading that ends leaves the
+      // mode, and begins again next time.
       const ended = (/** @type {Element | null} */ at) => {
         const id = at?.closest('[data-ref]')?.getAttribute('data-ref') ?? '';
         if (id) card.dataset.readAt = id;
-        else delete card.dataset.readAt;
+        else {
+          delete card.dataset.readAt;
+          delete card.dataset.listening;
+        }
         set(false);
       };
       // The KJV's recording: its first chapter's file begins now, muted, in
@@ -2078,9 +2080,31 @@
       const first = Math.max(0, items.findIndex((item) => item.element.closest('[data-ref]')?.getAttribute('data-ref') === start));
       const missing = await new Reader().read(items, ended, first);
       if (missing) {
+        delete card.dataset.listening;
         set(false);
         this.toast(`This device has no ${LANGUAGE_NAMES[missing]} voice.`);
       }
+    },
+
+    /**
+     * How a card's speaker button looks: pressed (lapis) while the card is
+     * in the listening mode, and a stop square while it plays.
+     *
+     * @param {HTMLElement} card
+     * @param {boolean} [playing]
+     */
+    listenLook(card, playing = false) {
+      const button = card.querySelector('[data-action="listen"]');
+      if (!(button instanceof HTMLElement)) return;
+      const mode = card.dataset.listening !== undefined;
+      const rest = card.dataset.readAt ?? '';
+      const from = rest ? ` from verse ${rest.split('.').slice(1).join(':')}` : '';
+      button.setAttribute('aria-pressed', String(mode));
+      const label = mode ? (playing ? 'Pause: or tap the verse being read' : 'Stop listening; a tap on a verse plays it') : `Listen${from}`;
+      button.setAttribute('aria-label', label);
+      button.title = label;
+      // The icon's drawing, directly: svg-icon draws once, from the page.
+      button.querySelector('svg-icon use')?.setAttribute('href', `/ui.svg#${playing ? 'stop' : 'listen'}`);
     },
 
     /**

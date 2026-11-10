@@ -30,13 +30,15 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
-Reading aloud: the speaker on a passage card reads it aloud, verse by verse,
-marking the verse being read; pressed, it is a stop square. Stopped, the card
-keeps its place, and the next press goes on from that verse ("Read aloud from
-verse 1:4"); a reading that ends begins again next time. A tap on a verse's
-number reads from that verse, and while a card reads, a tap on any verse
-moves the reading there; a tap on the verse being read stops it, and a tap
-on the verse it stopped in goes on. The KJV plays
+Reading aloud: the speaker on a passage card is a mode. Pressed (lapis), the
+card reads aloud, verse by verse, marking the verse being read, and a tap on
+a verse plays from it; a tap on the verse being read pauses (the button
+shows the speaker again, still pressed), and a tap on any verse plays from
+there. Pressed again, the mode ends: the reading stops, and taps on the card
+do what they always do (a word's study, a verse's references). The card keeps
+its place, and the next time it goes on from that verse ("Listen from verse
+1:4"); a reading that ends leaves the mode and begins again next time. One
+card is in the mode at a time. The KJV plays
 LibriVox's recording of the whole KJV, read by Michael Armenta (public
 domain), from the card's first verse to its last (`app/data/audio.js`,
 `/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters).
