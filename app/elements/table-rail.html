@@ -380,6 +380,8 @@
       const W = innerWidth;
       const H = innerHeight;
       const gap = Math.round(0.5 * rem);
+      // Hidden, the rail is its Show button alone, as large as the button.
+      if (this.cleared) this.style.width = '';
       const railBox = this.getBoundingClientRect();
       const rail = { w: railBox.width, h: railBox.height };
       // A first pass at the widths, so the heights can be measured at them.
@@ -412,9 +414,14 @@
         element.style.width = `${box.w / zoom}px`;
         element.style.height = box.h === null ? '' : `${box.h / zoom}px`;
       };
-      this.style.left = `${placed.rail.x / zoom}px`;
+      // Hidden: the Show button in the end corner of a rail across the top
+      // or the bottom (a phone's too), where a thumb finds it; at the top of
+      // a rail on the left or the right, where the rail began.
+      const across = phone || settings.edge === 'top' || settings.edge === 'bottom';
+      const x = this.cleared && across ? W - gap - railBox.width : placed.rail.x;
+      this.style.left = `${x / zoom}px`;
       this.style.top = `${placed.rail.y / zoom}px`;
-      this.style.width = phone ? `${placed.rail.w / zoom}px` : '';
+      this.style.width = phone && !this.cleared ? `${placed.rail.w / zoom}px` : '';
       /** @type {[Panel, HTMLElement | null, import('../lib/chrome.js').Box | null][]} */
       const parts = [['search', search, placed.search], ['timeline', strip, placed.timeline], ['tools', tools, placed.tools]];
       for (const [panel, element, box] of parts) {
@@ -616,7 +623,19 @@
   }
   :scope:state(cleared) {
     padding: 0.15rem;
-    opacity: 0.7;
+    opacity: 0.85;
+  }
+  /* The Show button: a round button of its own, not a bar. */
+  :scope:state(cleared) .rail__show {
+    flex: none;
+    place-content: center;
+    min-width: 3rem;
+    min-height: 3rem;
+    padding: 0;
+    border-radius: 50%;
+  }
+  :scope:state(cleared) {
+    border-radius: 999px;
   }
   /* On a phone: the rail is the width of the screen at the bottom, its
      buttons share it, and they show their icons only. */
