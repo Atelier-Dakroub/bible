@@ -1076,12 +1076,13 @@ gesture-card[data-zoom='far'] .note__text {
   stroke-width: calc(1 / var(--map-unit, 1));
   stroke-dasharray: calc(4 / var(--map-unit, 1)) calc(2 / var(--map-unit, 1));
 }
-/* The Show choice, under the zoom buttons, at the frame's right. */
+/* The Show choice, in the frame's end corner, across from the scale bar
+   at its start. Narrow enough that the two do not meet. */
 .map__show {
   position: absolute;
-  top: calc(0.9rem + max(1.5rem, 24px));
-  right: 0.5rem;
-  max-width: min(14rem, calc(100% - 1rem));
+  inset-block-end: 0.5rem;
+  inset-inline-end: 0.5rem;
+  max-width: min(14rem, calc(100% - 10rem));
   min-height: 24px;
   padding: 0.15rem 0.4rem;
   border: 1px solid var(--edge);
