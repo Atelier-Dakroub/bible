@@ -680,11 +680,11 @@ gesture-card[data-zoom='far'] .note__text {
 /* A topic of Nave's Topical Bible: its headings, indented by depth, each
    with its references as links (data/topics.js). */
 .topic {
-  margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
 }
 .topic__summary {
   cursor: pointer;
-  padding: 0.25rem 0;
 }
 .topic__name {
   font: 600 calc(1rem * var(--read-scale)) / 1.3 var(--serif);
@@ -694,7 +694,7 @@ gesture-card[data-zoom='far'] .note__text {
   font: max(0.6rem, 11px) var(--sans);
 }
 .topic__lines {
-  margin: 0.25rem 0 0.5rem;
+  margin: 0.5rem 0 0.4rem;
   padding: 0;
   list-style: none;
   font: calc(0.8rem * var(--read-scale)) / 1.55 var(--serif);
@@ -1546,6 +1546,13 @@ gesture-card[data-compare] .bsb__d {
 }
 /* The senses of a word (data/senses.js): each a button, with its glosses,
    its count, and its domain and definition under them. */
+.senses {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.senses .guide__heading {
+  margin-top: 0;
+}
 .senses__list {
   margin: 0 0 0.5rem;
   padding: 0;
