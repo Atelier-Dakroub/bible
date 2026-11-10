@@ -1167,13 +1167,21 @@
         return;
       }
       // A verse's number: read aloud from that verse. A verse, while its
-      // card reads: the reading goes there.
+      // card reads: the reading goes there; the verse being read stops it,
+      // as the card's stop button does (and the next press goes on from it).
       const number = element?.closest('.verse__number');
       const tappedVerse = element?.closest('[data-ref]');
       const reader = element?.closest('gesture-card');
       const listen = reader?.querySelector('[data-action="listen"]');
       const reading = Reader.current?.items.some((item) => reader?.contains(item.element));
-      if (tappedVerse && reader instanceof HTMLElement && listen instanceof HTMLButtonElement && (number || reading)) {
+      const now = reading ? reader?.querySelector('.is-read')?.closest('[data-ref]') : null;
+      if (now && tappedVerse && now.getAttribute('data-ref') === tappedVerse.getAttribute('data-ref')) {
+        Reader.current?.stop();
+        return;
+      }
+      // The verse it stopped in: the reading goes on (a tap toggles it).
+      const resume = !reading && reader instanceof HTMLElement && tappedVerse && reader.dataset.readAt === tappedVerse.getAttribute('data-ref');
+      if (tappedVerse && reader instanceof HTMLElement && listen instanceof HTMLButtonElement && (number || reading || resume)) {
         this.readAloud(reader, listen, tappedVerse.getAttribute('data-ref') ?? '');
         return;
       }

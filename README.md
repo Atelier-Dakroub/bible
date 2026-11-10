@@ -35,7 +35,8 @@ marking the verse being read; pressed, it is a stop square. Stopped, the card
 keeps its place, and the next press goes on from that verse ("Read aloud from
 verse 1:4"); a reading that ends begins again next time. A tap on a verse's
 number reads from that verse, and while a card reads, a tap on any verse
-moves the reading there. The KJV plays
+moves the reading there; a tap on the verse being read stops it, and a tap
+on the verse it stopped in goes on. The KJV plays
 LibriVox's recording of the whole KJV, read by Michael Armenta (public
 domain), from the card's first verse to its last (`app/data/audio.js`,
 `/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters).
