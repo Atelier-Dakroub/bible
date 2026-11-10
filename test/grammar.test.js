@@ -74,7 +74,7 @@ test('a search by grammar finds the words, verse by verse', async () => {
   // John 2:5: "Whatsoever he saith unto you, do it" (ποιήσατε).
   const cana = hits.find((hit) => hit.address === 'JHN.2.5');
   assert.ok(cana);
-  assert.ok(cana.words.some((word) => word[1] === 'poiēsate'));
+  assert.ok(cana.found.some((n) => cana.words[n][1] === 'poiēsate'));
   assert.ok(hits.every((hit) => hit.address.startsWith('JHN.')));
 });
 

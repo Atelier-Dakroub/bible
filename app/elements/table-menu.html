@@ -237,7 +237,6 @@
         if (name === this.name) this.setName('');
         this.deleting = '';
         this.refresh(`Deleted “${name}”.`);
-        /** @type {any} */ (this.closest('bible-table'))?.syncWorkspaces?.();
       }
     },
 
@@ -324,11 +323,6 @@
         row.textContent = 'No marks yet.';
         list.append(row);
       }
-    },
-
-    /** Lists the saved workspaces again, as they came from another device, and keeps the message. */
-    relist() {
-      this.refresh(/** @type {HTMLElement} */ (this.querySelector('.menu__status'))?.textContent ?? '');
     },
 
     /**
@@ -655,5 +649,4 @@
   </div>
   <output class="menu__status" aria-live="polite"></output>
   <input class="menu__file" type="file" accept="application/json,.json" />
-  <p class="menu__hint">Saved tables are kept in this browser; on the app online, they are the same on every device you sign in on. <a href="/sources">Sources and licenses</a></p>
 </div>

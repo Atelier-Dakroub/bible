@@ -4,7 +4,7 @@
 // Dates follow Floyd Nolen Jones's chronology in astronomical years (-4003 is
 // 4004 BC). Everything that shows a date also shows that source.
 
-import { load, shelf } from './store.js';
+import { loaders } from './entities/verses/index.js';
 import timeline from './entities/timeline.json' with { type: 'json' };
 import world from './world/polities.json' with { type: 'json' };
 import books from './kjv/books.json' with { type: 'json' };
@@ -62,19 +62,12 @@ export { timeline, world };
  */
 const seaOf = (width, height, land) => `M-10 -10H${width + 10}V${height + 10}H-10Z${land}`;
 
-const mapFiles = shelf(Infinity);
-
-/**
- * A file of the map: the coasts, the relief, or the ancient world.
- *
- * @param {'near-east' | 'relief' | 'ancient'} name
- * @returns {Promise<any>}
- */
-const mapFile = (name) => mapFiles(name, () => load(`map/${name}.json`));
-
 /** @returns {Promise<MapDetail>} */
 export async function mapDetail() {
-  const [base, relief] = await Promise.all([mapFile('near-east'), mapFile('relief')]);
+  const [{ default: base }, { default: relief }] = await Promise.all([
+    import('./map/near-east.json', { with: { type: 'json' } }),
+    import('./map/relief.json', { with: { type: 'json' } }),
+  ]);
   const land = (base.landDetail ?? base.land).join('');
   return {
     coast: { land, lakes: (base.lakesDetail ?? base.lakes).join(''), sea: seaOf(base.width, base.height, land) },
@@ -95,13 +88,13 @@ export async function mapDetail() {
  * @returns {Promise<BaseMap>}
  */
 export async function mapOf() {
-  const [base, relief, { onMap, project }, { ranges }, known, ancient] = await Promise.all([
-    mapFile('near-east'),
-    mapFile('relief'),
+  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, known, { default: ancient }] = await Promise.all([
+    import('./map/near-east.json', { with: { type: 'json' } }),
+    import('./map/relief.json', { with: { type: 'json' } }),
     import('../lib/map.js'),
     import('./map/ranges.js'),
     entities(),
-    mapFile('ancient'),
+    import('./map/ancient.json', { with: { type: 'json' } }),
   ]);
   const places = Object.entries(known)
     .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
@@ -186,7 +179,7 @@ let all = null;
 
 /** @returns {Promise<Record<string, Entity>>} */
 export function entities() {
-  all ??= load('entities/entities.json');
+  all ??= import('./entities/entities.json', { with: { type: 'json' } }).then((module) => module.default);
   return all;
 }
 
@@ -206,7 +199,7 @@ let dictionary = null;
  * @param {string} word
  */
 export async function eastonFor(word) {
-  dictionary ??= load('entities/easton.json');
+  dictionary ??= import('./entities/easton.json', { with: { type: 'json' } }).then((module) => module.default);
   const terms = await dictionary;
   const base = word.toLowerCase().replace(/[’']s$/, '').replace(/[^\p{L}-]/gu, '');
   if (base.length < 3) return null;
@@ -216,7 +209,8 @@ export async function eastonFor(word) {
   return null;
 }
 
-const verseMaps = shelf(Infinity);
+/** @type {Map<string, Promise<Record<string, string[]>>>} */
+const verseMaps = new Map();
 
 /**
  * Which entities each verse of a book names.
@@ -225,7 +219,13 @@ const verseMaps = shelf(Infinity);
  * @returns {Promise<Record<string, string[]>>}
  */
 export function namedIn(book) {
-  return /** @type {Promise<Record<string, string[]>>} */ (verseMaps(book, () => load(`entities/verses/${book}.json`)));
+  let promise = verseMaps.get(book);
+  if (!promise) {
+    const load = loaders[/** @type {keyof typeof loaders} */ (book)];
+    promise = load().then((module) => /** @type {Record<string, string[]>} */ (module.default));
+    verseMaps.set(book, promise);
+  }
+  return promise;
 }
 
 /** @param {string} word */

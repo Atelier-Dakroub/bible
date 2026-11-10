@@ -37,6 +37,7 @@ await mkdir(out, { recursive: true });
 const index = [];
 let chapterCount = 0;
 let verseCount = 0;
+const loaderLines = [];
 
 for (const [, id] of OSIS) {
   const file = files.find((name) => name.slice(3, 6) === id && name.endsWith('.usfm'));
@@ -52,6 +53,7 @@ for (const [, id] of OSIS) {
     chapters,
   };
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(book));
+  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
   index.push({
     id,
     name: book.name,
@@ -64,6 +66,10 @@ for (const [, id] of OSIS) {
 }
 
 await writeFile(path.join(out, 'books.json'), JSON.stringify(index, null, 2) + '\n');
+await writeFile(
+  path.join(out, 'index.js'),
+  ['// Written by tools/import-kjv.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+);
 await writeFile(
   path.join(out, 'source.json'),
   JSON.stringify(

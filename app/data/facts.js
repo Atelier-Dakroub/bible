@@ -8,7 +8,6 @@
 import { allVerses, books, original, strongsResults } from './bible.js';
 import { entities } from './entities.js';
 import { journeysFor } from './journeys.js';
-import { load } from './store.js';
 import { formatReference, parseAddress } from '../lib/reference.js';
 
 /**
@@ -131,7 +130,7 @@ async function workOut() {
   }
 
   // Parallel passages.
-  const parallels = await load('parallels.json');
+  const { default: parallels } = await import('./parallels.json', { with: { type: 'json' } });
   for (const [a, b] of /** @type {[string, string, number][]} */ ([...parallels]).sort((x, y) => y[2] - x[2]).slice(0, 4)) {
     found.push(fact({ text: `${titleOf(a)} and ${titleOf(b)} tell much the same thing: the cross-references join them verse by verse.`, address: a, source: 'Worked out from the cross-references of OpenBible.info (CC BY).' }));
   }

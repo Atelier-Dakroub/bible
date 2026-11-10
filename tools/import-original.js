@@ -162,6 +162,16 @@ for (const [book, verses] of books) {
   count += Object.values(verses).reduce((sum, list) => sum + list.length, 0);
 }
 await writeFile(path.join(out, 'grammar.json'), JSON.stringify(grammar));
+// One loader for each book, so the server loads a book only when a card
+// asks for it, and the build bundles each book apart.
+const index = (await import('../app/data/kjv/books.json', { with: { type: 'json' } })).default;
+await writeFile(
+  path.join(out, 'index.js'),
+  `// Written by tools/import-original.js. Do not edit.\n\nexport const loaders = {\n${index
+    .filter((/** @type {{ id: string }} */ book) => books.has(book.id))
+    .map((/** @type {{ id: string }} */ book) => `  '${book.id}': () => import('./${book.id}.json', { with: { type: 'json' } }),`)
+    .join('\n')}\n};\n`,
+);
 await writeFile(
   path.join(out, 'source.json'),
   `${JSON.stringify(

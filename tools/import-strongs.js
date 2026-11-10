@@ -183,6 +183,7 @@ await mkdir(out, { recursive: true });
 let words = 0;
 let matched = 0;
 let tagged = 0;
+const loaderLines = [];
 
 for (const { id } of books) {
   const file = usfmFiles.find((name) => name.slice(3, 6) === id && name.endsWith('.usfm'));
@@ -211,6 +212,7 @@ for (const { id } of books) {
     }
   }
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(result));
+  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
 }
 
 const hebrew = await readDictionary(hebrewFile);
@@ -236,6 +238,10 @@ for (const [code, entry] of Object.entries(greek)) {
   };
 }
 await writeFile(path.join(out, 'lexicon.json'), JSON.stringify(lexicon));
+await writeFile(
+  path.join(out, 'index.js'),
+  ['// Written by tools/import-strongs.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+);
 await writeFile(
   path.join(out, 'source.json'),
   JSON.stringify(

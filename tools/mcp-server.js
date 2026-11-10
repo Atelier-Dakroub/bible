@@ -16,10 +16,7 @@
 // in TABLE_TOKEN (the project's .env), and the table does it with its own
 // methods, so Undo takes each change back. They need the app running
 // (npm run dev) and a table open; BIBLE_URL says where the app is, if not
-// http://127.0.0.1:1960. For the app on Cloudflare, behind Access, the
-// server signs in with an Access service token: CF_ACCESS_CLIENT_ID and
-// CF_ACCESS_CLIENT_SECRET. Each setting is read from the environment, else
-// from the project's .env.
+// http://127.0.0.1:1960.
 //
 // Every answer names its sources, as the app does, and gives addresses
 // (JHN.3.16) beside the references (John 3:16), so an answer can cite them
@@ -39,27 +36,18 @@ import { fileURLToPath } from 'node:url';
 console.log = console.error;
 
 const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
-/** @type {string | null} */
-let dotEnv = null;
+const APP = (process.env.BIBLE_URL ?? 'http://127.0.0.1:1960').replace(/\/$/, '');
 
-/**
- * A setting: from the environment, else from the project's .env.
- *
- * @param {string} name
- */
-function setting(name) {
-  if (process.env[name]) return String(process.env[name]);
-  if (dotEnv === null) {
-    try {
-      dotEnv = readFileSync(fileURLToPath(new URL('../.env', import.meta.url)), 'utf8');
-    } catch {
-      dotEnv = '';
-    }
+/** The secret the relay asks for: TABLE_TOKEN in the environment, else in the project's .env. */
+function token() {
+  if (process.env.TABLE_TOKEN) return process.env.TABLE_TOKEN;
+  try {
+    const env = readFileSync(fileURLToPath(new URL('../.env', import.meta.url)), 'utf8');
+    return /^TABLE_TOKEN=(.+)$/m.exec(env)?.[1]?.trim() ?? '';
+  } catch {
+    return '';
   }
-  return new RegExp(`^${name}=(.*)$`, 'm').exec(dotEnv)?.[1]?.trim() ?? '';
 }
-
-const APP = (setting('BIBLE_URL') || 'http://127.0.0.1:1960').replace(/\/$/, '');
 
 /**
  * Sends a command to the open tables, and returns the first one's reply.
@@ -67,23 +55,18 @@ const APP = (setting('BIBLE_URL') || 'http://127.0.0.1:1960').replace(/\/$/, '')
  * @param {{ action: string, [key: string]: unknown }} command
  */
 async function tell(command) {
-  const secret = setting('TABLE_TOKEN');
+  const secret = token();
   if (!secret) throw new Error('The table tools need TABLE_TOKEN, in the environment or in the project\'s .env.');
-  /** @type {Record<string, string>} */
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` };
-  const id = setting('CF_ACCESS_CLIENT_ID');
-  const clientSecret = setting('CF_ACCESS_CLIENT_SECRET');
-  if (id && clientSecret) Object.assign(headers, { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': clientSecret });
   /** @type {Response} */
   let response;
   try {
-    response = await fetch(`${APP}/api/table/command`, { method: 'POST', headers, body: JSON.stringify(command), redirect: 'manual' });
+    response = await fetch(`${APP}/api/table/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      body: JSON.stringify(command),
+    });
   } catch {
     throw new Error(`The app is not running at ${APP}. Start it with npm run dev, and open /table in a browser.`);
-  }
-  // Access sends a request it does not let in to its sign-in page.
-  if (response.status >= 300 && response.status < 400) {
-    throw new Error(`Cloudflare Access did not let the server in at ${APP}: set CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET to a service token that the Access application allows.`);
   }
   const reply = await response.json().catch(() => ({ ok: false, error: `The app answered ${response.status}.` }));
   if (!reply.ok) throw new Error(reply.error ?? 'The table did not do it.');

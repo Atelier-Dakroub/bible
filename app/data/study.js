@@ -317,7 +317,7 @@ async function countsFor(subject) {
     const text = subject.slice(8).trim();
     const query = text ? await grammarQuery(text) : null;
     if (!query) return null;
-    for (const hit of await grammarFind(query)) add(hit.address, hit.words.length);
+    for (const hit of await grammarFind(query)) add(hit.address, hit.found.length);
     return { counts, title: `Where: ${text[0].toUpperCase()}${text.slice(1)}`, unit: 'times' };
   }
   if (subject.startsWith('text:')) {

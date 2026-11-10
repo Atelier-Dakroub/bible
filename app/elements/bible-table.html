@@ -128,8 +128,7 @@
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
   import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
-  import { diffCards, empty, fromFile, keepNamed, load, loadNamed, namedEntries, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
-  import { exchange, merge } from '../lib/sync.js';
+  import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -360,8 +359,6 @@
     pen: STYLES[0],
     /** @type {ReturnType<typeof createHistory> | null} */
     history: null,
-    /** @type {boolean} true where the app keeps no copy of the workspaces */
-    syncOff: false,
     /** how many changes to the table are under way; keep() waits for them */
     applying: 0,
     /** a keep() asked for while a change was under way: false, or whether to record it */
@@ -434,8 +431,6 @@
       document.addEventListener('keydown', (event) => this.panKey(event), options);
       document.addEventListener('keydown', (event) => this.remoteKey(event), { ...options, capture: true });
       this.listen(options.signal);
-      this.syncWorkspaces();
-      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && this.syncWorkspaces(), options);
       // The cursor shows for a mouse or a trackpad and hides after a touch,
       // so the panel shows no arrow under the fingers. global.css reads it.
       /** @param {PointerEvent} event */
@@ -2217,26 +2212,6 @@
       }
       this.setName(name);
       menu?.refresh(`Saved “${name}”.`);
-      this.syncWorkspaces();
-    },
-
-    /**
-     * Sends the named workspaces to the server's copy and keeps what comes
-     * back, so they are the same on every device (lib/sync.js). Where there
-     * is no server copy, it stops asking until the page loads again.
-     */
-    async syncWorkspaces() {
-      if (this.syncOff) return;
-      const sent = namedEntries();
-      const back = await exchange(sent);
-      if (!back) {
-        this.syncOff = true;
-        return;
-      }
-      // A save while the answer was on its way is kept too.
-      const merged = merge(back, namedEntries());
-      keepNamed(merged);
-      if (JSON.stringify(merged) !== JSON.stringify(sent)) /** @type {any} */ (this.querySelector('table-menu'))?.relist?.();
     },
 
     /** @param {string} name */

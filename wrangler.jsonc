@@ -10,47 +10,7 @@
   // text and the adapter parses it. `fallthrough` matters: without it this rule
   // replaces the default text rule for .txt, .html and .sql rather than adding
   // to it, and says nothing.
-  "rules": [{ "type": "Text", "globs": ["**/routes.json"], "fallthrough": true }],
-
-  // The prerendered pages, the public files, the built scripts and the data
-  // (tools/build-edge.js). Cloudflare serves a file that is there before the
-  // Worker runs, except under /data: the Worker reads the data through the
-  // binding, and has no page there.
-  "assets": {
-    "directory": "dist/edge/assets",
-    "binding": "ASSETS",
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none",
-    "run_worker_first": ["/data/*"]
-  },
-
-  // The table relay, and each reader's named workspaces (app/server.js).
-  "durable_objects": {
-    "bindings": [
-      { "name": "TABLE_RELAY", "class_name": "TableRelay" },
-      { "name": "WORKSPACES", "class_name": "Workspaces" }
-    ]
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TableRelay", "Workspaces"] }],
-
-  // A search of every book reads and parses many megabytes of data; the
-  // default of 30 seconds of CPU is far more than it needs, and the free
-  // plan's 10 ms far less.
-  "limits": { "cpu_ms": 30000 },
-
-  "observability": { "enabled": true },
-
-  // Only the one address, which Access protects: no address for each version.
-  "workers_dev": true,
-  "preview_urls": false,
-
-  // From the Cloudflare Access application in front of the Worker
-  // (app/lib/access.js). The secret TABLE_TOKEN is set with
-  // `npx wrangler secret put TABLE_TOKEN`.
-  "vars": {
-    "ACCESS_TEAM": "",
-    "ACCESS_AUD": ""
-  }
+  "rules": [{ "type": "Text", "globs": ["**/routes.json"], "fallthrough": true }]
 
   // A custom domain goes here, and the deploy then makes the DNS record and the
   // certificate, so the next person reads the address without logging in:
