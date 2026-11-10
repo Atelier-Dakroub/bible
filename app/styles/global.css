@@ -1910,12 +1910,42 @@ bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
   min-height: 2.4rem;
   margin-inline-start: 0.4rem;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 50%;
   background: var(--tint);
   color: var(--lapis);
   font-size: 1.1rem;
   vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    scale 0.1s;
+}
+/* With a pointer: lapis, the color of what acts. Pressed: a little smaller.
+   With the keys: the focus ring around the circle. */
+@media (hover: hover) {
+  .entry__say:hover {
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+}
+.entry__say:active {
+  background: var(--lapis);
+  color: var(--on-pigment);
+  scale: 0.92;
+}
+.entry__say:focus-visible {
+  outline: 2px solid var(--lapis);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry__say {
+    transition: none;
+  }
+  .entry__say:active {
+    scale: 1;
+  }
 }
 .entry__pron {
   font-style: italic;
