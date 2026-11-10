@@ -711,6 +711,7 @@ export type MapViewMembers = {
   }: {
     signal: any;
   }): void;
+  showAncient(id: string): void;
   fetchDetail(): Promise<Element | null>;
   loadDetail(): Promise<void>;
   disconnected(): void;

@@ -544,6 +544,23 @@ The map card is in the reading room's style, and is drawn to be light:
   shows about 80 dots, not 1,257; at the closest level every place shows.
   Names and dots cross-fade as they come and go at a new level.
 
+The ancient world: the map's Show choice, in its bottom right corner, puts
+one layer over today's map: the extent of the Persian Empire (about 500
+BC), of Alexander's empire (323 BC), of the Hasmonean kingdom (about 76
+BC), of Rome (60 BC), of Herod's kingdom (4 BC) and of the Roman Empire
+(AD 117), as a purple tint with a dashed edge; the Roman provinces of AD
+200, as dashed lines; or the shores of the archaic, classical, Hellenistic
+or Roman age, as water with a lapis dashed edge over what is land now (the
+Latmian Gulf at Miletus, the harbor of Ephesus). The choice is kept on the
+device. The data is `app/data/map/ancient.json` (138 KB), from the Ancient
+World Mapping Center's geodata, derived from the Barrington Atlas (ODbL);
+the files have no names, so the names and dates are written by hand from
+AWMC's titles, and the dates are approximate:
+
+```sh
+node tools/import-ancient.js <directory with the AWMC GeoJSON and shoreline files>
+```
+
 The relief: `app/data/map/relief.json` holds, for each
 of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or
 above it as one path; its edge is the contour line. `app/public/map/` holds

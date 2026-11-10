@@ -873,6 +873,50 @@ gesture-card[data-zoom='far'] .note__text {
 .map__view[data-detail] .map__detail {
   display: inline;
 }
+/* The ancient world (map-view showAncient): one layer at a time. An empire
+   or a kingdom is a tint in the purple of eras with a dashed edge; the Roman
+   provinces are dashed lines; an age's shores are its water, in the sea's
+   color with a lapis dashed edge, over what is land now. */
+.map__ancient {
+  display: none;
+}
+.map__ancient.is-on {
+  display: inline;
+}
+.map__realm--area {
+  fill: color-mix(in srgb, var(--purple) 13%, transparent);
+  stroke: color-mix(in srgb, var(--purple) 75%, var(--paper));
+  stroke-width: calc(1.5 / var(--map-unit, 1));
+  stroke-dasharray: calc(6 / var(--map-unit, 1)) calc(3 / var(--map-unit, 1));
+}
+.map__realm--lines {
+  fill: none;
+  stroke: color-mix(in srgb, var(--purple) 75%, var(--paper));
+  stroke-width: calc(1.25 / var(--map-unit, 1));
+  stroke-dasharray: calc(5 / var(--map-unit, 1)) calc(3 / var(--map-unit, 1));
+}
+.map__shore {
+  fill: var(--sea);
+  stroke: var(--lapis);
+  stroke-width: calc(1 / var(--map-unit, 1));
+  stroke-dasharray: calc(4 / var(--map-unit, 1)) calc(2 / var(--map-unit, 1));
+}
+/* The Show choice, in the frame's bottom right corner. */
+.map__show {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  max-width: calc(100% - 12rem);
+  min-height: 24px;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  color: var(--ink);
+  font: max(0.6rem, 11px) var(--sans);
+  box-shadow: 0 1px 3px var(--shade-near);
+}
+
 /* A place far from being named: no dot (map-view). */
 .map__place.is-far {
   display: none;

@@ -124,3 +124,11 @@ test('the relief has a band for each level, and its images lie on the map', asyn
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.w <= WIDTH + 0.01 && box.y + box.h <= HEIGHT + 1, JSON.stringify(box));
   }
 });
+
+test('the ancient world: seven extents and the shores of four ages, each a path on the map', async () => {
+  const { default: ancient } = await import('../app/data/map/ancient.json', { with: { type: 'json' } });
+  assert.deepEqual(ancient.layers.map((layer) => layer.id), ['persia', 'alexander', 'hasmonean', 'rome-60', 'herod', 'rome-117', 'provinces-200']);
+  assert.deepEqual(ancient.shores.map((shore) => shore.id), ['archaic', 'classical', 'hellenistic', 'roman']);
+  for (const each of [...ancient.layers, ...ancient.shores]) assert.match(each.d, /^M[\d.-]+ [\d.-]+L/);
+  assert.match(ancient.license, /ODbL/);
+});

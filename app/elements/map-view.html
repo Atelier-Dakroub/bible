@@ -81,6 +81,7 @@
   const GAP = 8;
   // From this zoom on, the close coast.
   const DETAIL_ZOOM = 2.5;
+  const ANCIENT_KEY = 'bible.map.ancient';
   // The map drawn outside the frame on each side, as a fraction of the frame
   // (the styles below make the drawing 1 + 2 × MARGIN times the frame).
   const MARGIN = 0.5;
@@ -164,6 +165,22 @@
       this.addEventListener('keydown', (event) => this.key(event), { signal });
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.trackpad(signal);
+      // The ancient world on show (the Show choice), kept on this device.
+      try {
+        this.showAncient(localStorage.getItem(ANCIENT_KEY) ?? '');
+      } catch {
+        this.showAncient('');
+      }
+      this.addEventListener('change', (event) => {
+        const select = event.target instanceof HTMLSelectElement ? event.target : null;
+        if (select?.dataset.map !== 'ancient') return;
+        this.showAncient(select.value);
+        try {
+          localStorage.setItem(ANCIENT_KEY, select.value);
+        } catch {
+          // No storage: the choice lasts until the page closes.
+        }
+      }, { signal });
       const observer = new ResizeObserver(() => this.measure());
       observer.observe(this);
       const wait = setTimeout(() => this.fetchDetail(), DETAIL_WAIT_MS);
@@ -171,6 +188,20 @@
         observer.disconnect();
         clearTimeout(wait);
       });
+    },
+
+    /**
+     * Shows one layer of the ancient world (an extent, the provinces, or an
+     * age's shores), or none.
+     *
+     * @param {string} id
+     */
+    showAncient(id) {
+      const select = /** @type {HTMLSelectElement | null} */ (this.querySelector('select[data-map="ancient"]'));
+      const known = [...this.querySelectorAll('.map__ancient')].some((each) => each.getAttribute('data-layer') === id);
+      const chosen = known ? id : '';
+      for (const layer of this.querySelectorAll('.map__ancient')) layer.classList.toggle('is-on', layer.getAttribute('data-layer') === chosen);
+      if (select) select.value = chosen;
     },
 
     /**
@@ -508,7 +539,7 @@
     /** @param {PointerEvent} event */
     press(event) {
       // A button in the frame is pressed, not dragged; the card leaves it too.
-      if (event.target instanceof Element && event.target.closest('button')) return;
+      if (event.target instanceof Element && event.target.closest('button, select')) return;
       // The frame's gestures are the map's, not the card's.
       event.stopPropagation();
       try {

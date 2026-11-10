@@ -30,8 +30,12 @@ export { timeline, world };
  *     shades: Record<string, { x: number, y: number, w: number, h: number }>
  *   },
  *   places: { id: string, name: string, x: string, y: string, verses: number, peak: boolean }[],
- *   ranges: { name: string, scale: string, angle: number, x: string, y: string }[]
- * }} BaseMap
+ *   ranges: { name: string, scale: string, angle: number, x: string, y: string }[],
+ *   ancient: {
+ *     layers: { id: string, name: string, when: string, kind: string, d: string }[],
+ *     shores: { id: string, name: string, when: string, d: string }[]
+ *   }
+ * }} BaseMap `ancient` is the extents of empires and kingdoms, the Roman provinces, and the shores of four ages (tools/import-ancient.js)
  */
 
 /**
@@ -84,12 +88,13 @@ export async function mapDetail() {
  * @returns {Promise<BaseMap>}
  */
 export async function mapOf() {
-  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, known] = await Promise.all([
+  const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, known, { default: ancient }] = await Promise.all([
     import('./map/near-east.json', { with: { type: 'json' } }),
     import('./map/relief.json', { with: { type: 'json' } }),
     import('../lib/map.js'),
     import('./map/ranges.js'),
     entities(),
+    import('./map/ancient.json', { with: { type: 'json' } }),
   ]);
   const places = Object.entries(known)
     .filter(([, place]) => place.kind === 'place' && place.lat !== null && onMap(place.lon, place.lat))
@@ -117,6 +122,7 @@ export async function mapOf() {
       shades: relief.shades,
     },
     places,
+    ancient: { layers: ancient.layers, shores: ancient.shores },
     ranges: ranges
       .filter((range) => onMap(range.lon, range.lat))
       .map((range) => {
