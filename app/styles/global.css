@@ -1480,6 +1480,41 @@ gesture-card[data-compare] .bsb__d {
 .stats p {
   margin: 0 0 0.4rem;
 }
+/* The senses of a word (data/senses.js): each a button, with its glosses,
+   its count, and its domain and definition under them. */
+.senses__list {
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.senses__sense {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.25rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-small, 6px);
+  background: none;
+  color: inherit;
+  text-align: start;
+  font: inherit;
+}
+.senses__sense[aria-pressed='true'] {
+  border-color: var(--lapis);
+  background: color-mix(in srgb, var(--lapis) 10%, transparent);
+}
+.senses__gloss {
+  font-weight: 600;
+}
+.senses__count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.senses__def {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9em;
+}
 .stats__summary {
   font-size: 0.9rem;
 }

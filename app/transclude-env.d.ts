@@ -294,6 +294,15 @@ type Line = {
   see: string;
   seeName: string;
 };
+type Sense = {
+  n: number;
+  lemma: string;
+  gloss: string;
+  def: string;
+  domain: string;
+  count: number;
+  search: string;
+};
 type Guide_2 = {
   address: string;
   title: string;
@@ -1421,6 +1430,8 @@ export type SearchData = __Shape<{
   } | null;
   topic: TopicView | null;
   topicOpen: boolean;
+  senses: Sense[];
+  sense: number;
   refsFor: string;
   refsTitle: string;
   studyCode: string;
@@ -1458,6 +1469,8 @@ export type SearchData = __Shape<{
   } | null;
   topic: TopicView | null;
   topicOpen: boolean;
+  senses: Sense[];
+  sense: number;
   refsFor: string;
   refsTitle: string;
   studyCode: string;

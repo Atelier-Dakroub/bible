@@ -61,7 +61,10 @@
   function trailOf(results, { refs, quotes, q }) {
     if (results.guide) return { label: results.guide.title, kind: 'passage' };
     if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
-    if (results.entry) return { label: `${results.entry.code} ${results.entry.xlit}`, kind: 'word' };
+    if (results.entry) {
+      const sense = results.senses[results.sense - 1];
+      return { label: `${results.entry.code} ${results.entry.xlit}${sense ? `, ${sense.gloss.split(',')[0]}` : ''}`, kind: 'word' };
+    }
     if (results.dictionary) return { label: results.dictionary.term, kind: 'word' };
     if (results.topic && !q) return { label: results.topic.name, kind: 'topic' };
     if (results.landscape.startsWith('landscape:grammar:')) return { label: q, kind: 'grammar' };
@@ -159,6 +162,15 @@
       <p class="entry__def">${entry ? entry.def : ''}</p>
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
+    </section>
+    <!-- The senses of the word (data/senses.js): a tap lists the verses that
+         use it in that sense; the sense on show is pressed. -->
+    <section if="senses.length" class="senses" aria-label="Senses of the word">
+      <h3 class="guide__heading">Senses</h3>
+      <ol class="senses__list">
+        <li each="each of senses"><button type="button" class="senses__sense" data-search="${each.n === sense ? (entry ? entry.code : '') : each.search}" aria-pressed="${each.n === sense ? 'true' : 'false'}"><span class="senses__gloss">${each.gloss}</span> <span class="senses__count">${each.count}</span><span class="senses__def">${each.domain ? each.domain + ': ' : ''}${each.def}</span></button></li>
+      </ol>
+      <p class="entity__credit">Senses: the UBS Dictionary of the Greek New Testament and the Semantic Dictionary of Biblical Hebrew (© United Bible Societies, CC BY-SA 4.0). A tap lists the verses of one sense; a tap on it again lists all.</p>
     </section>
     <p if="also.length" class="results__also">${entry ? 'Also written so' : 'The word of the original'}: <button each="other of also" type="button" class="entity__link" data-search="${other.code}">${other.label}</button></p>
     <!-- Word statistics: how the KJV renders the word, and where it occurs;

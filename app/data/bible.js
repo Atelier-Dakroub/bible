@@ -20,6 +20,7 @@ import { tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
 import { citations } from '../lib/citations.js';
 import { topic, topicFor } from './topics.js';
+import { sensesOf, versesOfSense } from './senses.js';
 
 /** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
@@ -83,6 +84,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
  *   stats: WordStats | null, entity: EntityView | null,
  *   dictionary: { term: string, text: string, parts: import('../lib/citations.js').Part[] } | null,
  *   topic: import('./topics.js').TopicView | null, topicOpen: boolean,
+ *   senses: import('./senses.js').Sense[], sense: number,
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
  *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
@@ -106,6 +108,8 @@ export function answer(fields) {
     dictionary: null,
     topic: null,
     topicOpen: false,
+    senses: [],
+    sense: 0,
     refsFor: '',
     refsTitle: '',
     studyCode: '',
@@ -666,13 +670,15 @@ export function withWords(verse, codes = '', names = new Map()) {
  * @param {number} [limit]
  * @returns {Promise<Results>}
  */
-export async function strongsResults(code, limit = 50) {
+export async function strongsResults(code, limit = 50, sense = 0) {
   const all = await Promise.all(books.map((entry) => strongsBook(entry.id)));
+  // One sense of the word (data/senses.js): only the verses that use it so.
+  const inSense = sense ? await versesOfSense(code, sense) : null;
   /** @type {string[]} */
   const found = [];
   for (const each of all) {
     for (const [address, codes] of Object.entries(each)) {
-      if (codes.split(' ').includes(code)) found.push(address);
+      if (codes.split(' ').includes(code) && (!inSense || inSense.has(address))) found.push(address);
     }
   }
 
@@ -686,14 +692,27 @@ export async function strongsResults(code, limit = 50) {
   }
 
   const entry = await entryFor(code, found.length);
+  const senses = await sensesOf(code);
+  const chosen = senses[sense - 1];
+  const verses = chosen ? `In the sense “${chosen.gloss}”: ` : '';
   const summary = !entry
     ? `${code} is not in the dictionary.`
     : results.length < found.length
-      ? `The first ${results.length} verses, in canon order.`
-      : 'Every verse, in canon order.';
+      ? `${verses}the first ${results.length} verses, in canon order.`
+      : `${verses}every verse, in canon order.`;
   const stats = entry ? await wordStats(code, found) : null;
   const rule = entry ? { kind: 'strongs', value: code, label: `${code} ${entry.xlit}` } : null;
-  return answer({ query: code, summary, results, entry, stats, rule, landscape: stats ? stats.landscape : '' });
+  return answer({
+    query: chosen ? `${code} sense ${sense}` : code,
+    summary: summary[0].toUpperCase() + summary.slice(1),
+    results,
+    entry,
+    stats,
+    rule,
+    senses,
+    sense: chosen ? sense : 0,
+    landscape: stats && !chosen ? stats.landscape : '',
+  });
 }
 
 /** @type {Map<string, string[]> | null} */
@@ -1230,9 +1249,10 @@ export async function search(query, limit = 50) {
   const text = query.trim();
   if (!text) return answer({});
 
-  // A Strong's number, such as H2617 or g25, finds the verses that use it.
-  const strongs = /^([HG])0*(\d+)$/i.exec(text);
-  if (strongs) return strongsResults(`${strongs[1].toUpperCase()}${strongs[2]}`, limit);
+  // A Strong's number, such as H2617 or g25, finds the verses that use it;
+  // with a sense, such as "G4151 sense 7", those that use it in that sense.
+  const strongs = /^([HG])0*(\d+)(?:\s+sense\s+(\d+))?$/i.exec(text);
+  if (strongs) return strongsResults(`${strongs[1].toUpperCase()}${strongs[2]}`, limit, Number(strongs[3] ?? 0));
 
   const ref = parseReference(text, books);
   if (ref) return referenceResult(text, ref);

@@ -296,7 +296,7 @@ const TOOLS = {
 
   word_study: {
     description:
-      "Study a word of the Hebrew or the Greek: its Strong's dictionary entry, how the KJV renders it and how often, where it occurs by book, and the first verses that use it. Takes a Strong's number (H2617, G26) or the word's name as it is said (chesed, agape).",
+      "Study a word of the Hebrew or the Greek: its Strong's dictionary entry, its senses (from the UBS dictionaries) with how many verses use each, how the KJV renders it and how often, where it occurs by book, and the first verses that use it. Takes a Strong's number (H2617, G26) or the word's name as it is said (chesed, agape); with a sense, such as \"G4151 sense 7\", only the verses that use it in that sense.",
     inputSchema: {
       type: 'object',
       properties: { word: { type: 'string', description: "A Strong's number or the word's name." } },
@@ -304,15 +304,18 @@ const TOOLS = {
     },
     async run({ word }) {
       const text = String(word).trim();
-      const strongs = /^([HG])0*(\d+)$/i.exec(text);
+      const strongs = /^([HG])0*(\d+)(?:\s+sense\s+(\d+))?$/i.exec(text);
       const codes = strongs ? [`${strongs[1].toUpperCase()}${strongs[2]}`] : await lemmaCodes(text);
       if (!codes.length) throw new Error(`No word of the original is written "${text}". Try a Strong's number, such as G26.`);
-      const study = await strongsResults(codes[0], 25);
+      const study = await strongsResults(codes[0], 25, Number(strongs?.[3] ?? 0));
       if (!study.entry) throw new Error(`${codes[0]} is not in the dictionary.`);
       const { entry, stats } = study;
       return [
         `${entry.code} ${entry.lemma} (${entry.xlit}${entry.pron ? `, said ${entry.pron}` : ''}): ${entry.def}`,
         `KJV renders it: ${entry.kjv}`,
+        study.senses.length
+          ? `Senses (UBS dictionaries, CC BY-SA 4.0; ask for one as "${entry.code} sense 2"):\n${study.senses.map((each) => `  ${each.n}. ${each.gloss} (${each.count} verses)${each.domain ? ` [${each.domain}]` : ''}: ${each.def}`).join('\n')}${study.sense ? `\nThe verses below are those of sense ${study.sense}.` : ''}`
+          : '',
         stats ? `${stats.summary} Most often: ${stats.renderings.map((each) => `${each.text} (${each.count})`).join(', ')}${stats.more ? `, ${stats.more}` : ''}. ${stats.most}` : '',
         codes.length > 1 ? `Other words written so: ${codes.slice(1).join(', ')}.` : '',
         `The first verses:\n${lines(study.results)}`,

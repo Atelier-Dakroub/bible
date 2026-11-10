@@ -394,6 +394,28 @@ Amalgamated OT+NT" and "Morphology codes"). The fonts are Ezra SIL for
 Hebrew and Gentium Plus for Greek (SIL Open Font License), in
 `app/public/fonts`.
 
+## Word senses
+
+A word study lists the senses of the word: `app/data/senses.json`, from
+the United Bible Societies' dictionaries (© United Bible Societies, CC BY-SA
+4.0, from [ubs-open-license](https://github.com/ubsicap/ubs-open-license)):
+the UBS Dictionary of the Greek New Testament, after Louw and Nida's
+semantic domains, and the Semantic Dictionary of Biblical Hebrew. Each sense
+has its glosses, its domain, a short definition, and every verse that uses
+the word so; πνεῦμα (G4151) has 14, from "Holy Spirit" (228 verses) to
+"wind" (2) and "breath" (4). A tap on a sense lists only its verses; the
+search field takes the same as "G4151 sense 7". The MCP server's
+`word_study` gives the senses too.
+
+```sh
+node tools/import-senses.js <the UBS dictionaries folder> <directory with STEPBible's TAHOT files>
+```
+
+The Hebrew dictionary numbers verses as the Hebrew Bible does; the import
+turns them into the KJV's with STEPBible's Hebrew files, which give both.
+MACULA's own Louw–Nida senses are not used: MACULA has them from UBS by
+permission, not under its CC BY license.
+
 ## Topics
 
 `app/data/topics.json` is Nave's Topical Bible (Orville J. Nave, 1896, public
