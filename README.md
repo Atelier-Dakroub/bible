@@ -680,8 +680,9 @@ node tools/import-xrefs.js <path to cross_references.txt>
 
 The import keeps 341,354 references and drops 3,445: those with zero or fewer
 votes, and one to a verse the KJV data does not have. A target that runs into
-the next chapter stops at the end of its first chapter (655 targets), because
-a card address holds one chapter. The license is CC BY, so the app credits
+a later chapter keeps its whole range (630 targets, such as `JOS.5.13-6.2`),
+as a card address can cross a chapter; one that runs into another book stops
+at the end of its first chapter. The license is CC BY, so the app credits
 OpenBible.info wherever it lists references.
 
 ## The KJV data

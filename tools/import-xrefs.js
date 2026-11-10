@@ -13,8 +13,9 @@
 // What is dropped, and why:
 //   - a reference with zero or fewer votes: readers judged it wrong;
 //   - a reference to a verse the KJV data does not have.
-// A target range that runs into the next chapter stops at the end of its first
-// chapter, because a card address holds one chapter.
+// A target range that runs into a later chapter keeps its whole range, as an
+// address can cross a chapter (JHN.3.36-4.2); one that runs into another
+// book stops at the end of its first chapter.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -47,7 +48,8 @@ function verse(osis) {
 }
 
 /**
- * `Prov.8.22-Prov.8.30` to `PRO.8.22-30`, or null.
+ * `Prov.8.22-Prov.8.30` to `PRO.8.22-30`, `John.3.36-John.4.2` to
+ * `JHN.3.36-4.2`, or null.
  *
  * @param {string} osis
  */
@@ -59,6 +61,7 @@ function target(osis) {
   if (!endText) return base;
   const end = verse(endText);
   if (!end) return base;
+  if (end.book === start.book && end.chapter > start.chapter) return `${base}-${end.chapter}.${end.verse}`;
   const sameChapter = end.book === start.book && end.chapter === start.chapter;
   const to = sameChapter ? end.verse : start.last;
   return to > start.verse ? `${base}-${to}` : base;

@@ -47,3 +47,10 @@ test('a reference reads as people write it', () => {
   assert.equal(formatReference({ book: 'JHN', chapter: 3, from: 16, to: 18 }, books), 'John 3:16–18');
   assert.equal(formatReference({ book: 'PSA', chapter: 23 }, books), 'Psalm 23');
 });
+
+test('a cross-reference keeps its whole range when it runs into the next chapter', async () => {
+  const { referenceResults } = await import('../app/data/bible.js');
+  const results = await referenceResults('JHN.1.18');
+  // Joshua 5:13–6:2, the captain of the Lord's host, once cut at 5:15.
+  assert.ok(results.results.some((result) => result.address === 'JOS.5.13-6.2'));
+});
