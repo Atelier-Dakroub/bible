@@ -390,7 +390,7 @@
       const short = Math.min(screen.width, screen.height);
       const long = Math.max(screen.width, screen.height);
       const base = short < 600 ? 16 : long >= 2560 ? 24 : 18;
-      const scale = { s: 0.85, l: 1.2, xl: 1.5 }[document.documentElement.dataset.ui ?? ''] ?? 1;
+      const scale = { s: 0.85, l: 1.2, xl: 1.5, far: 2 }[document.documentElement.dataset.ui ?? ''] ?? 1;
       document.documentElement.style.fontSize = Math.round(base * scale) + 'px';
     };
     globalThis.applyInterfaceSize();

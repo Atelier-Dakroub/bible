@@ -26,6 +26,7 @@
 
 <script element>
   import { isPhone } from '../lib/screen.js';
+  import { slideIn, slideOut } from '../lib/motion.js';
 
   export const state = {
     collapsed: false,
@@ -48,6 +49,9 @@
   }
 
   export const prototype = {
+    /** a count of the openings and closings, so a late slide knows it is late */
+    moves: 0,
+
     connected({ signal }) {
       try {
         // On a phone the strip starts closed, as it would cover half the
@@ -95,9 +99,22 @@
       return () => measure.disconnect();
     },
 
-    /** @param {boolean} collapsed */
-    setCollapsed(collapsed) {
+    /**
+     * Opens or closes the strip, with a short slide from the bottom edge.
+     *
+     * @param {boolean} collapsed
+     */
+    async setCollapsed(collapsed) {
+      // A call during a closing slide cancels it: the closing sees the count
+      // has moved on.
+      const step = ++this.moves;
+      if (collapsed === this.collapsed) return;
+      if (collapsed) {
+        await slideOut(this, { y: 16 });
+        if (step !== this.moves) return;
+      }
       this.collapsed = collapsed;
+      slideIn(this, collapsed ? {} : { y: 16 });
       remember(COLLAPSED_KEY, collapsed);
       // On a phone, one panel is open at a time (bible-table closes the
       // others).

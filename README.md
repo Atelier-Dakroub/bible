@@ -400,8 +400,22 @@ knows a screen's size in CSS pixels, not in inches, so the kind is a guess:
 | a laptop, a desktop or a tablet | 18px |
 
 Interface, in the Reading sheet, makes the whole interface smaller or larger
-on this device: S, M (the guess), L, XL. Text size is a size on top of it.
-The controls' text is two thirds of the rem, and the rem itself on a phone.
+on this device: S, M (the guess), L, XL, and Far, twice M, for a wall seen
+from across the room. Text size is a size on top of it. The controls' text
+is two thirds of the rem, and the rem itself on a phone.
+
+At Far, the table works with a remote's keys (`app/lib/spatial.js`): the
+arrow keys move the focus to the nearest card or panel control that way,
+with a ring that shows at a distance, and the table pans to show a card off
+the screen. With nothing in focus, the first arrow goes to the card nearest
+the middle. Enter on a card opens its guide, as a tap on its heading does;
+on the map, Enter steps into it, the arrow keys and + and − move it, and
+Escape steps back out. In the other sizes the arrow keys move a card.
+
+The panels slide a little way as they open and close, and a menu sheet as
+it opens (`app/lib/motion.js`): only translate and opacity, which the
+browser moves as a picture, and none for a reader who asks for less
+motion.
 
 On a phone (narrower than 700 pixels, or shorter than 500 on its side) the
 panels are sheets the width of the screen, and one is open at a time:

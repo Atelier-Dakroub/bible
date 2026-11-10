@@ -11,10 +11,12 @@
      lapis ring. The theme tiles take their colors from the tokens with the
      tile's own color scheme, so Night shows night's colors in the day.
 
-     Interface: S, M, L or XL. M is the size the page picks for the kind of
-     screen (the script in routes/table.html); the others make the whole
-     interface smaller or larger on this device, as the browser keeps the
-     settings for each device. Text size is a size on top of it.
+     Interface: S, M, L, XL or Far. M is the size the page picks for the
+     kind of screen (the script in routes/table.html); the others make the
+     whole interface smaller or larger on this device, as the browser keeps
+     the settings for each device. Far, twice M, is for a wall seen from
+     across the room, with a remote: the arrow keys move the focus from card
+     to card (bible-table). Text size is a size on top of it.
 
      Theme: Day, Night, or As the computer, which follows the computer's own
      light or dark setting and changes with it.
@@ -37,7 +39,7 @@
     numbers: ['on', 'off'],
     initials: ['on', 'off'],
     layout: ['paragraphs', 'verses'],
-    ui: ['m', 's', 'l', 'xl'],
+    ui: ['m', 's', 'l', 'xl', 'far'],
   };
 
   /** Sets the rem again, for the Interface setting (the page's script). */
@@ -260,6 +262,7 @@
   .reading__button--m span { width: 1.35rem; height: 0.8rem; font-size: 0.42rem; }
   .reading__button--l span { width: 1.6rem; height: 0.95rem; font-size: 0.5rem; }
   .reading__button--xl span { width: 2rem; height: 1.2rem; font-size: 0.62rem; }
+  .reading__button--far span { width: 2.3rem; height: 1.4rem; font-size: 0.75rem; }
   /* Line spacing and layout: lines, drawn. */
   .reading__lines {
     width: 2.4rem;
@@ -341,6 +344,7 @@
       <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="m" aria-label="Interface: medium, the size for this kind of screen"><span class="reading__button reading__button--m"><span>Aa</span></span>M</button>
       <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="l" aria-label="Interface: large, on this device"><span class="reading__button reading__button--l"><span>Aa</span></span>L</button>
       <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="xl" aria-label="Interface: extra large, on this device"><span class="reading__button reading__button--xl"><span>Aa</span></span>XL</button>
+      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="far" aria-label="Interface: from across the room, with the arrow keys moving from card to card"><span class="reading__button reading__button--far"><span>Aa</span></span>Far</button>
     </div>
   </fieldset>
 

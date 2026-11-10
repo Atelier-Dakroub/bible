@@ -403,6 +403,9 @@ export type BibleTableMembers = {
   overPanel(target: EventTarget | null): boolean;
   wheel(event: WheelEvent): void;
   trackpad(signal: AbortSignal): void;
+  remoteKey(event: KeyboardEvent): void;
+  navigable(): HTMLElement[];
+  reveal(card: Element): void;
   panKey(event: KeyboardEvent): void;
   keepSoon(): void;
   world(): HTMLElement;
@@ -762,6 +765,7 @@ export type PassageSearchState = {
 
 /** Members of `<passage-search>`, from its `export const prototype`. */
 export type PassageSearchMembers = {
+  moves: number;
   timer: number;
   request: AbortController | null;
   press: {
@@ -787,7 +791,7 @@ export type PassageSearchMembers = {
   }: {
     signal: any;
   }): () => void;
-  setCollapsed(collapsed: boolean): void;
+  setCollapsed(collapsed: boolean): Promise<void>;
   queueSearch(): void;
   showReferences(address: string): void;
   showEntity(id: string): void;
@@ -899,12 +903,13 @@ export type TimeLineState = {
 
 /** Members of `<time-line>`, from its `export const prototype`. */
 export type TimeLineMembers = {
+  moves: number;
   connected({
     signal
   }: {
     signal: any;
   }): () => void;
-  setCollapsed(collapsed: boolean): void;
+  setCollapsed(collapsed: boolean): Promise<void>;
   tickFor(id: string): HTMLElement | null;
 };
 

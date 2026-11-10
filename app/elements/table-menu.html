@@ -43,6 +43,7 @@
 
 <script element>
   import { isPhone } from '../lib/screen.js';
+  import { slideIn } from '../lib/motion.js';
   import { listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
 
@@ -204,6 +205,13 @@
           this.marks = false;
           this.keys = false;
         }
+      }
+      // A sheet that has just opened slides in from the bar: down from it,
+      // or up from it on a phone, where the bar is at the bottom.
+      if (['sheet', 'marks', 'reading', 'more'].includes(action)) {
+        const sheet = action === 'more' ? (this.more ? this.querySelector('.menu__bar') : null) : this.querySelector({ sheet: '.menu__workspace', marks: '.menu__marks', reading: '.menu__reading' }[action] ?? '');
+        const open = action === 'more' ? this.more : { sheet: this.open, marks: this.marks, reading: this.reading }[action];
+        if (sheet && open) requestAnimationFrame(() => slideIn(sheet, { y: isPhone() ? 12 : -12 }));
       }
       if (action === 'rule-preset') {
         const { kind, value, label } = button.dataset;

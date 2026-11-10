@@ -88,6 +88,10 @@
        turn two fingers on the trackpad      turn the card (Safari only)
        arrow keys, with no card in focus     pan the table
 
+     Far (the Interface setting, for a wall seen from across the room): the
+     arrow keys move the focus from card to card and to the panels' controls
+     instead, as a remote's do (remoteKey).
+
      Snapping (gesture-card): a held card snaps upright, to full size, and
      into line with the other cards, and the table draws the guides it sends.
      The menu's Snap button turns it off and on, as data-snap="off" here.
@@ -114,6 +118,7 @@
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
+  import { ARROWS, nearestIn, nearestTo } from '../lib/spatial.js';
   import { isPhone } from '../lib/screen.js';
   import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
@@ -424,6 +429,7 @@
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
       this.trackpad(signal);
       document.addEventListener('keydown', (event) => this.panKey(event), options);
+      document.addEventListener('keydown', (event) => this.remoteKey(event), { ...options, capture: true });
       // The cursor shows for a mouse or a trackpad and hides after a touch,
       // so the panel shows no arrow under the fingers. global.css reads it.
       /** @param {PointerEvent} event */
@@ -680,6 +686,83 @@
     },
 
     /**
+     * Far (the Interface setting, for a wall seen from across the room): the
+     * keys of a remote. The arrow keys move the focus to the nearest card or
+     * panel control that way (lib/spatial.js), and the table pans to show a
+     * card that is off the screen; with nothing in focus, they go to the card
+     * nearest the middle. Enter on the map steps into it, where the arrow
+     * keys move the map, and Escape steps back out to the card. Fields keep
+     * their arrow keys. In the other sizes the arrow keys move a card, as
+     * gesture-card says.
+     *
+     * @param {KeyboardEvent} event
+     */
+    remoteKey(event) {
+      if (document.documentElement.dataset.ui !== 'far') return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const frame = target?.closest('map-view');
+      if (event.key === 'Escape' && frame) {
+        /** @type {HTMLElement | null} */ (frame.closest('gesture-card'))?.focus();
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.key === 'Enter' && target?.matches('gesture-card') && target.dataset.address === MAP) {
+        /** @type {HTMLElement | null} */ (target.querySelector('map-view'))?.focus();
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      const direction = ARROWS[event.key];
+      if (!direction || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (frame || target?.matches('input, textarea, select, [contenteditable]')) return;
+      const from = target && target !== document.body && target !== this ? target.getBoundingClientRect() : null;
+      // With nothing in focus, the card nearest the middle comes first.
+      const cards = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
+      const targets = from || !cards.length ? this.navigable() : cards;
+      const boxes = targets.map((each) => each.getBoundingClientRect());
+      const index = from ? nearestIn(from, boxes, direction) : nearestTo({ x: innerWidth / 2, y: innerHeight / 2 }, boxes);
+      event.preventDefault();
+      event.stopPropagation();
+      const next = targets[index];
+      if (!next) return;
+      next.focus({ preventScroll: true });
+      if (next.matches('gesture-card')) this.reveal(next);
+    },
+
+    /**
+     * What the remote's arrow keys go to: the cards, and the controls of the
+     * panels that show.
+     *
+     * @returns {HTMLElement[]}
+     */
+    navigable() {
+      const cards = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
+      const controls = /** @type {HTMLElement[]} */ (
+        [...this.querySelectorAll(':is(passage-search, table-menu, time-line, note-editor) :is(button, input, textarea)')]
+      ).filter((each) => !(/** @type {HTMLButtonElement} */ (each).disabled) && (each.checkVisibility?.() ?? each.getClientRects().length > 0));
+      return [...cards, ...controls];
+    },
+
+    /**
+     * Pans the table so a card that is not wholly on the screen is in its
+     * middle.
+     *
+     * @param {Element} card
+     */
+    reveal(card) {
+      const box = card.getBoundingClientRect();
+      const inside = box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+      if (inside) return;
+      this.offset = {
+        x: this.offset.x + innerWidth / 2 - (box.left + box.right) / 2,
+        y: this.offset.y + innerHeight / 2 - (box.top + box.bottom) / 2,
+      };
+      this.paint();
+      this.keepSoon();
+    },
+
+    /**
      * Arrow keys pan the table when nothing has the focus.
      *
      * @param {KeyboardEvent} event
@@ -781,7 +864,10 @@
       const width = card instanceof HTMLElement ? card.offsetWidth : 0;
       const fit = width ? Math.min(scale, (innerWidth - 2 * EDGE) / width) : scale;
       const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
-      const top = (this.querySelector('passage-search')?.getBoundingClientRect().bottom ?? 0) + EDGE + step * 24;
+      // Under the search button, which is where it is whether the panel is
+      // open, closed, or sliding closed.
+      const button = this.querySelector('passage-search .search__toggle')?.getBoundingClientRect();
+      const top = (button ? button.bottom + 2 * EDGE : EDGE) + step * 24;
       // The grip is GRIP (gesture-card) from the card's corner, at its scale.
       return { at: { x: EDGE + 48 * fit, y: top + 32 * fit }, scale: fit };
     },
