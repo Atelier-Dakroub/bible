@@ -277,6 +277,19 @@
       this.run(new URLSearchParams({ refs: address, fragment: 'results' }), 'open');
     },
 
+    /**
+     * Lists the quotations of a verse: what it quotes of the Old Testament,
+     * or where the New Testament quotes it (data/quotations.js).
+     *
+     * @param {string} address a verse address
+     */
+    showQuotes(address) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      this.run(new URLSearchParams({ quotes: address, fragment: 'results' }), 'open');
+    },
+
     /** @param {string} id an entity id, such as person:david_994 */
     showEntity(id) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));

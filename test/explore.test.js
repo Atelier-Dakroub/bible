@@ -109,3 +109,15 @@ test('the world track has the rulers the Bible names and dated events, each with
   assert.equal(find('Herod the Great')?.dates, 'conventional');
   assert.ok(world.filter((each) => each.kind === 'polity').length >= 48);
 });
+
+test('the Old Testament in the New: a quotation joins the verse that quotes and the verse quoted', async () => {
+  const { quoteMark, quotationsOf, quotationResults, COVERED } = await import('../app/data/quotations.js');
+  assert.equal(quoteMark('ROM.1.17'), 'quotes');
+  assert.equal(quoteMark('HAB.2.4'), 'quoted');
+  assert.deepEqual(quotationsOf('ROM.1.17').addresses, ['HAB.2.4']);
+  // Habakkuk 2:4 in Romans and Galatians (Hebrews is not in the markup yet),
+  // and not in Romans 1:23, which the markup has wrong.
+  assert.deepEqual(quotationsOf('HAB.2.4').addresses, ['ROM.1.17', 'GAL.3.11']);
+  assert.ok(!COVERED.has('HEB'));
+  assert.match((await quotationResults('HEB.1.5')).summary, /does not cover this book yet/);
+});

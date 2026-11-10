@@ -19,6 +19,7 @@ import { formatReference, parseAddress, toAddress, versesIn } from '../lib/refer
 import { parseSpanAddress } from '../lib/words.js';
 import { journeysFor } from './journeys.js';
 import { imagesOf } from './images.js';
+import { CREDIT as QUOTATIONS, quotationsOf } from './quotations.js';
 
 /** @typedef {import('./bible.js').Result} Result */
 /** @typedef {import('./bible.js').Results} Results */
@@ -30,6 +31,7 @@ import { imagesOf } from './images.js';
  * @typedef {{
  *   address: string, title: string,
  *   parallels: Result[], beside: string,
+ *   quotations: Result[], quotationHeading: string,
  *   references: Result[], referenceSummary: string,
  *   people: Named[], places: Named[], groups: Named[],
  *   events: { id: string, title: string, label: string }[],
@@ -162,6 +164,12 @@ export async function guideResults(address) {
   const parallelFound = parallelsOf(ref).slice(0, MAX_PARALLELS);
   const parallels = (await Promise.all(parallelFound.map(({ address: each }) => passageResult(each, 140)))).flatMap((each) => each ?? []);
 
+  // The Old Testament in the New: what a New Testament passage quotes, or
+  // where the New Testament quotes an Old Testament one (data/quotations.js).
+  const quoted = quotationsOf(toAddress(ref));
+  const quotations = (await Promise.all(quoted.addresses.slice(0, MAX_REFERENCES).map((each) => passageResult(each, 140)))).flatMap((each) => each ?? []);
+  const quotationHeading = quoted.quoting ? 'The Old Testament it quotes' : 'Quoted in the New Testament';
+
   // Cross-references of every verse, joined: a passage that several verses
   // refer to counts the votes of each.
   const refs = await referenceBook(ref.book);
@@ -207,6 +215,7 @@ export async function guideResults(address) {
   const credit = [
     'Parallels are runs of cross-references, verse after verse in the same order; quotations of one verse are not found this way.',
     "Cross-references: OpenBible.info (CC BY). People, places and events: Theographic (CC BY-SA); dates follow Floyd Nolen Jones's chronology.",
+    QUOTATIONS,
   ].join(' ');
 
   /** @type {Guide} */
@@ -215,6 +224,8 @@ export async function guideResults(address) {
     title,
     parallels,
     beside: parallels.map((each) => each.address).join(','),
+    quotations,
+    quotationHeading,
     references,
     referenceSummary,
     people: ofKind('person'),

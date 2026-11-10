@@ -667,6 +667,26 @@ node tools/import-strongs.js <usfm directory> <strongs-hebrew-dictionary.js> <st
   Dictionary data that is published as data must keep the same license; the
   app's code is not affected.
 
+## The Old Testament in the New
+
+A New Testament verse where a quotation of the Old Testament begins, and an
+Old Testament verse quoted in the New, has a lapis quotation mark in the
+card's right margin; a tap lists the other side in the search panel, and
+the passage guide has a section for it. The quotations are the ones
+Nestle's Greek New Testament (1904) prints in bold, with its margin's
+references: 476 of them, quoting 594 passages
+(`app/data/quotations.json`). Nestle marks quotations, not allusions.
+
+The markup, from MACULA Greek (CC BY 4.0; the Nestle text is in the public
+domain), covers the Gospels, Acts, Romans, and Galatians to Titus; not yet
+1 and 2 Corinthians, Philemon, Hebrews, the general letters or Revelation,
+and the panel says so for those books. One pair the markup has wrong
+(Romans 1:23 with Habakkuk 2:4) is left out.
+
+```sh
+node tools/import-quotations.js <directory with MACULA Greek's Nestle1904/tei files>
+```
+
 ## The cross-reference data
 
 `app/data/xrefs/<BOOK>.json` maps each verse to its references, best first:

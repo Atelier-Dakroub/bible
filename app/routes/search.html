@@ -1,6 +1,7 @@
 <script server>
   import { answer, books, entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
   import { guideResults } from '../data/study.js';
+  import { quotationResults } from '../data/quotations.js';
   import { didYouKnow } from '../data/facts.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
 
@@ -20,6 +21,10 @@
     const word = params.get('word');
     const entity = params.get('entity');
     const guide = params.get('guide');
+    // `quotes` lists the quotations of a verse: the Old Testament passages
+    // a New Testament verse quotes, or the New Testament passages that
+    // quote an Old Testament verse (data/quotations.js).
+    const quotes = params.get('quotes');
     const q = (params.get('q') ?? '').trim();
     // `discover` shows a "Did you know?" (data/facts.js): that number, or a
     // random one. It is not a step on the trail.
@@ -37,17 +42,19 @@
             ? await wordResults(word)
             : refs
               ? await referenceResults(refs)
-              : await search(q);
-    return { ...results, trail: trailOf(results, { refs, q }), fact: null, next: 0 };
+              : quotes
+                ? await quotationResults(quotes)
+                : await search(q);
+    return { ...results, trail: trailOf(results, { refs, quotes, q }), fact: null, next: 0 };
   };
 
   /**
    * The label and kind of an answer, for its chip in the trail.
    *
    * @param {Awaited<ReturnType<typeof search>>} results
-   * @param {{ refs: string | null, q: string }} asked
+   * @param {{ refs: string | null, quotes?: string | null, q: string }} asked
    */
-  function trailOf(results, { refs, q }) {
+  function trailOf(results, { refs, quotes, q }) {
     if (results.guide) return { label: results.guide.title, kind: 'passage' };
     if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
     if (results.entry) return { label: `${results.entry.code} ${results.entry.xlit}`, kind: 'word' };
@@ -56,6 +63,10 @@
     if (refs) {
       const ref = parseAddress(refs, books);
       return { label: `${ref ? formatReference(ref, books) : refs}, cross-references`, kind: 'refs' };
+    }
+    if (quotes) {
+      const ref = parseAddress(quotes, books);
+      return { label: `${ref ? formatReference(ref, books) : quotes}, quotations`, kind: 'refs' };
     }
     if (!q) return { label: '', kind: '' };
     // A reference typed in the field, such as John 3:16, is a passage.
@@ -200,6 +211,15 @@
         </li>
       </ol>
       <button if="guide && guide.parallels.length" type="button" class="results__switch" data-beside="${guide ? guide.beside : ''}">Put them beside the card</button>
+      <h3 if="guide && guide.quotations.length" class="guide__heading">${guide ? guide.quotationHeading : ''}</h3>
+      <ol if="guide && guide.quotations.length" class="results__list">
+        <li each="result of guide ? guide.quotations : []">
+          <button type="button" class="result" data-address="${result.address}">
+            <span class="result__title">${result.title}</span>
+            <span class="result__text"><template each="part of result.parts">${part.text}</template></span>
+          </button>
+        </li>
+      </ol>
       <h3 class="guide__heading">Cross-references</h3>
       <p class="guide__none">${guide ? guide.referenceSummary : ''}</p>
       <ol if="guide && guide.references.length" class="results__list">

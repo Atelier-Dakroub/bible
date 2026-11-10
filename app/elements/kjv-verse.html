@@ -32,6 +32,12 @@
      * @type {{ id: string, title: string, label: string }[]}
      */
     events: [],
+    /**
+     * Where a quotation begins here (data/quotations.js): `quotes` in the
+     * New Testament, `quoted` in the Old, `both`, or ''. A mark in the
+     * right margin lists the other side.
+     */
+    quotes: '',
   };
 </script>
 
@@ -42,6 +48,6 @@
 </style>
 
 <p each="block of blocks" class="verse__block verse__block--${block.style}">
-  <sup if="block.numbered" class="verse__number">${n}</sup><template if="block.numbered"><button each="event of events" type="button" class="verse__event" data-entity="${event.id}" aria-label="${event.title}, ${event.label}: show it on the timeline" title="${event.title}, ${event.label}"></button></template>
+  <sup if="block.numbered" class="verse__number">${n}</sup><template if="block.numbered && quotes"><button type="button" class="verse__quote" data-quotes="${quotes}" aria-label="${quotes === 'quoted' ? 'Quoted in the New Testament: where' : quotes === 'quotes' ? 'Quotes the Old Testament: what' : 'Quotes, and is quoted: where'}" title="${quotes === 'quoted' ? 'Quoted in the New Testament' : 'Quotes the Old Testament'}">“</button></template><template if="block.numbered"><button each="event of events" type="button" class="verse__event" data-entity="${event.id}" aria-label="${event.title}, ${event.label}: show it on the timeline" title="${event.title}, ${event.label}"></button></template>
   <span each="run of block.runs" class="${run.marks.join(' ')}"><template each="token of run.tokens"><span if="token.w" class="w" data-w="${token.w}" data-s="${token.s}" data-e="${token.e}" data-d="${token.d}">${token.text}</span><span else>${token.text}</span></template></span>
 </p>

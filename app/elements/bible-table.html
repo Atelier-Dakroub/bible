@@ -1746,6 +1746,12 @@
       if (!(button instanceof HTMLButtonElement) || !(card instanceof HTMLElement) || !this.world().contains(card)) return;
       const cardElement = /** @type {Card} */ (card);
 
+      // A verse's quotation mark: what it quotes, or where it is quoted.
+      if (button.dataset.quotes) {
+        const verse = /** @type {HTMLElement | null} */ (button.closest('[data-ref]'))?.dataset.ref;
+        if (verse) /** @type {any} */ (this.querySelector('passage-search'))?.showQuotes(verse);
+        return;
+      }
       // A person, place or event named on a card, such as on a picture.
       if (button.dataset.entity) {
         /** @type {any} */ (this.querySelector('passage-search'))?.showEntity(button.dataset.entity);

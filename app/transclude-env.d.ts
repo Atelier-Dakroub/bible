@@ -281,6 +281,8 @@ type Guide_2 = {
   title: string;
   parallels: Result[];
   beside: string;
+  quotations: Result[];
+  quotationHeading: string;
   references: Result[];
   referenceSummary: string;
   people: Named[];
@@ -340,6 +342,7 @@ type WordVerse = {
   label?: string | undefined;
   paragraph?: boolean | undefined;
   events?: EventMark[] | undefined;
+  quotes?: string | undefined;
 };
 type WordBlock = {
   style: string;
@@ -688,6 +691,7 @@ export type KjvVerseProps = {
     title: string;
     label: string;
   }[];
+  quotes: string;
 };
 
 /** Properties of `<map-view>`, from its <script element> block. */
@@ -820,6 +824,7 @@ export type PassageSearchMembers = {
   setCollapsed(collapsed: boolean): Promise<void>;
   queueSearch(): void;
   showReferences(address: string): void;
+  showQuotes(address: string): void;
   showEntity(id: string): void;
   showWord(address: string): void;
   showGuide(address: string, notes: {

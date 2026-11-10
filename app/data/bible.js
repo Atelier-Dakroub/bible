@@ -31,7 +31,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
 /** @typedef {{ text: string, w: number, s: string | null, e: string | null, d: boolean }} Token `s` is the word's Strong's number, `e` the entity it names, `d` true where a parallel translation does not share the word */
 /** @typedef {Run & { tokens: Token[] }} WordRun */
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
-/** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string, paragraph?: boolean, events?: import('./entities.js').EventMark[] }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter; `paragraph` is true where the KJV starts a paragraph (¶); `events` are the dated events whose passages begin here (entities.js eventMarks) */
+/** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string, paragraph?: boolean, events?: import('./entities.js').EventMark[], quotes?: string }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter; `paragraph` is true where the KJV starts a paragraph (¶); `events` are the dated events whose passages begin here (entities.js eventMarks); `quotes` is where a quotation begins here (quotations.js quoteMark) */
 /** @typedef {{ text: string, hit: boolean }} Part */
 /** @typedef {{ text: string, translit: string, gloss: string }} FoundWord */
 /** @typedef {{ address: string, title: string, parts: Part[], original?: FoundWord[], lang?: string, dir?: string }} Result `original` is the Hebrew or Greek words a search by grammar found in the verse, in `lang` and `dir` */
