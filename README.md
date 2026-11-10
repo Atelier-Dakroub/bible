@@ -453,9 +453,14 @@ The map card is in the reading room's style, and is drawn to be light:
   needs no blend mode. Line widths are divided by the size of a map unit, in
   place of `vector-effect: non-scaling-stroke`.
 - While the map moves, the frame moves a picture of it and draws it again
-  when it stops, so a pinch stays at the screen's frame rate. While a card
-  or the table moves, the map is a layer of its own, which the browser moves
-  without drawing it again.
+  when it stops, so a pinch stays at the screen's frame rate. The picture is
+  drawn with a margin of half the frame on each side, outside the frame, and
+  is always a layer of its own: the browser draws the margin while nothing
+  moves, so a pan, or a zoom out to half the size, shows the map around the
+  view at once, not a blank edge. The browser also moves that layer, as a
+  card or the table moves, without drawing it again.
+- A place shows its dot from one level before its name, so the whole map
+  shows about 80 dots, not 1,257; at the closest level every place shows.
 
 The relief: `app/data/map/relief.json` holds, for each
 of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or

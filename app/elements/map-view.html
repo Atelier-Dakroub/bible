@@ -34,6 +34,16 @@
      again, sharp and with its names placed, when the movement stops. During
      the movement the names grow and shrink with the picture.
 
+     The picture is larger than the frame: the map is drawn with a MARGIN of
+     half the frame on each side, outside the frame, and is always a layer
+     of its own, so the browser draws the margin while nothing moves. A pan
+     or a zoom out then shows the map around the view at once, not a blank
+     edge that fills in when the movement stops.
+
+     A place shows its dot from one level before its name (lib/map.js
+     nameLevels), so the whole map is not covered in dots; at the closest
+     level every place shows, to be tapped.
+
      A journey (showJourney, data/journeys.js): its route drawn over the
      relief, a line from stop to stop, solid by land and dashed by sea, with
      an arrow on each leg that points the way, and a ring at the start. A
@@ -66,6 +76,9 @@
   const GAP = 8;
   // From this zoom on, the close coast.
   const DETAIL_ZOOM = 2.5;
+  // The map drawn outside the frame on each side, as a fraction of the frame
+  // (the styles below make the drawing 1 + 2 × MARGIN times the frame).
+  const MARGIN = 0.5;
   // How long after the card shows the detail is fetched, so the card's own
   // first drawing goes first.
   const DETAIL_WAIT_MS = 1500;
@@ -215,8 +228,8 @@
      */
     measure() {
       const svg = this.svg();
-      if (!svg || !svg.clientWidth) return;
-      const pixels = svg.clientWidth / WIDTH;
+      if (!svg || !this.clientWidth) return;
+      const pixels = this.clientWidth / WIDTH;
       if (pixels === this.pixels) return;
       this.pixels = pixels;
       const places = this.places();
@@ -263,8 +276,13 @@
       const places = this.places();
       const always = places.filter((place) => place.classList.contains('is-on-table') || place.classList.contains('is-shown'));
       const taken = always.map(box);
+      const closest = this.level >= LEVELS.length - 1;
       for (const place of places) {
-        let named = Number(place.dataset.level) <= this.level && !always.includes(place);
+        const level = Number(place.dataset.level);
+        // The dot shows from one level before the name, and at the closest
+        // level every dot shows.
+        place.classList.toggle('is-far', !closest && level > this.level + 1 && !always.includes(place));
+        let named = level <= this.level && !always.includes(place);
         if (named && taken.length) {
           const b = box(place);
           named = taken.every((o) => b.right <= o.left || b.left >= o.right || b.bottom <= o.top || b.top >= o.bottom);
@@ -378,11 +396,13 @@
       if (this.quick && drawn) {
         // The transform that takes the map as drawn to the view: a map point
         // p is at (p - drawn) * W / drawn.w in the frame, and should be at
-        // (p - view) * W / view.w.
-        const width = svg.clientWidth;
+        // (p - view) * W / view.w. The drawing's corner is MARGIN of the
+        // frame outside it, and the transform turns about that corner.
+        const width = this.clientWidth;
+        const height = this.clientHeight;
         const scale = drawn.w / view.w;
-        const dx = ((drawn.x - view.x) * width) / view.w;
-        const dy = ((drawn.y - view.y) * width) / view.w;
+        const dx = ((drawn.x - view.x) * width) / view.w + MARGIN * width * (1 - scale);
+        const dy = ((drawn.y - view.y) * width) / view.w + MARGIN * height * (1 - scale);
         svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
         this.paintControls((this.pixels || width / WIDTH || 1) * zoomOf(view));
         this.dispatchEvent(new Event('card-paint', { bubbles: true }));
@@ -391,10 +411,12 @@
       this.drawn = { ...view };
       svg.style.transform = '';
       const zoom = zoomOf(view);
-      svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${(view.w * HEIGHT) / WIDTH}`);
+      // The view, and MARGIN of it on each side.
+      const h = (view.w * HEIGHT) / WIDTH;
+      svg.setAttribute('viewBox', `${view.x - MARGIN * view.w} ${view.y - MARGIN * h} ${view.w * (1 + 2 * MARGIN)} ${h * (1 + 2 * MARGIN)}`);
       // The dots and names are drawn in pixels, inside a group scaled back by
       // the size of a map unit.
-      const unit = (this.pixels || svg.clientWidth / WIDTH || 1) * zoom;
+      const unit = (this.pixels || this.clientWidth / WIDTH || 1) * zoom;
       this.style.setProperty('--map-unit', String(unit));
       this.dashLegs(unit);
 
@@ -706,12 +728,21 @@
   :scope.is-moving {
     cursor: grabbing;
   }
-  /* The map moves as a picture from the corner of the frame; while it moves,
-     it has a layer of its own, so the browser does not draw it again. */
-  svg {
-    transform-origin: 0 0;
+  /* The frame has the map's proportions. The map is drawn larger than it,
+     MARGIN of the frame on each side (the script), and moves as a picture
+     about its corner. It is always a layer of its own, so the browser draws
+     the margin while nothing moves, and moves the picture without drawing
+     it again. */
+  :scope {
+    aspect-ratio: 1600 / 978;
   }
-  :scope.is-quick svg {
+  svg:not(.map__probe) {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    transform-origin: 0 0;
     will-change: transform;
   }
   .map__probe {
