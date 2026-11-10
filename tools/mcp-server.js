@@ -8,8 +8,15 @@
 //
 // It speaks the Model Context Protocol over stdin and stdout (JSON-RPC, one
 // message to a line), with no library: initialize, tools/list, tools/call
-// and ping. It reads the data in app/data directly, so the app need not be
-// running. It only reads: nothing here changes the table or any file.
+// and ping. Its research tools read the data in app/data directly, so the
+// app need not be running, and change nothing.
+//
+// Its table tools (table_…) act on the tables that are open in a browser:
+// they send a command to the app's relay (app/server.js), with the secret
+// in TABLE_TOKEN (the project's .env), and the table does it with its own
+// methods, so Undo takes each change back. They need the app running
+// (npm run dev) and a table open; BIBLE_URL says where the app is, if not
+// http://127.0.0.1:1960.
 //
 // Every answer names its sources, as the app does, and gives addresses
 // (JHN.3.16) beside the references (John 3:16), so an answer can cite them
@@ -21,12 +28,50 @@ import { journeysFor } from '../app/data/journeys.js';
 import { quotationResults } from '../app/data/quotations.js';
 import { guideResults } from '../app/data/study.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../app/lib/reference.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // Standard output is the protocol's alone: anything a module logs goes to
 // standard error.
 console.log = console.error;
 
 const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+const APP = (process.env.BIBLE_URL ?? 'http://127.0.0.1:1960').replace(/\/$/, '');
+
+/** The secret the relay asks for: TABLE_TOKEN in the environment, else in the project's .env. */
+function token() {
+  if (process.env.TABLE_TOKEN) return process.env.TABLE_TOKEN;
+  try {
+    const env = readFileSync(fileURLToPath(new URL('../.env', import.meta.url)), 'utf8');
+    return /^TABLE_TOKEN=(.+)$/m.exec(env)?.[1]?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Sends a command to the open tables, and returns the first one's reply.
+ *
+ * @param {{ action: string, [key: string]: unknown }} command
+ */
+async function tell(command) {
+  const secret = token();
+  if (!secret) throw new Error('The table tools need TABLE_TOKEN, in the environment or in the project\'s .env.');
+  /** @type {Response} */
+  let response;
+  try {
+    response = await fetch(`${APP}/api/table/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      body: JSON.stringify(command),
+    });
+  } catch {
+    throw new Error(`The app is not running at ${APP}. Start it with npm run dev, and open /table in a browser.`);
+  }
+  const reply = await response.json().catch(() => ({ ok: false, error: `The app answered ${response.status}.` }));
+  if (!reply.ok) throw new Error(reply.error ?? 'The table did not do it.');
+  return reply.result;
+}
 const MAX_TEXT = 60000;
 
 const KJV = 'KJV text: public domain (eBible.org).';
@@ -53,6 +98,130 @@ const lines = (results) => results.map((each) => `- ${each.title} (${each.addres
  * @type {Record<string, { description: string, inputSchema: object, run: (args: any) => Promise<string> }>}
  */
 const TOOLS = {
+  table_state: {
+    description: 'What is on the open table now: its cards (address, title, version) and the marks on every card. Use it before changing the table, and to cite what the reader is looking at.',
+    inputSchema: { type: 'object', properties: {} },
+    async run() {
+      const state = await tell({ action: 'state' });
+      const cards = state.cards.map((/** @type {any} */ card) => `- ${card.title || card.address} (${card.address}${card.version !== 'kjv' ? `, ${card.version}` : ''})`).join('\n');
+      const rules = state.rules.map((/** @type {any} */ rule) => `${rule.label} (${rule.kind} ${rule.value})`).join(', ');
+      return `${state.name ? `The table "${state.name}". ` : ''}${state.cards.length} cards:\n${cards || '(none)'}${rules ? `\n\nMarked on every card: ${rules}` : ''}`;
+    },
+  },
+
+  table_place: {
+    description: "Put passages on the open table, as cards in a row in its open part, in one step that Undo takes back. Up to 12. The version is kjv (the default), bsb, both (the two side by side), original, interlinear or reverse.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        references: { type: 'array', items: { type: 'string' }, description: 'Passages, such as ["Genesis 15:1-6", "Romans 4:1-5"].' },
+        version: { type: 'string', enum: ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse'] },
+      },
+      required: ['references'],
+    },
+    async run({ references, version = '' }) {
+      const addresses = /** @type {string[]} */ (references).map((each) => toAddress(refOf(each)));
+      const { placed } = await tell({ action: 'place', addresses, version });
+      return `Put on the table: ${placed.map((/** @type {any} */ each) => `${each.title} (${each.address})`).join(', ')}. Undo takes it back.`;
+    },
+  },
+
+  table_guide: {
+    description: "Open a passage's guide in the table's search panel: its parallels, quotations, cross-references, and what it names.",
+    inputSchema: { type: 'object', properties: { reference: { type: 'string' } }, required: ['reference'] },
+    async run({ reference }) {
+      const ref = refOf(reference);
+      await tell({ action: 'guide', address: toAddress(ref) });
+      return `The guide to ${named(ref)} is open in the search panel.`;
+    },
+  },
+
+  table_search: {
+    description: "Search in the table's search panel, as the reader would: words, a reference, a Strong's number, a word's name, or grammar. The reader sees the results, and can put them on the table.",
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+    async run({ query }) {
+      await tell({ action: 'search', query: String(query) });
+      return `The search panel shows "${query}".`;
+    },
+  },
+
+  table_show_entity: {
+    description: 'Show a person, place, group or event in the search panel (an id, such as person:david_994; the entity tool finds ids). A place can also be marked on the map with table_show_places.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    async run({ id }) {
+      await tell({ action: 'show_entity', id: String(id) });
+      return `The search panel shows ${id}.`;
+    },
+  },
+
+  table_show_places: {
+    description: 'Mark places on the map card (putting it on the table if it is not there), and zoom the map to them. Takes place ids, such as place:bethel_202.',
+    inputSchema: { type: 'object', properties: { places: { type: 'array', items: { type: 'string' } } }, required: ['places'] },
+    async run({ places }) {
+      await tell({ action: 'show_places', places });
+      return `Marked on the map: ${places.join(', ')}.`;
+    },
+  },
+
+  table_show_journey: {
+    description: "Draw a person's journey on the map card. For a journey scholars trace in more than one way, name the route (such as \"The Arabian route\" for the Exodus); otherwise the first is drawn. The journeys tool lists the routes.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        person: { type: 'string', description: 'A person id, such as person:moses_2108, or a passage a journey covers.' },
+        title: { type: 'string', description: "Part of the journey's title, such as second, when a person has several." },
+        route: { type: 'string', description: 'Part of the route\'s name, such as Arabian.' },
+      },
+      required: ['person'],
+    },
+    async run({ person, title = '', route = '' }) {
+      const text = String(person).trim();
+      const found = text.startsWith('person:') ? await journeysFor({ person: text }) : await journeysFor({ address: toAddress(refOf(text)) });
+      const fits = (/** @type {string} */ field, /** @type {string} */ part) => !part || field.toLowerCase().includes(String(part).toLowerCase());
+      const journey = found.find((each) => fits(each.title, title) && fits(each.route, route));
+      if (!journey) throw new Error(`No journey fits. The journeys: ${found.map((each) => `${each.title}${each.route ? ` (${each.route})` : ''}`).join('; ') || 'none'}.`);
+      await tell({ action: 'show_journey', journey });
+      return `The map shows ${journey.title}${journey.route ? `, ${journey.route}` : ''}: ${journey.stops.map((stop) => stop.name).join(' → ')}.`;
+    },
+  },
+
+  table_mark: {
+    description:
+      "Mark words on every card on the table, live, as the Marks menu does; or take a mark off. kind is strongs (value H2617: the words that render it), entity (value person:david_994: the words that name it), names (value person, place or group: every one), or text (value wj, add or nd: the words of Christ, the words the translators supplied, the divine name).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['strongs', 'entity', 'names', 'text'] },
+        value: { type: 'string' },
+        label: { type: 'string', description: 'What the mark is called in the Marks menu.' },
+        off: { type: 'boolean', description: 'True to take the mark off.' },
+      },
+      required: ['kind', 'value'],
+    },
+    async run({ kind, value, label = '', off = false }) {
+      const { rules } = await tell({ action: 'mark', kind, value, label, off });
+      return `${off ? 'Taken off' : 'Marked'}: ${value}. Marks on every card now: ${rules.map((/** @type {any} */ rule) => rule.label).join(', ') || 'none'}.`;
+    },
+  },
+
+  table_clear: {
+    description: 'Start a new, empty table. The old one is not lost: Undo (or table_undo) brings it back, and a saved table stays saved. Ask the reader before clearing.',
+    inputSchema: { type: 'object', properties: {} },
+    async run() {
+      await tell({ action: 'clear' });
+      return 'The table is empty. Undo brings the old one back.';
+    },
+  },
+
+  table_undo: {
+    description: 'Take back the last change to the table, as the Undo button does.',
+    inputSchema: { type: 'object', properties: {} },
+    async run() {
+      await tell({ action: 'undo' });
+      return 'Undone.';
+    },
+  },
+
   search: {
     description:
       "Search the Bible as the app's search field does. Takes words or a phrase in quotes (searches the KJV); a reference (John 3:16); a Strong's number (G26, H2617); a word of the original by its name (agape, chesed, shalom); or the grammar of the Hebrew and Greek, with an optional scope (\"aorist imperative in John\", \"wayyiqtol in Ruth\", \"G26 accusative\"). Returns the verses found, with addresses.",
@@ -291,7 +460,7 @@ async function answer(message) {
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: 'bible-table', title: 'The Bible table', version: '0.1.0' },
       instructions:
-        "This server answers from the Bible table app's own data: the KJV and BSB, the Hebrew and Greek with grammar (STEPBible), Strong's dictionary, cross-references (OpenBible.info), people, places and events (Theographic, dated by Jones), journeys, and the Old Testament quoted in the New (Nestle 1904). Cite the addresses it gives (JHN.3.16). Dates are Jones's chronology unless a tool names another.",
+        "This server answers from the Bible table app's own data: the KJV and BSB, the Hebrew and Greek with grammar (STEPBible), Strong's dictionary, cross-references (OpenBible.info), people, places and events (Theographic, dated by Jones), journeys, and the Old Testament quoted in the New (Nestle 1904). Cite the addresses it gives (JHN.3.16). Dates are Jones's chronology unless a tool names another. The table_ tools act on the reader's open table: look first with table_state, change it only as the reader asks, and ask before table_clear. Every change can be undone.",
     };
   }
   if (method === 'ping') return {};
@@ -316,6 +485,12 @@ async function answer(message) {
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 
 let buffer = '';
+// Requests still being answered: the server waits for them before it ends.
+let pending = 0;
+let ended = false;
+const finish = () => {
+  if (ended && pending === 0) process.exit(0);
+};
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => {
   buffer += chunk;
@@ -334,10 +509,19 @@ process.stdin.on('data', (chunk) => {
     }
     // A notification (no id) needs no answer.
     if (message.id === undefined || message.id === null) continue;
-    answer(message).then(
-      (result) => send({ jsonrpc: '2.0', id: message.id, result }),
-      (error) => send({ jsonrpc: '2.0', id: message.id, error: { code: error.code ?? -32603, message: error.message } }),
-    );
+    pending += 1;
+    answer(message)
+      .then(
+        (result) => send({ jsonrpc: '2.0', id: message.id, result }),
+        (error) => send({ jsonrpc: '2.0', id: message.id, error: { code: error.code ?? -32603, message: error.message } }),
+      )
+      .finally(() => {
+        pending -= 1;
+        finish();
+      });
   }
 });
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => {
+  ended = true;
+  finish();
+});

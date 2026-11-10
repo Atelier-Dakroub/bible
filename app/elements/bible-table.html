@@ -123,7 +123,7 @@
   import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
   import { WIDTH } from '../lib/map.js';
-  import { nextStyle, stylesFor, toggleRule } from '../lib/rules.js';
+  import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
@@ -430,6 +430,7 @@
       this.trackpad(signal);
       document.addEventListener('keydown', (event) => this.panKey(event), options);
       document.addEventListener('keydown', (event) => this.remoteKey(event), { ...options, capture: true });
+      this.listen(options.signal);
       // The cursor shows for a mouse or a trackpad and hides after a touch,
       // so the panel shows no arrow under the fingers. global.css reads it.
       /** @param {PointerEvent} event */
@@ -683,6 +684,144 @@
       this.addEventListener('gesturestart', start, { signal });
       this.addEventListener('gesturechange', change, { signal });
       this.addEventListener('gestureend', end, { signal });
+    },
+
+    /**
+     * Listens for an assistant's commands (app/server.js, the table relay,
+     * which tools/mcp-server.js sends to), and answers each. Where the app
+     * has no relay, as on Cloudflare, the stream is not there, and the table
+     * stops listening after the first try.
+     *
+     * @param {AbortSignal} signal
+     */
+    listen(signal) {
+      if (typeof EventSource !== 'function') return;
+      const stream = new EventSource('/api/table/events');
+      let opened = false;
+      stream.addEventListener('ready', () => {
+        opened = true;
+      });
+      stream.addEventListener('error', () => {
+        if (!opened) stream.close();
+      });
+      stream.addEventListener('command', async (event) => {
+        /** @type {any} */
+        let command;
+        try {
+          command = JSON.parse(/** @type {MessageEvent} */ (event).data);
+        } catch {
+          return;
+        }
+        /** @type {any} */
+        let reply;
+        try {
+          reply = { ok: true, result: await this.obey(command) };
+        } catch (error) {
+          reply = { ok: false, error: error instanceof Error ? error.message : String(error) };
+        }
+        fetch('/api/table/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: command.id, ...reply }) }).catch(() => {});
+      });
+      signal.addEventListener('abort', () => stream.close());
+    },
+
+    /**
+     * Does what an assistant asks (tools/mcp-server.js). Each change goes
+     * through the table's own methods, so it is a step that Undo takes back,
+     * as a hand's would be.
+     *
+     *   state         what is on the table
+     *   place         put passages down in a row: { addresses, version }
+     *   guide         open a passage's guide in the search panel: { address }
+     *   search        search, in the search panel: { query }
+     *   show_entity   a person, place, group or event in the panel: { id }
+     *   show_places   mark places on the map: { places }
+     *   show_journey  draw a journey's route on the map: { journey }
+     *   mark          mark words on every card, or unmark: { kind, value, label, off }
+     *   clear         a new, empty table (Undo brings the old one back)
+     *   undo          take back the last change
+     *
+     * @param {{ action: string, [key: string]: any }} command
+     */
+    async obey(command) {
+      const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      switch (command.action) {
+        case 'state': {
+          const cards = [...this.world().querySelectorAll('gesture-card')].map((each) => {
+            const card = /** @type {HTMLElement} */ (each);
+            const title = card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? '';
+            return { address: card.dataset.address ?? '', title, version: card.dataset.version ?? 'kjv', kind: card.dataset.kind ?? '' };
+          });
+          return { name: this.name ?? '', cards, rules: this.rules.map(({ kind, value, label }) => ({ kind, value, label })) };
+        }
+        case 'place': {
+          const addresses = /** @type {string[]} */ (command.addresses ?? []).filter((each) => typeof each === 'string').slice(0, 12);
+          const placed = await this.placeRow(addresses, String(command.version ?? ''));
+          return { placed };
+        }
+        case 'guide':
+          await panel?.showGuide(String(command.address), []);
+          return { shown: command.address };
+        case 'search':
+          panel?.searchFor(String(command.query));
+          return { searched: command.query };
+        case 'show_entity':
+          panel?.showEntity(String(command.id));
+          return { shown: command.id };
+        case 'show_places':
+          await this.showOnMap(/** @type {string[]} */ (command.places ?? []).join(','));
+          return { shown: command.places };
+        case 'show_journey':
+          await this.showJourney(command.journey);
+          return { shown: command.journey?.title ?? '' };
+        case 'mark': {
+          const rule = { kind: String(command.kind), value: String(command.value), label: String(command.label || command.value) };
+          const on = this.rules.some((each) => sameRule(each, rule));
+          if (Boolean(command.off) === on) this.setRules(toggleRule(this.rules, rule));
+          return { rules: this.rules.map(({ kind, value, label }) => ({ kind, value, label })) };
+        }
+        case 'clear':
+          await this.openWorkspace(empty(), '', 'A new, empty table. Undo brings the old one back.');
+          return { cleared: true };
+        case 'undo':
+          this.undo();
+          return { undone: true };
+        default:
+          throw new Error(`The table does not know the command ${command.action}.`);
+      }
+    },
+
+    /**
+     * Puts passages down in a row in the open part of the table, at their
+     * own size, as one step that Undo takes back; returns what it put down.
+     *
+     * @param {string[]} addresses
+     * @param {string} version kjv, bsb, both, original, interlinear or reverse; '' for the KJV
+     */
+    async placeRow(addresses, version) {
+      const start = this.openSpot();
+      const world = this.world().getBoundingClientRect();
+      let x = start.x - world.left;
+      const y = start.y - world.top;
+      /** @type {{ address: string, title: string }[]} */
+      const placed = [];
+      this.applying += 1;
+      try {
+        for (const address of addresses) {
+          const card = await this.fetchCard(address, version ? { version } : {});
+          if (!card) continue;
+          card.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
+          this.raise(card);
+          x += card.offsetWidth + ROW_GAP;
+          placed.push({ address, title: card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? address });
+        }
+        this.later = true;
+      } finally {
+        this.applying -= 1;
+        this.finish();
+      }
+      // The new row in view.
+      if (placed.length) this.drawSoon();
+      return placed;
     },
 
     /**

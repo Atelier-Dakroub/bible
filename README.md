@@ -667,14 +667,14 @@ node tools/import-strongs.js <usfm directory> <strongs-hebrew-dictionary.js> <st
   Dictionary data that is published as data must keep the same license; the
   app's code is not affected.
 
-## An MCP server for the data
+## An MCP server for the data and the table
 
-`tools/mcp-server.js` lets an assistant such as Claude use this app's data
-through the Model Context Protocol: the same search, texts, word studies,
-people, places, events, cross-references, quotations, journeys and passage
-guides the table shows. It only reads; it changes nothing. It speaks MCP
-over stdin and stdout with no library, and reads `app/data` directly, so the
-app need not be running.
+`tools/mcp-server.js` lets an assistant such as Claude use this app through
+the Model Context Protocol. It speaks MCP over stdin and stdout with no
+library. Its research tools read `app/data` directly, so the app need not be
+running, and change nothing: the same search, texts, word studies, people,
+places, events, cross-references, quotations, journeys and passage guides
+the table shows.
 
 | Tool | What it answers |
 | --- | --- |
@@ -686,6 +686,31 @@ app need not be running.
 | `quotations` | the Old Testament a New Testament verse quotes, or where an Old Testament verse is quoted |
 | `journeys` | a person's journeys, with every proposed route and the verse of each stop |
 | `passage_guide` | a passage's parallels, quotations, cross-references, and what it names |
+
+Its table tools act on the tables that are open in a browser, through a
+relay in the app (`app/server.js`): the tool sends a command, every open
+table hears it on a stream, carries it out with its own methods, and the
+first to answer replies. So each change is a step that Undo takes back.
+
+| Tool | What it does on the table |
+| --- | --- |
+| `table_state` | what is on the table: its cards and its marks |
+| `table_place` | puts passages down in a row, in any version, as one step |
+| `table_guide` | opens a passage's guide in the search panel |
+| `table_search` | searches in the search panel |
+| `table_show_entity` | shows a person, place, group or event in the panel |
+| `table_show_places` | marks places on the map, and zooms to them |
+| `table_show_journey` | draws a journey on the map, by the route chosen |
+| `table_mark` | marks words on every card (a Strong's number, a name, the words of Christ), or takes a mark off |
+| `table_clear` | a new, empty table (Undo brings the old one back) |
+| `table_undo` | takes back the last change |
+
+A command must carry the secret in `TABLE_TOKEN`, from the project's `.env`
+(copy `.env.example` and fill it in): the server listens on the network, so
+the panel can reach it, and a command changes the table. The table tools
+need the app running (`npm run dev`) and a table open; `BIBLE_URL` says
+where the app is, if not `http://127.0.0.1:1960`. On Cloudflare there is no
+relay, and a table stops listening after its first try.
 
 Every answer gives addresses (JHN.3.16) beside references, and names its
 sources. To use it in Claude Code, from this folder:

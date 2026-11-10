@@ -419,6 +419,94 @@ export type BibleTableMembers = {
   overPanel(target: EventTarget | null): boolean;
   wheel(event: WheelEvent): void;
   trackpad(signal: AbortSignal): void;
+  listen(signal: AbortSignal): void;
+  obey(command: {
+    [key: string]: any;
+    action: string;
+  }): Promise<{
+    name: string;
+    cards: {
+      address: string;
+      title: string;
+      version: string;
+      kind: string;
+    }[];
+    rules: {
+      kind: string;
+      value: string;
+      label: string;
+    }[];
+    placed?: undefined;
+    shown?: undefined;
+    searched?: undefined;
+    cleared?: undefined;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed: {
+      address: string;
+      title: string;
+    }[];
+    shown?: undefined;
+    searched?: undefined;
+    rules?: undefined;
+    cleared?: undefined;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed?: undefined;
+    shown: any;
+    searched?: undefined;
+    rules?: undefined;
+    cleared?: undefined;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed?: undefined;
+    shown?: undefined;
+    searched: any;
+    rules?: undefined;
+    cleared?: undefined;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed?: undefined;
+    shown?: undefined;
+    searched?: undefined;
+    rules: {
+      kind: string;
+      value: string;
+      label: string;
+    }[];
+    cleared?: undefined;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed?: undefined;
+    shown?: undefined;
+    searched?: undefined;
+    rules?: undefined;
+    cleared: boolean;
+    undone?: undefined;
+  } | {
+    name?: undefined;
+    cards?: undefined;
+    placed?: undefined;
+    shown?: undefined;
+    searched?: undefined;
+    rules?: undefined;
+    cleared?: undefined;
+    undone: boolean;
+  }>;
+  placeRow(addresses: string[], version: string): Promise<{
+    address: string;
+    title: string;
+  }[]>;
   remoteKey(event: KeyboardEvent): void;
   navigable(): HTMLElement[];
   reveal(card: Element): void;

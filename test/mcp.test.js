@@ -45,7 +45,10 @@ test('the MCP server lists its tools and answers from the data', async () => {
   assert.equal(answers.get(1).result.protocolVersion, '2025-06-18');
   assert.deepEqual(
     answers.get(2).result.tools.map((/** @type {{ name: string }} */ tool) => tool.name),
-    ['search', 'passage', 'word_study', 'entity', 'cross_references', 'quotations', 'journeys', 'passage_guide'],
+    [
+      'table_state', 'table_place', 'table_guide', 'table_search', 'table_show_entity', 'table_show_places', 'table_show_journey', 'table_mark', 'table_clear', 'table_undo',
+      'search', 'passage', 'word_study', 'entity', 'cross_references', 'quotations', 'journeys', 'passage_guide',
+    ],
   );
   const quoted = answers.get(3).result;
   assert.equal(quoted.isError, false);
