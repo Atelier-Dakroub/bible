@@ -764,19 +764,25 @@ In the Claude desktop app, add it to `claude_desktop_config.json` under
 A New Testament verse where a quotation of the Old Testament begins, and an
 Old Testament verse quoted in the New, has a lapis quotation mark in the
 card's right margin; a tap lists the other side in the search panel, and
-the passage guide has a section for it. The quotations are the ones
-Nestle's Greek New Testament (1904) prints in bold, with its margin's
-references: 476 of them, quoting 594 passages
-(`app/data/quotations.json`). Nestle marks quotations, not allusions.
+the passage guide has a section for it. There are 610 quotations
+(`app/data/quotations.json`), from two sources. Both mark quotations, not
+allusions.
 
-The markup, from MACULA Greek (CC BY 4.0; the Nestle text is in the public
-domain), covers the Gospels, Acts, Romans, and Galatians to Titus; not yet
-1 and 2 Corinthians, Philemon, Hebrews, the general letters or Revelation,
-and the panel says so for those books. One pair the markup has wrong
-(Romans 1:23 with Habakkuk 2:4) is left out.
+- **Nestle's Greek New Testament (1904):** the quotations it prints in bold,
+  with its margin's references (476). The markup is MACULA Greek's (CC BY
+  4.0; the Nestle text is in the public domain), and it covers the Gospels,
+  Acts, Romans, and Galatians to Titus. One pair the markup has wrong
+  (Romans 1:23 with Habakkuk 2:4) is left out.
+- **The UBS Parallel Passages Database** (© 2023 United Bible Societies,
+  CC BY-SA 4.0), for every book: the quotations Nestle's markup does not
+  have (134), most of them in Hebrews, 1 and 2 Corinthians, James and
+  1 Peter. A pair that Nestle has already is not added twice. The database
+  numbers the Old Testament as the Hebrew Bible does (its Psalm 22:2 is the
+  KJV's 22:1), and the import turns those numbers into the KJV's with
+  STEPBible's Hebrew files, which give both.
 
 ```sh
-node tools/import-quotations.js <directory with MACULA Greek's Nestle1904/tei files>
+node tools/import-quotations.js <MACULA Greek's Nestle1904/tei> --ubs <ParallelPassages.xml> --tahot <directory with STEPBible's TAHOT files>
 ```
 
 ## The cross-reference data

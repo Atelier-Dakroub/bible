@@ -115,9 +115,13 @@ test('the Old Testament in the New: a quotation joins the verse that quotes and 
   assert.equal(quoteMark('ROM.1.17'), 'quotes');
   assert.equal(quoteMark('HAB.2.4'), 'quoted');
   assert.deepEqual(quotationsOf('ROM.1.17').addresses, ['HAB.2.4']);
-  // Habakkuk 2:4 in Romans and Galatians (Hebrews is not in the markup yet),
-  // and not in Romans 1:23, which the markup has wrong.
-  assert.deepEqual(quotationsOf('HAB.2.4').addresses, ['ROM.1.17', 'GAL.3.11']);
-  assert.ok(!COVERED.has('HEB'));
-  assert.match((await quotationResults('HEB.1.5')).summary, /does not cover this book yet/);
+  // Habakkuk 2:4 in Romans and Galatians (Nestle), and in Hebrews (the UBS
+  // database); not in Romans 1:23, which the markup has wrong.
+  assert.deepEqual(quotationsOf('HAB.2.4').addresses, ['ROM.1.17', 'GAL.3.11', 'HEB.10.38']);
+  assert.ok(COVERED.has('HEB'));
+  assert.deepEqual(quotationsOf('HEB.1.5').addresses, ['2SA.7.14', 'PSA.2.7']);
+  // The UBS database numbers the Psalms as the Hebrew does; the import gives
+  // the KJV's numbers: Hebrews 1:8 quotes Psalm 45:6.
+  assert.deepEqual(quotationsOf('HEB.1.8').addresses, ['PSA.45.6']);
+  assert.match((await quotationResults('HEB.1.5')).summary, /quotes the Old Testament: 2 passages/);
 });

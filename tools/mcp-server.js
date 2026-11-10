@@ -383,7 +383,7 @@ const TOOLS = {
 
   quotations: {
     description:
-      "The Old Testament in the New: for a New Testament verse, the Old Testament passages it quotes; for an Old Testament verse, the New Testament passages that quote it. These are the quotations Nestle's Greek New Testament (1904) prints in bold; the data does not yet cover 1-2 Corinthians, Philemon, Hebrews, the general letters or Revelation.",
+      "The Old Testament in the New: for a New Testament verse, the Old Testament passages it quotes; for an Old Testament verse, the New Testament passages that quote it. These are the quotations Nestle's Greek New Testament (1904) prints in bold, and, where Nestle's markup has none, those of the UBS Parallel Passages Database; quotations, not allusions.",
     inputSchema: {
       type: 'object',
       properties: { verse: { type: 'string', description: 'A verse, such as Romans 1:17 or HAB.2.4.' } },
@@ -489,7 +489,7 @@ async function answer(message) {
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: 'bible-table', title: 'The Bible table', version: '0.1.0' },
       instructions:
-        "This server answers from the Bible table app's own data: the KJV and BSB, the Hebrew and Greek with grammar (STEPBible), Strong's dictionary, cross-references (OpenBible.info), people, places and events (Theographic, dated by Jones), journeys, and the Old Testament quoted in the New (Nestle 1904). Cite the addresses it gives (JHN.3.16). Dates are Jones's chronology unless a tool names another. The table_ tools act on the reader's open table: look first with table_state, change it only as the reader asks, and ask before table_clear. Every change can be undone.",
+        "This server answers from the Bible table app's own data: the KJV and BSB, the Hebrew and Greek with grammar (STEPBible), Strong's dictionary, cross-references (OpenBible.info), people, places and events (Theographic, dated by Jones), journeys, and the Old Testament quoted in the New (Nestle 1904 and the UBS Parallel Passages Database). Cite the addresses it gives (JHN.3.16). Dates are Jones's chronology unless a tool names another. The table_ tools act on the reader's open table: look first with table_state, change it only as the reader asks, and ask before table_clear. Every change can be undone.",
     };
   }
   if (method === 'ping') return {};

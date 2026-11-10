@@ -1,19 +1,21 @@
 // The Old Testament in the New: the quotations Nestle's Greek New Testament
-// (1904) prints in bold, with the passages they quote (data/quotations.json,
-// tools/import-quotations.js). Nestle marks quotations, not allusions.
+// (1904) prints in bold, with the passages they quote, and, where Nestle's
+// markup has none, those of the UBS Parallel Passages Database
+// (data/quotations.json, tools/import-quotations.js). Both mark quotations,
+// not allusions.
 
 import data from './quotations.json' with { type: 'json' };
 import { answer, books, passage, preview } from './bible.js';
 import { formatReference, parseAddress, versesIn } from '../lib/reference.js';
 
-/** @typedef {{ nt: string, ot: string[], greek: string }} Quotation */
+/** @typedef {{ nt: string, ot: string[], greek: string, by?: string }} Quotation */
 /** @typedef {import('./bible.js').Result} Result */
 
-/** The New Testament books whose quotations the markup marks. */
+/** The New Testament books whose quotations the data covers. */
 export const COVERED = new Set(/** @type {string[]} */ (data.covered));
 
 export const CREDIT =
-  "Quotations as Nestle's Greek New Testament (1904) prints them in bold, with its margin's references; markup from MACULA Greek (CC BY 4.0). Nestle marks quotations, not allusions. The markup covers the Gospels, Acts, Romans, and Galatians to Titus; not yet 1 and 2 Corinthians, Philemon, Hebrews, the general letters or Revelation.";
+  "Quotations as Nestle's Greek New Testament (1904) prints them in bold, with its margin's references (markup from MACULA Greek, CC BY 4.0); and, where that markup has none, as the UBS Parallel Passages Database gives them (© 2023 United Bible Societies, CC BY-SA 4.0). Both mark quotations, not allusions.";
 
 /** @param {string} address @returns {string[]} the verses of an address */
 function versesOf(address) {
@@ -113,9 +115,9 @@ export async function quotationResults(address) {
   const title = formatReference(ref, books);
   const count = results.length === 1 ? '1 passage' : `${results.length} passages`;
   const summary = quoting && !COVERED.has(ref.book)
-    ? `${title}: the markup of Nestle's quotations does not cover this book yet. ${CREDIT}`
+    ? `${title}: the data does not cover this book. ${CREDIT}`
     : !results.length
-    ? `${title}: no quotation, as Nestle marks them.`
+    ? `${title}: no quotation in the data.`
     : quoting
       ? `${title} quotes the Old Testament: ${count}. ${CREDIT}`
       : `${title} is quoted in the New Testament: ${count}. ${CREDIT}`;

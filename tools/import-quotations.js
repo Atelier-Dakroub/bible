@@ -2,7 +2,7 @@
 // The Old Testament in the New: the quotations Nestle's Greek New Testament
 // (1904) prints in bold, each with the passages it quotes.
 //
-//   node tools/import-quotations.js <directory with the Nestle1904 TEI files> [output]
+//   node tools/import-quotations.js <directory with the Nestle1904 TEI files> [--ubs <ParallelPassages.xml> --tahot <directory with STEPBible's TAHOT files>] [output]
 //
 // Source: MACULA Greek (https://github.com/Clear-Bible/macula-greek), the
 // folder Nestle1904/tei, © Biblica, under CC BY 4.0; the Nestle 1904 text
@@ -18,16 +18,42 @@
 // Wisdom of Solomon, 1 Maccabees) is left out, and so is one to a verse
 // the KJV does not number.
 //
+// With --ubs, the quotations of the UBS Parallel Passages Database are added
+// where Nestle's markup has none: the database covers every book of the New
+// Testament, Hebrews and the general letters included. Source: United Bible
+// Societies, https://github.com/ubsicap/ubs-open-license ("parallel
+// passages"), under CC BY-SA 4.0. A passage there lists verses that run
+// parallel, of the Old Testament and of the New; each New Testament verse of a
+// passage quotes its Old Testament verses. A pair Nestle has already, with a
+// verse in common on each side, is not added twice.
+//
+// The database numbers the Old Testament as the Hebrew Bible does: its Psalm
+// 22:2 is the KJV's Psalm 22:1 (the Hebrew counts a psalm's title), and its
+// Joel 3:1 is the KJV's Joel 2:28. STEPBible's Hebrew (TAHOT, the same files
+// as tools/import-original.js) gives both numbers where they differ, as
+// Psa.22.1(22.2), so --tahot turns the Hebrew numbers into the KJV's. Nestle's
+// margin uses the English numbers, and is left as it is.
+//
 // The output defaults to app/data/quotations.json:
-//   { source, license, quotations: [{ nt: address, ot: [address], greek: string }] }
-// with addresses as the app writes them: ROM.1.17, PSA.14.1-3.
+//   { source, license, covered, quotations: [{ nt: address, ot: [address], greek: string, by: 'nestle' | 'ubs' }] }
+// with addresses as the app writes them: ROM.1.17, PSA.14.1-3. `greek` is
+// the words Nestle prints in bold; the UBS database gives none.
 
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const [source, out = 'app/data/quotations.json'] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const ubsAt = args.indexOf('--ubs');
+const ubs = ubsAt >= 0 ? args.splice(ubsAt, 2)[1] : '';
+const tahotAt = args.indexOf('--tahot');
+const tahot = tahotAt >= 0 ? args.splice(tahotAt, 2)[1] : '';
+if (ubs && !tahot) {
+  console.error('--ubs needs --tahot: the UBS database numbers the Old Testament as the Hebrew Bible does.');
+  process.exit(1);
+}
+const [source, out = 'app/data/quotations.json'] = args;
 if (!source) {
-  console.error('Usage: node tools/import-quotations.js <directory with the Nestle1904 TEI files> [output]');
+  console.error('Usage: node tools/import-quotations.js <directory with the Nestle1904 TEI files> [--ubs <ParallelPassages.xml>] [output]');
   process.exit(1);
 }
 
@@ -117,7 +143,7 @@ function span(verses) {
   return endChapter === chapter ? `${book}.${chapter}.${verse}-${endVerse}` : `${book}.${chapter}.${verse}-${endChapter}.${endVerse}`;
 }
 
-/** @type {Map<string, { nt: string, ot: string[], greek: string }>} */
+/** @type {Map<string, { nt: string, ot: string[], greek: string, by: string }>} */
 const quotations = new Map();
 /** @type {Set<string>} the books the markup marks quotations in */
 const covered = new Set();
@@ -140,16 +166,95 @@ for (const file of files) {
     if (before) {
       before.greek += ` … ${greek}`;
       before.nt = span([before.nt.split('-')[0], verses[verses.length - 1]]);
-    } else quotations.set(key, { nt, ot, greek });
+    } else quotations.set(key, { nt, ot, greek, by: 'nestle' });
   }
+}
+
+/** The verses of an address, such as MRK.10.7-8. @param {string} address */
+function versesOf(address) {
+  const match = /^(\w+)\.(\d+)\.(\d+)(?:-(?:(\d+)\.)?(\d+))?$/.exec(address);
+  if (!match) return [];
+  const [, book, chapter, from, toChapter, to] = match;
+  const found = [];
+  for (let c = Number(chapter); c <= Number(toChapter ?? chapter); c += 1) {
+    const last = counts.get(book)?.[c - 1] ?? 0;
+    const first = c === Number(chapter) ? Number(from) : 1;
+    const end = c === Number(toChapter ?? chapter) ? Number(to ?? from) : last;
+    for (let v = first; v <= Math.min(end, last); v += 1) found.push(`${book}.${c}.${v}`);
+  }
+  return found;
+}
+
+let fromUbs = 0;
+if (ubs) {
+  const ntBooks = new Set(books.slice(books.findIndex((/** @type {{ id: string }} */ book) => book.id === 'MAT')).map((/** @type {{ id: string }} */ book) => book.id));
+  // What Nestle has already: each New Testament verse, and the verses it quotes.
+  /** @type {Map<string, Set<string>>} */
+  const known = new Map();
+  for (const quotation of quotations.values()) {
+    const quoted = new Set(quotation.ot.flatMap(versesOf));
+    for (const verse of versesOf(quotation.nt)) known.set(verse, new Set([...(known.get(verse) ?? []), ...quoted]));
+  }
+  // The Hebrew Bible's verse numbers to the KJV's, where they differ.
+  /** @type {Map<string, string>} */
+  const english = new Map();
+  for (const name of (await readdir(tahot)).filter((each) => /^TAHOT.*\.txt$/.test(each))) {
+    const text = await readFile(path.join(tahot, name), 'utf8');
+    for (const [, book, chapter, verse, hebrewChapter, hebrewVerse] of text.matchAll(/^([1-3]?[A-Za-z]+)\.(\d+)\.(\d+)\((\d+)\.(\d+)\)/gm)) {
+      const key = `${book.toUpperCase()}.${hebrewChapter}.${hebrewVerse}`;
+      if (!english.has(key)) english.set(key, `${chapter}.${verse}`);
+    }
+  }
+  /** @param {string} book @param {number} chapter @param {number} verse @returns {[number, number]} */
+  const kjv = (book, chapter, verse) => {
+    const found = english.get(`${book}.${chapter}.${verse}`);
+    return found ? /** @type {[number, number]} */ (found.split('.').map(Number)) : [chapter, verse];
+  };
+  /**
+   * "MRK 10:7-8" to MRK.10.7-8, the Old Testament in the KJV's numbers, or
+   * '' when the KJV does not number it.
+   *
+   * @param {string} ref
+   * @param {boolean} hebrew
+   */
+  const addressOf = (ref, hebrew) => {
+    const match = /^(\w+) (\d+):(\d+)(?:-(\d+))?$/.exec(ref.trim());
+    if (!match) return '';
+    const [, book, chapterText, fromText, toText] = match;
+    const [chapter, from] = hebrew ? kjv(book, Number(chapterText), Number(fromText)) : [Number(chapterText), Number(fromText)];
+    const [toChapter, to] = toText ? (hebrew ? kjv(book, Number(chapterText), Number(toText)) : [Number(chapterText), Number(toText)]) : [chapter, from];
+    const last = counts.get(book)?.[chapter - 1];
+    if (!last || from > last) return '';
+    if (toChapter !== chapter) return `${book}.${chapter}.${from}-${toChapter}.${to}`;
+    const end = Math.min(to, last);
+    return end > from ? `${book}.${chapter}.${from}-${end}` : `${book}.${chapter}.${from}`;
+  };
+  const xml = await readFile(ubs, 'utf8');
+  for (const [, inside] of xml.matchAll(/<Passage>([\s\S]*?)<\/Passage>/g)) {
+    const refs = [...inside.matchAll(/<Verse \w+="\d*">([^<]+)<\/Verse>/g)].map(([, ref]) => ref);
+    const nt = refs.filter((ref) => ntBooks.has(ref.split(' ')[0])).map((ref) => addressOf(ref, false)).filter(Boolean);
+    const ot = [...new Set(refs.filter((ref) => !ntBooks.has(ref.split(' ')[0])).map((ref) => addressOf(ref, true)).filter(Boolean))];
+    if (!nt.length || !ot.length) continue;
+    const quoted = new Set(ot.flatMap(versesOf));
+    for (const address of nt) {
+      const verses = versesOf(address);
+      if (verses.some((verse) => [...(known.get(verse) ?? [])].some((each) => quoted.has(each)))) continue;
+      quotations.set(`${verses[0]}|ubs|${ot.join(' ')}`, { nt: address, ot, greek: '', by: 'ubs' });
+      for (const verse of verses) known.set(verse, new Set([...(known.get(verse) ?? []), ...quoted]));
+      covered.add(address.split('.')[0]);
+      fromUbs += 1;
+    }
+  }
+  // The database is for every book: a book with none quotes nothing.
+  for (const book of ntBooks) covered.add(book);
 }
 
 await writeFile(
   out,
   `${JSON.stringify(
     {
-      source: "Nestle's Greek New Testament (1904): the quotations it prints in bold, with its margin's references; as marked up in MACULA Greek (https://github.com/Clear-Bible/macula-greek)",
-      license: 'MACULA Greek © Biblica, CC BY 4.0; the Nestle 1904 text is in the public domain',
+      source: `Nestle's Greek New Testament (1904): the quotations it prints in bold, with its margin's references; as marked up in MACULA Greek (https://github.com/Clear-Bible/macula-greek)${ubs ? '. Where Nestle has none: the UBS Parallel Passages Database (https://github.com/ubsicap/ubs-open-license)' : ''}`,
+      license: `MACULA Greek © Biblica, CC BY 4.0; the Nestle 1904 text is in the public domain${ubs ? '; UBS Parallel Passages Database © 2023 United Bible Societies, CC BY-SA 4.0' : ''}`,
       covered: books.map((/** @type {{ id: string }} */ book) => book.id).filter((/** @type {string} */ id) => covered.has(id)),
       quotations: [...quotations.values()],
     },
@@ -157,4 +262,4 @@ await writeFile(
     1,
   )}\n`,
 );
-console.log(`${quotations.size} quotations written to ${out}; ${dropped} references to verses the KJV does not number left out${unknown.size ? `; unknown books: ${[...unknown].join(', ')}` : ''}.`);
+console.log(`${quotations.size} quotations (${fromUbs} from the UBS database) written to ${out}; ${dropped} references to verses the KJV does not number left out${unknown.size ? `; unknown books: ${[...unknown].join(', ')}` : ''}.`);
