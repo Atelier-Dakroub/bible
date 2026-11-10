@@ -74,10 +74,13 @@
     // rest are laptops, desktops and tablets. However large the setting, a
     // rem is at most a 22nd of the window's shorter side, so the panels and
     // the settings always fit on the screen (on a phone, about 17px).
+    // The reader's own text size in the browser (16px unless they changed
+    // it) scales the guess, as a larger default asks for larger text.
+    const preferred = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16;
     globalThis.applyInterfaceSize = () => {
       const short = Math.min(screen.width, screen.height);
       const long = Math.max(screen.width, screen.height);
-      const base = short < 600 ? 16 : long >= 2560 ? 24 : 18;
+      const base = (short < 600 ? 16 : long >= 2560 ? 24 : 18) * preferred;
       const scale = { s: 0.85, l: 1.2, xl: 1.5, far: 2 }[document.documentElement.dataset.ui ?? ''] ?? 1;
       const most = Math.min(innerWidth, innerHeight) / 22;
       document.documentElement.style.fontSize = Math.round(Math.max(12, Math.min(base * scale, most))) + 'px';
@@ -86,12 +89,16 @@
     addEventListener('resize', () => globalThis.applyInterfaceSize());
   </script>
   <h1 class="visually-hidden">Table</h1>
+  <!-- The keys of a card and of the map, for a screen reader: the cards and
+       the map point to these (aria-describedby). -->
+  <p id="card-keys" class="visually-hidden">Arrow keys move the card, with Shift further; plus and minus scale it; the brackets turn it; Enter opens its guide; Delete takes it off the table. In the Far size, the arrow keys move from card to card.</p>
+  <p id="map-keys" class="visually-hidden">Arrow keys move the map; plus and minus zoom; 0 shows the whole map. In the Far size, Enter on the map card steps into the map, and Escape steps out.</p>
   <bible-table>
     <passage-search></passage-search>
     <table-menu></table-menu>
     <note-editor></note-editor>
     <time-line>
-      <div class="timeline__axis">
+      <div class="timeline__axis" role="group" aria-label="Events of the Bible, by date">
         <div each="era of eras" class="timeline__era" style="--at: ${era.at}">
           <span>${era.name}</span>
           <span>${era.label}</span>

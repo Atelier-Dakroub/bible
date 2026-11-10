@@ -387,6 +387,34 @@ its SIL Open Font License: Literata for the text and Atkinson Hyperlegible
 Next for the interface. They came from Fontsource on npm (version 5.3). The pictograms are in
 `app/icons/kinds`.
 
+## Accessibility
+
+Checked on 2026-11-10 with a script over the table (names, roles, target
+sizes, text sizes, headings, live regions) and with the keyboard:
+
+- Every control has a name. A card is a group a screen reader calls a
+  "card", named by its heading, with its keys described (`#card-keys` in
+  `routes/table.html`); the map's frame is a "map", with its keys.
+- The Tab key stops 105 times on a full table, not 612: the timeline's ticks
+  are one stop and its world spans another, and the arrow keys move within
+  each (Home and End to the ends).
+- The search panel says what each answer found, in a status region that
+  stays (`.search__status`).
+- When a sheet of the menu, the search panel or the timeline closes with the
+  focus inside it, the focus goes to the button that opens it.
+- No text is under 11px: the smallest sizes are `max(<rem>, 11px)`, as they
+  were set for the panel's 24px rem. Targets are at least 24px each way,
+  but for the timeline's ticks, which stand close together; each event is
+  also found by the search panel.
+- The browser's own text size scales the table's rem, as the page's size
+  is otherwise set in pixels for the screen.
+- Motion respects `prefers-reduced-motion`; colors are checked with APCA
+  (`test/design.test.js`).
+
+Not yet done: a pass with VoiceOver and NVDA, forced colors (Windows High
+Contrast), and a keyboard way to pick a place on the map (the search panel
+finds every place).
+
 ## Screens, from a phone to a wall
 
 The table sets its rem for the kind of screen, before the page paints (the

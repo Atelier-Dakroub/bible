@@ -240,7 +240,7 @@ gesture-card.is-held > .rr-card {
   border-radius: 1rem;
   background: var(--ink);
   color: var(--paper);
-  font: 500 0.55rem/1.4 var(--sans);
+  font: 500 max(0.55rem, 11px)/1.4 var(--sans);
   white-space: nowrap;
   transform: translateY(-50%);
   pointer-events: none;
@@ -442,7 +442,7 @@ kjv-verse.is-quoted {
   min-height: 1.9rem;
   padding: 0 0.6rem;
   white-space: nowrap;
-  font: 500 0.6rem var(--sans);
+  font: 500 max(0.6rem, 11px) var(--sans);
 }
 
 /* In the short form the version bar goes; the steps beside the heading stay,
@@ -570,7 +570,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .entity__facts {
   color: var(--ink-soft);
-  font: 600 0.55rem/1.4 var(--sans);
+  font: 600 max(0.55rem, 11px)/1.4 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -596,7 +596,7 @@ gesture-card[data-zoom='far'] .note__text {
 .entity__relations dt {
   margin-top: 0.6rem;
   color: var(--ink-soft);
-  font: 600 0.55rem/1.4 var(--sans);
+  font: 600 max(0.55rem, 11px)/1.4 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -632,7 +632,7 @@ gesture-card[data-zoom='far'] .note__text {
 .passage__versions button {
   min-height: 1.9rem;
   padding: 0 0.6rem;
-  font: 500 0.6rem var(--sans);
+  font: 500 max(0.6rem, 11px) var(--sans);
 }
 
 
@@ -691,7 +691,7 @@ gesture-card[data-zoom='far'] .note__text {
 .inter__ref {
   margin: 0 0 0.3rem;
   color: var(--ink-soft);
-  font: 600 0.55rem/1 var(--sans);
+  font: 600 max(0.55rem, 11px)/1 var(--sans);
   text-align: start;
 }
 .inter__words {
@@ -727,7 +727,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .inter__translit {
   color: var(--ink-soft);
-  font: italic 0.55rem/1.3 var(--sans);
+  font: italic max(0.55rem, 11px)/1.3 var(--sans);
 }
 .inter__gloss {
   color: var(--ink);
@@ -735,7 +735,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .inter__grammar {
   color: var(--ink-soft);
-  font: 0.5rem/1.3 var(--sans);
+  font: max(0.5rem, 11px)/1.3 var(--sans);
 }
 /* A tap on the grammar finds every word in the same form. */
 .inter__grammar[data-grammar] {
@@ -750,7 +750,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .inter__code {
   color: var(--lapis);
-  font: 600 0.5rem/1.3 var(--sans);
+  font: 600 max(0.5rem, 11px)/1.3 var(--sans);
 }
 
 /* Two translations, verse by verse. */
@@ -962,7 +962,7 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__range text {
   fill: color-mix(in srgb, var(--ochre) 85%, var(--paper));
-  font: italic 500 0.6rem var(--serif);
+  font: italic 500 max(0.6rem, 11px) var(--serif);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   paint-order: stroke;
@@ -1012,7 +1012,7 @@ gesture-card[data-zoom='far'] .note__text {
   background: color-mix(in srgb, var(--paper) 92%, transparent);
   box-shadow: 0 1px 3px var(--shade-near);
   color: var(--ink);
-  font: 600 0.6rem/1.3 var(--sans);
+  font: 600 max(0.6rem, 11px)/1.3 var(--sans);
 }
 .map__legend button {
   width: 1.8rem;
@@ -1034,6 +1034,8 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__zoom button {
   min-width: 2rem;
+  /* At least 24 px each way, the least a finger or a pointer needs. */
+  min-height: 24px;
   box-shadow: 0 1px 3px var(--shade-near);
 }
 /* A disabled button on the map stays opaque, so the map does not show
@@ -1054,7 +1056,7 @@ gesture-card[data-zoom='far'] .note__text {
   border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   color: var(--ink-soft);
-  font: 0.55rem var(--sans);
+  font: max(0.55rem, 11px) var(--sans);
   pointer-events: none;
 }
 .map__bar {
@@ -1151,7 +1153,7 @@ gesture-card[data-compare] .bsb__d {
 }
 .plate__credit {
   color: var(--ink-soft);
-  font: 0.5rem/1.4 var(--sans);
+  font: max(0.5rem, 11px)/1.4 var(--sans);
 }
 .plates {
   display: grid;
@@ -1198,7 +1200,7 @@ gesture-card[data-compare] .bsb__d {
 .discover__kicker {
   margin: 0 0 0.4rem;
   color: var(--ochre);
-  font: 700 0.55rem/1.4 var(--sans);
+  font: 700 max(0.55rem, 11px)/1.4 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1243,7 +1245,7 @@ gesture-card[data-compare] .bsb__d {
 }
 .journey__line {
   color: var(--ink-soft);
-  font: 0.55rem/1.4 var(--sans);
+  font: max(0.55rem, 11px)/1.4 var(--sans);
 }
 
 /* Word statistics in a word study. */
@@ -1325,7 +1327,7 @@ gesture-card[data-compare] .bsb__d {
 .guide__heading {
   margin: 1rem 0 0.3rem;
   color: var(--ink-soft);
-  font: 600 0.55rem/1.4 var(--sans);
+  font: 600 max(0.55rem, 11px)/1.4 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

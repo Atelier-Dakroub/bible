@@ -348,7 +348,7 @@ input[type='text'] {
 .rr-kicker {
   margin: 0;
   color: var(--ink-soft);
-  font: 600 0.55rem/1.3 var(--sans);
+  font: 600 max(0.55rem, 11px)/1.3 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -441,7 +441,7 @@ input[type='text'] {
   padding: 0.5rem 1rem 0.7rem;
   border-top: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
   color: var(--ink-soft);
-  font: 0.5rem/1.4 var(--sans);
+  font: max(0.5rem, 11px)/1.4 var(--sans);
 }
 
 /* ---- The book: the Bible text ----------------------------------------- */
@@ -510,7 +510,7 @@ input[type='text'] {
   width: 7.5rem;
   margin: 0.3em -8.5rem 0.4em 0;
   color: var(--ink-soft);
-  font: 0.6rem/1.4 var(--sans);
+  font: max(0.6rem, 11px)/1.4 var(--sans);
 }
 .rr-margin b {
   color: var(--ink);
@@ -529,7 +529,7 @@ input[type='text'] {
 .rr-label__line {
   margin: 0.2rem 0 0;
   color: var(--ink-soft);
-  font: 0.6rem/1.4 var(--sans);
+  font: max(0.6rem, 11px)/1.4 var(--sans);
   font-variant-numeric: tabular-nums;
 }
 .rr-label__text {
@@ -553,7 +553,7 @@ input[type='text'] {
   border-radius: 1rem;
   background: var(--tint);
   color: var(--ink);
-  font: 0.6rem var(--sans);
+  font: max(0.6rem, 11px) var(--sans);
 }
 .rr-see-also {
   margin: 0.8rem 0 0;
@@ -587,7 +587,7 @@ input[type='text'] {
 }
 .rr-result__ref {
   color: var(--lapis);
-  font: 600 0.6rem var(--sans);
+  font: 600 max(0.6rem, 11px) var(--sans);
 }
 .rr-result__text {
   font: calc(0.75rem * var(--read-scale)) / 1.45 var(--serif);
@@ -693,7 +693,7 @@ input[type='text'] {
   min-width: 0;
   padding: 0.35rem 0.5rem;
   background: color-mix(in srgb, var(--purple) 12%, var(--paper));
-  font: 0.55rem/1.3 var(--sans);
+  font: max(0.55rem, 11px)/1.3 var(--sans);
 }
 .rr-era:nth-child(even) {
   background: color-mix(in srgb, var(--purple) 22%, var(--paper));
@@ -732,7 +732,7 @@ input[type='text'] {
 }
 .rr-bars text {
   fill: var(--ink-soft);
-  font: 0.5rem var(--sans);
+  font: max(0.5rem, 11px) var(--sans);
 }
 
 /* ---- Panels and bars -------------------------------------------------- */

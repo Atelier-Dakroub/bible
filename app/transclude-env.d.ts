@@ -791,6 +791,7 @@ export type PassageSearchMembers = {
   }: {
     signal: any;
   }): () => void;
+  announce(results: HTMLElement): void;
   setCollapsed(collapsed: boolean): Promise<void>;
   queueSearch(): void;
   showReferences(address: string): void;
@@ -909,6 +910,7 @@ export type TimeLineMembers = {
   }: {
     signal: any;
   }): () => void;
+  rove(event: KeyboardEvent): void;
   setCollapsed(collapsed: boolean): Promise<void>;
   tickFor(id: string): HTMLElement | null;
 };

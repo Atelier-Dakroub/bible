@@ -138,8 +138,11 @@
       }, { signal });
     },
 
-    /** Closes whichever sheet is open. */
+    /** Closes whichever sheet is open; the focus, if it was in the sheet, goes to the sheet's button. */
     closeSheets() {
+      const sheet = this.querySelector('.menu__sheet:focus-within');
+      const opener = sheet?.classList.contains('menu__workspace') ? 'sheet' : sheet?.classList.contains('menu__marks') ? 'marks' : sheet ? 'reading' : '';
+      if (opener) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`.menu__bar [data-action="${opener}"]`))?.focus());
       this.open = false;
       this.marks = false;
       this.reading = false;
@@ -487,7 +490,7 @@
     margin: 0;
     padding: var(--bar-padding) var(--bar-padding) 0;
     color: var(--ink-soft);
-    font: 600 0.55rem/1.6 var(--sans);
+    font: 600 max(0.55rem, 11px)/1.6 var(--sans);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }

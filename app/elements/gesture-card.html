@@ -151,6 +151,16 @@
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('keydown', (event) => this.key(event), { signal });
       if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
+      // For a screen reader: a card, named by its heading, and the keys it
+      // takes (the page's #card-keys, where it has one).
+      if (!this.hasAttribute('role')) this.setAttribute('role', 'group');
+      this.setAttribute('aria-roledescription', 'card');
+      const heading = this.querySelector('.passage__heading, .rr-card__title, h2');
+      if (heading) {
+        heading.id ||= `card-heading-${Math.random().toString(36).slice(2, 9)}`;
+        this.setAttribute('aria-labelledby', heading.id);
+      }
+      if (document.getElementById('card-keys')) this.setAttribute('aria-describedby', 'card-keys');
     },
 
     disconnected() {

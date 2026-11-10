@@ -139,6 +139,12 @@
       this.view ??= wholeMap();
       this.points = new Map();
       if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
+      // For a screen reader: a map, and the keys it takes (the page's
+      // #map-keys, where it has one).
+      this.setAttribute('role', 'group');
+      this.setAttribute('aria-roledescription', 'map');
+      this.setAttribute('aria-label', 'Map of the biblical world');
+      if (document.getElementById('map-keys')) this.setAttribute('aria-describedby', 'map-keys');
       // A frame of the frame's own: an empty SVG over it whose units are
       // fractions of its width, so a point on the screen converts to the
       // frame however the card is turned or scaled, and whatever the map's

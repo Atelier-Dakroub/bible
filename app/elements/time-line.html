@@ -26,6 +26,7 @@
 
 <script element>
   import { isPhone } from '../lib/screen.js';
+  import { ARROWS, nearestIn } from '../lib/spatial.js';
   import { slideIn, slideOut } from '../lib/motion.js';
 
   export const state = {
@@ -34,6 +35,8 @@
   };
 
   const COLLAPSED_KEY = 'bible.timeline.collapsed';
+  // The groups the arrow keys move within, each one stop for the Tab key.
+  const ROVING = ['.timeline__tick', '.world__span'];
   const WORLD_KEY = 'bible.timeline.world';
 
   /**
@@ -96,7 +99,43 @@
         }
       }, { signal });
 
+      // The ticks are one stop for the Tab key, and the world's spans
+      // another; the arrow keys move within each (rove).
+      for (const kind of ROVING) {
+        this.querySelectorAll(kind).forEach((each, i) => {
+          /** @type {HTMLElement} */ (each).tabIndex = i === 0 ? 0 : -1;
+        });
+      }
+      this.addEventListener('keydown', (event) => this.rove(event), { signal });
+
       return () => measure.disconnect();
+    },
+
+    /**
+     * The arrow keys move the focus to the nearest tick, or span, that way;
+     * Home and End to the first and the last. The one in focus is the Tab
+     * key's stop.
+     *
+     * @param {KeyboardEvent} event
+     */
+    rove(event) {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const kind = ROVING.find((each) => target?.matches(each));
+      if (!target || !kind || event.metaKey || event.ctrlKey || event.altKey) return;
+      const items = /** @type {HTMLElement[]} */ ([...this.querySelectorAll(kind)]).filter((each) => each.getClientRects().length);
+      const direction = ARROWS[event.key];
+      /** @type {HTMLElement | null} */
+      let next = null;
+      if (direction) next = items[nearestIn(target.getBoundingClientRect(), items.map((each) => each.getBoundingClientRect()), direction)] ?? null;
+      else if (event.key === 'Home') next = items[0];
+      else if (event.key === 'End') next = items[items.length - 1];
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!next) return;
+      target.tabIndex = -1;
+      next.tabIndex = 0;
+      next.focus();
     },
 
     /**
@@ -109,11 +148,14 @@
       // has moved on.
       const step = ++this.moves;
       if (collapsed === this.collapsed) return;
+      // The focus, inside the strip as it closes, goes to its button.
+      const inside = collapsed && this.contains(document.activeElement);
       if (collapsed) {
         await slideOut(this, { y: 16 });
         if (step !== this.moves) return;
       }
       this.collapsed = collapsed;
+      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('[data-action="toggle"]'))?.focus());
       slideIn(this, collapsed ? {} : { y: 16 });
       remember(COLLAPSED_KEY, collapsed);
       // On a phone, one panel is open at a time (bible-table closes the
@@ -231,9 +273,10 @@
     font-size: 0.65rem;
     white-space: nowrap;
   }
+  /* A span is at least 24 px tall, the least a finger or a pointer needs. */
   .world__lane {
     position: relative;
-    height: 1.1rem;
+    height: max(1.1rem, 28px);
   }
   .world__span {
     position: absolute;
@@ -241,7 +284,7 @@
     left: calc(var(--at) * 100%);
     width: calc(var(--width) * 100%);
     min-width: 4px;
-    height: 0.9rem;
+    height: max(0.9rem, 24px);
     padding: 0 0.3rem;
     overflow: hidden;
     border: 0;
@@ -250,7 +293,7 @@
     box-shadow: inset -1px 0 0 var(--paper);
     background: color-mix(in srgb, var(--purple) 14%, var(--paper));
     color: var(--ink);
-    font: 0.6rem/0.9rem var(--sans);
+    font: max(0.6rem, 11px)/0.9rem var(--sans);
     text-align: start;
     white-space: nowrap;
     text-overflow: ellipsis;

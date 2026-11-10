@@ -216,6 +216,22 @@
     },
 
     /**
+     * Says what an answer found, in the status region: its summary, or its
+     * heading. The region is emptied first, so the same words are said
+     * again for a new answer.
+     *
+     * @param {HTMLElement} results
+     */
+    announce(results) {
+      const status = this.querySelector('.search__status');
+      if (!status) return;
+      const said = results.querySelector('.stats__summary, .results__summary, h2, h3, .discover p');
+      status.textContent = '';
+      const text = (said?.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (text) setTimeout(() => (status.textContent = text), 100);
+    },
+
+    /**
      * Opens or closes the panel, with a short slide from the left edge.
      *
      * @param {boolean} collapsed
@@ -225,12 +241,15 @@
       // has moved on.
       const step = ++this.moves;
       if (collapsed === this.collapsed) return;
+      // The focus, inside the panel as it closes, goes to its button.
+      const inside = collapsed && this.contains(document.activeElement);
       if (collapsed) {
         await slideOut(this, { x: -16 });
         // Opened again during the slide: the later call holds.
         if (step !== this.moves) return;
       }
       this.collapsed = collapsed;
+      if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('.search__toggle'))?.focus());
       slideIn(this, collapsed ? {} : { x: -16 });
       try {
         localStorage.setItem(COLLAPSED_KEY, String(collapsed));
@@ -370,6 +389,7 @@
       if (leaving && how !== 'typed') leaving.scroll = results.scrollTop;
       results.setHTMLUnsafe(text);
       results.scrollTop = scroll;
+      this.announce(results);
       const answer = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
       const code = answer?.dataset.code ?? '';
       const entity = answer?.dataset.entity ?? '';
@@ -752,7 +772,7 @@
     border-radius: 1.1rem;
     background: var(--tint);
     color: var(--ink);
-    font: 500 0.55rem/1 var(--sans);
+    font: 500 max(0.55rem, 11px)/1 var(--sans);
   }
   .trail__chip:hover {
     background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
@@ -788,7 +808,7 @@
     border-radius: var(--radius-small);
     background: transparent;
     color: var(--ink);
-    font: 500 0.6rem/1.2 var(--sans);
+    font: 500 max(0.6rem, 11px)/1.2 var(--sans);
     text-align: start;
   }
   .trail__row:hover {
@@ -856,4 +876,7 @@
 </nav>
 <ol class="trail__all" aria-label="The whole trail, newest first" hidden></ol>
 <touch-keys for="search-field"></touch-keys>
+<!-- What each answer found, said by a screen reader: one region that stays,
+     whose text changes (announce). -->
+<p class="visually-hidden search__status" role="status"></p>
 <div class="search__results"></div>

@@ -154,7 +154,7 @@
     margin: 0 0 0.3rem;
     padding: 0;
     color: var(--ink-soft);
-    font: 600 0.5rem/1.4 var(--sans);
+    font: 600 max(0.5rem, 11px)/1.4 var(--sans);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -176,7 +176,7 @@
     border-radius: var(--radius);
     background: var(--paper);
     color: var(--ink);
-    font: 500 0.45rem/1.2 var(--sans);
+    font: 500 max(0.45rem, 11px)/1.2 var(--sans);
   }
   .reading__grid .reading__tile:hover {
     background: var(--tint);
@@ -240,7 +240,7 @@
     height: 1.6rem;
     font: 500 1rem/1 var(--serif);
   }
-  .reading__letter--1 { font-size: 0.6rem; }
+  .reading__letter--1 { font-size: max(0.6rem, 11px); }
   .reading__letter--2 { font-size: 0.75rem; }
   .reading__letter--3 { font-size: 0.9rem; }
   .reading__letter--4 { font-size: 1.1rem; }
@@ -256,11 +256,11 @@
     place-items: center;
     border: 1px solid currentColor;
     border-radius: 3px;
-    font: 600 0.5rem/1 var(--sans);
+    font: 600 max(0.5rem, 11px)/1 var(--sans);
   }
-  .reading__button--s span { width: 1.1rem; height: 0.65rem; font-size: 0.35rem; }
-  .reading__button--m span { width: 1.35rem; height: 0.8rem; font-size: 0.42rem; }
-  .reading__button--l span { width: 1.6rem; height: 0.95rem; font-size: 0.5rem; }
+  .reading__button--s span { width: 1.1rem; height: 0.65rem; font-size: max(0.35rem, 11px); }
+  .reading__button--m span { width: 1.35rem; height: 0.8rem; font-size: max(0.42rem, 11px); }
+  .reading__button--l span { width: 1.6rem; height: 0.95rem; font-size: max(0.5rem, 11px); }
   .reading__button--xl span { width: 2rem; height: 1.2rem; font-size: 0.62rem; }
   .reading__button--far span { width: 2.3rem; height: 1.4rem; font-size: 0.75rem; }
   /* Far is for a wall; a phone has no room for it. */
@@ -292,7 +292,7 @@
   .reading__sample--numbers sup {
     margin-right: 0.05em;
     color: var(--ink-soft);
-    font: 600 0.45rem var(--sans);
+    font: 600 max(0.45rem, 11px) var(--sans);
   }
   .reading__sample--initials {
     grid-auto-flow: column;
@@ -304,7 +304,7 @@
     font: 600 1.3rem/1 var(--serif);
   }
   .reading__sample--initials span {
-    font-size: 0.6rem;
+    font-size: max(0.6rem, 11px);
     line-height: 1.6;
   }
   /* An off tile shows its sample faded, so on and off read at a glance. */
