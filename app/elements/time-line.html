@@ -230,7 +230,10 @@
     left: 1rem;
     right: 1rem;
     bottom: 1rem;
-    z-index: 1000000;
+    /* Under the table's lines (bible-table, 999999), so a line from a card
+       runs over the strip to its event's tick; over the cards at rest; under
+       the search panel and the menu (1000000). */
+    z-index: 999998;
     display: block;
     border: 1px solid var(--card-edge);
     border-radius: var(--radius);
