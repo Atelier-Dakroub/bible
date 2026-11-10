@@ -11,7 +11,9 @@ import { loaders as bsbLoaders } from './bsb/index.js';
 import { loaders as originalLoaders } from './original/index.js';
 import { journeysFor } from './journeys.js';
 import { imagesFor } from './images.js';
-import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
+import { findBook, formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
+import { codeTest, describe, parseGrammar, vocabularyOf } from '../lib/grammar.js';
+import { GROUPS } from './canon.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
@@ -29,17 +31,18 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
 /** @typedef {{ style: string, numbered?: boolean, runs: WordRun[] }} WordBlock */
 /** @typedef {{ n: number, id: string, blocks: WordBlock[], label?: string, paragraph?: boolean }} WordVerse `label` is the number to print: `2:1` for the first verse of a later chapter; `paragraph` is true where the KJV starts a paragraph (¶) */
 /** @typedef {{ text: string, hit: boolean }} Part */
-/** @typedef {{ address: string, title: string, parts: Part[] }} Result */
+/** @typedef {{ text: string, translit: string, gloss: string }} FoundWord */
+/** @typedef {{ address: string, title: string, parts: Part[], original?: FoundWord[], lang?: string, dir?: string }} Result `original` is the Hebrew or Greek words a search by grammar found in the verse, in `lang` and `dir` */
 /** @typedef {{ code: string, lemma: string, xlit: string, pron: string, def: string, kjv: string, lang: string, dir: string, count: string }} Entry */
 /**
  * How the KJV renders a Strong's number, and where, book by book. `bars` is a
  * small chart: one bar per book, in a 660 by 64 box.
  *
  * @typedef {{
- *   summary: string, renderings: { text: string, count: number }[], more: string,
+ *   summary: string, renderings: { text: string, count: number, search?: string }[], more: string,
  *   bars: { id: string, title: string, x: number, y: number, height: number }[],
  *   most: string, landscape: string
- * }} WordStats
+ * }} WordStats `renderings` are words with their counts: how the KJV renders a Strong's number, or for a search by grammar, the words it found, each with a search that narrows to it
  */
 /** @typedef {{ kind: string, value: string, label: string }} RuleOffer a rule the panel offers to mark on every card */
 /** @typedef {{ label: string, items: { id: string, name: string }[] }} Relation */
@@ -203,8 +206,8 @@ const bsbBooks = new Map();
  *
  * @typedef {{
  *   text: string, translit: string, gloss: string, s: string,
- *   code: string, grammar: string, tr: boolean
- * }} OriginalWord `s` is the Strong's number, written as the KJV data writes it, so the KJV words that render it can be found; `code` is STEPBible's grammar code and `grammar` the same in words; `tr` is true for a Greek word of the Textus Receptus that the Nestle-Aland text does not have
+ *   code: string, grammar: string, search: string, tr: boolean
+ * }} OriginalWord `s` is the Strong's number, written as the KJV data writes it, so the KJV words that render it can be found; `code` is STEPBible's grammar code and `grammar` the same in words; `search` is the code a tap on the grammar searches for; `tr` is true for a Greek word of the Textus Receptus that the Nestle-Aland text does not have
  */
 /** @typedef {{ id: string, label: string, words: OriginalWord[] }} OriginalVerse */
 
@@ -233,6 +236,186 @@ function grammarIn(code, codes) {
 }
 
 /**
+ * A book of the Hebrew or the Greek, word by word: each verse's words as
+ * [text, transliteration, gloss, Strong's, grammar code, flag].
+ *
+ * @param {string} id
+ * @returns {Promise<Record<string, (string | number)[][]>>}
+ */
+function originalBook(id) {
+  let book = originalBooks.get(id);
+  if (!book) {
+    const load = originalLoaders[/** @type {keyof typeof originalLoaders} */ (id)];
+    book = load ? load().then((module) => /** @type {Record<string, (string | number)[][]>} */ (module.default)) : Promise.resolve({});
+    originalBooks.set(id, book);
+  }
+  return book;
+}
+
+/** @returns {Promise<Record<string, string>>} the grammar codes in words */
+function grammarOf() {
+  grammarCodes ??= import('./original/grammar.json', { with: { type: 'json' } }).then((module) => module.default);
+  return grammarCodes;
+}
+
+/**
+ * The code a tap on a word's grammar searches for: a Greek word's code, or
+ * the main part of a Hebrew or Aramaic one, with its language (HVqw3ms for
+ * HC/Vqw3ms, "and he said"). The main part is the longest: the verb or
+ * noun, not the prefix or the suffix.
+ *
+ * @param {string} code
+ */
+function searchCodeOf(code) {
+  if (!/^[HA]/.test(code) || !code.includes('/')) return code;
+  const main = code.slice(1).split('/').reduce((a, b) => (b.length > a.length ? b : a), '');
+  return `${code[0]}${main}`;
+}
+
+/** @type {{ phrases: Set<string>, longest: number } | null} */
+let vocabulary = null;
+
+/**
+ * What a search by grammar asks for (lib/grammar.js), or null when the text
+ * is not one.
+ *
+ * @param {string} text
+ */
+export async function grammarQuery(text) {
+  const grammar = await grammarOf();
+  vocabulary ??= vocabularyOf(grammar);
+  return parseGrammar(text, vocabulary, {
+    books,
+    groups: GROUPS,
+    findBook: (name) => findBook(name, books),
+    parseReference: (name) => parseReference(name, books),
+  });
+}
+
+/**
+ * The words that answer a search by grammar, verse by verse in canon order:
+ * each verse's address, its words, and which of them answer.
+ *
+ * @param {import('../lib/grammar.js').GrammarQuery} query
+ * @returns {Promise<{ address: string, words: (string | number)[][], found: number[] }[]>}
+ */
+export async function grammarFind(query) {
+  const grammar = await grammarOf();
+  const test = codeTest(query, grammar);
+  const nt = books.findIndex((entry) => entry.id === 'MAT');
+  const inRef = query.ref ? new Set(versesIn(query.ref, books).map(([chapter, n]) => `${query.ref?.book}.${chapter}.${n}`)) : null;
+  const hits = [];
+  for (const [i, entry] of books.entries()) {
+    if (query.books && !query.books.has(entry.id)) continue;
+    // The language: Greek in the New Testament; in the Old, the code's
+    // first letter, H or A.
+    if (query.language === 'greek' && i < nt) continue;
+    if (query.language && query.language !== 'greek' && i >= nt) continue;
+    for (const [address, words] of Object.entries(await originalBook(entry.id))) {
+      if (inRef && !inRef.has(address)) continue;
+      /** @type {number[]} */
+      const found = [];
+      words.forEach((word, n) => {
+        const code = String(word[4]);
+        if (query.strongs && word[3] !== query.strongs) return;
+        if (query.language === 'hebrew' && !code.startsWith('H')) return;
+        if (query.language === 'aramaic' && !code.startsWith('A')) return;
+        if (test(code)) found.push(n);
+      });
+      if (found.length) hits.push({ address, words, found });
+    }
+  }
+  return hits;
+}
+
+/** @param {string | number} text */
+function bare(text) {
+  return String(text).replace(/[\s¶.,;:·;?!”’]+$/u, '');
+}
+
+/**
+ * A search by grammar: the verses with the words that answer it, the words
+ * found most often (a tap narrows the search to one), and where, book by
+ * book.
+ *
+ * @param {string} text the query as typed
+ * @param {import('../lib/grammar.js').GrammarQuery} query
+ * @param {number} [limit]
+ * @returns {Promise<Results>}
+ */
+export async function grammarResults(text, query, limit = 50) {
+  const [hits, grammar] = await Promise.all([grammarFind(query), grammarOf()]);
+  const nt = books.findIndex((entry) => entry.id === 'MAT');
+  const lemma = query.strongs ? (await entryFor(query.strongs, 0))?.xlit ?? '' : '';
+  const asked = describe(query, grammar, lemma);
+
+  /** @type {Result[]} */
+  const results = [];
+  for (const hit of hits.slice(0, limit)) {
+    const ref = parseAddress(hit.address, books);
+    if (!ref) continue;
+    const { title, verses } = await passage(ref);
+    const greek = books.findIndex((entry) => entry.id === ref.book) >= nt;
+    const codes = new Set(hit.found.map((n) => String(hit.words[n][3])));
+    results.push({
+      address: hit.address,
+      title,
+      parts: verses[0] ? markCode(verses[0], codes) : [],
+      // Each word as a word, without the stops and the paragraph mark of the
+      // text around it.
+      original: hit.found.map((n) => ({ text: bare(hit.words[n][0]), translit: String(hit.words[n][1]), gloss: bare(hit.words[n][2]) })),
+      lang: greek ? 'grc' : 'hbo',
+      dir: greek ? 'ltr' : 'rtl',
+    });
+  }
+
+  // The words found most often, by Strong's number, and where.
+  /** @type {Map<string, number>} */
+  const perWord = new Map();
+  /** @type {Map<string, number>} */
+  const perBook = new Map();
+  let total = 0;
+  for (const hit of hits) {
+    const id = hit.address.split('.')[0];
+    for (const n of hit.found) {
+      const code = String(hit.words[n][3]);
+      if (code) perWord.set(code, (perWord.get(code) ?? 0) + 1);
+      perBook.set(id, (perBook.get(id) ?? 0) + 1);
+      total += 1;
+    }
+  }
+  const top = [...perWord].sort((x, y) => y[1] - x[1]).slice(0, 12);
+  const renderings = [];
+  if (!query.strongs) {
+    for (const [code, count] of top) {
+      const entry = await entryFor(code, 0);
+      // The narrower search: the same, with the Strong's number before the
+      // scope.
+      const search = text.replace(/^(.*?)(\s+in\s+.+)?$/i, (_, words, scope = '') => `${words} ${code}${scope}`);
+      renderings.push({ text: entry ? `${entry.lemma} ${entry.xlit}` : code, count, search });
+    }
+  }
+  const words = total === 1 ? '1 word' : `${total.toLocaleString('en')} words`;
+  const { bars, most } = bookBars(perBook);
+  const stats = total
+    ? {
+        summary: `${asked}: ${words} in ${verseCount(hits.length)}, in ${perBook.size === 1 ? '1 book' : `${perBook.size} books`}.`,
+        renderings,
+        more: perWord.size > top.length && !query.strongs ? `and ${(perWord.size - top.length).toLocaleString('en')} more words` : '',
+        bars,
+        most,
+        landscape: `landscape:grammar:${text}`,
+      }
+    : null;
+  const summary = !total
+    ? `${asked}: no words match.`
+    : results.length < hits.length
+      ? `The first ${results.length} verses, in canon order.`
+      : 'Every verse, in canon order.';
+  return answer({ query: text, summary, results, stats, landscape: stats ? stats.landscape : '' });
+}
+
+/**
  * A passage in its original language: the Hebrew (with Aramaic in Daniel and
  * Ezra) for the Old Testament, the Greek the KJV translated for the New.
  * Verses are numbered as the KJV numbers them.
@@ -241,14 +424,7 @@ function grammarIn(code, codes) {
  * @returns {Promise<{ title: string, language: 'hebrew' | 'greek', verses: OriginalVerse[] }>}
  */
 export async function original(ref) {
-  let book = originalBooks.get(ref.book);
-  if (!book) {
-    const load = originalLoaders[/** @type {keyof typeof originalLoaders} */ (ref.book)];
-    book = load().then((module) => /** @type {Record<string, (string | number)[][]>} */ (module.default));
-    originalBooks.set(ref.book, book);
-  }
-  grammarCodes ??= import('./original/grammar.json', { with: { type: 'json' } }).then((module) => module.default);
-  const [words, codes] = await Promise.all([book, grammarCodes]);
+  const [words, codes] = await Promise.all([originalBook(ref.book), grammarOf()]);
   const covered = versesIn(ref, books);
   const language = index.findIndex((entry) => entry.id === 'MAT') <= index.findIndex((entry) => entry.id === ref.book) ? 'greek' : 'hebrew';
   return {
@@ -266,6 +442,7 @@ export async function original(ref) {
           s: String(s),
           code: String(code),
           grammar: grammarIn(String(code), codes),
+          search: searchCodeOf(String(code)),
           tr: tr === 1,
         })),
       };
@@ -502,6 +679,27 @@ export async function wordStats(code, found) {
   const sorted = [...renderings].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
   const shown = sorted.slice(0, 12).map(([text, count]) => ({ text, count }));
   const rest = sorted.length - shown.length;
+  const { bars, most } = bookBars(perBook);
+  const stats = {
+    summary: `${times(total)} in ${verseCount(found.length)}, in ${perBook.size === 1 ? '1 book' : `${perBook.size} books`}.`,
+    renderings: shown,
+    more: rest > 0 ? `and ${rest} more` : '',
+    bars,
+    most,
+    landscape: `landscape:${code}`,
+  };
+  statsCache.set(code, stats);
+  if (statsCache.size > 20) statsCache.delete(statsCache.keys().next().value ?? '');
+  return stats;
+}
+
+/**
+ * A small chart of counts by book: one bar per book, in a 660 by 64 box, and
+ * the three books with the most, in words.
+ *
+ * @param {Map<string, number>} perBook
+ */
+function bookBars(perBook) {
   const max = Math.max(1, ...perBook.values());
   const bars = books.map((entry, i) => {
     const count = perBook.get(entry.id) ?? 0;
@@ -510,17 +708,8 @@ export async function wordStats(code, found) {
   });
   const top = [...perBook].sort((x, y) => y[1] - x[1]).slice(0, 3);
   const name = (/** @type {string} */ id) => books.find((entry) => entry.id === id)?.name ?? id;
-  const stats = {
-    summary: `${times(total)} in ${verseCount(found.length)}, in ${perBook.size === 1 ? '1 book' : `${perBook.size} books`}.`,
-    renderings: shown,
-    more: rest > 0 ? `and ${rest} more` : '',
-    bars,
-    most: top.length ? `Most in ${top.map(([id, count]) => `${name(id)} (${count})`).join(', ')}.` : '',
-    landscape: `landscape:${code}`,
-  };
-  statsCache.set(code, stats);
-  if (statsCache.size > 20) statsCache.delete(statsCache.keys().next().value ?? '');
-  return stats;
+  const most = top.length ? `Most in ${top.map(([id, count]) => `${name(id)} (${count})`).join(', ')}.` : '';
+  return { bars, most };
 }
 
 /** @param {number} count */
@@ -529,10 +718,11 @@ function times(count) {
 }
 
 /**
- * A verse's words as parts, with the words that render `code` marked.
+ * A verse's words as parts, with the words that render `code` marked: one
+ * Strong's number, or any of several.
  *
  * @param {WordVerse} verse
- * @param {string} code
+ * @param {string | Set<string>} code
  * @returns {Part[]}
  */
 function markCode(verse, code) {
@@ -541,7 +731,7 @@ function markCode(verse, code) {
   for (const block of verse.blocks) {
     for (const run of block.runs) {
       for (const token of run.tokens) {
-        const hit = token.s === code;
+        const hit = typeof code === 'string' ? token.s === code : code.has(token.s ?? '');
         const last = parts.at(-1);
         if (last && last.hit === hit) last.text += token.text;
         else parts.push({ text: token.text, hit });
@@ -934,6 +1124,15 @@ export async function search(query, limit = 50) {
 
   const ref = parseReference(text, books);
   if (ref) return referenceResult(text, ref);
+
+  // Words of the grammar, such as "aorist imperative in John", search the
+  // Hebrew and Greek (lib/grammar.js). One word alone that the KJV also
+  // has, such as "perfect", is a search of the text.
+  const grammar = await grammarQuery(text);
+  if (grammar) {
+    const alone = grammar.terms.length === 1 && !grammar.code && !grammar.strongs && !grammar.language && !grammar.scope;
+    if (!alone || !(await matching(text)).first.length) return grammarResults(text, grammar, limit);
+  }
 
   const { first, rest, marker } = await matching(text);
   const total = first.length + rest.length;

@@ -321,7 +321,7 @@
             <span class="inter__text">${word.text}</span>
             <span class="inter__translit" lang="en" dir="ltr">${word.translit}</span>
             <span class="inter__gloss" lang="en" dir="ltr">${word.gloss}</span>
-            <span class="inter__grammar" lang="en" dir="ltr">${word.grammar}</span>
+            <span class="inter__grammar" lang="en" dir="ltr" data-grammar="${word.search}" title="Find every word in this form">${word.grammar}</span>
             <span class="inter__code" lang="en" dir="ltr">${word.s}${word.tr ? ' · TR only' : ''}</span>
           </li>
         </ol>

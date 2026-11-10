@@ -107,7 +107,7 @@ export function formatReference(ref, books) {
  * @param {string} text
  * @param {BookEntry[]} books
  */
-function findBook(text, books) {
+export function findBook(text, books) {
   const key = normalize(text.replace(/^(iii|ii|i)\s+/i, (numeral) => String(numeral.trim().length)));
   if (key.length < 2) return null;
 

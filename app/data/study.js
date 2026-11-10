@@ -12,7 +12,7 @@
 
 import parallelList from './parallels.json' with { type: 'json' };
 import { AUTHORS, CANON_CREDIT, GROUPS } from './canon.js';
-import { answer, books, entityView, matching, passage, preview, referenceBook, strongsBook, verseCount } from './bible.js';
+import { answer, books, entityView, grammarFind, grammarQuery, matching, passage, preview, referenceBook, strongsBook, verseCount } from './bible.js';
 import { entities, entity, formatYear, namedIn } from './entities.js';
 import { onMap } from '../lib/map.js';
 import { formatReference, parseAddress, toAddress, versesIn } from '../lib/reference.js';
@@ -278,7 +278,8 @@ function usesIn(codes, code) {
  * How often the subject occurs in each chapter, as `BOOK.chapter` to a count,
  * with words for the summary. Null for a subject the data does not have.
  *
- * @param {string} subject a Strong's number, an entity id, or text:<words>
+ * @param {string} subject a Strong's number, an entity id, text:<words>, or
+ *   grammar:<a search by grammar>
  */
 async function countsFor(subject) {
   /** @type {Map<string, number>} */
@@ -300,6 +301,13 @@ async function countsFor(subject) {
     }
     if (!counts.size) return null;
     return { counts, title: `Where ${subject} occurs`, unit: 'times' };
+  }
+  if (subject.startsWith('grammar:')) {
+    const text = subject.slice(8).trim();
+    const query = text ? await grammarQuery(text) : null;
+    if (!query) return null;
+    for (const hit of await grammarFind(query)) add(hit.address, hit.found.length);
+    return { counts, title: `Where: ${text[0].toUpperCase()}${text.slice(1)}`, unit: 'times' };
   }
   if (subject.startsWith('text:')) {
     const text = subject.slice(5).trim();

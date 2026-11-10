@@ -870,6 +870,13 @@
         this.editNote(note.dataset.note ?? '');
         return;
       }
+      // The grammar of a word of the Hebrew or the Greek: find every word in
+      // the same form (lib/grammar.js).
+      const form = element?.closest('[data-grammar]');
+      if (form instanceof HTMLElement && form.dataset.grammar) {
+        panel?.searchFor(form.dataset.grammar);
+        return;
+      }
       // A word of the Hebrew or the Greek: study its Strong's number. The
       // study underlines the KJV words that render it on every card.
       const orig = element?.closest('[data-orig-s]');

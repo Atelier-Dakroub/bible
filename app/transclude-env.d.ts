@@ -215,6 +215,14 @@ type Result = {
   address: string;
   title: string;
   parts: Part[];
+  original?: FoundWord[] | undefined;
+  lang?: string | undefined;
+  dir?: string | undefined;
+};
+type FoundWord = {
+  text: string;
+  translit: string;
+  gloss: string;
 };
 type Entry = {
   code: string;
@@ -232,6 +240,7 @@ type WordStats = {
   renderings: {
     text: string;
     count: number;
+    search?: string | undefined;
   }[];
   more: string;
   bars: {
@@ -1095,6 +1104,7 @@ export type DesignData = {
     renderings: {
       text: string;
       count: number;
+      search?: string | undefined;
     }[];
     bars: {
       id: string;

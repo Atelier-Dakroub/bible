@@ -52,6 +52,7 @@
     if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
     if (results.entry) return { label: `${results.entry.code} ${results.entry.xlit}`, kind: 'word' };
     if (results.dictionary) return { label: results.dictionary.term, kind: 'word' };
+    if (results.landscape.startsWith('landscape:grammar:')) return { label: q, kind: 'grammar' };
     if (refs) {
       const ref = parseAddress(refs, books);
       return { label: `${ref ? formatReference(ref, books) : refs}, cross-references`, kind: 'refs' };
@@ -140,11 +141,13 @@
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
     </section>
-    <!-- Word statistics: how the KJV renders the word, and where it occurs. -->
-    <section if="stats" class="stats" aria-label="How the KJV renders it">
+    <!-- Word statistics: how the KJV renders the word, and where it occurs;
+         or for a search by grammar, the words it found (a tap narrows the
+         search to one), and where. -->
+    <section if="stats" class="stats" aria-label="The words, and where they occur">
       <p class="stats__summary">${stats ? stats.summary : ''}</p>
       <ol class="stats__renderings">
-        <li each="rendering of stats ? stats.renderings : []"><span>${rendering.text}</span> <span class="stats__count">${rendering.count}</span></li>
+        <li each="rendering of stats ? stats.renderings : []"><button if="rendering.search" type="button" class="entity__link stats__word" data-search="${rendering.search}">${rendering.text}</button><span else>${rendering.text}</span> <span class="stats__count">${rendering.count}</span></li>
         <li if="stats && stats.more" class="stats__more">${stats ? stats.more : ''}</li>
       </ol>
       <svg class="stats__bars" viewBox="0 0 660 88" role="img" aria-label="${stats ? stats.most : ''}">
@@ -240,6 +243,10 @@
       <li each="result of results">
         <button type="button" class="result" data-address="${result.address}">
           <span class="result__title">${result.title}</span>
+          <span if="result.original" class="result__original"
+            ><template each="word of result.original ? result.original : []"
+              ><span class="result__found"><span class="result__word" lang="${result.lang}" dir="${result.dir}">${word.text}</span> <span class="result__gloss">${word.translit} · ${word.gloss}</span></span></template
+          ></span>
           <span class="result__text"
             ><template each="part of result.parts"><mark if="part.hit">${part.text}</mark><span else>${part.text}</span></template
           ></span>

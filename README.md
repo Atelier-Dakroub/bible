@@ -204,7 +204,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
@@ -298,6 +298,32 @@ and the KJV line up. The Hebrew is the Leningrad text with the Qere; the
 Greek is the Textus Receptus, the text the KJV translated, and a word the
 Nestle-Aland text does not have has a dotted ochre line. Verses are numbered
 as the KJV numbers them.
+
+### Search by grammar
+
+The search field also takes the words of the grammar (`app/lib/grammar.js`),
+in any order, with a scope at the end:
+
+| Search | Finds |
+| --- | --- |
+| `aorist imperative in John` | every aorist imperative in John |
+| `wayyiqtol in Ruth` | every consecutive imperfect (also `qal consecutive imperfect third masculine singular`) |
+| `G26 accusative` | agapē in the accusative |
+| `first person plural aorist subjunctive in the gospels` | "let us ..." in the Gospels |
+| `aramaic verb in Daniel` | the verbs of Daniel's Aramaic |
+| `V-AAM-2S`, `V-AAM`, `HVqw3ms` | STEPBible's own codes: Greek, or the start of one; Hebrew |
+
+A scope is a book, a chapter (`Romans 8`), a group (the Law, the Gospels,
+Paul, the Prophets) or a testament (the OT, the NT). A word matches the
+values that hold it: "aorist" finds the 2nd aorist too, "middle" the middle
+deponents, "pronoun" every pronoun; but "imperfect" is not the wayyiqtol.
+One word alone that the KJV also has, such as "perfect", searches the text.
+
+The answer lists the words found most often (a tap narrows the search to
+one), where they are, book by book, and each verse with the Hebrew or Greek
+words found and the KJV words that render them underlined. "Where, chapter
+by chapter" puts its landscape on the table. On a Word by word card, a tap
+on a word's grammar finds every word in that form.
 
 The data is STEPBible's Translators Amalgamated Hebrew OT and Greek NT, with
 its grammar code lists (CC BY 4.0, from Tyndale House, Cambridge), built
