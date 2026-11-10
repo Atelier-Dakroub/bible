@@ -141,6 +141,7 @@
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
     </section>
+    <p if="also.length" class="results__also">${entry ? 'Also written so' : 'The word of the original'}: <button each="other of also" type="button" class="entity__link" data-search="${other.code}">${other.label}</button></p>
     <!-- Word statistics: how the KJV renders the word, and where it occurs;
          or for a search by grammar, the words it found (a tap narrows the
          search to one), and where. -->

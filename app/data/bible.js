@@ -13,6 +13,7 @@ import { journeysFor } from './journeys.js';
 import { imagesFor } from './images.js';
 import { findBook, formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { codeTest, describe, parseGrammar, vocabularyOf } from '../lib/grammar.js';
+import { SAID, lemmaIndex, plain } from '../lib/lemma.js';
 import { GROUPS } from './canon.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
@@ -69,6 +70,8 @@ import kings from './chronology/kings.json' with { type: 'json' };
  *               part of (data/journeys.js)
  *   seeAlso     the people, places, groups and events named most often in
  *               the same verses as the entity: its "See also"
+ *   also        other words a search by a word's name could mean, such as
+ *               H2618 beside H2617 for "chesed", each with its search
  *   images      pictures of the entity, or of the people and places of a
  *               guide's passage (data/images.js)
  *
@@ -79,7 +82,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
  *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
- *   images: import('./images.js').Image[]
+ *   images: import('./images.js').Image[], also: { code: string, label: string }[]
  * }} Results
  */
 
@@ -107,6 +110,7 @@ export function answer(fields) {
     journeys: [],
     seeAlso: [],
     images: [],
+    also: [],
     ...fields,
   };
 }
@@ -629,6 +633,37 @@ export async function strongsResults(code, limit = 50) {
   return answer({ query: code, summary, results, entry, stats, rule, landscape: stats ? stats.landscape : '' });
 }
 
+/** @type {Map<string, string[]> | null} */
+let lemmas = null;
+/** @type {Map<string, number> | null} how many verses use each Strong's number */
+let used = null;
+
+/**
+ * The Strong's numbers a word of the original may be, as it is said (agape,
+ * chesed), the most used first.
+ *
+ * @param {string} text
+ * @returns {Promise<string[]>}
+ */
+export async function lemmaCodes(text) {
+  const said = SAID[text.toLowerCase()];
+  if (said) return [said];
+  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  lemmas ??= lemmaIndex(/** @type {Record<string, { xlit: string }>} */ (await lexicon));
+  const codes = lemmas.get(plain(text)) ?? [];
+  if (codes.length < 2) return codes;
+  if (!used) {
+    /** @type {Map<string, number>} */
+    const counts = new Map();
+    for (const each of await Promise.all(books.map((entry) => strongsBook(entry.id)))) {
+      for (const verse of Object.values(each)) for (const code of new Set(verse.split(' '))) counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+    used = counts;
+  }
+  const count = /** @type {Map<string, number>} */ (used);
+  return [...codes].sort((a, b) => (count.get(b) ?? 0) - (count.get(a) ?? 0));
+}
+
 /** @type {Map<string, WordStats>} the last few studied, as the panel goes back and forth */
 const statsCache = new Map();
 
@@ -1146,6 +1181,19 @@ export async function search(query, limit = 50) {
     if (!alone || !(await matching(text)).first.length) return grammarResults(text, grammar, limit);
   }
 
+  // A word of the original as it is said, such as agape or chesed, that
+  // the KJV does not have: its word study (lib/lemma.js).
+  if (/^[\p{L}ʼʻ'’-]+$/u.test(text) && !(await matching(text)).first.length) {
+    const codes = await lemmaCodes(text);
+    if (codes.length) {
+      const [first, ...rest] = codes;
+      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      const known = await lexicon;
+      const also = rest.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
+      return { ...(await strongsResults(first, limit)), also };
+    }
+  }
+
   const { first, rest, marker } = await matching(text);
   const total = first.length + rest.length;
 
@@ -1154,7 +1202,19 @@ export async function search(query, limit = 50) {
     .slice(0, limit)
     .map((verse) => ({ address: verse.address, title: verse.title, parts: mark(verse.text, marker) }));
 
-  return answer({ query: text, summary: summarize(total, results.length), results, landscape: total ? `landscape:text:${text}` : '' });
+  // A word the KJV has that is also a word of the original as it is said,
+  // such as amen, or Chesed (a name, and chesed): its word studies too.
+  /** @type {{ code: string, label: string }[]} */
+  let also = [];
+  if (/^[\p{L}ʼʻ'’-]+$/u.test(text)) {
+    const codes = await lemmaCodes(text);
+    if (codes.length) {
+      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      const known = await lexicon;
+      also = codes.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
+    }
+  }
+  return answer({ query: text, summary: summarize(total, results.length), results, also, landscape: total ? `landscape:text:${text}` : '' });
 }
 
 /**

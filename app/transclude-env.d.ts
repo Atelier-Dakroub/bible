@@ -1315,6 +1315,10 @@ export type SearchData = __Shape<{
     kind: string;
   }[];
   images: Image[];
+  also: {
+    code: string;
+    label: string;
+  }[];
   trail: {
     label: string;
     kind: string;
@@ -1345,6 +1349,10 @@ export type SearchData = __Shape<{
     kind: string;
   }[];
   images: Image[];
+  also: {
+    code: string;
+    label: string;
+  }[];
   trail: {
     label: string;
     kind: string;

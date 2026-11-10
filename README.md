@@ -339,6 +339,17 @@ Greek is the Textus Receptus, the text the KJV translated, and a word the
 Nestle-Aland text does not have has a dotted ochre line. Verses are numbered
 as the KJV numbers them.
 
+### Search by a word's name
+
+A word of the original typed as it is said, such as `agape`, `chesed`,
+`shalom`, `logos`, `nephesh` or `Yahweh`, opens its word study
+(`app/lib/lemma.js`): what is typed and Strong's transliterations (agápē,
+chêçêd, shâlôwm) are brought to one plain spelling, without accents, and
+with the usual variants made one (ch and h, th and t, ow and o, q and k).
+Where the spelling fits several words, the most used opens and the others
+are offered. A word the KJV also has, such as `amen` or the name Chesed,
+searches the text, and offers the words of the original beside it.
+
 ### Search by grammar
 
 The search field also takes the words of the grammar (`app/lib/grammar.js`),

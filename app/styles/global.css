@@ -1343,6 +1343,18 @@ gesture-card[data-compare] .bsb__d {
   color: var(--ink-soft);
   font: max(0.55rem, 11px)/1.4 var(--sans);
 }
+/* Other words a search by a word's name could mean. */
+.results__also {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--ink-soft);
+  font: max(0.6rem, 11px)/1.4 var(--sans);
+}
+
 /* What a route rests on: who proposes it, or what text. */
 .journey__basis {
   color: var(--ink-soft);
