@@ -19,6 +19,7 @@ import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
 import { citations } from '../lib/citations.js';
+import { topic, topicFor } from './topics.js';
 
 /** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
@@ -81,6 +82,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
  *   query: string, summary: string, results: Result[], entry: Entry | null,
  *   stats: WordStats | null, entity: EntityView | null,
  *   dictionary: { term: string, text: string, parts: import('../lib/citations.js').Part[] } | null,
+ *   topic: import('./topics.js').TopicView | null, topicOpen: boolean,
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
  *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
@@ -102,6 +104,8 @@ export function answer(fields) {
     entry: null,
     entity: null,
     dictionary: null,
+    topic: null,
+    topicOpen: false,
     refsFor: '',
     refsTitle: '',
     studyCode: '',
@@ -1275,7 +1279,11 @@ export async function search(query, limit = 50) {
       also = codes.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
     }
   }
-  return answer({ query: text, summary: summarize(total, results.length), results, also, landscape: total ? `landscape:text:${text}` : '' });
+  // A word that names a topic of Nave's, such as prayer: the topic too,
+  // closed above the verses (data/topics.js).
+  const topicKey = await topicFor(text);
+  const named = topicKey ? await topic(topicKey) : null;
+  return answer({ query: text, summary: summarize(total, results.length), results, also, topic: named, topicOpen: Boolean(named) && !total, landscape: total ? `landscape:text:${text}` : '' });
 }
 
 /**

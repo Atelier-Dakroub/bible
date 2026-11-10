@@ -1,6 +1,6 @@
 <script server>
   import { answer, books, entityResults, referenceResults, search, wordResults, worldResults } from '../data/bible.js';
-  import { guideResults } from '../data/study.js';
+  import { guideResults, topicResults } from '../data/study.js';
   import { quotationResults } from '../data/quotations.js';
   import { didYouKnow } from '../data/facts.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
@@ -25,6 +25,8 @@
     // a New Testament verse quotes, or the New Testament passages that
     // quote an Old Testament verse (data/quotations.js).
     const quotes = params.get('quotes');
+    // `topic` shows a topic of Nave's Topical Bible, such as PRAYER.
+    const topicKey = params.get('topic');
     const q = (params.get('q') ?? '').trim();
     // `discover` shows a "Did you know?" (data/facts.js): that number, or a
     // random one. It is not a step on the trail.
@@ -44,7 +46,9 @@
               ? await referenceResults(refs)
               : quotes
                 ? await quotationResults(quotes)
-                : await search(q);
+                : topicKey
+                  ? await topicResults(topicKey)
+                  : await search(q);
     return { ...results, trail: trailOf(results, { refs, quotes, q }), fact: null, next: 0 };
   };
 
@@ -59,6 +63,7 @@
     if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
     if (results.entry) return { label: `${results.entry.code} ${results.entry.xlit}`, kind: 'word' };
     if (results.dictionary) return { label: results.dictionary.term, kind: 'word' };
+    if (results.topic && !q) return { label: results.topic.name, kind: 'topic' };
     if (results.landscape.startsWith('landscape:grammar:')) return { label: q, kind: 'grammar' };
     if (refs) {
       const ref = parseAddress(refs, books);
@@ -240,6 +245,8 @@
         <dd if="guide && guide.places.length"><button each="item of guide ? guide.places : []" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
         <dt if="guide && guide.groups.length">Groups</dt>
         <dd if="guide && guide.groups.length"><button each="item of guide ? guide.groups : []" type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></dd>
+        <dt if="guide && guide.topics.length">Topics</dt>
+        <dd if="guide && guide.topics.length"><button each="item of guide ? guide.topics : []" type="button" class="entity__link" data-topic="${item.key}">${item.name}</button></dd>
         <dt if="guide && guide.events.length">Events, on the timeline</dt>
         <dd if="guide && guide.events.length"><button each="event of guide ? guide.events : []" type="button" class="entity__link" data-entity="${event.id}">${event.title}, ${event.label}</button></dd>
       </dl>
@@ -262,6 +269,16 @@
     </section>
     <button if="studyCode" type="button" class="results__switch" data-strongs="${studyCode}">Original word: ${studyCode}</button>
     <button if="refsFor" type="button" class="results__switch" data-refs="${refsFor}">Cross-references of ${refsTitle}</button>
+    <!-- A topic of Nave's Topical Bible (data/topics.js): open as a view of
+         its own, closed above the verses of a search that names it. Each
+         reference is a link, as in a dictionary entry. -->
+    <details if="topic" class="topic" open="${topicOpen}">
+      <summary class="topic__summary"><span class="topic__name">${topic ? topic.name : ''}</span> <span class="topic__count">Topic · ${topic ? topic.count.toLocaleString('en') : 0} references</span></summary>
+      <ul class="topic__lines">
+        <li each="line of topic ? topic.lines : []" class="topic__line topic__line--d${line.depth > 2 ? 2 : line.depth}"><span if="line.label" class="topic__label">${line.label}</span> <template each="part of line.parts"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template><button if="line.see" type="button" class="entity__link topic__see" data-topic="${line.see}">See ${line.seeName}</button><span if="!line.see && line.seeName" class="topic__see">See ${line.seeName}</span></li>
+      </ul>
+      <p class="entity__credit">Nave's Topical Bible (1896), public domain; from Brady Stephenson's bible-data (CC BY 4.0).</p>
+    </details>
     <p if="summary" class="results__summary">${summary}</p>
     <button if="landscape && !entity && !stats" type="button" class="results__switch result--pull" data-address="${landscape}">Where, chapter by chapter</button>
     <ol class="results__list">

@@ -47,7 +47,7 @@ test('the MCP server lists its tools and answers from the data', async () => {
     answers.get(2).result.tools.map((/** @type {{ name: string }} */ tool) => tool.name),
     [
       'table_state', 'table_place', 'table_guide', 'table_search', 'table_show_entity', 'table_show_places', 'table_show_journey', 'table_mark', 'table_clear', 'table_undo',
-      'search', 'passage', 'word_study', 'entity', 'cross_references', 'quotations', 'journeys', 'passage_guide',
+      'search', 'passage', 'word_study', 'entity', 'cross_references', 'quotations', 'journeys', 'topic', 'passage_guide',
     ],
   );
   const quoted = answers.get(3).result;

@@ -72,6 +72,7 @@
   const PICTOGRAMS = {
     search: 'search',
     grammar: 'word',
+    topic: 'search',
     passage: 'passage',
     refs: 'passage',
     word: 'word',
@@ -128,6 +129,8 @@
         if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
         const link = target?.closest('button[data-entity]');
         if (link instanceof HTMLElement && link.dataset.entity) this.showEntity(link.dataset.entity);
+        const topic = target?.closest('button[data-topic]');
+        if (topic instanceof HTMLElement && topic.dataset.topic) this.showTopic(topic.dataset.topic);
         const onMap = target?.closest('[data-show-map]');
         if (onMap instanceof HTMLElement && onMap.dataset.showMap) {
           this.dispatchEvent(new CustomEvent('show-on-map', { bubbles: true, detail: { ids: onMap.dataset.showMap } }));
@@ -296,6 +299,14 @@
       input.value = '';
       if (this.collapsed) this.setCollapsed(false);
       this.run(new URLSearchParams({ entity: id, fragment: 'results' }), 'open');
+    },
+
+    /** @param {string} key a topic of Nave's Topical Bible, such as PRAYER */
+    showTopic(key) {
+      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      input.value = '';
+      if (this.collapsed) this.setCollapsed(false);
+      this.run(new URLSearchParams({ topic: key, fragment: 'results' }), 'open');
     },
 
     /** @param {string} address a word address */

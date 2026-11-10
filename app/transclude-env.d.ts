@@ -281,6 +281,19 @@ type Relation = {
     name: string;
   }[];
 };
+type TopicView = {
+  key: string;
+  name: string;
+  lines: Line[];
+  count: number;
+};
+type Line = {
+  depth: number;
+  label: string;
+  parts: Part_2[];
+  see: string;
+  seeName: string;
+};
 type Guide_2 = {
   address: string;
   title: string;
@@ -300,6 +313,10 @@ type Guide_2 = {
   }[];
   mapIds: string;
   credit: string;
+  topics: {
+    key: string;
+    name: string;
+  }[];
 };
 type Named = {
   id: string;
@@ -919,6 +936,7 @@ export type PassageSearchMembers = {
   showReferences(address: string): void;
   showQuotes(address: string): void;
   showEntity(id: string): void;
+  showTopic(key: string): void;
   showWord(address: string): void;
   showGuide(address: string, notes: {
     id: string;
@@ -1401,6 +1419,8 @@ export type SearchData = __Shape<{
     text: string;
     parts: Part_2[];
   } | null;
+  topic: TopicView | null;
+  topicOpen: boolean;
   refsFor: string;
   refsTitle: string;
   studyCode: string;
@@ -1436,6 +1456,8 @@ export type SearchData = __Shape<{
     text: string;
     parts: Part_2[];
   } | null;
+  topic: TopicView | null;
+  topicOpen: boolean;
   refsFor: string;
   refsTitle: string;
   studyCode: string;

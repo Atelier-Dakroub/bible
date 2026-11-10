@@ -394,6 +394,32 @@ Amalgamated OT+NT" and "Morphology codes"). The fonts are Ezra SIL for
 Hebrew and Gentium Plus for Greek (SIL Open Font License), in
 `app/public/fonts`.
 
+## Topics
+
+`app/data/topics.json` is Nave's Topical Bible (Orville J. Nave, 1896, public
+domain): 5,319 topics, each with its headings and about 76,000 references in
+all. It comes from the CSV file in Brady Stephenson's
+[bible-data](https://github.com/BradyStephenson/bible-data) (CC BY 4.0), and
+`tools/import-topics.js` writes it:
+
+```sh
+node tools/import-topics.js <NavesTopicalDictionary.csv>
+```
+
+- **A search that names a topic** ("prayer", "forgiveness", "Aaron") shows
+  the topic, closed, above the verses. A tap opens it: each heading with its
+  references as links, as in a dictionary entry, and "See" links to the
+  topics it sends the reader to.
+- **The passage guide** lists the topics that cite the passage, those that
+  cite it most first; a tap opens one.
+- **The MCP server's `topic` tool** gives a topic, or the topics that cite
+  a passage.
+
+The source writes the names and headings in capitals. The import writes them
+in small letters, and a word keeps its capital where the entries write it
+with one more often than without ("Jesus", "Moses"). A reference to a verse
+that the KJV does not number (58 of them) stays text.
+
 ## References in the text
 
 The text of Easton's dictionary and of an entry's summary names verses, as

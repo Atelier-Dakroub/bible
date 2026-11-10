@@ -20,6 +20,7 @@ import { parseSpanAddress } from '../lib/words.js';
 import { journeysFor } from './journeys.js';
 import { imagesOf } from './images.js';
 import { CREDIT as QUOTATIONS, quotationsOf } from './quotations.js';
+import { CREDIT as TOPICS, topic, topicsOf } from './topics.js';
 
 /** @typedef {import('./bible.js').Result} Result */
 /** @typedef {import('./bible.js').Results} Results */
@@ -35,7 +36,7 @@ import { CREDIT as QUOTATIONS, quotationsOf } from './quotations.js';
  *   references: Result[], referenceSummary: string,
  *   people: Named[], places: Named[], groups: Named[],
  *   events: { id: string, title: string, label: string }[],
- *   mapIds: string, credit: string
+ *   mapIds: string, credit: string, topics: { key: string, name: string }[]
  * }} Guide
  */
 
@@ -216,6 +217,7 @@ export async function guideResults(address) {
     'Parallels are runs of cross-references, verse after verse in the same order; quotations of one verse are not found this way.',
     "Cross-references: OpenBible.info (CC BY). People, places and events: Theographic (CC BY-SA); dates follow Floyd Nolen Jones's chronology.",
     QUOTATIONS,
+    TOPICS,
   ].join(' ');
 
   /** @type {Guide} */
@@ -234,6 +236,7 @@ export async function guideResults(address) {
     events,
     mapIds,
     credit,
+    topics: await topicsOf(toAddress(ref)),
   };
   return answer({
     summary: `Guide to ${title}: ${verseCount(ids.length)}.`,
@@ -438,4 +441,15 @@ function booksLandscape() {
     groups,
     credit: CANON_CREDIT,
   };
+}
+
+/**
+ * A topic of Nave's Topical Bible, open, as a view of its own.
+ *
+ * @param {string} key such as PRAYER
+ * @returns {Promise<Results>}
+ */
+export async function topicResults(key) {
+  const found = await topic(key);
+  return found ? answer({ topic: found, topicOpen: true }) : answer({ summary: 'There is no such topic.' });
 }

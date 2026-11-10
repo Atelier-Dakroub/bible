@@ -19,7 +19,7 @@
 /** @typedef {{ query: string, label: string, kind: string, typed?: string, scroll?: number }} Step `typed` is the text in the search field, for a typed search; `scroll`, where its list was scrolled to, is kept only while the page is open */
 /** @typedef {{ steps: Step[], index: number }} Trail `index` is the step on show, or -1 */
 
-export const KINDS = ['search', 'passage', 'refs', 'word', 'person', 'place', 'group', 'event', 'world'];
+export const KINDS = ['search', 'grammar', 'topic', 'passage', 'refs', 'word', 'person', 'place', 'group', 'event', 'world'];
 export const MAX_STEPS = 50;
 
 /** @returns {Trail} */

@@ -27,6 +27,7 @@ import { entities, formatYear } from '../app/data/entities.js';
 import { journeysFor } from '../app/data/journeys.js';
 import { quotationResults } from '../app/data/quotations.js';
 import { guideResults } from '../app/data/study.js';
+import { CREDIT as TOPICS, topic, topicFor, topicsOf } from '../app/data/topics.js';
 import { formatReference, parseAddress, parseReference, toAddress } from '../app/lib/reference.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -416,6 +417,33 @@ const TOOLS = {
     },
   },
 
+  topic: {
+    description:
+      "A topic of Nave's Topical Bible (1896), such as prayer, forgiveness or Aaron: its headings, each with the verses Nave gives for it, and the topics it sends the reader to. Or, for a passage, the topics that cite it.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'A topic, such as prayer or "Sin, forgiveness of"; or a passage, such as Romans 4:1-5, for the topics that cite it.' },
+      },
+      required: ['name'],
+    },
+    async run({ name }) {
+      const text = String(name).trim();
+      const key = (await topicFor(text)) || (/^[A-Za-z ,'’-]+$/.test(text) ? text.toUpperCase() : '');
+      const found = key ? await topic(key) : null;
+      if (found) {
+        const body = found.lines
+          .map((line) => `${'  '.repeat(line.depth)}${line.label}${line.parts.length ? ` ${line.parts.map((part) => (part.address ? `${part.text} [${part.address}]` : part.text)).join('')}` : ''}${line.seeName ? ` See ${line.seeName}` : ''}`)
+          .join('\n');
+        return `${found.name} (${found.count} references)\n${body}\n\n${TOPICS}`;
+      }
+      const ref = parseAddress(text, books) ?? parseReference(text, books);
+      if (!ref) return `Nave's Topical Bible has no topic "${text}".`;
+      const cited = await topicsOf(toAddress(ref));
+      return cited.length ? `Topics that cite ${named(ref)}: ${cited.map((each) => each.name).join(', ')}.\n\n${TOPICS}` : `No topic cites ${named(ref)}.`;
+    },
+  },
+
   passage_guide: {
     description:
       "Everything the app has on one passage: its parallel passages (such as Kings and Chronicles, the Synoptic Gospels), the Old Testament it quotes or the New Testament that quotes it, its cross-references joined over its verses, and the people, places, groups and dated events it names.",
@@ -438,6 +466,7 @@ const TOOLS = {
         guide.places.length ? `Places: ${list(guide.places)}` : '',
         guide.groups.length ? `Groups: ${list(guide.groups)}` : '',
         guide.events.length ? `Events: ${guide.events.map((event) => `${event.title}, ${event.label} (${event.id})`).join('; ')}` : '',
+        guide.topics.length ? `Topics (Nave's): ${guide.topics.map((each) => each.name).join(', ')}` : '',
         guide.credit,
       ]
         .filter(Boolean)
