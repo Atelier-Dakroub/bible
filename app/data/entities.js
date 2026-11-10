@@ -18,18 +18,58 @@ import world from './world/polities.json' with { type: 'json' };
 export { timeline, world };
 
 /**
+ * The map as the card first draws it: light enough for the whole map.
+ *
  * @typedef {{
  *   width: number, height: number,
  *   land: string[], lakes: string[], rivers: string[],
- *   coast: { land: string, lakes: string, landDetail: string, lakesDetail: string },
+ *   coast: { land: string, lakes: string, sea: string },
  *   relief: {
- *     bands: { n: number, d: string }[],
- *     levant: { n: number, d: string }[],
+ *     far: { n: number, d: string }[],
  *     shades: Record<string, { x: number, y: number, w: number, h: number }>
  *   },
- *   places: { id: string, name: string, x: string, y: string, verses: number }[]
+ *   places: { id: string, name: string, x: string, y: string, verses: number, peak: boolean }[],
+ *   ranges: { name: string, scale: string, angle: number, x: string, y: string }[]
  * }} BaseMap
  */
+
+/**
+ * The map's detail, which the card loads when it is first zoomed in
+ * (map-view): the close coast and lakes, the sea around that coast, the fine
+ * relief bands, and the Levant's own sharper relief.
+ *
+ * @typedef {{
+ *   coast: { land: string, lakes: string, sea: string },
+ *   bands: { n: number, d: string }[],
+ *   levant: { n: number, d: string }[]
+ * }} MapDetail
+ */
+
+/**
+ * The sea: a box a little larger than the map's, with the land cut out of
+ * it (fill-rule evenodd). The map draws it over the relief, so the relief
+ * needs no clip, and its edge is the coast. The box's own edge is outside
+ * the map, where no view reaches.
+ *
+ * @param {number} width
+ * @param {number} height
+ * @param {string} land
+ */
+const seaOf = (width, height, land) => `M-10 -10H${width + 10}V${height + 10}H-10Z${land}`;
+
+/** @returns {Promise<MapDetail>} */
+export async function mapDetail() {
+  const [{ default: base }, { default: relief }] = await Promise.all([
+    import('./map/near-east.json', { with: { type: 'json' } }),
+    import('./map/relief.json', { with: { type: 'json' } }),
+  ]);
+  const land = (base.landDetail ?? base.land).join('');
+  return {
+    coast: { land, lakes: (base.lakesDetail ?? base.lakes).join(''), sea: seaOf(base.width, base.height, land) },
+    bands: relief.bands.map((d, n) => ({ n, d })),
+    levant: relief.levant.bands.map((d, n) => ({ n, d })),
+  };
+}
 
 /**
  * The base map, with a marker for every place that has coordinates on it.
@@ -69,12 +109,10 @@ export async function mapOf() {
     coast: {
       land: base.land.join(''),
       lakes: base.lakes.join(''),
-      landDetail: (base.landDetail ?? base.land).join(''),
-      lakesDetail: (base.lakesDetail ?? base.lakes).join(''),
+      sea: seaOf(base.width, base.height, base.land.join('')),
     },
     relief: {
-      bands: relief.bands.map((d, n) => ({ n, d })),
-      levant: relief.levant.bands.map((d, n) => ({ n, d })),
+      far: relief.far.map((d, n) => ({ n, d })),
       shades: relief.shades,
     },
     places,

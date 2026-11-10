@@ -20,10 +20,13 @@
      size at every zoom; only the distances grow. The scale bar in the corner
      gives the distance.
 
-     Closer than DETAIL_ZOOM, the frame sets data-detail: the card then
-     draws the close coast and lakes (GSHHG at about 150 m), and clips the
-     relief to that coast. Further out, the coast simplified to about 2 km is
-     lighter to draw and as good at that size.
+     The card first draws a light map: the coast simplified to about 2 km,
+     and coarse relief bands. The detail (the coast and lakes at about 150 m,
+     the fine bands, and the Levant's own sharper relief) is fetched a little
+     after the card shows, and goes into the map closer than DETAIL_ZOOM: the
+     frame then sets data-detail, and the card shows the detail in place of
+     what it replaces. The sea is drawn over the relief, cut to the coast, so
+     nothing is clipped to the coast.
 
      Speed: the relief is heavy to draw, so while a hand, the wheel or a glide
      moves the map, the frame moves a picture of it (a CSS transform of the
@@ -62,7 +65,10 @@
   // The gap from a dot to its name, in pixels.
   const GAP = 8;
   // From this zoom on, the close coast.
-  const DETAIL_ZOOM = 3;
+  const DETAIL_ZOOM = 2.5;
+  // How long after the card shows the detail is fetched, so the card's own
+  // first drawing goes first.
+  const DETAIL_WAIT_MS = 1500;
   // How long after the last wheel event the map is drawn again.
   const WHEEL_DRAW_MS = 160;
 
@@ -103,6 +109,10 @@
     /** whether the map is moving, and shown as a picture until it stops */
     quick: false,
     drawTimer: 0,
+    /** @type {Promise<Element | null> | null} the map's detail, once asked for */
+    detail: null,
+    /** whether the detail is in the map */
+    detailIn: false,
 
     connected({ signal }) {
       this.view ??= wholeMap();
@@ -129,7 +139,41 @@
       this.trackpad(signal);
       const observer = new ResizeObserver(() => this.measure());
       observer.observe(this);
-      signal.addEventListener('abort', () => observer.disconnect());
+      const wait = setTimeout(() => this.fetchDetail(), DETAIL_WAIT_MS);
+      signal.addEventListener('abort', () => {
+        observer.disconnect();
+        clearTimeout(wait);
+      });
+    },
+
+    /**
+     * The map's detail, fetched once: the card route's `detail` fragment.
+     *
+     * @returns {Promise<Element | null>}
+     */
+    fetchDetail() {
+      this.detail ??= fetch('/card/map:near-east?part=detail&fragment=detail')
+        .then((response) => (response.ok ? response.text() : ''))
+        .then((text) => new DOMParser().parseFromString(text, 'text/html').querySelector('#detail'))
+        .catch(() => null);
+      return this.detail;
+    },
+
+    /**
+     * Puts the detail into the map, each group into the .map__detail group
+     * of its slot, then draws the map again.
+     */
+    async loadDetail() {
+      if (this.detailIn) return;
+      const detail = await this.fetchDetail();
+      const svg = this.svg();
+      if (!detail || !svg || this.detailIn) return;
+      this.detailIn = true;
+      for (const part of detail.querySelectorAll('[data-slot]')) {
+        const slot = part.getAttribute('data-slot');
+        svg.querySelector(`.map__detail[data-slot="${slot}"]`)?.append(...part.childNodes);
+      }
+      this.paint();
     },
 
     disconnected() {
@@ -354,11 +398,11 @@
       this.style.setProperty('--map-unit', String(unit));
       this.dashLegs(unit);
 
-      const detail = zoom >= DETAIL_ZOOM;
-      if (detail !== this.hasAttribute('data-detail')) {
-        this.toggleAttribute('data-detail', detail);
-        this.querySelector('.map__relief')?.setAttribute('clip-path', `url(#${detail ? 'map-clip-land-detail' : 'map-clip-land'})`);
-      }
+      // The detail, closer in: once it is in the map; until then the light
+      // map holds, and the detail is asked for.
+      const close = zoom >= DETAIL_ZOOM;
+      if (close && !this.detailIn) this.loadDetail();
+      this.toggleAttribute('data-detail', close && this.detailIn);
 
       const level = levelOf(zoom);
       if (level !== this.level) {

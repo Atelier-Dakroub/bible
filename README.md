@@ -440,16 +440,31 @@ node tools/import-map.js <Natural Earth GeoJSON directory>
 node tools/import-coast.js <directory with GSHHS_f_L1.shp and GSHHS_f_L2.shp>
 ```
 
-The map card is in the reading room's style. It draws the close coast from
-a zoom of 3, and the Levant always has its sharper relief. While the map
-moves, the frame moves a picture of it and draws it again when it stops,
-so a pinch stays at the screen's frame rate.
+The map card is in the reading room's style, and is drawn to be light:
+
+- The card first brings a light map (about 1 MB, 260 KB compressed): the
+  coast simplified to about 2 km and coarse relief bands. The detail (the
+  close coast and lakes, the fine bands, and the Levant's sharper relief,
+  about 3 MB, 1 MB compressed) is fetched a moment after the card shows,
+  from the card's `detail` fragment (`?part=detail`), and goes in from a zoom
+  of 2.5.
+- The sea is drawn over the relief, cut to the coast and edged with it, so
+  nothing is clipped. The hill shade is black and white with alpha, so it
+  needs no blend mode. Line widths are divided by the size of a map unit, in
+  place of `vector-effect: non-scaling-stroke`.
+- While the map moves, the frame moves a picture of it and draws it again
+  when it stops, so a pinch stays at the screen's frame rate. While a card
+  or the table moves, the map is a layer of its own, which the browser moves
+  without drawing it again.
 
 The relief: `app/data/map/relief.json` holds, for each
 of six heights (200, 500, 1,000, 1,500, 2,000 and 3,000 m), the land at or
 above it as one path; its edge is the contour line. `app/public/map/` holds
 two hill shades, lit from the northwest: one of the whole map, and a sharper
-one of the Levant for a close view, which also has its own contours. Both
+one of the Levant for a close view, which also has its own contours. Each
+shade is gray and alpha: black where a slope is turned from the light, white
+where it is turned to it. `far` in `relief.json` is the bands again,
+coarser, for the whole map. Both
 come from NOAA's ETOPO 2022 (free to use and share), through NOAA's ERDDAP
 service, and need nothing but Node to build:
 
@@ -459,8 +474,8 @@ curl -o etopo-15s-levant.nc 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETO
 node tools/import-relief.js etopo-30s.nc --levant etopo-15s-levant.nc
 ```
 
-The first file is 87 MB and the second 5.5 MB; the outputs are 1.9 MB of
-paths and 2.3 MB of images.
+The first file is 87 MB and the second 5.5 MB; the outputs are 2.4 MB of
+paths and 3.1 MB of images.
 ## The BSB data
 
 `app/data/bsb/<BOOK>.json` holds the Berean Standard Bible (public domain) by

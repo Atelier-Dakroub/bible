@@ -790,7 +790,8 @@ gesture-card[data-zoom='far'] .note__text {
 }
 .map__view {
   border-radius: var(--radius-small);
-  background: var(--sea);
+  /* The land's paper: the sea is drawn over it. */
+  background: var(--paper);
 }
 .map__view:focus-visible {
   outline: 2px solid var(--lapis);
@@ -801,41 +802,49 @@ gesture-card[data-zoom='far'] .note__text {
   width: 100%;
   height: auto;
 }
+/* The lines keep their width in pixels: each width is divided by the size
+   of a map unit (map-view sets --map-unit). This is lighter to draw than
+   vector-effect: non-scaling-stroke, which works each path out again at
+   every paint. */
 /* The contour at the edge of each height. */
 .map__band {
   stroke: light-dark(
     color-mix(in srgb, var(--relief-ink) 45%, var(--paper)),
     color-mix(in srgb, var(--relief-ink) 32%, var(--paper))
   );
-  stroke-width: 0.6;
+  stroke-width: calc(0.6 / var(--map-unit, 1));
 }
-.map__coast {
-  fill: none;
+/* The sea, over the relief: the map's box with the land cut out, and its
+   edge the coast. */
+.map__sea {
+  fill: var(--sea);
   stroke: var(--ink-soft);
-  stroke-width: 1;
+  stroke-width: calc(1 / var(--map-unit, 1));
 }
 .map__lake {
   fill: var(--sea);
   stroke: var(--ink-soft);
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
+  stroke-width: calc(0.75 / var(--map-unit, 1));
 }
 .map__river {
   fill: none;
   stroke: color-mix(in srgb, var(--lapis) 55%, var(--sea));
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
+  stroke-width: calc(1 / var(--map-unit, 1));
 }
-/* Whole or close: map-view sets data-detail closer than DETAIL_ZOOM. */
-.map__coast--detail,
-.map__lake--detail,
-.map__view[data-detail] .map__coast--whole,
-.map__view[data-detail] .map__lake--whole {
+/* Whole or close: map-view sets data-detail closer than DETAIL_ZOOM, once
+   the detail has come. */
+.map__detail,
+.map__view[data-detail] .map__whole {
   display: none;
 }
-.map__view[data-detail] .map__coast--detail,
-.map__view[data-detail] .map__lake--detail {
+.map__view[data-detail] .map__detail {
   display: inline;
+}
+/* While the card, the table or the map moves, the map is a layer of its
+   own, which the browser moves as a picture without drawing it again. */
+gesture-card.is-held .map__svg,
+bible-table.is-panning .map__svg {
+  will-change: transform;
 }
 /* The dots and names are in pixels: the group is scaled back by the size of
    a map unit (map-view sets --map-unit), so they keep their size at every

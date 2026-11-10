@@ -637,8 +637,9 @@ input[type='text'] {
   stroke-width: 0.6;
 }
 .rr-relief__shade {
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
+  /* The image is its own light and dark (black and white, with alpha), so
+     it needs no blend mode, which is slow to draw. */
+  opacity: var(--relief-shade, 0.85);
 }
 .rr-map__river {
   fill: none;

@@ -689,11 +689,15 @@ export type MapViewMembers = {
   drawn: View | null;
   quick: boolean;
   drawTimer: number;
+  detail: Promise<Element | null> | null;
+  detailIn: boolean;
   connected({
     signal
   }: {
     signal: any;
   }): void;
+  fetchDetail(): Promise<Element | null>;
+  loadDetail(): Promise<void>;
   disconnected(): void;
   svg(): SVGSVGElement | null;
   begin(): void;
@@ -1135,6 +1139,7 @@ export type DesignData = {
       x: string;
       y: string;
       verses: number;
+      peak: boolean;
       r: number;
       dx: number;
       dy: number;
@@ -1177,6 +1182,7 @@ export type DesignData = {
       x: string;
       y: string;
       verses: number;
+      peak: boolean;
       r: number;
       dx: number;
       dy: number;

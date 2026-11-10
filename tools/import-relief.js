@@ -13,14 +13,19 @@
 //   https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.nc?z[(29.2):1:(34.6)][(33.4):1:(37.8)]
 //
 // The outputs default to:
-//   app/data/map/relief.json    { levels, bands: [path d], shades }: for each level,
-//                               the land at or above it, as one path whose
-//                               rings alternate (fill-rule evenodd). Its edge
-//                               is the contour line.
-//   app/public/map/hillshade.png  a gray image of the whole map: 128 is flat,
-//                               darker is a slope turned from the light (from
-//                               the northwest, as maps light it), lighter is a
-//                               slope turned to it.
+//   app/data/map/relief.json    { levels, bands: [path d], far: [path d], shades }:
+//                               for each level, the land at or above it, as
+//                               one path whose rings alternate (fill-rule
+//                               evenodd). Its edge is the contour line.
+//                               `far` is the same, coarser, for the whole map
+//                               and a little closer, where the fine bands are
+//                               finer than a pixel and slow to draw.
+//   app/public/map/hillshade.png  the hill shade of the whole map, as gray and
+//                               alpha: black where a slope is turned from the
+//                               light (from the northwest, as maps light it),
+//                               white where it is turned to it, and clear on
+//                               flat ground. It is drawn over the bands as it
+//                               is, with no blend mode to work out.
 //   app/public/map/hillshade-levant.png  the same for the Levant, sharper,
 //                               for a close view. relief.json gives where
 //                               each image goes on the map (`shades`).
@@ -53,6 +58,13 @@ const LEVELS = [200, 500, 1000, 1500, 2000, 3000];
 const CONTOUR_STEP = 2;
 const TOLERANCE = 0.3;
 const MIN_AREA = 0.6;
+// The far bands: every 4 cells (about 3.6 km), within 0.8 units, and no ring
+// smaller than 3 square units.
+const FAR = { every: 4, tolerance: 0.8, minArea: 3, decimals: 1 };
+// How strong the shade is: the alpha of the darkest and of the lightest
+// pixel, out of 255.
+const SHADOW = 150;
+const LIGHT = 80;
 // The hill shade: pixels per map unit, the light, and how much the relief is
 // raised so that it shows at this scale.
 const SHADE_PIXELS = 1.5;
@@ -346,6 +358,7 @@ function bandsOf(grid, { every, tolerance, minArea, decimals }) {
 }
 
 const bands = bandsOf(main, { every: CONTOUR_STEP, tolerance: TOLERANCE, minArea: MIN_AREA, decimals: 1 });
+const far = bandsOf(main, FAR);
 
 await mkdir(path.dirname(dataOut), { recursive: true });
 
@@ -397,7 +410,8 @@ function hillShade({ z, rows, cols, top, step, west }, box, perUnit) {
   const zenith = ((90 - ALTITUDE) * Math.PI) / 180;
   const azimuth = ((360 - AZIMUTH + 90) * Math.PI) / 180;
   const flat = Math.cos(zenith);
-  const raw = Buffer.alloc((width + 1) * height);
+  // Gray and alpha for each pixel.
+  const raw = Buffer.alloc((2 * width + 1) * height);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const e = (/** @type {number} */ dx, /** @type {number} */ dy) =>
@@ -408,14 +422,17 @@ function hillShade({ z, rows, cols, top, step, west }, box, perUnit) {
       const slope = Math.atan(EXAGGERATION * Math.hypot(dzdx, dzdy));
       const aspect = Math.atan2(dzdy, -dzdx);
       const shade = Math.cos(zenith) * Math.cos(slope) + Math.sin(zenith) * Math.sin(slope) * Math.cos(azimuth - aspect);
-      // 128 is flat ground; the difference from flat makes the light and dark.
-      raw[y * (width + 1) + 1 + x] = Math.max(0, Math.min(255, Math.round(128 + (shade - flat) * 360)));
+      // The difference from flat ground makes the dark and the light.
+      const d = Math.max(-1, Math.min(1, ((shade - flat) * 360) / 127));
+      const at = y * (2 * width + 1) + 1 + 2 * x;
+      raw[at] = d < 0 ? 0 : 255;
+      raw[at + 1] = Math.round(Math.abs(d) * (d < 0 ? SHADOW : LIGHT));
     }
   }
   return { width, height, raw, at: { x: corner.x, y: corner.y, w: far.x - corner.x, h: far.y - corner.y } };
 }
 
-/** A gray PNG, 8 bits a pixel. @param {number} width @param {number} height @param {Buffer} raw rows, each with its filter byte */
+/** A gray and alpha PNG, 8 bits each. @param {number} width @param {number} height @param {Buffer} raw rows, each with its filter byte */
 function png(width, height, raw) {
   const table = Array.from({ length: 256 }, (_, n) => {
     let c = n;
@@ -439,7 +456,7 @@ function png(width, height, raw) {
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
   header[8] = 8;
-  header[9] = 0;
+  header[9] = 4;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', header),
@@ -458,11 +475,12 @@ function png(width, height, raw) {
  */
 function upFilter(raw, width, height) {
   const out = Buffer.alloc(raw.length);
+  const bytes = 2 * width;
   for (let y = 0; y < height; y += 1) {
-    const row = y * (width + 1);
+    const row = y * (bytes + 1);
     out[row] = y === 0 ? 0 : 2;
-    for (let x = 1; x <= width; x += 1) {
-      out[row + x] = y === 0 ? raw[row + x] : (raw[row + x] - raw[row - (width + 1) + x]) & 0xff;
+    for (let x = 1; x <= bytes; x += 1) {
+      out[row + x] = y === 0 ? raw[row + x] : (raw[row + x] - raw[row - (bytes + 1) + x]) & 0xff;
     }
   }
   return out;
@@ -489,5 +507,5 @@ for (const { name, grid, box, perUnit } of SHADES) {
   shades[name] = { x: Number(at.x.toFixed(2)), y: Number(at.y.toFixed(2)), w: Number(at.w.toFixed(2)), h: Number(at.h.toFixed(2)) };
   console.log(`Hill shade ${width} × ${height} written to ${file}`);
 }
-await writeFile(dataOut, `${JSON.stringify({ levels: LEVELS, bands, levant: { box: LEVANT, bands: levantBands }, shades })}\n`);
+await writeFile(dataOut, `${JSON.stringify({ levels: LEVELS, bands, far, levant: { box: LEVANT, bands: levantBands }, shades })}\n`);
 console.log(`Bands written to ${dataOut}`);

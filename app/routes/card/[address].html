@@ -1,6 +1,6 @@
 <script server>
   import { books, entityView, original, parallel, phrase, preview, verseCount } from '../../data/bible.js';
-  import { entities, mapOf } from '../../data/entities.js';
+  import { entities, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
   import { parseAddress, stepAddress } from '../../lib/reference.js';
@@ -38,6 +38,7 @@
    *   opening: string, count: string,
    *   entity: import('../../data/bible.js').EntityView | null,
    *   map: Awaited<ReturnType<typeof mapOf>> | null,
+   *   detail: Awaited<ReturnType<typeof mapDetail>> | null,
    *   note: string, back: string, next: string,
    *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[],
    *   landscape: import('../../data/study.js').Landscape | null,
@@ -53,7 +54,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -65,12 +66,15 @@
     // The map of the biblical world.
     if (address === 'map:near-east') {
       const map = await mapOf();
+      // `part=detail`: the map's detail, as the `detail` fragment, which the
+      // card asks for when it is first zoomed in (map-view).
+      const detail = query.get('part') === 'detail' ? await mapDetail() : null;
       const levant = map.relief.shades['hillshade-levant'] ?? NO_BOX;
       // The Levant's relief closes its contours at the edge of its box; the
       // clip is a little inside, so those edges do not show.
       const inset = 0.6;
       const levantClip = { x: levant.x + inset, y: levant.y + inset, w: levant.w - 2 * inset, h: levant.h - 2 * inset };
-      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map, shade: map.relief.shades.hillshade ?? NO_BOX, levant, levantClip });
+      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map, detail, shade: map.relief.shades.hillshade ?? NO_BOX, levant, levantClip });
     }
 
     // The whole Bible, one cell per chapter.
@@ -139,8 +143,8 @@
        in pixels, in a group that the frame scales back by the size of a map
        unit.
 
-       The coast is drawn once for each level of detail, in <defs>: the clip
-       of the relief and the outline both use it. -->
+       The coast is the edge of the sea, drawn over the relief: one path for
+       each level of detail. -->
   <article if="map" class="rr-scope rr-card rr-card--place map-card">
     <header class="rr-card__head">
       <div class="rr-card__titles">
@@ -153,32 +157,26 @@
       <map-view class="map__view">
         <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
           <defs>
-            <path id="map-land" d="${map ? map.coast.land : ''}" vector-effect="non-scaling-stroke"></path>
-            <path id="map-land-detail" d="${map ? map.coast.landDetail : ''}" vector-effect="non-scaling-stroke"></path>
-            <clipPath id="map-clip-land"><use href="#map-land"></use></clipPath>
-            <clipPath id="map-clip-land-detail"><use href="#map-land-detail"></use></clipPath>
             <clipPath id="map-clip-levant"><rect x="${levantClip.x}" y="${levantClip.y}" width="${levantClip.w}" height="${levantClip.h}"></rect></clipPath>
           </defs>
-          <!-- The land: its paper, its height and its shade, clipped to the
-               coast. The clip makes this a layer of its own, so the shade
-               blends only with what is inside it. -->
-          <g class="map__relief" clip-path="url(#map-clip-land)">
-            <rect x="0" y="0" width="${map ? map.width : 0}" height="${map ? map.height : 0}" class="rr-relief__ground"></rect>
-            <path each="band of map ? map.relief.bands : []" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
-            <image href="/map/hillshade.png" x="${shade.x}" y="${shade.y}" width="${shade.w}" height="${shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
-            <!-- The Levant, sharper, over the whole map's relief: its ground
-                 covers what is under it, so the two shades do not add. -->
-            <g clip-path="url(#map-clip-levant)">
-              <rect x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" class="rr-relief__ground"></rect>
-              <path each="band of map ? map.relief.levant : []" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
-              <image href="/map/hillshade-levant.png" x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+          <!-- The land: the frame's paper, the relief bands and the shade on
+               it, and the sea over them, cut to the coast and edged with it,
+               so the relief needs no clip. The .map__detail groups take the
+               detail when it comes; the frame shows them, and hides what
+               they replace, closer than DETAIL_ZOOM (map-view). -->
+          <g class="map__relief">
+            <g class="map__whole">
+              <path each="band of map ? map.relief.far : []" d="${band.d}" fill-rule="evenodd" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
             </g>
+            <g class="map__detail" data-slot="under"></g>
+            <image href="/map/hillshade.png" x="${shade.x}" y="${shade.y}" width="${shade.w}" height="${shade.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+            <g class="map__detail" data-slot="levant"></g>
           </g>
-          <use href="#map-land" class="map__coast map__coast--whole"></use>
-          <use href="#map-land-detail" class="map__coast map__coast--detail"></use>
+          <path d="${map ? map.coast.sea : ''}" fill-rule="evenodd" class="map__sea map__whole"></path>
+          <g class="map__detail" data-slot="sea"></g>
+          <path d="${map ? map.coast.lakes : ''}" class="map__lake map__whole"></path>
+          <g class="map__detail" data-slot="lakes"></g>
           <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
-          <path d="${map ? map.coast.lakes : ''}" class="map__lake map__lake--whole"></path>
-          <path d="${map ? map.coast.lakesDetail : ''}" class="map__lake map__lake--detail"></path>
           <!-- The names of the ranges, under the places: they are not for
                tapping, and a place's name goes over them. -->
           <g class="map__ranges" aria-hidden="true">
@@ -342,3 +340,22 @@
     </div>
   </article>
 </gesture-card>
+<!-- The map's detail (`part=detail`), as one fragment, empty and hidden
+     unless it is asked for: each group goes into the map's .map__detail
+     group of the same slot (map-view loadDetail). -->
+<svg id="detail" fragment hidden xmlns="http://www.w3.org/2000/svg"><g if="detail">
+  <g data-slot="under">
+    <path each="band of detail ? detail.bands : []" d="${band.d}" fill-rule="evenodd" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
+  </g>
+  <!-- The Levant, sharper, over the whole map's relief: its ground covers
+       what is under it, so the two shades do not add. -->
+  <g data-slot="levant">
+    <g clip-path="url(#map-clip-levant)">
+      <rect x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" class="rr-relief__ground"></rect>
+      <path each="band of detail ? detail.levant : []" d="${band.d}" fill-rule="evenodd" class="map__band rr-relief__band rr-relief__band--${band.n}"></path>
+      <image href="/map/hillshade-levant.png" x="${levant.x}" y="${levant.y}" width="${levant.w}" height="${levant.h}" preserveAspectRatio="none" class="rr-relief__shade"></image>
+    </g>
+  </g>
+  <g data-slot="sea"><path d="${detail ? detail.coast.sea : ''}" fill-rule="evenodd" class="map__sea"></path></g>
+  <g data-slot="lakes"><path d="${detail ? detail.coast.lakes : ''}" class="map__lake"></path></g>
+</g></svg>

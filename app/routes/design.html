@@ -1,6 +1,6 @@
 <script server>
   import { books, entityView, passage, search, strongsResults } from '../data/bible.js';
-  import { mapOf, timeline } from '../data/entities.js';
+  import { mapDetail, mapOf, timeline } from '../data/entities.js';
   import { KM_PER_UNIT, nameLevels, project } from '../lib/map.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
   import { ERAS, positionOf, yearLabel } from '../lib/timeline.js';
@@ -76,6 +76,7 @@
     ]);
     // The relief (tools/import-relief.js): the land at or above each level.
     const { default: relief } = await import('../data/map/relief.json', { with: { type: 'json' } });
+    const detail = await mapDetail();
 
     // Margin notes from the cross-references: the first three of a verse.
     /** @param {string} id */
@@ -117,8 +118,8 @@
         viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
         // The close view has GSHHG's close coast; the whole map, the coast
         // simplified to about 2 km.
-        land: close ? [map.coast.landDetail] : map.land,
-        lakes: close ? [map.coast.lakesDetail] : map.lakes,
+        land: close ? [detail.coast.land] : map.land,
+        lakes: close ? [detail.coast.lakes] : map.lakes,
         clip: close ? 'rr-land-detail' : 'rr-land',
         rivers: map.rivers,
         places: candidates.filter((_, i) => levels[i] === 0).map((place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
