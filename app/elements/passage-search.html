@@ -63,6 +63,7 @@
 <script element>
   import { isPhone } from '../lib/screen.js';
   import { wantKeys } from '../lib/keyboard.js';
+  import { LANGUAGE_NAMES, sayWord } from '../lib/speech.js';
   import { slideIn, slideOut } from '../lib/motion.js';
   import { dropCurrent, emptyTrail, record, windowOf } from '../lib/trail.js';
 
@@ -160,6 +161,15 @@
         if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
           input.value = strongs.dataset.strongs;
           this.run(undefined, 'open');
+        }
+        const say = target?.closest('[data-say]');
+        if (say instanceof HTMLElement && say.dataset.say) {
+          const lang = say.dataset.sayLang === 'he' ? 'he' : 'el';
+          sayWord(say.dataset.say, lang).then((ok) => {
+            const status = this.querySelector('.search__status');
+            if (!ok && status) status.textContent = `This device has no ${LANGUAGE_NAMES[lang]} voice.`;
+            if (!ok) say.setAttribute('title', `This device has no ${LANGUAGE_NAMES[lang]} voice.`);
+          });
         }
         const search = target?.closest('[data-search]');
         if (search instanceof HTMLElement && search.dataset.search) this.searchFor(search.dataset.search);

@@ -19,6 +19,7 @@ import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
 import { citations } from '../lib/citations.js';
+import { syllablesOf } from '../lib/syllables.js';
 import { topic, topicFor } from './topics.js';
 import { sensesOf, versesOfSense } from './senses.js';
 
@@ -222,7 +223,8 @@ const bsbBooks = new Map();
  *
  * @typedef {{
  *   text: string, translit: string, gloss: string, s: string,
- *   code: string, grammar: string, search: string, tr: boolean
+ *   code: string, grammar: string, search: string, tr: boolean,
+ *   sylls?: import('../lib/syllables.js').Syllable[]
  * }} OriginalWord `s` is the Strong's number, written as the KJV data writes it, so the KJV words that render it can be found; `code` is STEPBible's grammar code and `grammar` the same in words; `search` is the code a tap on the grammar searches for; `tr` is true for a Greek word of the Textus Receptus that the Nestle-Aland text does not have
  */
 /** @typedef {{ id: string, label: string, words: OriginalWord[] }} OriginalVerse */
@@ -454,6 +456,8 @@ export async function original(ref) {
         words: (words[id] ?? []).map(([text, translit, gloss, s, code, tr]) => ({
           text: String(text),
           translit: String(translit),
+          // Its syllables, the stressed one marked (lib/syllables.js).
+          sylls: syllablesOf(language, String(text), String(translit)),
           gloss: String(gloss),
           s: String(s),
           code: String(code),

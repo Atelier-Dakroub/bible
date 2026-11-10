@@ -675,6 +675,9 @@ export type BibleTableMembers = {
   clicked(event: MouseEvent): void;
   setSync(card: HTMLElement, on: boolean): void;
   setCompare(card: HTMLElement, on: boolean): void;
+  readAloud(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
+  toast(message: string): void;
+  toastTimer: number;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
   unquote(card: HTMLElement, address: string): Promise<void>;
   newNote(): Promise<void>;

@@ -30,6 +30,17 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
+Reading aloud: the speaker on a passage card reads it in the device's own
+voice (`app/lib/speech.js`), verse by verse, in its version: the KJV or the
+BSB in English, the Hebrew or the Greek in Original, Word by word and Syntax,
+in their modern pronunciations. The verse being read is marked, and the word
+too where the voice says which. A second press stops it. On Word by word, each
+transliteration shows its syllables with the stressed one in bold
+(`app/lib/syllables.js`: STEPBible marks the Hebrew; the Greek is worked out
+from its accent), and a tap on it says the word. A word study has a speaker
+by its lemma, and Strong's pronunciation. A device without a Hebrew or Greek
+voice says so. A Mac and an iPhone have good ones (Carmit, Melina).
+
 The search panel grows with use: at rest it is only its field; an answer
 shows the trail and the results under it, and a tap on the empty table, or
 Escape, folds them away again (a tap on the field brings them back). The

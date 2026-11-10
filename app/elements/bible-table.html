@@ -130,6 +130,7 @@
   import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
+  import { LANGUAGE_NAMES, Reader, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -187,6 +188,39 @@
    */
   function wordsOf(element) {
     return (element.textContent ?? '').replace(/¶\s*/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * A verse of a card as the reader reads it: its text, and where each word
+   * (each element that `words` matches) is in that text. The verse number,
+   * the paragraph mark and the buttons are left out.
+   *
+   * @param {Element} verse
+   * @param {string} words a selector for its words
+   * @param {'en' | 'he' | 'el'} lang
+   * @returns {import('../lib/speech.js').Item}
+   */
+  function readable(verse, words, lang) {
+    let text = '';
+    /** @type {{ start: number, end: number, element: Element }[]} */
+    const found = [];
+    const walker = document.createTreeWalker(verse, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest('sup, button, .syntax__role, .syntax__gloss, .inter__translit, .inter__gloss, .inter__grammar, .inter__code, .inter__ref, .syntax__where')) continue;
+      const piece = (node.textContent ?? '').replace(/¶/g, '');
+      const word = parent.closest(words);
+      const start = text.length;
+      text += piece;
+      if (word && verse.contains(word)) {
+        const last = found[found.length - 1];
+        if (last && last.element === word) last.end = text.length;
+        else found.push({ start, end: text.length, element: word });
+      }
+      // Words in separate elements with no space between them in the page.
+      if (words !== '.w' && word && !/\s$/.test(text)) text += ' ';
+    }
+    return { text: text.replace(/\s+/g, ' '), lang, element: verse, words: found };
   }
 
   // A passage longer than this arrives small, in its short form, so a whole
@@ -517,6 +551,7 @@
       // later. A note goes with its card; undo brings both back.
       this.addEventListener('card-remove', (event) => {
         const card = /** @type {HTMLElement} */ (event.target);
+        if (Reader.current?.items.some((item) => card.contains(item.element))) Reader.current.stop();
         const note = card.dataset.kind === 'note' ? card.dataset.note : '';
         queueMicrotask(() => {
           if (note) {
@@ -1121,6 +1156,16 @@
     tapped({ target }) {
       const element = target instanceof Element ? target : null;
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      // The transliteration of a word of the Hebrew or the Greek: say it.
+      const said = element?.closest('.inter__translit');
+      if (said) {
+        const word = said.closest('.inter__word')?.querySelector('.inter__text')?.textContent ?? '';
+        const lang = said.closest('[lang="hbo"]') ? 'he' : 'el';
+        sayWord(word, lang).then((ok) => {
+          if (!ok) this.toast(`This device has no ${LANGUAGE_NAMES[lang]} voice.`);
+        });
+        return;
+      }
       // Read more on an entry's card: the card holds the press, so the
       // details do not open by themselves.
       const more = element?.closest('.entity__more > summary')?.parentElement;
@@ -1831,6 +1876,7 @@
      * @param {string} version
      */
     async replaceCard(card, address, version) {
+      if (Reader.current?.items.some((item) => card.contains(item.element))) Reader.current.stop();
       const { matrix } = card;
       const level = card.style.zIndex;
       const next = await this.fetchCard(address, {
@@ -1916,6 +1962,7 @@
         this.setCompare(card, card.dataset.compare === undefined);
         this.keep();
       } else if (button.dataset.action === 'copy') this.copyCard(card, button);
+      else if (button.dataset.action === 'listen') this.readAloud(card, button);
       else if (button.dataset.unquote) this.unquote(card, button.dataset.unquote);
     },
 
@@ -1938,6 +1985,68 @@
       else delete card.dataset.compare;
       card.querySelector('[data-action="compare"]')?.setAttribute('aria-pressed', String(on));
     },
+
+    /**
+     * Reads a card aloud in the device's voice, verse by verse, in its
+     * version: the KJV or the BSB in English, the Hebrew or the Greek in
+     * Original, Word by word and Syntax. A second press stops it.
+     *
+     * @param {HTMLElement} card
+     * @param {HTMLButtonElement} button
+     */
+    async readAloud(card, button) {
+      const reading = Reader.current;
+      if (reading && reading.items.some((item) => card.contains(item.element))) {
+        reading.stop();
+        return;
+      }
+      const version = card.dataset.version ?? 'kjv';
+      const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]');
+      const lang = source?.getAttribute('lang') === 'hbo' || source?.getAttribute('lang') === 'he' ? 'he' : 'el';
+      /** @type {import('../lib/speech.js').Item[]} */
+      let items = [];
+      if (version === 'original') items = [...card.querySelectorAll('.original__verse')].map((verse) => readable(verse, '.orig', lang));
+      else if (version === 'interlinear') items = [...card.querySelectorAll('.inter__verse')].map((verse) => readable(verse, '.inter__word', lang));
+      else if (version === 'syntax') items = [...card.querySelectorAll('.syntax__row')].map((row) => readable(row, '.syntax__text', lang));
+      else if (version === 'reverse') items = [...card.querySelectorAll('.rev__verse')].map((verse) => readable(verse, '.rev__en', 'en'));
+      else if (version === 'bsb') items = [...card.querySelectorAll('.bsb-verse')].map((verse) => readable(verse, '.bsb__w', 'en'));
+      else items = [...card.querySelectorAll('kjv-verse')].map((verse) => readable(verse, '.w', 'en'));
+      items = items.filter((item) => item.text.trim());
+      if (!items.length) return;
+      const set = (/** @type {boolean} */ on) => {
+        button.setAttribute('aria-pressed', String(on));
+        button.setAttribute('aria-label', on ? 'Stop reading aloud' : 'Read aloud');
+      };
+      set(true);
+      const missing = await new Reader().read(items, () => set(false));
+      if (missing) {
+        set(false);
+        this.toast(`This device has no ${LANGUAGE_NAMES[missing]} voice.`);
+      }
+    },
+
+    /**
+     * Says something for a few seconds at the foot of the screen, and to a
+     * screen reader.
+     *
+     * @param {string} message
+     */
+    toast(message) {
+      const toast = this.querySelector('.table__toast');
+      if (!(toast instanceof HTMLElement)) return;
+      toast.textContent = '';
+      requestAnimationFrame(() => {
+        toast.textContent = message;
+        toast.classList.add('is-on');
+      });
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => {
+        toast.classList.remove('is-on');
+        toast.textContent = '';
+      }, 4000);
+    },
+
+    toastTimer: 0,
 
     /**
      * Copies the words on a card with the reference after them.
@@ -2305,6 +2414,26 @@
   .table__world > * {
     pointer-events: auto;
   }
+  /* A short message at the foot of the screen (toast), over everything. */
+  .table__toast {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    z-index: 3000000;
+    margin: 0;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--paper);
+    font: var(--control-font);
+    translate: -50% 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .table__toast.is-on {
+    opacity: 1;
+  }
   /* Above the cards at rest and the timeline (so a line reaches its event's
      tick), below the search panel, the menu and a held card. */
   .table__lines {
@@ -2408,4 +2537,5 @@
   <g class="table__drawn"></g>
 </svg>
 <div class="table__labels"></div>
+<p class="table__toast" role="status"></p>
 <slot></slot>

@@ -162,8 +162,8 @@
       <p class="entity__credit">Easton's Bible Dictionary (1897), from Theographic (CC BY-SA).</p>
     </section>
     <section if="entry" class="entry" aria-label="Dictionary entry">
-      <p class="entry__lemma"><span lang="${entry ? entry.lang : ''}" dir="${entry ? entry.dir : ''}">${entry ? entry.lemma : ''}</span></p>
-      <p class="entry__name">${entry ? entry.xlit : ''} · ${entry ? entry.code : ''} · ${entry ? entry.count : ''}</p>
+      <p class="entry__lemma"><span lang="${entry ? entry.lang : ''}" dir="${entry ? entry.dir : ''}">${entry ? entry.lemma : ''}</span> <button type="button" class="entry__say" data-say="${entry ? entry.lemma : ''}" data-say-lang="${entry && entry.lang === 'he' ? 'he' : 'el'}" aria-label="Say ${entry ? entry.xlit : ''}" title="Say it, in the device's ${entry && entry.lang === 'he' ? 'Hebrew' : 'Greek'} voice (modern pronunciation)"><svg-icon library="ui" name="listen"></svg-icon></button></p>
+      <p class="entry__name">${entry ? entry.xlit : ''}<template if="entry && entry.pron"> · <span class="entry__pron" title="Strong's pronunciation: the stress after the mark">${entry ? entry.pron : ''}</span></template> · ${entry ? entry.code : ''} · ${entry ? entry.count : ''}</p>
       <p class="entry__def">${entry ? entry.def : ''}</p>
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>

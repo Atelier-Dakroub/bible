@@ -1877,3 +1877,44 @@ bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
 .entity__rest {
   margin-top: 0;
 }
+
+/* Reading aloud (lib/speech.js): the verse being read has a soft lapis
+   ground, and the word, where the voice says which, a stronger one. */
+.is-read {
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--lapis) 8%, transparent);
+}
+.is-read-word {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--lapis) 22%, transparent);
+}
+.passage__listen[aria-pressed='true'] {
+  color: var(--lapis);
+}
+/* A word's syllables, with the stressed one bold (lib/syllables.js); a tap
+   says the word. */
+.inter__translit {
+  cursor: pointer;
+}
+.syl + .syl::before {
+  content: '·';
+  color: var(--muted);
+}
+.syl--stress {
+  font-weight: 700;
+}
+.entry__say {
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  margin-inline-start: 0.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tint);
+  color: var(--lapis);
+  font-size: 1.1rem;
+  vertical-align: middle;
+}
+.entry__pron {
+  font-style: italic;
+}

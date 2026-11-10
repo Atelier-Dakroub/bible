@@ -255,6 +255,7 @@
       <h2 class="passage__heading">${title}</h2>
       <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${next}" disabled="${!next}" aria-label="The passage after" title="The passage after"><svg-icon library="ui" name="next"></svg-icon></button>
       <span class="passage__spacer"></span>
+      <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
@@ -367,7 +368,7 @@
         <ol class="inter__words">
           <li each="word of verse.words" class="inter__word ${word.tr ? 'orig--tr' : ''}" data-orig-s="${word.s}">
             <span class="inter__text">${word.text}</span>
-            <span class="inter__translit" lang="en" dir="ltr">${word.translit}</span>
+            <span class="inter__translit" lang="en" dir="ltr" title="Say it"><span each="syl of word.sylls" class="syl ${syl.stress ? 'syl--stress' : ''}">${syl.text}</span></span>
             <span class="inter__gloss" lang="en" dir="ltr">${word.gloss}</span>
             <span class="inter__grammar" lang="en" dir="ltr" data-grammar="${word.search}" title="Find every word in this form">${word.grammar}</span>
             <span class="inter__code" lang="en" dir="ltr">${word.s}${word.tr ? ' · TR only' : ''}</span>
