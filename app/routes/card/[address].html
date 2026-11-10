@@ -155,7 +155,11 @@
     </header>
     <div class="rr-card__body">
       <map-view class="map__view">
-        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg" role="img" aria-label="Map of the biblical world">
+        <!-- Two layers: the base (the land, the sea and the rivers), heavy
+             to draw and drawn again only when the view changes; and over it
+             the ranges' names and the places, light, which change as names
+             come and go. -->
+        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg map__base" aria-hidden="true">
           <defs>
             <clipPath id="map-clip-levant"><rect x="${levantClip.x}" y="${levantClip.y}" width="${levantClip.w}" height="${levantClip.h}"></rect></clipPath>
           </defs>
@@ -177,6 +181,8 @@
           <path d="${map ? map.coast.lakes : ''}" class="map__lake map__whole"></path>
           <g class="map__detail" data-slot="lakes"></g>
           <path each="d of map ? map.rivers : []" d="${d}" class="map__river"></path>
+        </svg>
+        <svg viewBox="0 0 ${map ? map.width : 0} ${map ? map.height : 0}" class="map__svg map__over" role="img" aria-label="Map of the biblical world">
           <!-- The names of the ranges, under the places: they are not for
                tapping, and a place's name goes over them. -->
           <g class="map__ranges" aria-hidden="true">

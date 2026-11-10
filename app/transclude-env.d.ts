@@ -700,6 +700,8 @@ export type MapViewMembers = {
   loadDetail(): Promise<void>;
   disconnected(): void;
   svg(): SVGSVGElement | null;
+  over(): SVGSVGElement | null;
+  shrink(): number;
   begin(): void;
   end(): void;
   places(): SVGGElement[];

@@ -459,6 +459,12 @@ The map card is in the reading room's style, and is drawn to be light:
   moves, so a pan, or a zoom out to half the size, shows the map around the
   view at once, not a blank edge. The browser also moves that layer, as a
   card or the table moves, without drawing it again.
+- The map is two layers: the base (land, sea, rivers), heavy to draw, and
+  over it the places and names, light, so a name that comes or goes does not
+  draw the land again. On a screen of more than 2 device pixels to the CSS
+  pixel, such as a phone's, the base is drawn at 1.5 and scaled up: a phone
+  draws the land where the processor, not the graphics chip, does the work,
+  and this is a quarter of the pixels. The names keep the screen's density.
 - A place shows its dot from one level before its name, so the whole map
   shows about 80 dots, not 1,257; at the closest level every place shows.
 

@@ -34,6 +34,11 @@
      again, sharp and with its names placed, when the movement stops. During
      the movement the names grow and shrink with the picture.
 
+     The map is two layers (svg() and over()): the base, heavy to draw, and
+     the places and names over it, so a name that comes or goes does not
+     draw the land again. On a phone's dense screen the base is drawn at a
+     lower density and scaled up (shrink).
+
      The picture is larger than the frame: the map is drawn with a MARGIN of
      half the frame on each side, outside the frame, and is always a layer
      of its own, so the browser draws the margin while nothing moves. A pan
@@ -79,6 +84,9 @@
   // The map drawn outside the frame on each side, as a fraction of the frame
   // (the styles below make the drawing 1 + 2 × MARGIN times the frame).
   const MARGIN = 0.5;
+  // The density the base is drawn at, at most, in device pixels to the CSS
+  // pixel (shrink).
+  const BASE_DENSITY = 1.5;
   // How long after the card shows the detail is fetched, so the card's own
   // first drawing goes first.
   const DETAIL_WAIT_MS = 1500;
@@ -195,9 +203,27 @@
       clearTimeout(this.drawTimer);
     },
 
-    /** @returns {SVGSVGElement | null} */
+    /** @returns {SVGSVGElement | null} the base: the land, the sea and the rivers */
     svg() {
-      return this.querySelector('svg:not(.map__probe)');
+      return this.querySelector('svg.map__base');
+    },
+
+    /** @returns {SVGSVGElement | null} the overlay: the ranges' names, the places and a journey */
+    over() {
+      return this.querySelector('svg.map__over');
+    },
+
+    /**
+     * How much smaller the base is drawn than it shows, on a screen of more
+     * than 2 device pixels to the CSS pixel: drawn at BASE_DENSITY and
+     * scaled up by the browser as a picture. A phone at 3 draws a quarter of
+     * the pixels, which matters most there, where the page is drawn by the
+     * processor, not the graphics chip. The base has no text; the overlay,
+     * with the names, keeps the screen's own density.
+     */
+    shrink() {
+      const density = globalThis.devicePixelRatio || 1;
+      return density > 2 ? density / BASE_DENSITY : 1;
     },
 
     /** The map starts to move: show it as a picture until it stops. */
@@ -403,17 +429,25 @@
         const scale = drawn.w / view.w;
         const dx = ((drawn.x - view.x) * width) / view.w + MARGIN * width * (1 - scale);
         const dy = ((drawn.y - view.y) * width) / view.w + MARGIN * height * (1 - scale);
-        svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+        svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale * this.shrink()})`;
+        const over = this.over();
+        if (over) over.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
         this.paintControls((this.pixels || width / WIDTH || 1) * zoomOf(view));
         this.dispatchEvent(new Event('card-paint', { bubbles: true }));
         return;
       }
       this.drawn = { ...view };
-      svg.style.transform = '';
+      const over = this.over();
+      const shrink = this.shrink();
+      svg.style.width = svg.style.height = `${(100 * (1 + 2 * MARGIN)) / shrink}%`;
+      svg.style.transform = shrink === 1 ? '' : `scale(${shrink})`;
+      if (over) over.style.transform = '';
       const zoom = zoomOf(view);
       // The view, and MARGIN of it on each side.
       const h = (view.w * HEIGHT) / WIDTH;
-      svg.setAttribute('viewBox', `${view.x - MARGIN * view.w} ${view.y - MARGIN * h} ${view.w * (1 + 2 * MARGIN)} ${h * (1 + 2 * MARGIN)}`);
+      const box = `${view.x - MARGIN * view.w} ${view.y - MARGIN * h} ${view.w * (1 + 2 * MARGIN)} ${h * (1 + 2 * MARGIN)}`;
+      svg.setAttribute('viewBox', box);
+      over?.setAttribute('viewBox', box);
       // The dots and names are drawn in pixels, inside a group scaled back by
       // the size of a map unit.
       const unit = (this.pixels || this.clientWidth / WIDTH || 1) * zoom;
@@ -619,7 +653,7 @@
      */
     showJourney(journey) {
       this.clearJourney();
-      const svg = this.svg();
+      const svg = this.over();
       if (!svg) return;
       this.journey = journey;
       const NS = 'http://www.w3.org/2000/svg';
