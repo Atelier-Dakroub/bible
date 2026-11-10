@@ -47,6 +47,14 @@
   :root {
     --ui-text: calc(2rem / 3);
   }
+  /* The page is the table: it does not scroll, and the table (absolute in
+     it) fills it, under a phone's bars too (viewport-fit=cover). */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   /* On a phone, held close, the controls' text is the rem itself: 16px,
      which is also the size below which a phone zooms in on a field. */
   @media (max-width: 700px), (max-height: 500px) {

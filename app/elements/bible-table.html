@@ -2468,8 +2468,12 @@
 </script>
 
 <style>
+  /* Absolute, not fixed: Safari 26 on an iPhone colors its status bar and
+     its toolbar from a fixed element that spans the screen, and paints them
+     solid over it, so a fixed table looks cut off above and below. The page
+     does not scroll (routes/table.html), so absolute holds it still. */
   :scope {
-    position: fixed;
+    position: absolute;
     inset: 0;
     display: block;
     overflow: hidden;
