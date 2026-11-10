@@ -1633,9 +1633,14 @@ gesture-card[data-compare] .bsb__d {
   text-align: start;
   font: inherit;
 }
-.senses__sense[aria-pressed='true'] {
+/* The sense chosen: a lapis edge and wash, in the ink of the text (the
+   general rule for a pressed button, white on lapis, does not fit a pale
+   wash). */
+.senses__sense[aria-pressed='true'],
+.senses__sense[aria-pressed='true']:hover {
   border-color: var(--lapis);
-  background: color-mix(in srgb, var(--lapis) 10%, transparent);
+  background: color-mix(in srgb, var(--lapis) 10%, var(--paper));
+  color: var(--ink);
 }
 .senses__gloss {
   font-weight: 600;
