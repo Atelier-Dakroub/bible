@@ -61,8 +61,9 @@
   /** @typedef {import('../lib/trail.js').Trail} Trail */
   /** @typedef {'typed' | 'submit' | 'open' | 'trail'} How how a view was asked for: typed in the field, sent with Enter, opened from something, or gone to on the trail */
 
-  // How many chips of the trail show at a time.
-  const CHIPS = 4;
+  // How many chips of the trail show at a time: three, and "…" for the rest,
+  // fit the panel with their names.
+  const CHIPS = 3;
 
   // The pictogram of each kind of step (app/icons/kinds).
   /** @type {Record<string, string>} */
@@ -394,6 +395,7 @@
       if (leaving && results) leaving.scroll = results.scrollTop;
       this.path = { ...this.path, index };
       this.typing = false;
+      this.wholeTrail = false;
       this.paintTrail();
       this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
       await this.show(step);
@@ -446,39 +448,34 @@
       else if (showStep) this.discover();
     },
 
-    /** Draws the chips, Back and Forward. */
+    /**
+     * Draws Back and Forward, the chips of the steps around the one on show,
+     * and "…" when there are more. "…" opens the whole trail as a list under
+     * the row, newest first, as a browser's history list.
+     */
     paintTrail() {
       const nav = /** @type {HTMLElement | null} */ (this.querySelector('.search__trail'));
       const list = this.querySelector('.trail__chips');
-      if (!nav || !list) return;
+      const whole = /** @type {HTMLElement | null} */ (this.querySelector('.trail__all'));
+      if (!nav || !list || !whole) return;
       const { steps, index } = this.path;
       // The row is always there: it holds the ✦ for "Did you know?".
       nav.hidden = false;
       /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', index <= 0);
       /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
-      // Four chips fit the panel with their names; "…" shows the rest.
-      const shown = this.wholeTrail ? { start: 0, end: steps.length, before: false, after: false } : windowOf(this.path, CHIPS);
-      const more = !this.wholeTrail && (shown.before || shown.after);
-      nav.classList.toggle('is-whole', this.wholeTrail);
-      /** @param {string} label @param {string} where @param {string} [title] */
-      const chip = (label, where, title) => {
-        const item = document.createElement('li');
+      // A few chips around the step on show; "…" lists them all.
+      const shown = windowOf(this.path, CHIPS);
+      const more = shown.before || shown.after;
+      if (!more) this.wholeTrail = false;
+
+      /** @param {number} i @param {string} className */
+      const stepButton = (i, className) => {
+        const step = steps[i];
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'trail__chip';
-        button.dataset.trail = where;
-        if (title) button.title = title;
-        button.textContent = label;
-        item.append(button);
-        return item;
-      };
-      const items = [];
-      if (more && shown.before) items.push(chip('…', 'all', 'The whole trail'));
-      for (let i = shown.start; i < shown.end; i += 1) {
-        const step = steps[i];
-        const item = chip('', String(i), step.label);
-        const button = /** @type {HTMLButtonElement} */ (item.firstChild);
-        button.classList.add(`trail__chip--${step.kind}`);
+        button.className = `${className} trail__chip--${step.kind}`;
+        button.dataset.trail = String(i);
+        button.title = step.label;
         if (i === index) button.setAttribute('aria-current', 'step');
         const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         icon.setAttribute('class', 'trail__icon');
@@ -490,12 +487,38 @@
         text.className = 'trail__label';
         text.textContent = step.label;
         button.append(icon, text);
-        items.push(item);
+        return button;
+      };
+      /** @param {Element} child */
+      const item = (child) => {
+        const li = document.createElement('li');
+        li.append(child);
+        return li;
+      };
+
+      const chips = [];
+      for (let i = shown.start; i < shown.end; i += 1) chips.push(item(stepButton(i, 'trail__chip')));
+      if (more) {
+        const all = document.createElement('button');
+        all.type = 'button';
+        all.className = 'trail__chip trail__more';
+        all.dataset.trail = 'all';
+        all.setAttribute('aria-expanded', String(this.wholeTrail));
+        all.setAttribute('aria-label', `The whole trail: ${steps.length} steps`);
+        all.title = 'The whole trail';
+        all.textContent = '…';
+        chips.push(item(all));
       }
-      if (more && !shown.before && shown.after) items.push(chip('…', 'all', 'The whole trail'));
-      if (this.wholeTrail && steps.length > CHIPS) items.push(chip('Fewer', 'all'));
-      list.replaceChildren(...items);
+      list.replaceChildren(...chips);
       list.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+      whole.hidden = !this.wholeTrail;
+      if (this.wholeTrail) {
+        const rows = [];
+        for (let i = steps.length - 1; i >= 0; i -= 1) rows.push(item(stepButton(i, 'trail__row')));
+        whole.replaceChildren(...rows);
+        whole.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+      } else whole.replaceChildren();
     },
 
     /** @param {PointerEvent} event */
@@ -655,9 +678,6 @@
     overflow: hidden;
     list-style: none;
   }
-  .search__trail.is-whole .trail__chips {
-    flex-wrap: wrap;
-  }
   /* The step on show keeps its whole name; the others share what is left,
      down to their pictogram alone, and their names show on hover. */
   .trail__chips li {
@@ -668,9 +688,6 @@
   .trail__chips li:has([aria-current]) {
     flex: none;
     max-width: 60%;
-  }
-  .search__trail.is-whole .trail__chips li {
-    flex: none;
   }
   .trail__chip {
     display: inline-flex;
@@ -688,6 +705,50 @@
   }
   .trail__chip:hover {
     background: color-mix(in srgb, var(--lapis) 14%, var(--tint));
+  }
+  .trail__more[aria-expanded='true'] {
+    background: var(--ink-soft);
+    color: var(--paper);
+  }
+  /* The whole trail: a list under the row, newest first, that scrolls. */
+  .trail__all {
+    display: grid;
+    gap: 0.15rem;
+    max-height: 40%;
+    margin: 0;
+    padding: 0.35rem var(--bar-padding) 0.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
+    list-style: none;
+  }
+  .trail__all[hidden],
+  :scope:state(collapsed) .trail__all {
+    display: none;
+  }
+  .trail__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.2rem;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: var(--radius-small);
+    background: transparent;
+    color: var(--ink);
+    font: 500 0.6rem/1.2 var(--sans);
+    text-align: start;
+  }
+  .trail__row:hover {
+    background: var(--tint);
+  }
+  .trail__row[aria-current='step'] {
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .trail__row[aria-current='step'] .trail__icon {
+    color: inherit;
   }
   .trail__chip[aria-current='step'] {
     background: var(--lapis);
@@ -742,5 +803,6 @@
   <button type="button" class="trail__step" data-trail="forward" aria-label="Forward" aria-keyshortcuts="Alt+ArrowRight" disabled>›</button>
   <ol class="trail__chips"></ol>
 </nav>
+<ol class="trail__all" aria-label="The whole trail, newest first" hidden></ol>
 <touch-keys for="search-field"></touch-keys>
 <div class="search__results"></div>

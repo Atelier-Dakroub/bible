@@ -253,6 +253,26 @@ makes network requests to query.wikidata.org.
   marked as a reading. Places with no coordinates, or passed by at sea, are
   left out, and a test checks every stop against its verse.
 
+## Pictures
+
+51 pictures, linked to the people, places and events they show
+(`app/data/images.js`): 35 photographs of the Holy Land from the G. Eric and
+Edith Matson Photograph Collection at the Library of Congress (1898–1946, no
+known restrictions on publication), and 16 objects from The Metropolitan
+Museum of Art's Open Access (CC0), such as the Nimrud reliefs, Sennacherib's
+account of his campaign against Judah, and the lion of Babylon's Processional
+Way. An entry shows its first picture as a plate, with its caption and
+credit, and the rest small; a passage's guide shows the pictures of the
+places and people it names. A tap puts a picture on the table as a card,
+whose chips open what it shows.
+
+The picks, chosen by hand with a caption each, are in `tools/images.json`;
+`node tools/import-images.js` downloads them politely (one at a time, with a
+pause), makes them at most 1,100 pixels on their long side (macOS `sips`),
+and writes `app/data/images.json`. It stops at a bot check rather than try
+to get past one: both sources put one up after many quick requests while
+the picks were chosen, so more can be added later, a few at a time.
+
 ## The original languages
 
 A passage card has two more versions beside KJV, BSB and Both:

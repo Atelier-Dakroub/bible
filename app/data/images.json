@@ -1,0 +1,729 @@
+[
+ {
+  "id": "matson-2019698434",
+  "file": "/images/matson-2019698434.jpg",
+  "width": 1100,
+  "height": 883,
+  "caption": "Jerusalem from the Mount of Olives",
+  "title": "Jerusalem (El-Kouds). [Jerusalem from the Mount of Olives]",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698434/",
+  "entities": [
+   "place:jerusalem_636",
+   "place:mount_of_olives_861"
+  ]
+ },
+ {
+  "id": "matson-2019696209",
+  "file": "/images/matson-2019696209.jpg",
+  "width": 1100,
+  "height": 763,
+  "caption": "The Damascus Gate of Jerusalem, with camels unloading wheat",
+  "title": "Around the city wall [Jerusalem]. Damascus Gate. Bedouins unloading wheat-ladened camels",
+  "date": "approximately 1920 to 1933",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019696209/",
+  "entities": [
+   "place:jerusalem_636"
+  ]
+ },
+ {
+  "id": "matson-2019692466",
+  "file": "/images/matson-2019692466.jpg",
+  "width": 1100,
+  "height": 802,
+  "caption": "Bethlehem, a general view",
+  "title": "Bethlehem and surroundings. General view of Bethlehem",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692466/",
+  "entities": [
+   "place:bethlehem_218"
+  ]
+ },
+ {
+  "id": "matson-2019704026",
+  "file": "/images/matson-2019704026.jpg",
+  "width": 1100,
+  "height": 832,
+  "caption": "Nazareth from the east",
+  "title": "Nazareth. General view from the east",
+  "date": "1945 Oct.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019704026/",
+  "entities": [
+   "place:nazareth_878"
+  ]
+ },
+ {
+  "id": "matson-2019691934",
+  "file": "/images/matson-2019691934.jpg",
+  "width": 777,
+  "height": 1100,
+  "caption": "Capernaum: the restored synagogue",
+  "title": "Jerusalem to Galilee via Samaria. Capernaum. The restored synagogue. (Showing steps to an ancient boat landing)",
+  "date": "between 1898 and 1946",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019691934/",
+  "entities": [
+   "place:capernaum_274"
+  ]
+ },
+ {
+  "id": "matson-2019695156",
+  "file": "/images/matson-2019695156.jpg",
+  "width": 1100,
+  "height": 814,
+  "caption": "The Sea of Galilee from above Bethsaida",
+  "title": "Northern views. View of the lake from above Bethsaida",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695156/",
+  "entities": [
+   "place:sea_of_galilee_1032",
+   "place:galilee_433"
+  ]
+ },
+ {
+  "id": "matson-2019706029",
+  "file": "/images/matson-2019706029.jpg",
+  "width": 1100,
+  "height": 838,
+  "caption": "The Jordan, in its valley",
+  "title": "Down the Jordan Valley from the Sea of Galilee to the Dead Sea. Jordan River below Sheik Hussein showing depression through which Jordan flows",
+  "date": "approximately 1920 to 1933",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019706029/",
+  "entities": [
+   "place:jordan_653"
+  ]
+ },
+ {
+  "id": "matson-2019712922",
+  "file": "/images/matson-2019712922.jpg",
+  "width": 1100,
+  "height": 761,
+  "caption": "The mound of ancient Jericho, from the air",
+  "title": "Air views of Palestine. Air route following the old Jerusalem-Jericho Road. Mound of ancient Jericho. Looking southward, modern Jericho in distance",
+  "date": "1931",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019712922/",
+  "entities": [
+   "place:jericho_634"
+  ]
+ },
+ {
+  "id": "matson-2019692480",
+  "file": "/images/matson-2019692480.jpg",
+  "width": 1100,
+  "height": 804,
+  "caption": "Hebron, a general view",
+  "title": "Road to Hebron, Mar Saba, etc. General view of Hebron",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692480/",
+  "entities": [
+   "place:hebron_551"
+  ]
+ },
+ {
+  "id": "matson-2019692483",
+  "file": "/images/matson-2019692483.jpg",
+  "width": 1100,
+  "height": 809,
+  "caption": "The mosque over the cave of Machpelah, Hebron",
+  "title": "Road to Hebron, Mar Saba, etc. Mosque over Cave of Machpelah",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692483/",
+  "entities": [
+   "place:machpelah_748",
+   "place:hebron_551"
+  ]
+ },
+ {
+  "id": "matson-2019692555",
+  "file": "/images/matson-2019692555.jpg",
+  "width": 1100,
+  "height": 809,
+  "caption": "Nablus (Shechem) and Mount Gerizim",
+  "title": "Northern views. Nablus (Shechem) and Mt. Gerizim",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692555/",
+  "entities": [
+   "place:shechem_1069"
+  ]
+ },
+ {
+  "id": "matson-2019695509",
+  "file": "/images/matson-2019695509.jpg",
+  "width": 1100,
+  "height": 811,
+  "caption": "Megiddo: the mound of Tell el-Mutesellim",
+  "title": "Along the sea coast. Megiddo, Tell Mutesellim",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695509/",
+  "entities": [
+   "place:megiddo_777"
+  ]
+ },
+ {
+  "id": "matson-2019695502",
+  "file": "/images/matson-2019695502.jpg",
+  "width": 1100,
+  "height": 744,
+  "caption": "Mount Hermon from the east",
+  "title": "Mount Hermon, scene of the Transfiguration. Mount Hermon from the east",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695502/",
+  "entities": [
+   "place:hermon_564"
+  ]
+ },
+ {
+  "id": "matson-2019697172",
+  "file": "/images/matson-2019697172.jpg",
+  "width": 1100,
+  "height": 806,
+  "caption": "Mount Carmel and the palm groves of Haifa",
+  "title": "Haifa & environs. Mount Carmel & palm groves. (Evening scene)",
+  "date": "between 1898 and 1946",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019697172/",
+  "entities": [
+   "place:carmel_278"
+  ]
+ },
+ {
+  "id": "matson-2019692689",
+  "file": "/images/matson-2019692689.jpg",
+  "width": 1100,
+  "height": 813,
+  "caption": "The harbour of Tyre",
+  "title": "Along the sea coast. Harbour of Tyre",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692689/",
+  "entities": [
+   "place:tyre_1184"
+  ]
+ },
+ {
+  "id": "matson-2019698066",
+  "file": "/images/matson-2019698066.jpg",
+  "width": 1100,
+  "height": 814,
+  "caption": "Sidon, a general view",
+  "title": "Along the sea coast. General view of Sidon",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698066/",
+  "entities": [
+   "place:sidon_1093"
+  ]
+ },
+ {
+  "id": "matson-2019693627",
+  "file": "/images/matson-2019693627.jpg",
+  "width": 1100,
+  "height": 792,
+  "caption": "Beersheba, a general view",
+  "title": "Beersheba and surroundings. (Beer Saba). Beersheba. A general view",
+  "date": "approximately 1920 to 1933",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019693627/",
+  "entities": [
+   "place:beersheba_170"
+  ]
+ },
+ {
+  "id": "matson-2019712458",
+  "file": "/images/matson-2019712458.jpg",
+  "width": 1100,
+  "height": 713,
+  "caption": "Gaza from Gebel Muntar",
+  "title": "Moslem [i.e., Muslim] celebrations at Mejdal (Wady Nemill and Sey'd Hussein Shrine at Ascalon) and at Gaza (el Muntar) April 20th, 21st and 22nd 1943. View of Gaza from Gebel Muntar",
+  "date": "1943 April.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019712458/",
+  "entities": [
+   "place:gaza_446"
+  ]
+ },
+ {
+  "id": "matson-2019697103",
+  "file": "/images/matson-2019697103.jpg",
+  "width": 1100,
+  "height": 811,
+  "caption": "Mount Zion, the western hill of Jerusalem",
+  "title": "Jerusalem. Mount Zion. (The western hill)",
+  "date": "between 1898 and 1946",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019697103/",
+  "entities": [
+   "place:zion_1263",
+   "place:jerusalem_636"
+  ]
+ },
+ {
+  "id": "matson-2019698500",
+  "file": "/images/matson-2019698500.jpg",
+  "width": 1100,
+  "height": 880,
+  "caption": "Gordon's Calvary: one of the places proposed for Golgotha",
+  "title": "Jerusalem (El-Kouds). Gordon's Calvary",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698500/",
+  "entities": [
+   "place:golgotha_487"
+  ]
+ },
+ {
+  "id": "matson-2019698740",
+  "file": "/images/matson-2019698740.jpg",
+  "width": 1100,
+  "height": 888,
+  "caption": "Nain",
+  "title": "Northern views. Nain",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698740/",
+  "entities": [
+   "place:nain_872"
+  ]
+ },
+ {
+  "id": "matson-2019691465",
+  "file": "/images/matson-2019691465.jpg",
+  "width": 1100,
+  "height": 795,
+  "caption": "The plain of Jezreel, with Gilboa, from the air",
+  "title": "Air views of Palestine. Air route over Cana of Galilee, Nazareth, Plain of Sharon, etc. Plain of Jezreel. Showing Gilboa, Gideon's fountain and Jewish colonies",
+  "date": "1932",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019691465/",
+  "entities": [
+   "place:jezreel_643"
+  ]
+ },
+ {
+  "id": "matson-2019698591",
+  "file": "/images/matson-2019698591.jpg",
+  "width": 1100,
+  "height": 888,
+  "caption": "Dothan, where Joseph was sold by his brothers",
+  "title": "Dothan, where Joseph was sold by his brethren",
+  "date": "between 1898 and 1946",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698591/",
+  "entities": [
+   "place:dothan_342"
+  ]
+ },
+ {
+  "id": "matson-2019692551",
+  "file": "/images/matson-2019692551.jpg",
+  "width": 1100,
+  "height": 804,
+  "caption": "Jacob's well, and the plain below Sychar",
+  "title": "Northern views. Jacob's Well and Plain of Makhna",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692551/",
+  "entities": [
+   "place:sychar_1119"
+  ]
+ },
+ {
+  "id": "matson-2019698440",
+  "file": "/images/matson-2019698440.jpg",
+  "width": 1100,
+  "height": 890,
+  "caption": "The site of Bethphage",
+  "title": "Jerusalem (El-Kouds). Site of Bethpage [i.e., Bethphage]",
+  "date": "between 1898 and 1914",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019698440/",
+  "entities": [
+   "place:bethphage_229"
+  ]
+ },
+ {
+  "id": "matson-2019695822",
+  "file": "/images/matson-2019695822.jpg",
+  "width": 1100,
+  "height": 840,
+  "caption": "The cedars of Lebanon",
+  "title": "The cedars of Lebanon, Cedrus Libani Barr. Cedars of Lebanon",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019695822/",
+  "entities": [
+   "place:lebanon_720"
+  ]
+ },
+ {
+  "id": "matson-2019692970",
+  "file": "/images/matson-2019692970.jpg",
+  "width": 1100,
+  "height": 808,
+  "caption": "The obelisk at Heliopolis (On)",
+  "title": "Egyptian views; Heliopolis (Matariyeh). The obelisk at Heliopolis",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692970/",
+  "entities": [
+   "place:on_908"
+  ]
+ },
+ {
+  "id": "matson-2019696777",
+  "file": "/images/matson-2019696777.jpg",
+  "width": 1100,
+  "height": 816,
+  "caption": "Byblos (Gebal): the sarcophagus of Ahiram, king of Byblos",
+  "title": "Byblos: Jebeil. Byblos. Sarcophagus of Ahiram, King of Byblos",
+  "date": "1936 August.",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019696777/",
+  "entities": [
+   "place:gebal_449"
+  ]
+ },
+ {
+  "id": "matson-2019691451",
+  "file": "/images/matson-2019691451.jpg",
+  "width": 783,
+  "height": 1100,
+  "caption": "Amman (Rabbah) from the acropolis, with the Roman theatre",
+  "title": "Wady Sha'ib Es-Salt, Amman, etc. Amman from acropolis hill. Showing Roman theatre and Hotel Philadelphia",
+  "date": "approximately 1920 to 1933",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019691451/",
+  "entities": [
+   "place:rabbah_966"
+  ]
+ },
+ {
+  "id": "matson-2019702254",
+  "file": "/images/matson-2019702254.jpg",
+  "width": 1100,
+  "height": 892,
+  "caption": "The mosaic map at Madeba: its plan of Jerusalem",
+  "title": "Madeba mosaic map of Jerusalem",
+  "date": "between 1898 and 1946",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019702254/",
+  "entities": [
+   "place:medeba_775",
+   "place:jerusalem_636"
+  ]
+ },
+ {
+  "id": "matson-2019693187",
+  "file": "/images/matson-2019693187.jpg",
+  "width": 1100,
+  "height": 799,
+  "caption": "The site of Heshbon",
+  "title": "East of the Jordan and Dead Sea. Site of Heshbon",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019693187/",
+  "entities": [
+   "place:heshbon_565"
+  ]
+ },
+ {
+  "id": "matson-2019693173",
+  "file": "/images/matson-2019693173.jpg",
+  "width": 1100,
+  "height": 802,
+  "caption": "Kerak (Kir of Moab)",
+  "title": "East of the Jordan and Dead Sea. General view of Kerak (Kir of Moab)",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019693173/",
+  "entities": [
+   "place:kir_693"
+  ]
+ },
+ {
+  "id": "matson-2019692602",
+  "file": "/images/matson-2019692602.jpg",
+  "width": 1100,
+  "height": 802,
+  "caption": "Bethsaida",
+  "title": "Northern views. Bethsaida",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692602/",
+  "entities": [
+   "place:bethsaida_231"
+  ]
+ },
+ {
+  "id": "matson-2019692608",
+  "file": "/images/matson-2019692608.jpg",
+  "width": 1100,
+  "height": 816,
+  "caption": "The ruins of the synagogue at Chorazin",
+  "title": "Northern views. Ruins of a synagogue at Chorazin",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019692608/",
+  "entities": [
+   "place:chorazin_299"
+  ]
+ },
+ {
+  "id": "matson-2019691709",
+  "file": "/images/matson-2019691709.jpg",
+  "width": 1100,
+  "height": 885,
+  "caption": "The mountains of Petra, often taken for Sela",
+  "title": "Petra in Transjordan. Mountains of Petra from Elji",
+  "date": "approximately 1900 to 1920",
+  "credit": "G. Eric and Edith Matson Photograph Collection, Library of Congress. No known restrictions on publication.",
+  "url": "https://www.loc.gov/pictures/item/2019691709/",
+  "entities": [
+   "place:sela_1044"
+  ]
+ },
+ {
+  "id": "met-322617",
+  "file": "/images/met-322617.jpg",
+  "width": 559,
+  "height": 1100,
+  "caption": "A relief from the palace of Ashurnasirpal II at Nimrud (Calah), ca. 883–859 BC",
+  "title": "Relief panel, Assyrian",
+  "date": "ca. 883–859 BCE",
+  "credit": "The Metropolitan Museum of Art, Gift of John D. Rockefeller Jr., 1932. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/322617",
+  "entities": [
+   "place:calah_268",
+   "place:assyria_111"
+  ]
+ },
+ {
+  "id": "met-322608",
+  "file": "/images/met-322608.jpg",
+  "width": 1100,
+  "height": 874,
+  "caption": "A human-headed winged bull (lamassu) that guarded a gate at Nimrud, ca. 883–859 BC",
+  "title": "Human-headed winged bull (lamassu), Assyrian",
+  "date": "ca. 883–859 BCE",
+  "credit": "The Metropolitan Museum of Art, Gift of John D. Rockefeller Jr., 1932. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/322608",
+  "entities": [
+   "place:assyria_111",
+   "place:calah_268"
+  ]
+ },
+ {
+  "id": "met-321775",
+  "file": "/images/met-321775.jpg",
+  "width": 1100,
+  "height": 1065,
+  "caption": "Sennacherib's own account of his third campaign, against Judah and Hezekiah, ca. 704–681 BC",
+  "title": "Cuneiform cylinder: inscription of Sennacherib describing his third campaign, Assyrian",
+  "date": "ca. 704–681 BCE",
+  "credit": "The Metropolitan Museum of Art, Purchase, 1886. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/321775",
+  "entities": [
+   "person:sennacherib_2489",
+   "person:hezekiah_1512",
+   "place:nineveh_899"
+  ]
+ },
+ {
+  "id": "met-322585",
+  "file": "/images/met-322585.jpg",
+  "width": 1100,
+  "height": 476,
+  "caption": "A striding lion of glazed brick from Babylon's Processional Way, in the reign of Nebuchadnezzar II, ca. 604–562 BC",
+  "title": "Panel with striding lion, Babylonian",
+  "date": "ca. 604–562 BCE",
+  "credit": "The Metropolitan Museum of Art, Fletcher Fund, 1931. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/322585",
+  "entities": [
+   "place:babylon_151",
+   "person:nebuchadnezzar_2167"
+  ]
+ },
+ {
+  "id": "met-321999",
+  "file": "/images/met-321999.jpg",
+  "width": 1100,
+  "height": 1096,
+  "caption": "A Babylonian tablet of Atra-hasis, a flood story, 7th–6th century BC",
+  "title": "Cuneiform tablet: Atra-hasis, Babylonian flood myth, Babylonian or Achaemenid",
+  "date": "ca. 7th–6th century BCE",
+  "credit": "The Metropolitan Museum of Art, Purchase, 1886. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/321999",
+  "entities": [
+   "place:babylon_151",
+   "event:39"
+  ]
+ },
+ {
+  "id": "met-324915",
+  "file": "/images/met-324915.jpg",
+  "width": 1038,
+  "height": 1100,
+  "caption": "An inscribed brick of the Neo-Sumerian kings of Ur, ca. 2112–2095 BC",
+  "title": "Inscribed brick, Neo-Sumerian",
+  "date": "ca. 2112–2095 BCE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1959. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/324915",
+  "entities": [
+   "place:ur_1189"
+  ]
+ },
+ {
+  "id": "met-322903",
+  "file": "/images/met-322903.jpg",
+  "width": 1100,
+  "height": 866,
+  "caption": "A headdress from the royal cemetery at Ur, ca. 2600–2500 BC",
+  "title": "Headdress, Sumerian",
+  "date": "ca. 2600–2500 BCE",
+  "credit": "The Metropolitan Museum of Art, Dodge Fund, 1933. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/322903",
+  "entities": [
+   "place:ur_1189"
+  ]
+ },
+ {
+  "id": "met-324433",
+  "file": "/images/met-324433.jpg",
+  "width": 1100,
+  "height": 944,
+  "caption": "The head of a Persian guard from Persepolis, in the reign of Xerxes I (Ahasuerus), ca. 486–465 BC",
+  "title": "Head of a Persian guard, Achaemenid",
+  "date": "ca. 486–465 BCE",
+  "credit": "The Metropolitan Museum of Art, Purchase, Joseph Pulitzer Bequest, 1955. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/324433",
+  "entities": [
+   "place:persia_938",
+   "person:ahasuerus_117"
+  ]
+ },
+ {
+  "id": "met-323178",
+  "file": "/images/met-323178.jpg",
+  "width": 809,
+  "height": 1100,
+  "caption": "Persepolis: two servants bearing food and drink, ca. 358–338 BC",
+  "title": "Relief: two servants bearing food and drink, Achaemenid",
+  "date": "ca. 358–338 BCE",
+  "credit": "The Metropolitan Museum of Art, Harris Brisbane Dick Fund, 1934. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/323178",
+  "entities": [
+   "place:persia_938"
+  ]
+ },
+ {
+  "id": "met-324036",
+  "file": "/images/met-324036.jpg",
+  "width": 1100,
+  "height": 1030,
+  "caption": "Glazed bricks from Susa (Shushan), the Persian royal city, 6th–4th century BC",
+  "title": "Bricks with a palmette motif, Achaemenid",
+  "date": "ca. 6th–4th century BCE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1948. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/324036",
+  "entities": [
+   "place:susa_1118"
+  ]
+ },
+ {
+  "id": "met-324243",
+  "file": "/images/met-324243.jpg",
+  "width": 1100,
+  "height": 949,
+  "caption": "A gold daric with the Persian king, 4th century BC: the \"drams\" of Ezra 2:69",
+  "title": "Daric with king, Achaemenid",
+  "date": "ca. 4th century BCE",
+  "credit": "The Metropolitan Museum of Art, Gift of Edmund Kerper, 1952. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/324243",
+  "entities": [
+   "place:persia_938"
+  ]
+ },
+ {
+  "id": "met-247993",
+  "file": "/images/met-247993.jpg",
+  "width": 825,
+  "height": 1100,
+  "caption": "A marble portrait of the emperor Augustus, ca. AD 14–37",
+  "title": "Marble portrait of the emperor Augustus, Roman",
+  "date": "ca. 14–37 CE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1907. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/247993",
+  "entities": [
+   "person:augustus_366",
+   "place:rome_1013"
+  ]
+ },
+ {
+  "id": "met-330160",
+  "file": "/images/met-330160.jpg",
+  "width": 1100,
+  "height": 995,
+  "caption": "A silver tetradrachm of Athens, with the owl of Athena, ca. 440–404 BC",
+  "title": "Silver tetradrachm, Greek, Attica",
+  "date": "ca. 440–404 BC",
+  "credit": "The Metropolitan Museum of Art, Bequest of Nanette B. Kelekian, 2020. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/330160",
+  "entities": [
+   "place:athens_118"
+  ]
+ },
+ {
+  "id": "met-247197",
+  "file": "/images/met-247197.jpg",
+  "width": 853,
+  "height": 1100,
+  "caption": "A Corinthian wine jug, ca. 570–550 BC",
+  "title": "Terracotta oinochoe (wine jug), Greek, Corinthian",
+  "date": "ca. 570–550 BCE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1906. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/247197",
+  "entities": [
+   "place:corinth_306"
+  ]
+ },
+ {
+  "id": "met-548209",
+  "file": "/images/met-548209.jpg",
+  "width": 1100,
+  "height": 1100,
+  "caption": "The jubilee relief of Ramesses II, ca. 1290–1224 BC",
+  "title": "Jubilee Relief of Ramesses II",
+  "date": "ca. 1290–1224 BCE",
+  "credit": "The Metropolitan Museum of Art, Gift of Egypt Exploration Fund, 1905. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/548209",
+  "entities": [
+   "place:egypt_362"
+  ]
+ },
+ {
+  "id": "met-568270",
+  "file": "/images/met-568270.jpg",
+  "width": 1100,
+  "height": 733,
+  "caption": "An Egyptian brick mold, ca. 1550–1300 BC: bricks were made so in Exodus 5",
+  "title": "Brick mold",
+  "date": "ca. 1550–1300 BCE",
+  "credit": "The Metropolitan Museum of Art, Rogers Fund, 1925. Public domain (CC0).",
+  "url": "https://www.metmuseum.org/art/collection/search/568270",
+  "entities": [
+   "place:egypt_362"
+  ]
+ }
+]

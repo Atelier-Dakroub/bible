@@ -1590,6 +1590,11 @@
       if (!(button instanceof HTMLButtonElement) || !(card instanceof HTMLElement) || !this.world().contains(card)) return;
       const cardElement = /** @type {Card} */ (card);
 
+      // A person, place or event named on a card, such as on a picture.
+      if (button.dataset.entity) {
+        /** @type {any} */ (this.querySelector('passage-search'))?.showEntity(button.dataset.entity);
+        return;
+      }
       if (button.dataset.version) this.switchVersion(cardElement, button.dataset.version);
       else if (button.dataset.stepTo) this.step(cardElement, button.dataset.stepTo);
       else if (button.dataset.action === 'sync') {

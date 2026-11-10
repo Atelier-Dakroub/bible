@@ -1,6 +1,7 @@
 <script server>
   import { books, entityView, original, parallel, phrase, preview, verseCount } from '../../data/bible.js';
-  import { mapOf } from '../../data/entities.js';
+  import { entities, mapOf } from '../../data/entities.js';
+  import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
   import { parseAddress, stepAddress } from '../../lib/reference.js';
   import { parseSpanAddress } from '../../lib/words.js';
@@ -16,6 +17,8 @@
   //   landscape:books           the books compared (data/study.js)
   //   landscape:H2617           where a Strong's number, an entity, or
   //                             text:<words> occurs, chapter by chapter
+  //   image:met-322585          a picture (data/images.js), with what it
+  //                             shows and its credit
   //   note:<id>                 a note; its text is in the browser, and
   //                             `quotes` names the spans it quotes
   export const prerender = false;
@@ -39,7 +42,8 @@
    *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[],
    *   landscape: import('../../data/study.js').Landscape | null,
    *   shade: Box, levant: Box, levantClip: Box,
-   *   source: Awaited<ReturnType<typeof original>> | null
+   *   source: Awaited<ReturnType<typeof original>> | null,
+   *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[]
    * }} Card
    */
 
@@ -49,7 +53,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -74,6 +78,16 @@
       const found = await landscape(address.slice('landscape:'.length));
       if (!found) return new Response('Nothing has that address.', { status: 404 });
       return card({ kind: 'landscape', address, version, title: found.title, opening: found.summary, landscape: found });
+    }
+
+    // A picture, and the people, places and events it shows.
+    const picture = /^image:([\w-]{1,60})$/.exec(address);
+    if (picture) {
+      const image = imageById(picture[1]);
+      if (!image) return new Response('No picture has that address.', { status: 404 });
+      const known = await entities();
+      const shows = image.entities.filter((id) => known[id]).map((id) => ({ id, name: known[id].title }));
+      return card({ kind: 'image', address, version, title: shows[0]?.name ?? 'Picture', opening: image.caption, image, shows });
     }
 
     // A note, with the words it quotes.
@@ -231,6 +245,18 @@
       </svg>
       <p class="entity__credit">${landscape ? landscape.credit : ''}</p>
     </div>
+    <!-- A picture: as large as the card, its caption, what it shows (a tap
+         opens each in the search panel), and its credit and record. -->
+    <figure if="image" class="image-card">
+      <img src="${image ? image.file : ''}" width="${image ? image.width : 0}" height="${image ? image.height : 0}" alt="${image ? image.caption : ''}" />
+      <figcaption>
+        <p class="image-card__caption">${image ? image.caption : ''}</p>
+        <ul if="shows.length" class="rr-chips image-card__shows">
+          <li each="item of shows"><button type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></li>
+        </ul>
+        <p class="entity__credit">${image ? image.title : ''}${image && image.date ? ', ' + image.date : ''}. ${image ? image.credit : ''}</p>
+      </figcaption>
+    </figure>
     <div if="entity" class="entity-card">
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
       <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>

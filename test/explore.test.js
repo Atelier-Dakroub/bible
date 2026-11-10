@@ -45,3 +45,18 @@ test('every Did you know? names its source, and Another goes through them all', 
   assert.equal(first.next, 1);
   assert.equal((await didYouKnow(list.length - 1)).next, 0);
 });
+
+test('every picture has its file, a credit, a record, and subjects that exist', async () => {
+  const { images, imagesFor } = await import('../app/data/images.js');
+  const { existsSync } = await import('node:fs');
+  const known = await entities();
+  assert.ok(images.length >= 40, `${images.length} pictures`);
+  for (const image of images) {
+    assert.ok(existsSync(`app/public${image.file}`), image.file);
+    assert.ok(image.width > 0 && image.height > 0, image.id);
+    assert.match(image.credit, /Library of Congress|Metropolitan Museum/);
+    assert.match(image.url, /^https:\/\//);
+    for (const id of image.entities) assert.ok(known[id], `${image.id}: ${id}`);
+  }
+  assert.ok(imagesFor('place:jerusalem_636').length >= 2);
+});

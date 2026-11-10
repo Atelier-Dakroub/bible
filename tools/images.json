@@ -1,0 +1,481 @@
+{
+  "matson": [
+    {
+      "pk": "2019698434",
+      "entities": [
+        "place:jerusalem_636",
+        "place:mount_of_olives_861"
+      ],
+      "caption": "Jerusalem from the Mount of Olives",
+      "title": "Jerusalem (El-Kouds). [Jerusalem from the Mount of Olives]",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06700/06729r.jpg"
+    },
+    {
+      "pk": "2019696209",
+      "entities": [
+        "place:jerusalem_636"
+      ],
+      "caption": "The Damascus Gate of Jerusalem, with camels unloading wheat",
+      "title": "Around the city wall [Jerusalem]. Damascus Gate. Bedouins unloading wheat-ladened camels",
+      "date": "[approximately 1920 to 1933]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/02500/02520r.jpg"
+    },
+    {
+      "pk": "2019692466",
+      "entities": [
+        "place:bethlehem_218"
+      ],
+      "caption": "Bethlehem, a general view",
+      "title": "Bethlehem and surroundings. General view of Bethlehem",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00900/00971r.jpg"
+    },
+    {
+      "pk": "2019704026",
+      "entities": [
+        "place:nazareth_878"
+      ],
+      "caption": "Nazareth from the east",
+      "title": "Nazareth. General view from the east",
+      "date": "1945 Oct.",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/12600/12633r.jpg"
+    },
+    {
+      "pk": "2019691934",
+      "entities": [
+        "place:capernaum_274"
+      ],
+      "caption": "Capernaum: the restored synagogue",
+      "title": "Jerusalem to Galilee via Samaria. Capernaum. The restored synagogue. (Showing steps to an ancient boat landing)",
+      "date": "[between 1898 and 1946]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00700/00725r.jpg"
+    },
+    {
+      "pk": "2019695156",
+      "entities": [
+        "place:sea_of_galilee_1032",
+        "place:galilee_433"
+      ],
+      "caption": "The Sea of Galilee from above Bethsaida",
+      "title": "Northern views. View of the lake from above Bethsaida",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05100/05163r.jpg"
+    },
+    {
+      "pk": "2019706029",
+      "entities": [
+        "place:jordan_653"
+      ],
+      "caption": "The Jordan, in its valley",
+      "title": "Down the Jordan Valley from the Sea of Galilee to the Dead Sea. Jordan River below Sheik Hussein showing depression through which Jordan flows",
+      "date": "[approximately 1920 to 1933]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/15200/15249r.jpg"
+    },
+    {
+      "pk": "2019712922",
+      "entities": [
+        "place:jericho_634"
+      ],
+      "caption": "The mound of ancient Jericho, from the air",
+      "title": "Air views of Palestine. Air route following the old Jerusalem-Jericho Road. Mound of ancient Jericho. Looking southward, modern Jericho in distance",
+      "date": "[1931]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/22100/22117r.jpg"
+    },
+    {
+      "pk": "2019692480",
+      "entities": [
+        "place:hebron_551"
+      ],
+      "caption": "Hebron, a general view",
+      "title": "Road to Hebron, Mar Saba, etc. General view of Hebron",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00900/00985r.jpg"
+    },
+    {
+      "pk": "2019692483",
+      "entities": [
+        "place:machpelah_748",
+        "place:hebron_551"
+      ],
+      "caption": "The mosque over the cave of Machpelah, Hebron",
+      "title": "Road to Hebron, Mar Saba, etc. Mosque over Cave of Machpelah",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00900/00988r.jpg"
+    },
+    {
+      "pk": "2019692555",
+      "entities": [
+        "place:shechem_1069"
+      ],
+      "caption": "Nablus (Shechem) and Mount Gerizim",
+      "title": "Northern views. Nablus (Shechem) and Mt. Gerizim",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01000/01059r.jpg"
+    },
+    {
+      "pk": "2019695509",
+      "entities": [
+        "place:megiddo_777"
+      ],
+      "caption": "Megiddo: the mound of Tell el-Mutesellim",
+      "title": "Along the sea coast. Megiddo, Tell Mutesellim",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05500/05581r.jpg"
+    },
+    {
+      "pk": "2019695502",
+      "entities": [
+        "place:hermon_564"
+      ],
+      "caption": "Mount Hermon from the east",
+      "title": "Mount Hermon, scene of the Transfiguration. Mount Hermon from the east",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05500/05571r.jpg"
+    },
+    {
+      "pk": "2019697172",
+      "entities": [
+        "place:carmel_278"
+      ],
+      "caption": "Mount Carmel and the palm groves of Haifa",
+      "title": "Haifa & environs. Mount Carmel & palm groves. (Evening scene)",
+      "date": "[between 1898 and 1946]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05900/05946r.jpg"
+    },
+    {
+      "pk": "2019692689",
+      "entities": [
+        "place:tyre_1184"
+      ],
+      "caption": "The harbour of Tyre",
+      "title": "Along the sea coast. Harbour of Tyre",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01100/01193r.jpg"
+    },
+    {
+      "pk": "2019698066",
+      "entities": [
+        "place:sidon_1093"
+      ],
+      "caption": "Sidon, a general view",
+      "title": "Along the sea coast. General view of Sidon",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/07600/07607r.jpg"
+    },
+    {
+      "pk": "2019693627",
+      "entities": [
+        "place:beersheba_170"
+      ],
+      "caption": "Beersheba, a general view",
+      "title": "Beersheba and surroundings. (Beer Saba). Beersheba. A general view",
+      "date": "[approximately 1920 to 1933]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/02900/02906r.jpg"
+    },
+    {
+      "pk": "2019712458",
+      "entities": [
+        "place:gaza_446"
+      ],
+      "caption": "Gaza from Gebel Muntar",
+      "title": "Moslem [i.e., Muslim] celebrations at Mejdal (Wady Nemill and Sey'd Hussein Shrine at Ascalon) and at Gaza (el Muntar) April 20th, 21st and 22nd 1943. View of Gaza from Gebel Muntar",
+      "date": "1943 April.",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/21600/21694r.jpg"
+    },
+    {
+      "pk": "2019697103",
+      "entities": [
+        "place:zion_1263",
+        "place:jerusalem_636"
+      ],
+      "caption": "Mount Zion, the western hill of Jerusalem",
+      "title": "Jerusalem. Mount Zion. (The western hill)",
+      "date": "[between 1898 and 1946]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/05800/05872r.jpg"
+    },
+    {
+      "pk": "2019698500",
+      "entities": [
+        "place:golgotha_487"
+      ],
+      "caption": "Gordon's Calvary: one of the places proposed for Golgotha",
+      "title": "Jerusalem (El-Kouds). Gordon's Calvary",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06600/06666r.jpg"
+    },
+    {
+      "pk": "2019698740",
+      "entities": [
+        "place:nain_872"
+      ],
+      "caption": "Nain",
+      "title": "Northern views. Nain",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06900/06991r.jpg"
+    },
+    {
+      "pk": "2019691465",
+      "entities": [
+        "place:jezreel_643"
+      ],
+      "caption": "The plain of Jezreel, with Gilboa, from the air",
+      "title": "Air views of Palestine. Air route over Cana of Galilee, Nazareth, Plain of Sharon, etc. Plain of Jezreel. Showing Gilboa, Gideon's fountain and Jewish colonies",
+      "date": "[1932]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00200/00247r.jpg"
+    },
+    {
+      "pk": "2019698591",
+      "entities": [
+        "place:dothan_342"
+      ],
+      "caption": "Dothan, where Joseph was sold by his brothers",
+      "title": "Dothan, where Joseph was sold by his brethren",
+      "date": "[between 1898 and 1946]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/07200/07204r.jpg"
+    },
+    {
+      "pk": "2019692551",
+      "entities": [
+        "place:sychar_1119"
+      ],
+      "caption": "Jacob's well, and the plain below Sychar",
+      "title": "Northern views. Jacob's Well and Plain of Makhna",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01000/01054r.jpg"
+    },
+    {
+      "pk": "2019698440",
+      "entities": [
+        "place:bethphage_229"
+      ],
+      "caption": "The site of Bethphage",
+      "title": "Jerusalem (El-Kouds). Site of Bethpage [i.e., Bethphage]",
+      "date": "[between 1898 and 1914]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/06700/06714r.jpg"
+    },
+    {
+      "pk": "2019695822",
+      "entities": [
+        "place:lebanon_720"
+      ],
+      "caption": "The cedars of Lebanon",
+      "title": "The cedars of Lebanon, Cedrus Libani Barr. Cedars of Lebanon",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/02100/02135r.jpg"
+    },
+    {
+      "pk": "2019692970",
+      "entities": [
+        "place:on_908"
+      ],
+      "caption": "The obelisk at Heliopolis (On)",
+      "title": "Egyptian views; Heliopolis (Matariyeh). The obelisk at Heliopolis",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01400/01486r.jpg"
+    },
+    {
+      "pk": "2019696777",
+      "entities": [
+        "place:gebal_449"
+      ],
+      "caption": "Byblos (Gebal): the sarcophagus of Ahiram, king of Byblos",
+      "title": "Byblos: Jebeil. Byblos. Sarcophagus of Ahiram, King of Byblos",
+      "date": "1936 August.",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/03400/03491r.jpg"
+    },
+    {
+      "pk": "2019691451",
+      "entities": [
+        "place:rabbah_966"
+      ],
+      "caption": "Amman (Rabbah) from the acropolis, with the Roman theatre",
+      "title": "Wady Sha'ib Es-Salt, Amman, etc. Amman from acropolis hill. Showing Roman theatre and Hotel Philadelphia",
+      "date": "[approximately 1920 to 1933]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00200/00209r.jpg"
+    },
+    {
+      "pk": "2019702254",
+      "entities": [
+        "place:medeba_775",
+        "place:jerusalem_636"
+      ],
+      "caption": "The mosaic map at Madeba: its plan of Jerusalem",
+      "title": "Madeba mosaic map of Jerusalem",
+      "date": "[between 1898 and 1946]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/11800/11818r.jpg"
+    },
+    {
+      "pk": "2019693187",
+      "entities": [
+        "place:heshbon_565"
+      ],
+      "caption": "The site of Heshbon",
+      "title": "East of the Jordan and Dead Sea. Site of Heshbon",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01700/01709r.jpg"
+    },
+    {
+      "pk": "2019693173",
+      "entities": [
+        "place:kir_693"
+      ],
+      "caption": "Kerak (Kir of Moab)",
+      "title": "East of the Jordan and Dead Sea. General view of Kerak (Kir of Moab)",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01600/01692r.jpg"
+    },
+    {
+      "pk": "2019692602",
+      "entities": [
+        "place:bethsaida_231"
+      ],
+      "caption": "Bethsaida",
+      "title": "Northern views. Bethsaida",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01100/01106r.jpg"
+    },
+    {
+      "pk": "2019692608",
+      "entities": [
+        "place:chorazin_299"
+      ],
+      "caption": "The ruins of the synagogue at Chorazin",
+      "title": "Northern views. Ruins of a synagogue at Chorazin",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/01100/01112r.jpg"
+    },
+    {
+      "pk": "2019691709",
+      "entities": [
+        "place:sela_1044"
+      ],
+      "caption": "The mountains of Petra, often taken for Sela",
+      "title": "Petra in Transjordan. Mountains of Petra from Elji",
+      "date": "[approximately 1900 to 1920]",
+      "image": "https://tile.loc.gov/storage-services/service/pnp/matpc/00100/00105r.jpg"
+    }
+  ],
+  "met": [
+    {
+      "id": 322617,
+      "entities": [
+        "place:calah_268",
+        "place:assyria_111"
+      ],
+      "caption": "A relief from the palace of Ashurnasirpal II at Nimrud (Calah), ca. 883–859 BC"
+    },
+    {
+      "id": 322608,
+      "entities": [
+        "place:assyria_111",
+        "place:calah_268"
+      ],
+      "caption": "A human-headed winged bull (lamassu) that guarded a gate at Nimrud, ca. 883–859 BC"
+    },
+    {
+      "id": 321775,
+      "entities": [
+        "person:sennacherib_2489",
+        "person:hezekiah_1512",
+        "place:nineveh_899"
+      ],
+      "caption": "Sennacherib's own account of his third campaign, against Judah and Hezekiah, ca. 704–681 BC"
+    },
+    {
+      "id": 322585,
+      "entities": [
+        "place:babylon_151",
+        "person:nebuchadnezzar_2167"
+      ],
+      "caption": "A striding lion of glazed brick from Babylon's Processional Way, in the reign of Nebuchadnezzar II, ca. 604–562 BC"
+    },
+    {
+      "id": 321999,
+      "entities": [
+        "place:babylon_151",
+        "event:39"
+      ],
+      "caption": "A Babylonian tablet of Atra-hasis, a flood story, 7th–6th century BC"
+    },
+    {
+      "id": 324915,
+      "entities": [
+        "place:ur_1189"
+      ],
+      "caption": "An inscribed brick of the Neo-Sumerian kings of Ur, ca. 2112–2095 BC"
+    },
+    {
+      "id": 322903,
+      "entities": [
+        "place:ur_1189"
+      ],
+      "caption": "A headdress from the royal cemetery at Ur, ca. 2600–2500 BC"
+    },
+    {
+      "id": 324433,
+      "entities": [
+        "place:persia_938",
+        "person:ahasuerus_117"
+      ],
+      "caption": "The head of a Persian guard from Persepolis, in the reign of Xerxes I (Ahasuerus), ca. 486–465 BC"
+    },
+    {
+      "id": 323178,
+      "entities": [
+        "place:persia_938"
+      ],
+      "caption": "Persepolis: two servants bearing food and drink, ca. 358–338 BC"
+    },
+    {
+      "id": 324036,
+      "entities": [
+        "place:susa_1118"
+      ],
+      "caption": "Glazed bricks from Susa (Shushan), the Persian royal city, 6th–4th century BC"
+    },
+    {
+      "id": 324243,
+      "entities": [
+        "place:persia_938"
+      ],
+      "caption": "A gold daric with the Persian king, 4th century BC: the \"drams\" of Ezra 2:69"
+    },
+    {
+      "id": 247993,
+      "entities": [
+        "person:augustus_366",
+        "place:rome_1013"
+      ],
+      "caption": "A marble portrait of the emperor Augustus, ca. AD 14–37"
+    },
+    {
+      "id": 330160,
+      "entities": [
+        "place:athens_118"
+      ],
+      "caption": "A silver tetradrachm of Athens, with the owl of Athena, ca. 440–404 BC"
+    },
+    {
+      "id": 247197,
+      "entities": [
+        "place:corinth_306"
+      ],
+      "caption": "A Corinthian wine jug, ca. 570–550 BC"
+    },
+    {
+      "id": 548209,
+      "entities": [
+        "place:egypt_362"
+      ],
+      "caption": "The jubilee relief of Ramesses II, ca. 1290–1224 BC"
+    },
+    {
+      "id": 568270,
+      "entities": [
+        "place:egypt_362"
+      ],
+      "caption": "An Egyptian brick mold, ca. 1550–1300 BC: bricks were made so in Exodus 5"
+    }
+  ]
+}

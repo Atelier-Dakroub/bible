@@ -288,6 +288,18 @@ type RuleOffer = {
   value: string;
   label: string;
 };
+type Image = {
+  id: string;
+  file: string;
+  width: number;
+  height: number;
+  caption: string;
+  title: string;
+  date: string;
+  credit: string;
+  url: string;
+  entities: string[];
+};
 type Fact = {
   text: string;
   source: string;
@@ -1243,6 +1255,7 @@ export type SearchData = __Shape<{
     title: string;
     kind: string;
   }[];
+  images: Image[];
   trail: {
     label: string;
     kind: string;
@@ -1272,6 +1285,7 @@ export type SearchData = __Shape<{
     title: string;
     kind: string;
   }[];
+  images: Image[];
   trail: {
     label: string;
     kind: string;

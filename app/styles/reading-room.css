@@ -265,6 +265,12 @@
   outline: 2px solid var(--lapis);
   outline-offset: 2px;
 }
+/* In a bar of joined buttons, the focused one is drawn above its
+   neighbours, so its whole ring shows. */
+.rr-segments button:focus-visible {
+  position: relative;
+  z-index: 1;
+}
 a {
   color: var(--lapis);
   text-decoration-thickness: 1px;

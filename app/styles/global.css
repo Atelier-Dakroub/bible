@@ -983,6 +983,77 @@ gesture-card[data-compare] .bsb__d {
 }
 
 
+/* Pictures. In the search panel, a plate: the first picture large, with its
+   caption and a small credit, the rest small under it. On the table, a
+   picture card in slate. A picture takes a tap, which puts it on the table. */
+.plate {
+  margin: 0.6rem 0 0.5rem;
+}
+.plate__image,
+.plates__image {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--tint);
+  overflow: hidden;
+  cursor: pointer;
+}
+.plate__image img,
+.plates__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.plate figcaption {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.35rem;
+}
+.plate__caption {
+  font: italic calc(0.7rem * var(--read-scale)) / 1.4 var(--serif);
+}
+.plate__credit {
+  color: var(--ink-soft);
+  font: 0.5rem/1.4 var(--sans);
+}
+.plates {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+.plates__image {
+  aspect-ratio: 4 / 3;
+}
+.plates__image img {
+  height: 100%;
+  object-fit: cover;
+}
+.passage--image {
+  --kind: var(--slate);
+  width: 32rem;
+}
+.image-card {
+  margin: 0;
+}
+.image-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-small);
+}
+.image-card__caption {
+  margin: 0.6rem 0 0.4rem;
+  font: italic calc(0.85rem * var(--read-scale)) / 1.45 var(--serif);
+}
+.image-card__shows {
+  margin: 0 0 0.4rem;
+}
+
 /* Did you know? A fact in the panel, set as a museum's wall text: a small
    ochre kicker, the fact in the book face, and a way to see it. */
 .discover {

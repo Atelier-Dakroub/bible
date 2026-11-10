@@ -10,6 +10,7 @@ import { loaders as strongsLoaders } from './strongs/index.js';
 import { loaders as bsbLoaders } from './bsb/index.js';
 import { loaders as originalLoaders } from './original/index.js';
 import { journeysFor } from './journeys.js';
+import { imagesFor } from './images.js';
 import { formatReference, parseAddress, parseReference, toAddress, versesIn } from '../lib/reference.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
@@ -64,6 +65,8 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
  *               part of (data/journeys.js)
  *   seeAlso     the people, places, groups and events named most often in
  *               the same verses as the entity: its "See also"
+ *   images      pictures of the entity, or of the people and places of a
+ *               guide's passage (data/images.js)
  *
  * @typedef {{
  *   query: string, summary: string, results: Result[], entry: Entry | null,
@@ -71,7 +74,8 @@ import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, ti
  *   dictionary: { term: string, text: string } | null,
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
- *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[]
+ *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
+ *   images: import('./images.js').Image[]
  * }} Results
  */
 
@@ -98,6 +102,7 @@ export function answer(fields) {
     rule: null,
     journeys: [],
     seeAlso: [],
+    images: [],
     ...fields,
   };
 }
@@ -752,7 +757,7 @@ export async function entityResults(id, limit = 50) {
     found.kind === 'person' ? journeysFor({ person: id }) : [],
     seeAlsoFor(id, found.verses, view),
   ]);
-  return answer({ summary, results, entity: view, rule, landscape: total ? `landscape:${id}` : '', journeys, seeAlso });
+  return answer({ summary, results, entity: view, rule, landscape: total ? `landscape:${id}` : '', journeys, seeAlso, images: imagesFor(id) });
 }
 
 // How many of an entity's verses "See also" reads: enough to find who is
