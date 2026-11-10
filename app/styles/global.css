@@ -729,6 +729,31 @@ gesture-card[data-zoom='far'] .note__text {
   font: 600 max(0.55rem, 11px)/1 var(--sans);
   text-align: start;
 }
+/* The reverse interlinear: the KJV's words, and the original under them. */
+.rev__en {
+  color: var(--ink);
+  font: calc(0.85rem * var(--read-scale)) / 1.35 var(--serif);
+}
+.rev__group--plain {
+  align-self: start;
+  cursor: default;
+}
+.rev__group--plain .rev__en {
+  color: var(--ink-soft);
+}
+.passage__reverse .inter__words {
+  gap: 0.35rem 0.15rem;
+}
+.passage__reverse .inter__word {
+  padding: 0.15rem 0.3rem 0.2rem;
+}
+.passage__reverse .inter__text {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+.passage__reverse.original--hebrew .inter__text {
+  font-size: 1.25rem;
+}
 .inter__words {
   display: flex;
   flex-wrap: wrap;

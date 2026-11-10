@@ -335,7 +335,7 @@ export async function grammarFind(query) {
 
 /** @param {string | number} text */
 function bare(text) {
-  return String(text).replace(/[\s¶.,;:·;?!”’]+$/u, '');
+  return String(text).replace(/[\s¶.,;:·;?!”’\u05C3\u05C0\u05BE]+$/u, '');
 }
 
 /**
@@ -453,6 +453,63 @@ export async function original(ref) {
       };
     }),
   };
+}
+
+/**
+ * The reverse interlinear: the KJV in its own order, each word or run of
+ * words with the same Strong's number as one group, and under it the word
+ * of the original it renders. The k-th group with a number takes the k-th
+ * word of the original with that number in the verse (the last, if the
+ * original has fewer). English with no number of its own (a word the
+ * translators supplied, or one that renders part of a word, such as the
+ * "in the" of a prefix) is a group with nothing under it.
+ *
+ * @typedef {{ en: string, orig: OriginalWord | null }} ReverseGroup
+ * @typedef {{ id: string, label: string, groups: ReverseGroup[] }} ReverseVerse
+ *
+ * @param {WordVerse[]} verses the KJV, with word tokens
+ * @param {{ verses: OriginalVerse[] }} source the original of the same verses
+ * @returns {ReverseVerse[]}
+ */
+export function reverse(verses, source) {
+  const originals = new Map(source.verses.map((verse) => [verse.id, verse.words]));
+  return verses.map((verse) => {
+    const words = originals.get(verse.id) ?? [];
+    /** @type {Map<string, number>} how many groups each number has had */
+    const seen = new Map();
+    /** @type {(ReverseGroup & { s: string })[]} */
+    const groups = [];
+    for (const block of verse.blocks) {
+      for (const run of block.runs) {
+        for (const token of run.tokens) {
+          const s = token.w ? (token.s ?? '') : null;
+          const last = groups.at(-1);
+          // Spaces and stops go with the group before; a word starts a new
+          // group when its number differs.
+          if (last && (s === null || s === last.s)) {
+            last.en += token.text;
+            continue;
+          }
+          groups.push({ en: token.text, s: s ?? '', orig: null });
+        }
+      }
+    }
+    for (const group of groups) {
+      if (!group.s) continue;
+      const matches = words.filter((word) => word.s === group.s);
+      if (!matches.length) continue;
+      const k = seen.get(group.s) ?? 0;
+      seen.set(group.s, k + 1);
+      const word = matches[Math.min(k, matches.length - 1)];
+      // The word alone, without the stops of the verse around it.
+      group.orig = { ...word, text: bare(word.text), gloss: bare(word.gloss) };
+    }
+    return {
+      id: verse.id,
+      label: verse.label ?? String(verse.n),
+      groups: groups.map(({ en, orig }) => ({ en: en.trim(), orig })).filter((group) => group.en),
+    };
+  });
 }
 
 /**

@@ -1,5 +1,5 @@
 <script server>
-  import { books, entityView, original, parallel, phrase, preview, verseCount } from '../../data/bible.js';
+  import { books, entityView, original, parallel, phrase, preview, reverse, verseCount } from '../../data/bible.js';
   import { entities, eventMarks, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
@@ -24,8 +24,9 @@
   export const prerender = false;
 
   // `version` picks the text: kjv (the default), bsb, both side by side, the
-  // original (Hebrew or Greek), or the original word by word (interlinear).
-  const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear'];
+  // original (Hebrew or Greek), the original word by word (interlinear), or
+  // the KJV with the original under each word (reverse).
+  const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse'];
   const NOTE = /^note:([a-z0-9]{1,40})$/i;
   const MAX_QUOTES = 20;
 
@@ -44,6 +45,7 @@
    *   landscape: import('../../data/study.js').Landscape | null,
    *   shade: Box, levant: Box, levantClip: Box,
    *   source: Awaited<ReturnType<typeof original>> | null,
+   *   reversed: import('../../data/bible.js').ReverseVerse[],
    *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[]
    * }} Card
    */
@@ -54,7 +56,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -121,7 +123,7 @@
     if (!ref) return new Response('No passage has that address.', { status: 404 });
     const [{ title, rows: plain }, source, marks] = await Promise.all([
       parallel(ref),
-      version === 'original' || version === 'interlinear' ? original(ref) : null,
+      version === 'original' || version === 'interlinear' || version === 'reverse' ? original(ref) : null,
       eventMarks(),
     ]);
     // Each verse with the dated events whose passages begin there.
@@ -129,7 +131,8 @@
     const verses = rows.map((row) => row.verse);
     const back = stepAddress(address, -1, books) ?? '';
     const next = stepAddress(address, 1, books) ?? '';
-    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source });
+    const reversed = version === 'reverse' && source ? reverse(verses, source) : [];
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed });
   };
 </script>
 
@@ -246,6 +249,7 @@
         <button type="button" data-version="both" aria-pressed="${version === 'both' ? 'true' : 'false'}">Both</button>
         <button type="button" data-version="original" aria-pressed="${version === 'original' ? 'true' : 'false'}" title="The Hebrew or the Greek">Original</button>
         <button type="button" data-version="interlinear" aria-pressed="${version === 'interlinear' ? 'true' : 'false'}" title="The Hebrew or the Greek, word by word, with the English and the grammar">Word by word</button>
+        <button type="button" data-version="reverse" aria-pressed="${version === 'reverse' ? 'true' : 'false'}" title="The KJV in its own order, with the Hebrew or the Greek under each word">Reverse</button>
       </div>
       <button if="version === 'both'" type="button" data-action="compare" aria-pressed="false" title="Bold: words the other translation does not have">Compare</button>
     </div>
@@ -348,6 +352,23 @@
         </ol>
       </section>
       <p class="entity__credit" lang="en" dir="ltr">Hebrew and Greek: STEPBible.org, from Tyndale House, Cambridge (CC BY 4.0). The Greek is the Textus Receptus, which the KJV translated.</p>
+    </div>
+    <!-- Reverse: the KJV in its own order, each word or phrase with the word
+         of the original it renders under it (data/bible.js reverse), and its
+         transliteration; its number and grammar are in its tooltip, and Word
+         by word shows them in full. A tap studies its number. -->
+    <div if="kind === 'passage' && version === 'reverse' && source" class="passage__reverse original--${source ? source.language : ''}">
+      <section each="verse of reversed" class="inter__verse rev__verse" data-ref="${verse.id}">
+        <p class="inter__ref">${verse.label}</p>
+        <ol class="inter__words">
+          <li each="group of verse.groups" class="inter__word rev__group ${group.orig ? '' : 'rev__group--plain'}" data-orig-s="${group.orig ? group.orig.s : ''}">
+            <span class="rev__en">${group.en}</span>
+            <span if="group.orig" class="inter__text" lang="${source && source.language === 'hebrew' ? 'hbo' : 'grc'}" dir="${source && source.language === 'hebrew' ? 'rtl' : 'ltr'}" title="${group.orig ? group.orig.s + ' · ' + group.orig.grammar : ''}">${group.orig ? group.orig.text : ''}</span>
+            <span if="group.orig" class="inter__translit">${group.orig ? group.orig.translit : ''}</span>
+          </li>
+        </ol>
+      </section>
+      <p class="entity__credit">KJV with Strong's numbers (eBible.org); Hebrew and Greek: STEPBible.org, from Tyndale House, Cambridge (CC BY 4.0). Each English word is matched to the word of the original with its Strong's number. English with nothing under it, in a softer ink, has no number of its own: it renders part of a word (a prefix such as “in the”), or the translators supplied it.</p>
     </div>
     <!-- Both, verse by verse: the KJV on the left, the BSB on the right. -->
     <div if="kind === 'passage' && version === 'both'" class="passage__parallel">

@@ -310,3 +310,16 @@ test('a passage in its original language lines up with the KJV', async () => {
   const philippians = await original(/** @type {any} */ (parseAddress('PHP.1.16', books)));
   assert.match(philippians.verses[0].words.map((word) => word.gloss).join(' '), /selfish ambition/);
 });
+
+test('the reverse interlinear puts the original under the KJV words that render it', async () => {
+  const { reverse, parallel, original, books } = await import('../app/data/bible.js');
+  const { parseAddress } = await import('../app/lib/reference.js');
+  const ref = parseAddress('JHN.3.16', books);
+  assert.ok(ref);
+  const [verse] = reverse((await parallel(ref)).rows.map((row) => row.verse), await original(ref));
+  const loved = verse.groups.find((group) => group.en === 'loved');
+  assert.equal(loved?.orig?.s, 'G25');
+  assert.equal(verse.groups.find((group) => group.en.startsWith('only begotten'))?.orig?.text, 'μονογενῆ');
+  // Every word of the KJV is there, in order.
+  assert.match(verse.groups.map((group) => group.en).join(' '), /^For God so loved the world, that he gave his only begotten Son/);
+});

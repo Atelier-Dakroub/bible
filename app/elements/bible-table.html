@@ -1800,8 +1800,12 @@
       const originals = [...card.querySelectorAll('.original__verse, .inter__verse')].map((verse) =>
         [...verse.querySelectorAll('.orig, .inter__text')].map((word) => word.textContent?.trim()).join(' '),
       );
+      // The reverse interlinear copies its KJV, in order.
+      const reversed = [...card.querySelectorAll('.rev__verse')].map((verse) =>
+        [...verse.querySelectorAll('.rev__en')].map((words) => words.textContent?.trim()).join(' '),
+      );
       const original = version === 'original' || version === 'interlinear';
-      const parts = original ? originals : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
+      const parts = original ? originals : version === 'reverse' ? reversed : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
       const name = original ? (source?.getAttribute('lang') === 'hbo' ? 'Hebrew' : 'Greek') : version === 'bsb' ? 'BSB' : 'KJV';
       const text = `${parts.join(' ')}\n— ${title} (${name})`;
       const done = await copyText(text);

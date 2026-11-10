@@ -331,6 +331,11 @@ A passage card has two more versions beside KJV, BSB and Both:
   left, or the Greek, as running text.
 - **Word by word:** each word of the original over its transliteration, its
   English, its grammar in words and its Strong's number.
+- **Reverse:** the reverse interlinear, the KJV in its own order with the
+  word of the original under each word or phrase that renders it, matched
+  by Strong's number, and its transliteration; its grammar is in its
+  tooltip. English with no number of its own (a prefix's "in the", or a word
+  the translators supplied) is in a softer ink.
 
 A tap on a Hebrew or Greek word studies its Strong's number, and the KJV
 words on every card that render it are underlined: that is how the original
