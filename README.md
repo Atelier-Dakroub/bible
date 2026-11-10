@@ -93,7 +93,8 @@ Scripture Knowledge.
 
 People, places and the timeline: a word that names a person, place or group
 (dotted underline) shows it in the search panel: dates, family, places,
-Easton's dictionary text, and the verses that name it. Its relations are
+Easton's dictionary text (a long entry is cut after a few sentences, and
+Read more shows the rest, on its card too), and the verses that name it. Its relations are
 buttons, and its heading pulls out as a card. A people's name with no linked
 entity, such as "Hittite", shows its entry in Easton's dictionary. The
 timeline shows 450 events on an axis of equal-width eras;

@@ -52,16 +52,20 @@ function plainText(text) {
 }
 
 /**
- * The first paragraphs of a text, cut at a sentence near `limit` characters.
+ * The first paragraphs of a text, cut at a sentence near `limit` characters
+ * and marked with an ellipsis; and the rest of the text after the cut ('' for
+ * a text short enough), which an entry shows on "Read more".
  *
  * @param {string} text
  * @param {number} limit
+ * @returns {{ summary: string, more?: string }}
  */
 function summary(text, limit = 700) {
   const clean = plainText(text);
-  if (clean.length <= limit) return clean;
-  const cut = clean.lastIndexOf('. ', limit);
-  return `${clean.slice(0, cut > 200 ? cut + 1 : limit)} …`;
+  if (clean.length <= limit) return { summary: clean };
+  const found = clean.lastIndexOf('. ', limit);
+  const cut = found > 200 ? found + 1 : limit;
+  return { summary: `${clean.slice(0, cut)} …`, more: clean.slice(cut).trim() };
 }
 
 /** @param {string | undefined} value */
@@ -109,7 +113,7 @@ for (const { fields } of people) {
     alsoCalled: fields.alsoCalled ?? '',
     born: year(fields.birthYear),
     died: year(fields.deathYear),
-    summary: summary((fields.dictText ?? [])[0] ?? fields.dictionaryText ?? ''),
+    ...summary((fields.dictText ?? [])[0] ?? fields.dictionaryText ?? ''),
     father: one(fields.father),
     mother: one(fields.mother),
     partners: toIds(fields.partners),
@@ -135,7 +139,7 @@ for (const { fields } of places) {
     // A place is on the map only with both: a few records carry one.
     lat: Number.isFinite(lat) && Number.isFinite(lon) ? lat : null,
     lon: Number.isFinite(lat) && Number.isFinite(lon) ? lon : null,
-    summary: summary((fields.dictText ?? [])[0] ?? fields.dictionaryText ?? ''),
+    ...summary((fields.dictText ?? [])[0] ?? fields.dictionaryText ?? ''),
     partOf: toIds(fields.partOf),
     sameAs: one(fields.canonicalPlace),
     start: year(fields.startYear),

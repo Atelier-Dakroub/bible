@@ -359,7 +359,8 @@ const TOOLS = {
       const journeys = found?.kind === 'person' ? await journeysFor({ person: id }) : [];
       return [
         `${view.title} (${id}): ${view.facts.join(' · ')}`,
-        view.summary,
+        // The whole of Easton's text, not the summary cut short.
+        found?.more ? `${view.summary.replace(/ …$/, '')} ${found.more}` : view.summary,
         relations.join('\n'),
         verses.length ? `Named in ${verses.length} verses: ${verses.slice(0, 40).join(', ')}${verses.length > 40 ? ', …' : ''}` : '',
         journeys.length ? `Journeys: ${journeys.map((each) => `${each.title}${each.route ? ` (${each.route})` : ''}`).join('; ')}` : '',

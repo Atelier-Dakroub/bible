@@ -134,6 +134,11 @@
            on the table, as a result does (lib/citations.js). One line, as
            the paragraph keeps its line breaks. -->
       <p if="entity && entity.summary" class="entity__summary"><template each="part of entity ? entity.summaryParts : []"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
+      <!-- The rest of a summary cut short, on demand. -->
+      <details if="entity && entity.moreParts.length" class="entity__more">
+        <summary><span class="more__open">Read more</span><span class="more__close">Read less</span></summary>
+        <p class="entity__summary entity__rest"><template each="part of entity ? entity.moreParts : []"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
+      </details>
       <dl class="entity__relations">
         <template each="relation of entity ? entity.relations : []">
           <dt>${relation.label}</dt>

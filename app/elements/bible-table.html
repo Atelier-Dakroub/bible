@@ -1121,6 +1121,13 @@
     tapped({ target }) {
       const element = target instanceof Element ? target : null;
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      // Read more on an entry's card: the card holds the press, so the
+      // details do not open by themselves.
+      const more = element?.closest('.entity__more > summary')?.parentElement;
+      if (more instanceof HTMLDetailsElement) {
+        more.open = !more.open;
+        return;
+      }
       // A tap on a note, anywhere but on the words it quotes, writes in it.
       const note = element?.closest('gesture-card[data-kind="note"]');
       if (note instanceof HTMLElement && !wordAt(element) && !element?.closest('button')) {

@@ -312,6 +312,10 @@
     <div if="entity" class="entity-card">
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
       <p if="entity && entity.summary" class="entity__summary"><template each="part of entity ? entity.summaryParts : []"><button if="part.address" type="button" class="cite" data-cite="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
+      <details if="entity && entity.moreParts.length" class="entity__more">
+        <summary><span class="more__open">Read more</span><span class="more__close">Read less</span></summary>
+        <p class="entity__summary entity__rest"><template each="part of entity ? entity.moreParts : []"><button if="part.address" type="button" class="cite" data-cite="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
+      </details>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </div>
     <!-- A note: the reader's own words, which the table fills in, and the

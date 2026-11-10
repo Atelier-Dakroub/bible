@@ -294,6 +294,7 @@ type EntityView = {
   facts: string[];
   summary: string;
   summaryParts: Part_2[];
+  moreParts: Part_2[];
   relations: Relation[];
   credit: string;
   mapped: boolean;

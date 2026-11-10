@@ -54,10 +54,11 @@ import kings from './chronology/kings.json' with { type: 'json' };
 /**
  * An entity as the search panel shows it.
  *
- * `mapped` is true for a place that is on the map. `summaryParts` is the
+ * `mapped` is true for a place that is on the map. `moreParts` is the rest of
+ * a summary cut short, as parts, for Read more. `summaryParts` is the
  * summary with each Bible reference in it as a link (lib/citations.js).
  *
- * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, summaryParts: import('../lib/citations.js').Part[], relations: Relation[], credit: string, mapped: boolean }} EntityView
+ * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, summaryParts: import('../lib/citations.js').Part[], moreParts: import('../lib/citations.js').Part[], relations: Relation[], credit: string, mapped: boolean }} EntityView
  */
 /**
  * What the search panel shows.
@@ -972,7 +973,9 @@ export async function entityView(id) {
     title: found.title,
     facts,
     summary: found.summary ?? '',
-    summaryParts: citations(found.summary ?? '', books),
+    // With more to read, the summary drops its ellipsis: Read more follows.
+    summaryParts: citations(found.more ? (found.summary ?? '').replace(/ …$/, '') : (found.summary ?? ''), books),
+    moreParts: found.more ? citations(found.more, books) : [],
     relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
     credit,
     mapped: found.kind === 'place' && found.lat !== null && onMap(found.lon, found.lat),
@@ -999,6 +1002,7 @@ function worldView(id) {
     ],
     summary: '',
     summaryParts: [],
+    moreParts: [],
     relations: [],
     credit: `${found.dates === 'conventional' ? `Dates: the usual scholarly dates, entered by hand, as Wikidata (${found.id}, CC0) has none` : `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates`}. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
     mapped: false,

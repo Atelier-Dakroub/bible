@@ -1847,3 +1847,33 @@ bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
 :root[data-real-keys]:not([data-keys='always']) touch-keys {
   display: none !important;
 }
+
+/* The rest of an entry's text, cut short in its summary: Read more opens it
+   under the summary, its paragraphs kept, and Read less folds it. */
+.entity__more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  min-height: 2.2rem;
+  color: var(--lapis);
+  font: 600 var(--ui-text, 0.75rem) var(--sans);
+  cursor: pointer;
+  list-style: none;
+}
+.entity__more > summary::-webkit-details-marker {
+  display: none;
+}
+.entity__more > summary::after {
+  content: '›';
+  transition: rotate 0.15s;
+}
+.entity__more[open] > summary::after {
+  rotate: 90deg;
+}
+.entity__more:not([open]) .more__close,
+.entity__more[open] .more__open {
+  display: none;
+}
+.entity__rest {
+  margin-top: 0;
+}
