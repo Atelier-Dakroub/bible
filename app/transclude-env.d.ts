@@ -265,9 +265,14 @@ type EntityView = {
   title: string;
   facts: string[];
   summary: string;
+  summaryParts: Part_2[];
   relations: Relation[];
   credit: string;
   mapped: boolean;
+};
+type Part_2 = {
+  text: string;
+  address?: string | undefined;
 };
 type Relation = {
   label: string;
@@ -1394,6 +1399,7 @@ export type SearchData = __Shape<{
   dictionary: {
     term: string;
     text: string;
+    parts: Part_2[];
   } | null;
   refsFor: string;
   refsTitle: string;
@@ -1428,6 +1434,7 @@ export type SearchData = __Shape<{
   dictionary: {
     term: string;
     text: string;
+    parts: Part_2[];
   } | null;
   refsFor: string;
   refsTitle: string;

@@ -648,6 +648,32 @@ gesture-card[data-zoom='far'] .note__text {
   font: calc(0.8rem * var(--read-scale)) / 1.55 var(--serif);
   white-space: pre-line;
 }
+/* A Bible reference in the text (lib/citations.js): a link in the run of
+   the text. A tap puts the verse on the table, and a sideways drag pulls it
+   out, as a result does. */
+.entity__summary .cite {
+  display: inline;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lapis);
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+.entity__summary .cite:hover {
+  text-decoration-thickness: 2px;
+}
+.entity__summary .cite:focus-visible {
+  outline: 2px solid var(--lapis);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
 .entity__relations {
   margin: 0.5rem 0;
 }

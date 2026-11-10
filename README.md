@@ -204,7 +204,7 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `citations.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
@@ -393,6 +393,17 @@ The files are in https://github.com/STEPBible/STEPBible-Data ("Translators
 Amalgamated OT+NT" and "Morphology codes"). The fonts are Ezra SIL for
 Hebrew and Gentium Plus for Greek (SIL Open Font License), in
 `app/public/fonts`.
+
+## References in the text
+
+The text of Easton's dictionary and of an entry's summary names verses, as
+"(Gen. 35:16, 19; 48:7; Ruth 4:11)". In the search panel each reference is a
+link (`app/lib/citations.js`): a tap puts the verse on the table, and a
+sideways drag pulls it out, as a result does. "19" is Genesis 35:19, and a
+reference with no book, such as "(2:1, 4; 7:7)", is in the book named last,
+as Easton writes it. A word such as "Is" is not taken for a book: a short
+form needs its stop ("Isa."), and a chapter alone ("Gen. 12") too. A verse
+that does not exist stays text. About 25,000 references in Easton are links.
 
 ## The research trail
 

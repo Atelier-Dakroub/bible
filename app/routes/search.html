@@ -122,7 +122,10 @@
           </button>
         </li>
       </ul>
-      <p if="entity && entity.summary" class="entity__summary">${entity ? entity.summary : ''}</p>
+      <!-- The Bible references in the text are links: a tap puts the verse
+           on the table, as a result does (lib/citations.js). One line, as
+           the paragraph keeps its line breaks. -->
+      <p if="entity && entity.summary" class="entity__summary"><template each="part of entity ? entity.summaryParts : []"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
       <dl class="entity__relations">
         <template each="relation of entity ? entity.relations : []">
           <dt>${relation.label}</dt>
@@ -142,7 +145,7 @@
     </section>
     <section if="dictionary" class="entity" aria-label="${dictionary ? dictionary.term : ''}">
       <p class="entity__title">${dictionary ? dictionary.term : ''}</p>
-      <p class="entity__summary">${dictionary ? dictionary.text : ''}</p>
+      <p class="entity__summary"><template each="part of dictionary ? dictionary.parts : []"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>
       <p class="entity__credit">Easton's Bible Dictionary (1897), from Theographic (CC BY-SA).</p>
     </section>
     <section if="entry" class="entry" aria-label="Dictionary entry">

@@ -18,6 +18,7 @@ import { GROUPS } from './canon.js';
 import { onMap } from '../lib/map.js';
 import { tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
+import { citations } from '../lib/citations.js';
 
 /** @typedef {import('../lib/words.js').Highlight} Span */
 import { eastonFor, entities, entity, formatYear, nameKey, namedIn, namesFor, timeline, world } from './entities.js';
@@ -51,9 +52,10 @@ import kings from './chronology/kings.json' with { type: 'json' };
 /**
  * An entity as the search panel shows it.
  *
- * `mapped` is true for a place that is on the map.
+ * `mapped` is true for a place that is on the map. `summaryParts` is the
+ * summary with each Bible reference in it as a link (lib/citations.js).
  *
- * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, relations: Relation[], credit: string, mapped: boolean }} EntityView
+ * @typedef {{ id: string, kind: string, title: string, facts: string[], summary: string, summaryParts: import('../lib/citations.js').Part[], relations: Relation[], credit: string, mapped: boolean }} EntityView
  */
 /**
  * What the search panel shows.
@@ -78,7 +80,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
  * @typedef {{
  *   query: string, summary: string, results: Result[], entry: Entry | null,
  *   stats: WordStats | null, entity: EntityView | null,
- *   dictionary: { term: string, text: string } | null,
+ *   dictionary: { term: string, text: string, parts: import('../lib/citations.js').Part[] } | null,
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
  *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
@@ -865,7 +867,7 @@ export async function wordResults(address) {
   const easton = await eastonFor(token.text.trim());
   if (easton) {
     const rest = token.s ? await strongsResults(token.s) : await referenceResults(verseAddress);
-    return { ...rest, query: '', dictionary: easton, ...offers, studyCode: '' };
+    return { ...rest, query: '', dictionary: { ...easton, parts: citations(easton.text, books) }, ...offers, studyCode: '' };
   }
 
   if (token.s) return { ...(await strongsResults(token.s)), query: '', ...offers };
@@ -947,6 +949,7 @@ export async function entityView(id) {
     title: found.title,
     facts,
     summary: found.summary ?? '',
+    summaryParts: citations(found.summary ?? '', books),
     relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
     credit,
     mapped: found.kind === 'place' && found.lat !== null && onMap(found.lon, found.lat),
@@ -972,6 +975,7 @@ function worldView(id) {
       found.region,
     ],
     summary: '',
+    summaryParts: [],
     relations: [],
     credit: `${found.dates === 'conventional' ? `Dates: the usual scholarly dates, entered by hand, as Wikidata (${found.id}, CC0) has none` : `Dates from Wikidata, ${found.id} (CC0): conventional scholarly dates`}. The biblical events below follow Floyd Nolen Jones's chronology, so the two can disagree.`,
     mapped: false,
