@@ -65,94 +65,169 @@
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
   const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', video: null, ...fields });
 
+  const IMAGE = /^image:([\w-]{1,60})$/;
+  const VIDEO = /^video:([\w-]{1,60})$/;
+  // The versions read from the original.
+  const FROM_ORIGINAL = ['original', 'interlinear', 'reverse'];
+
+  /** @typedef {(address: string, version: string, query: URLSearchParams) => Promise<ReturnType<typeof card> | Response>} Maker */
+
+  /** @param {string} text a 404 with the text */
+  const missing = (text) => new Response(text, { status: 404 });
+
+  /**
+   * The map of the biblical world. `part=detail`: the map's detail, as the
+   * `detail` fragment, which the card asks for when it is first zoomed in
+   * (map-view). The Levant's relief closes its contours at the edge of its
+   * box; the clip is a little inside, so those edges do not show.
+   *
+   * @type {Maker}
+   */
+  async function mapCard(address, version, query) {
+    const map = await mapOf();
+    const detail = query.get('part') === 'detail' ? await mapDetail() : null;
+    const levant = map.relief.shades['hillshade-levant'] ?? NO_BOX;
+    const inset = 0.6;
+    const levantClip = { x: levant.x + inset, y: levant.y + inset, w: levant.w - 2 * inset, h: levant.h - 2 * inset };
+    return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map, detail, shade: map.relief.shades.hillshade ?? NO_BOX, levant, levantClip });
+  }
+
+  /**
+   * The whole Bible, one cell per chapter.
+   *
+   * @type {Maker}
+   */
+  async function landscapeCard(address, version) {
+    const found = await landscape(address.slice('landscape:'.length));
+    if (!found) return missing('Nothing has that address.');
+    return card({ kind: 'landscape', address, version, title: found.title, opening: found.summary, landscape: found });
+  }
+
+  /**
+   * A picture, and the people, places and events it shows.
+   *
+   * @type {Maker}
+   */
+  async function imageCard(address, version) {
+    const image = imageById(IMAGE.exec(address)?.[1] ?? '');
+    if (!image) return missing('No picture has that address.');
+    const known = await entities();
+    const shows = image.entities.filter((id) => known[id]).map((id) => ({ id, name: known[id].title }));
+    return card({ kind: 'image', address, version, title: shows[0]?.name ?? 'Picture', opening: image.caption, image, shows });
+  }
+
+  /**
+   * A video, and the passages it shows.
+   *
+   * @type {Maker}
+   */
+  async function videoCard(address, version) {
+    const video = videoById(VIDEO.exec(address)?.[1] ?? '');
+    if (!video) return missing('No video has that address.');
+    return card({ kind: 'video', address, version, title: video.title, opening: `${video.series} · ${video.where}`, video });
+  }
+
+  /**
+   * A note, with the words it quotes.
+   *
+   * @type {Maker}
+   */
+  async function noteCard(address, version, query) {
+    const spans = (query.get('quotes') ?? '').split(',').flatMap((text) => parseSpanAddress(text) ?? []).slice(0, MAX_QUOTES);
+    const quotes = (await Promise.all(spans.map((each) => phrase(each)))).flatMap((each) => each ?? []);
+    const count = quotes.length === 1 ? '1 quote' : `${quotes.length} quotes`;
+    return card({ kind: 'note', address, version, title: 'Note', note: NOTE.exec(address)?.[1] ?? '', quotes, count });
+  }
+
+  /**
+   * A phrase pulled out of a card.
+   *
+   * @type {Maker}
+   */
+  async function phraseCard(address, version) {
+    const range = parseSpanAddress(address);
+    const found = range ? await phrase(range) : null;
+    if (!found) return missing('No words have that address.');
+    return card({ kind: 'phrase', address, version, title: found.title, verses: found.verses, opening: preview(found.verses) });
+  }
+
+  /**
+   * A person, place, group or event, such as person:david_994.
+   *
+   * @type {Maker}
+   */
+  async function entityCard(address, version) {
+    const entity = await entityView(address);
+    if (!entity) return missing('Nothing has that address.');
+    return card({ kind: 'entity', address, version, title: entity.title, opening: entity.facts.join(' · '), entity });
+  }
+
+  /**
+   * The passages before and after one, the same size.
+   *
+   * @param {string} address
+   */
+  const around = (address) => ({ back: stepAddress(address, -1, books) ?? '', next: stepAddress(address, 1, books) ?? '' });
+
+  /**
+   * The passage's recordings (data/audio.js), on the card, so a tap can
+   * start one at once: a phone plays sound only from a tap.
+   *
+   * @param {import('../../lib/reference.js').Reference} ref
+   * @param {string} version
+   */
+  async function listenFor(ref, version) {
+    return version === 'kjv' || version === 'bsb' ? JSON.stringify(await recordingsOf(ref, version)) : '';
+  }
+
+  /**
+   * The passage in the other versions it is asked in: the KJV with the
+   * original under each word, the syntax, and the recordings.
+   *
+   * @param {import('../../lib/reference.js').Reference} ref
+   * @param {string} version
+   * @param {import('../../data/bible.js').WordVerse[]} verses
+   * @param {Awaited<ReturnType<typeof original>> | null} source
+   */
+  async function readings(ref, version, verses, source) {
+    const reversed = version === 'reverse' && source ? reverse(verses, source) : [];
+    const syntax = version === 'syntax' ? await syntaxOf(ref) : null;
+    return { reversed, syntax, listen: await listenFor(ref, version) };
+  }
+
+  /**
+   * A passage. Each verse has the dated events whose passages begin there,
+   * and where a quotation begins (the Old Testament in the New).
+   *
+   * @type {Maker}
+   */
+  async function passageCard(address, version) {
+    const ref = parseAddress(address, books);
+    if (!ref) return missing('No passage has that address.');
+    const [{ title, rows: plain }, source, marks] = await Promise.all([parallel(ref), FROM_ORIGINAL.includes(version) ? original(ref) : null, eventMarks()]);
+    const rows = plain.map((row) => ({ ...row, verse: { ...row.verse, events: marks.get(row.verse.id) ?? [], quotes: quoteMark(row.verse.id) } }));
+    const verses = rows.map((row) => row.verse);
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), ...around(address), source, ...(await readings(ref, version, verses, source)) });
+  }
+
+  /** @type {[(address: string) => boolean, Maker][]} each kind of card, and what makes it; else a passage */
+  const KINDS = [
+    [(address) => address === 'map:near-east', mapCard],
+    [(address) => address.startsWith('landscape:'), landscapeCard],
+    [(address) => IMAGE.test(address), imageCard],
+    [(address) => VIDEO.test(address), videoCard],
+    [(address) => NOTE.test(address), noteCard],
+    [(address) => parseSpanAddress(address) !== null, phraseCard],
+    [(address) => address.includes(':'), entityCard],
+  ];
+
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
     const query = new URL(url).searchParams;
     const asked = query.get('version') ?? 'kjv';
     const version = VERSIONS.includes(asked) ? asked : 'kjv';
-    const address = params.address;
-
-    // The map of the biblical world.
-    if (address === 'map:near-east') {
-      const map = await mapOf();
-      // `part=detail`: the map's detail, as the `detail` fragment, which the
-      // card asks for when it is first zoomed in (map-view).
-      const detail = query.get('part') === 'detail' ? await mapDetail() : null;
-      const levant = map.relief.shades['hillshade-levant'] ?? NO_BOX;
-      // The Levant's relief closes its contours at the edge of its box; the
-      // clip is a little inside, so those edges do not show.
-      const inset = 0.6;
-      const levantClip = { x: levant.x + inset, y: levant.y + inset, w: levant.w - 2 * inset, h: levant.h - 2 * inset };
-      return card({ kind: 'map', address, version, title: 'The biblical world', opening: 'Map', map, detail, shade: map.relief.shades.hillshade ?? NO_BOX, levant, levantClip });
-    }
-
-    // The whole Bible, one cell per chapter.
-    if (address.startsWith('landscape:')) {
-      const found = await landscape(address.slice('landscape:'.length));
-      if (!found) return new Response('Nothing has that address.', { status: 404 });
-      return card({ kind: 'landscape', address, version, title: found.title, opening: found.summary, landscape: found });
-    }
-
-    // A picture, and the people, places and events it shows.
-    const picture = /^image:([\w-]{1,60})$/.exec(address);
-    if (picture) {
-      const image = imageById(picture[1]);
-      if (!image) return new Response('No picture has that address.', { status: 404 });
-      const known = await entities();
-      const shows = image.entities.filter((id) => known[id]).map((id) => ({ id, name: known[id].title }));
-      return card({ kind: 'image', address, version, title: shows[0]?.name ?? 'Picture', opening: image.caption, image, shows });
-    }
-
-    // A video, and the passages it shows.
-    const film = /^video:([\w-]{1,60})$/.exec(address);
-    if (film) {
-      const video = videoById(film[1]);
-      if (!video) return new Response('No video has that address.', { status: 404 });
-      return card({ kind: 'video', address, version, title: video.title, opening: `${video.series} · ${video.where}`, video });
-    }
-
-    // A note, with the words it quotes.
-    const note = NOTE.exec(address);
-    if (note) {
-      const spans = (query.get('quotes') ?? '').split(',').flatMap((text) => parseSpanAddress(text) ?? []).slice(0, MAX_QUOTES);
-      const quotes = (await Promise.all(spans.map((each) => phrase(each)))).flatMap((each) => each ?? []);
-      return card({ kind: 'note', address, version, title: 'Note', note: note[1], quotes, count: quotes.length === 1 ? '1 quote' : `${quotes.length} quotes` });
-    }
-
-    // A phrase pulled out of a card.
-    const range = parseSpanAddress(address);
-    if (range) {
-      const found = await phrase(range);
-      if (!found) return new Response('No words have that address.', { status: 404 });
-      return card({ kind: 'phrase', address, version, title: found.title, verses: found.verses, opening: preview(found.verses) });
-    }
-
-    // An address with a colon is an entity, such as person:david_994.
-    if (address.includes(':')) {
-      const entity = await entityView(address);
-      if (!entity) return new Response('Nothing has that address.', { status: 404 });
-      return card({ kind: 'entity', address, version, title: entity.title, opening: entity.facts.join(' · '), entity });
-    }
-
-    const ref = parseAddress(address, books);
-    if (!ref) return new Response('No passage has that address.', { status: 404 });
-    const [{ title, rows: plain }, source, marks] = await Promise.all([
-      parallel(ref),
-      version === 'original' || version === 'interlinear' || version === 'reverse' ? original(ref) : null,
-      eventMarks(),
-    ]);
-    // Each verse with the dated events whose passages begin there, and where
-    // a quotation begins (the Old Testament in the New).
-    const rows = plain.map((row) => ({ ...row, verse: { ...row.verse, events: marks.get(row.verse.id) ?? [], quotes: quoteMark(row.verse.id) } }));
-    const verses = rows.map((row) => row.verse);
-    const back = stepAddress(address, -1, books) ?? '';
-    const next = stepAddress(address, 1, books) ?? '';
-    const reversed = version === 'reverse' && source ? reverse(verses, source) : [];
-    const syntax = version === 'syntax' ? await syntaxOf(ref) : null;
-    // The passage's recordings (data/audio.js), on the card, so a tap can
-    // start one at once: a phone plays sound only from a tap.
-    const listen = version === 'kjv' || version === 'bsb' ? JSON.stringify(await recordingsOf(ref, version)) : '';
-    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed, syntax, listen });
+    const make = KINDS.find(([test]) => test(params.address))?.[1] ?? passageCard;
+    return make(params.address, version, query);
   };
 </script>
 

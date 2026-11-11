@@ -1,11 +1,8 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 80,
+ "count": 79,
  "allowed": {
-  "app/routes/card/[address].html (anonymous)": [
-   1056
-  ],
   "app/elements/touch-keys.html press": [
    552
   ],
