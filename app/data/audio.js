@@ -29,6 +29,9 @@ const ROOT = /** @type {any} */ (globalThis).process?.env?.BIBLE_AUDIO ?? 'audio
  */
 
 /** @type {Recording[]} the recordings, the app's own voice first */
+/** Seconds before the next verse at which one of the app's own verses ends: about half its pause of 0.55 s. */
+const GAP = 0.3;
+
 export const RECORDINGS = [
   { id: 'plain-male-kjv', version: 'kjv', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/kjv`, url: '/audio/plain-male/kjv', times: 'app/data/audio/plain-male-kjv.json' },
   { id: 'plain-male-bsb', version: 'bsb', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/bsb`, url: '/audio/plain-male/bsb', times: 'app/data/audio/plain-male-bsb.json' },
@@ -119,7 +122,11 @@ export async function recordingsOf(ref, version = 'kjv') {
         last = { file: `${recording.url}/${key}.m4a`, verses: [] };
         chapters.push(last);
       }
-      last.verses.push({ id: `${key}.${verse}`, at: starts[verse - 1] / 10, until: verse < starts.length ? starts[verse] / 10 : seconds });
+      // A verse ends where the next begins; in the app's own voice, in the
+      // middle of the pause before it (generate.py's PAUSE), so that a stop
+      // a little late is still silent.
+      const next = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds;
+      last.verses.push({ id: `${key}.${verse}`, at: starts[verse - 1] / 10, until: next });
     }
     if (whole && chapters.length) found.push({ id: recording.id, kind: recording.kind, reader: recording.reader, chapters });
   }

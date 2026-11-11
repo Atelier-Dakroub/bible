@@ -363,13 +363,26 @@ export class Recording {
       if (!audio.src.endsWith(chapter.file)) audio.src = chapter.file;
       if (audio.readyState >= 1) begin();
       else audio.addEventListener('loadedmetadata', begin, { once: true, signal: listening.signal });
+      // The end, on time: timeupdate comes only about four times a second,
+      // so near the end a timer stops it.
+      /** @type {ReturnType<typeof setTimeout> | undefined} */
+      let timer;
+      listening.signal.addEventListener('abort', () => clearTimeout(timer));
+      const end = () => {
+        audio.pause();
+        this.mark(null);
+        done();
+      };
       audio.addEventListener('timeupdate', () => {
         if (this.stopped) return done();
         const t = audio.currentTime;
-        if (t >= last.until - 0.05) {
-          audio.pause();
-          this.mark(null);
-          return done();
+        if (t >= last.until - 0.05) return end();
+        const left = (last.until - t) / (audio.playbackRate || 1);
+        if (left < 0.6) {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            if (!audio.paused && !this.stopped && audio.currentTime >= last.until - 0.1) end();
+          }, Math.max(0, left * 1000 - 20));
         }
         const verse = [...chapter.verses].reverse().find((each) => each.at <= t + 0.05);
         this.mark(verse ? elementOf(verse.id) : null);

@@ -51,6 +51,11 @@ Without it: `QWEN_BASE=<Qwen3-TTS-12Hz-1.7B-Base folder> WHISPER_MODEL=<ggml-bas
 - Each verse is read alone, with a seed from its address (the same take
   again on a second run), and checked by whisper; a take with more than 20%
   of its words heard wrong is read again with the next seed, up to four times.
+  The model samples at a temperature of 0.6, not its default 0.9, so that a
+  rare name is said the same way in each verse (chosen by ear, 2026-11-11;
+  respelled names were tried and sounded spelled out). The chapters made
+  before then (the KJV's Matthew, Mark, John, 3 John and Luke 1–20, and the
+  BSB's John) were read at 0.9.
 - The chapter's verses are joined with a pause, made even in loudness, and
   encoded as AAC (48 kb/s): `audio/<voice>/<version>/<BOOK>.<chapter>.m4a`,
   outside git. The times go into `app/data/audio/<voice>-<version>.json`.

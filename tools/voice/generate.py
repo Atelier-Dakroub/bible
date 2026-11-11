@@ -18,7 +18,8 @@ Each verse is read alone, with a seed made from its address, so a run again
 gives the same take. Each take is checked: whisper transcribes it, and a take
 with too many words wrong (more than MAX_WER) is read again with the next
 seed, up to TRIES times; the best take is kept. The verses of a chapter are
-trimmed of silence, joined with a pause, made even in loudness, and encoded
+trimmed of silence, joined with a pause, softened in the treble (SOFTEN),
+made even in loudness, and encoded
 as AAC (mono, 48 kb/s): audio/<voice>/<version>/<BOOK>.<chapter>.m4a, outside
 git. The time each verse begins goes into app/data/audio/<voice>-<version>.json,
 in the form of app/data/audio/kjv.json:
@@ -34,6 +35,16 @@ MAX_WER = 0.2
 TRIES = 4
 PAUSE = 0.55  # seconds between verses
 SR = 24000
+# The voice model adds a fizz above 7 kHz that is heard as hiss; a gentle
+# shelf takes 6 dB off it (Joe chose it by ear, 2026-11-10). The chapters
+# made before it are listed in softened.txt once tools/voice/soften.js has
+# treated them; a chapter made here is listed as it is made.
+SOFTEN = 'highshelf=f=7000:g=-6:t=s:w=0.7'
+# The model picks each sound at random among the likely ones; at its default
+# (0.9) a rare name is said a different way from verse to verse (Eliakim).
+# At 0.6 the reading is steadier and still natural: Joe chose it by ear over
+# respelled names, which sounded spelled out (2026-11-11).
+TEMPERATURE = 0.6
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--voice', default='plain-male')
@@ -131,7 +142,7 @@ def read(address, text):
     best = None
     for attempt in range(TRIES):
         torch.manual_seed(base + attempt)
-        wavs, sr = model.generate_voice_clone(text=spoken(text), language='English', voice_clone_prompt=prompt)
+        wavs, sr = model.generate_voice_clone(text=spoken(text), language='English', voice_clone_prompt=prompt, temperature=TEMPERATURE)
         assert sr == SR, sr
         wave = trim(np.asarray(wavs[0], dtype=np.float32))
         error = wer(text, transcribe(wave))
@@ -174,7 +185,9 @@ for book in args.books:
         joined = np.concatenate(parts[:-1])
         with tempfile.NamedTemporaryFile(suffix='.wav') as f:
             sf.write(f.name, joined, SR)
-            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f.name, '-af', 'loudnorm=I=-18:TP=-1.5', '-ar', '24000', '-ac', '1', '-c:a', 'aac', '-b:a', '48k', '-movflags', '+faststart', out], check=True)
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f.name, '-af', f'{SOFTEN},loudnorm=I=-18:TP=-1.5', '-ar', '24000', '-ac', '1', '-c:a', 'aac', '-b:a', '48k', '-movflags', '+faststart', out], check=True)
+        with open(os.path.join(OUT, 'softened.txt'), 'a') as listed:
+            listed.write(key + '\n')
         times['chapters'][key] = [round(len(joined) / SR), starts]
         json.dump(times, open(TIMES, 'w'))
         spent = time.time() - started
