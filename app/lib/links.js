@@ -131,3 +131,40 @@ export function versesOf(address) {
   }
   return ids;
 }
+
+/**
+ * The cross-references to draw between cards: each pair of verses once,
+ * whichever way the reference runs, and never within one card. A verse on
+ * several cards is reached on each.
+ *
+ * @param {{ verses: string[], refs: Record<string, [string, ...unknown[]][]> | null }[]} cards
+ *   each card's verse ids, and its references by verse (the xrefs route)
+ * @returns {{ from: { card: number, id: string }, to: { card: number, id: string } }[]}
+ */
+export function referencePairs(cards) {
+  /** @type {Map<string, number[]>} which cards show each verse */
+  const where = new Map();
+  cards.forEach((card, index) => {
+    for (const id of card.verses) where.set(id, [...(where.get(id) ?? []), index]);
+  });
+  const seen = new Set();
+  /** @type {{ from: { card: number, id: string }, to: { card: number, id: string } }[]} */
+  const pairs = [];
+  cards.forEach((card, index) => {
+    const own = new Set(card.verses);
+    for (const [fromId, list] of Object.entries(card.refs ?? {})) {
+      if (!own.has(fromId)) continue;
+      for (const [target] of list) {
+        for (const toId of versesOf(target)) {
+          for (const other of where.get(toId) ?? []) {
+            const key = fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
+            if (other === index || seen.has(key)) continue;
+            seen.add(key);
+            pairs.push({ from: { card: index, id: fromId }, to: { card: other, id: toId } });
+          }
+        }
+      }
+    }
+  });
+  return pairs;
+}

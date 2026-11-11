@@ -327,3 +327,18 @@ test('the reverse interlinear puts the original under the KJV words that render 
   // Every word of the KJV is there, in order.
   assert.match(verse.groups.map((group) => group.en).join(' '), /^For God so loved the world, that he gave his only begotten Son/);
 });
+
+test('cross-references pair verses on different cards, each pair once', async () => {
+  const { referencePairs } = await import('../app/lib/links.js');
+  const pairs = referencePairs([
+    { verses: ['JHN.3.16', 'JHN.3.17'], refs: { 'JHN.3.16': [['ROM.5.8'], ['1JN.4.9-10']], 'JHN.3.99': [['ROM.5.8']] } },
+    { verses: ['ROM.5.8'], refs: { 'ROM.5.8': [['JHN.3.16']] } },
+    { verses: ['1JN.4.9', '1JN.4.10'], refs: null },
+    { verses: ['JHN.3.16'], refs: null },
+  ]);
+  assert.deepEqual(pairs.map(({ from, to }) => `${from.card}:${from.id} ${to.card}:${to.id}`), [
+    '0:JHN.3.16 1:ROM.5.8',
+    '0:JHN.3.16 2:1JN.4.9',
+    '0:JHN.3.16 2:1JN.4.10',
+  ]);
+});

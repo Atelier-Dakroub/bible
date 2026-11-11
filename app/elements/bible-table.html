@@ -130,7 +130,7 @@
   import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { dropLinksTo, firstCovered, nextType, removed, toggleLink, versesOf } from '../lib/links.js';
+  import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
   import { covers, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
@@ -282,6 +282,515 @@
     return /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
   }
 
+  /**
+   * The events that the cards on the table tell.
+   *
+   * @param {Element[]} cards
+   */
+  function toldEvents(cards) {
+    /** @type {Set<string>} */
+    const told = new Set();
+    for (const card of cards) for (const id of cardNamed.get(card) ?? []) if (id.startsWith('event:')) told.add(id);
+    return told;
+  }
+
+  /**
+   * Marks the timeline's ticks of the events on the table, and only those.
+   *
+   * @param {any} strip
+   * @param {Set<string>} told
+   */
+  function markTicks(strip, told) {
+    for (const tick of strip.querySelectorAll('.is-on-table')) if (!told.has(tick.dataset.entity)) tick.classList.remove('is-on-table');
+    for (const id of told) strip.tickFor(id)?.classList.add('is-on-table');
+  }
+
+  /**
+   * Where each told event's tick is on the screen, for the ticks that show.
+   *
+   * @param {any} strip
+   * @param {Set<string>} told
+   */
+  function tickBoxes(strip, told) {
+    /** @type {Map<string, DOMRect>} */
+    const ticks = new Map();
+    for (const id of told) {
+      const box = strip.tickFor(id)?.getBoundingClientRect();
+      if (box?.width > 0) ticks.set(id, box);
+    }
+    return ticks;
+  }
+
+  /**
+   * A line from a card to each tick of the events it tells, from the card's
+   * edge, so the line does not cross its text.
+   *
+   * @param {Element} card
+   * @param {Map<string, DOMRect>} ticks
+   */
+  function eventLines(card, ticks) {
+    const events = (cardNamed.get(card) ?? []).filter((id) => ticks.has(id));
+    if (!events.length) return [];
+    const edge = card.getBoundingClientRect();
+    return events.map((id) => line(edge, /** @type {DOMRect} */ (ticks.get(id)), 'time'));
+  }
+
+  /**
+   * A line from a card to each place it names that the map shows.
+   *
+   * @param {Element} card
+   * @param {Element} map the map's card
+   * @param {any} frame its map-view
+   */
+  function placeLinesOf(card, map, frame) {
+    const places = (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'));
+    if (!places.length) return [];
+    const edge = card.getBoundingClientRect();
+    return places.flatMap((id) => {
+      if (frame && !frame.shows(id)) return [];
+      const box = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect();
+      return box?.width ? [lineToDot(edge, box, 'place')] : [];
+    });
+  }
+
+  /**
+   * A link's line, with an arrow at its far end if the link has a type.
+   *
+   * @param {DOMRect} from
+   * @param {DOMRect} to
+   * @param {string | undefined} type
+   */
+  function linkLine(from, to, type) {
+    const drawn = line(from, to, type ? 'link link--typed' : 'link');
+    if (type) drawn.setAttribute('marker-end', 'url(#link-arrow)');
+    return drawn;
+  }
+
+  /**
+   * A link's label, at the middle of its line.
+   *
+   * @param {Element} drawn
+   * @param {string | undefined} type
+   */
+  function labelOn(drawn, type) {
+    const at = (/** @type {string} */ name) => Number(drawn.getAttribute(name));
+    return { at: { x: (at('x1') + at('x2')) / 2, y: (at('y1') + at('y2')) / 2 }, text: type || 'link', typed: Boolean(type) };
+  }
+
+  /**
+   * A guide line, from the table's coordinates to the screen's.
+   *
+   * @param {{ x1: number, y1: number, x2: number, y2: number }} guide
+   * @param {DOMRect} world where the table's world is on the screen
+   */
+  function guideLine(guide, world) {
+    const element = document.createElementNS(SVG, 'line');
+    element.setAttribute('class', 'guide');
+    element.setAttribute('x1', String(guide.x1 + world.left));
+    element.setAttribute('y1', String(guide.y1 + world.top));
+    element.setAttribute('x2', String(guide.x2 + world.left));
+    element.setAttribute('y2', String(guide.y2 + world.top));
+    return element;
+  }
+
+  /**
+   * Whether a note quotes these words already.
+   *
+   * @param {{ quotes: Span[] }} note
+   * @param {string} address a span address
+   */
+  const hasQuote = (note, address) => note.quotes.some((each) => spanAddress(each) === address);
+
+  /**
+   * Puts a quote in a note being written, after the caret's line.
+   *
+   * @param {any} view the note's editor (ProseMirror's EditorView)
+   * @param {object} quote the quote node, as JSON
+   */
+  function quoteAtCaret(view, quote) {
+    const { state } = view;
+    const at = state.selection.$from.depth ? state.selection.$from.after(1) : state.doc.content.size;
+    view.dispatch(state.tr.insert(at, state.schema.nodeFromJSON(quote)));
+  }
+
+  /**
+   * Where a quote dropped on a note goes among its blocks: before the first
+   * block under the drop.
+   *
+   * @param {Element | null} host the note's words
+   * @param {{ x: number, y: number } | null} point
+   * @param {number} end the place at the end
+   */
+  function dropIndex(host, point, end) {
+    if (!point || !host) return end;
+    const below = [...host.children].findIndex((block) => {
+      const box = block.getBoundingClientRect();
+      return point.y < box.top + box.height / 2;
+    });
+    return below >= 0 ? below : end;
+  }
+
+  /**
+   * All the words of a card, as a span: a link's end when it was not let go
+   * on a highlight.
+   *
+   * @param {Element} card
+   * @returns {Span | null}
+   */
+  function wholeSpan(card) {
+    const index = indexOf(card);
+    if (!index.length) return null;
+    const first = wordAt(index[0].item);
+    const last = wordAt(index[index.length - 1].item);
+    return first && last ? { from: first, to: last } : null;
+  }
+
+  /**
+   * A landscape's subject, in the search panel: the words, the Strong's
+   * number, or the person, place or event.
+   *
+   * @param {any} panel
+   * @param {string} subject
+   */
+  function showSubject(panel, subject) {
+    if (subject.startsWith('text:')) panel?.searchFor(subject.slice(5));
+    else if (/^[HG]\d/.test(subject)) panel?.searchFor(subject);
+    else if (subject.includes(':')) panel?.showEntity(subject);
+  }
+
+  /**
+   * The places the cards on the table name.
+   *
+   * @param {Element[]} cards
+   */
+  function namedPlaces(cards) {
+    return new Set(cards.flatMap((card) => (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'))));
+  }
+
+  /**
+   * Marks the map's places: on the table, and shown.
+   *
+   * @param {Element} map
+   * @param {Set<string>} named
+   * @param {Set<string>} shown
+   */
+  function markPlaces(map, named, shown) {
+    for (const marker of map.querySelectorAll('[data-place]')) {
+      const id = marker.getAttribute('data-place') ?? '';
+      marker.classList.toggle('is-on-table', named.has(id));
+      marker.classList.toggle('is-shown', shown.has(id));
+    }
+  }
+
+  /** @param {HTMLElement} card its id, or a new one */
+  const idOf = (card) => card.dataset.id ?? newId('c');
+
+  /** @param {HTMLElement} card its version, the KJV by default */
+  const versionOf = (card) => card.dataset.version ?? 'kjv';
+
+  /**
+   * Whether a card is synced, or compared (only in the both view).
+   *
+   * @param {HTMLElement} card
+   */
+  function cardFlags(card) {
+    const sync = card.dataset.sync !== undefined;
+    const compare = card.dataset.compare !== undefined && versionOf(card) === 'both';
+    return { ...(sync ? { sync } : {}), ...(compare ? { compare } : {}) };
+  }
+
+  /**
+   * A note's title on its card: the reader's own, else the kind's name. Not
+   * while it is being written.
+   *
+   * @param {HTMLElement} card
+   * @param {{ title?: string }} note
+   * @param {string} label
+   */
+  function paintTitle(card, note, label) {
+    const heading = card.querySelector('.passage__heading');
+    if (!(heading instanceof HTMLElement) || heading.isContentEditable) return;
+    heading.textContent = note.title || label;
+    heading.classList.toggle('is-kind', !note.title);
+  }
+
+  /**
+   * The label that changes a note's kind.
+   *
+   * @param {HTMLElement} card
+   * @param {string} label
+   */
+  function paintKindButton(card, label) {
+    const button = card.querySelector('.note__kind');
+    if (!button) return;
+    button.textContent = label;
+    button.setAttribute('aria-label', `${label}: change the kind of note`);
+    button.setAttribute('title', 'Change the kind: Note, Observation, Question, Interpretation, Application, Prayer');
+  }
+
+  /**
+   * A question's Answered box, and the card's mark when it is ticked.
+   *
+   * @param {HTMLElement} card
+   * @param {{ kind?: string, answered?: boolean }} note
+   */
+  function paintAnswered(card, note) {
+    const question = note.kind === 'question';
+    card.toggleAttribute('data-answered', question && Boolean(note.answered));
+    const answered = card.querySelector('.note__answered');
+    if (answered instanceof HTMLElement) answered.hidden = !question;
+    const box = card.querySelector('[data-action="note-answered"]');
+    if (box instanceof HTMLInputElement) box.checked = Boolean(note.answered);
+  }
+
+  /**
+   * Makes a note's title editable, its words selected so typing replaces them.
+   *
+   * @param {HTMLElement} heading
+   */
+  function openTitle(heading) {
+    heading.contentEditable = 'plaintext-only';
+    heading.id = 'note-field';
+    heading.setAttribute('aria-label', 'Title of the note');
+    heading.spellcheck = true;
+    heading.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    getSelection()?.removeAllRanges();
+    getSelection()?.addRange(range);
+  }
+
+  /** @param {HTMLElement} heading the title, no longer editable */
+  function closeTitleField(heading) {
+    heading.removeAttribute('contenteditable');
+    heading.removeAttribute('id');
+    heading.removeAttribute('aria-label');
+  }
+
+  /** @param {string | null} text a title as typed: one line, at most 120 characters */
+  const cleanTitle = (text) => (text ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+
+  /**
+   * A title kept: none if empty or the kind's own name.
+   *
+   * @param {string} text
+   * @param {string | undefined} kind
+   */
+  const titleFrom = (text, kind) => (text && text !== labelOf(kind) ? text : '');
+
+  /**
+   * @param {{ title?: string }} note
+   * @param {string} title
+   */
+  function setTitle(note, title) {
+    if (title) note.title = title;
+    else delete note.title;
+  }
+
+  /**
+   * The keys of a note's title being written: Enter keeps it, Escape leaves
+   * it as it was, a press elsewhere keeps it; the app's own keys type at the
+   * caret.
+   *
+   * @param {HTMLElement} heading
+   * @param {(keep: boolean) => void} finish
+   * @param {AbortSignal} signal
+   */
+  function listenTitle(heading, finish, signal) {
+    heading.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== 'Escape') return;
+      event.preventDefault();
+      if (event.key === 'Escape') finish(false);
+      heading.blur();
+    }, { signal });
+    heading.addEventListener('blur', () => finish(true), { signal });
+    heading.addEventListener('keys-type', (event) => titleKey(heading, /** @type {CustomEvent} */ (event).detail.key), { signal });
+  }
+
+  /**
+   * One key of the app's keyboard in a title: Enter keeps it, Back deletes,
+   * Clear empties it, and the rest type at the caret.
+   *
+   * @param {HTMLElement} heading
+   * @param {string} key
+   */
+  function titleKey(heading, key) {
+    if (key === 'enter') {
+      heading.blur();
+      return;
+    }
+    const at = caretIn(heading);
+    if (!at) return;
+    /** @type {Record<string, () => void>} */
+    const keys = { back: () => deleteBack(at), clear: () => (heading.textContent = '') };
+    (keys[key] ?? (() => insertAt(at, key === 'space' ? ' ' : key)))();
+  }
+
+  /**
+   * The caret's range, if it is in an element.
+   *
+   * @param {HTMLElement} element
+   */
+  function caretIn(element) {
+    const selection = getSelection();
+    const at = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    return at && element.contains(at.startContainer) ? at : null;
+  }
+
+  /** @param {Range} at the selection, or the character before the caret, deleted */
+  function deleteBack(at) {
+    if (at.collapsed && at.startOffset === 0) return;
+    if (at.collapsed) at.setStart(at.startContainer, at.startOffset - 1);
+    at.deleteContents();
+  }
+
+  /**
+   * Text typed at a range, in place of what it selects; the caret after it.
+   *
+   * @param {Range} at
+   * @param {string} typed
+   */
+  function insertAt(at, typed) {
+    at.deleteContents();
+    const text = document.createTextNode(typed);
+    at.insertNode(text);
+    at.setStartAfter(text);
+    at.collapse(true);
+    getSelection()?.removeAllRanges();
+    getSelection()?.addRange(at);
+  }
+
+  /**
+   * A quote node, as JSON: its span, and the passage's title the server gave.
+   *
+   * @param {string} address
+   * @param {HTMLElement | null} drawn
+   */
+  const quoteNode = (address, drawn) => ({ type: 'quote', attrs: { span: address, title: drawn?.dataset.title ?? '' } });
+
+  /** @param {KeyboardEvent} event a key the page has taken: no default, no one else */
+  function stopKey(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /**
+   * @param {{ answered?: boolean }} note
+   * @param {boolean} answered
+   */
+  function setAnswered(note, answered) {
+    if (answered) note.answered = true;
+    else delete note.answered;
+  }
+
+  /** @param {Element | null} panel a panel, folded if it is open */
+  function collapse(panel) {
+    const open = /** @type {any} */ (panel);
+    if (open && !open.collapsed) open.setCollapsed(true);
+  }
+
+  /**
+   * The touches of a palm that something already took: taken back.
+   *
+   * @param {number[]} rejected
+   * @param {number} current the touch going down now
+   * @param {Map<number, EventTarget>} targets where each touch went down
+   */
+  function takeBack(rejected, current, targets) {
+    for (const id of rejected) {
+      if (id !== current) targets.get(id)?.dispatchEvent(new PointerEvent('pointercancel', { pointerId: id, pointerType: 'touch', bubbles: true }));
+    }
+  }
+
+  /**
+   * Whether a key is the table's to pan with: pressed with nothing in focus,
+   * and no modifier but Shift.
+   *
+   * @param {KeyboardEvent} event
+   * @param {Element} table
+   */
+  const freeKey = (event, table) => (event.target === document.body || event.target === table) && !(event.metaKey || event.ctrlKey || event.altKey);
+
+  /**
+   * How far an arrow key pans the table: 80 pixels, 400 with Shift.
+   *
+   * @param {KeyboardEvent} event
+   * @returns {[number, number] | null}
+   */
+  function keyPan(event) {
+    const step = event.shiftKey ? 400 : 80;
+    return /** @type {Record<string, [number, number]>} */ ({ ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] })[event.key] ?? null;
+  }
+
+  /** @param {number} mode a wheel's unit, in pixels: lines, pages and pixels (a mouse wheel can count in lines) */
+  const wheelUnit = (mode) => (mode === 1 ? 16 : mode === 2 ? innerHeight : 1);
+
+  /**
+   * The rule marks a word has, as its data-rule.
+   *
+   * @param {HTMLElement} word
+   * @param {import('../lib/rules.js').Rule[]} rules
+   */
+  function ruleOf(word, rules) {
+    if (!rules.length) return '';
+    return stylesFor(rules, { s: word.dataset.s, e: word.dataset.e, marks: [...(word.parentElement?.classList ?? [])] }).join(' ');
+  }
+
+  /**
+   * @param {HTMLElement} word
+   * @param {string} value its rule marks, set only when they change
+   */
+  function setRule(word, value) {
+    if (value && word.dataset.rule !== value) word.dataset.rule = value;
+    else if (!value && word.dataset.rule !== undefined) delete word.dataset.rule;
+  }
+
+  /**
+   * Whether a word is the one studied (its Strong's number) or shown (its
+   * person or place).
+   *
+   * @param {HTMLElement} word
+   * @param {string | null | undefined} studied
+   * @param {string | null | undefined} shown
+   */
+  const studiedWord = (word, studied, shown) => Boolean((studied && word.dataset.s === studied) || (shown && word.dataset.e === shown));
+
+  /**
+   * What a card's speaker button says.
+   *
+   * @param {boolean} mode in the listening mode
+   * @param {boolean} playing
+   * @param {string} rest the verse the reading stopped in, if any
+   */
+  function listenLabel(mode, playing, rest) {
+    if (mode) return playing ? 'Pause: or tap the verse being read' : 'Stop listening; a tap on a verse plays it';
+    return rest ? `Listen from verse ${rest.split('.').slice(1).join(':')}` : 'Listen';
+  }
+
+  /** @param {{ doc?: any, text: string }} note its words, to tell whether they changed */
+  const noteSnapshot = (note) => JSON.stringify(note.doc ?? null) + note.text;
+
+  /**
+   * @param {Element} card
+   * @param {string} fallback
+   */
+  const cardTitle = (card, fallback) => card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? fallback;
+
+  /** @param {Element} card its address, if it is a card element */
+  const addressOf = (card) => (card instanceof HTMLElement ? card.dataset.address : null);
+
+  /**
+   * Takes a quote out of a note being written.
+   *
+   * @param {any} view the note's editor
+   * @param {string} address the quote's span address
+   */
+  function unquoteIn(view, address) {
+    const at = quoteAt(view.state.doc, address);
+    const node = at >= 0 ? view.state.doc.nodeAt(at) : null;
+    if (node) view.dispatch(view.state.tr.delete(at, at + node.nodeSize));
+  }
+
   /** @param {KeyboardEvent} event whether a modifier key is held */
   const modified = (event) => event.metaKey || event.ctrlKey || event.altKey || event.shiftKey;
 
@@ -322,17 +831,32 @@
    * @param {string} text
    */
   async function copyText(text) {
+    return (await clipboardWrite(text)) || execCopy(text);
+  }
+
+  /**
+   * Text to the clipboard, the new way. A browser can hold the promise while
+   * it asks for permission: after a second, false, and the old way is tried.
+   *
+   * @param {string} text
+   */
+  async function clipboardWrite(text) {
     try {
-      // A browser can hold the promise while it asks for permission. After a
-      // second, the old way is tried as well.
-      if (window.isSecureContext && navigator.clipboard) {
-        const written = navigator.clipboard.writeText(text).then(() => true, () => false);
-        const late = new Promise((resolve) => setTimeout(() => resolve(false), 1000));
-        if (await Promise.race([written, late])) return true;
-      }
+      if (!window.isSecureContext || !navigator.clipboard) return false;
+      const written = navigator.clipboard.writeText(text).then(() => true, () => false);
+      const late = new Promise((resolve) => setTimeout(() => resolve(false), 1000));
+      return Boolean(await Promise.race([written, late]));
     } catch {
-      // Fall through to the old way.
+      return false;
     }
+  }
+
+  /**
+   * Text to the clipboard, the old way: a hidden field, selected and copied.
+   *
+   * @param {string} text
+   */
+  function execCopy(text) {
     const area = document.createElement('textarea');
     area.value = text;
     area.setAttribute('readonly', '');
@@ -370,27 +894,59 @@
    * @returns {import('../lib/speech.js').Item}
    */
   function readable(verse, words, lang) {
-    let text = '';
-    /** @type {{ start: number, end: number, element: Element }[]} */
-    const found = [];
+    /** @type {Reading} */
+    const reading = { text: '', found: [] };
     const walker = document.createTreeWalker(verse, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const parent = node.parentElement;
-      if (!parent || parent.closest('sup, button, .syntax__role, .syntax__gloss, .inter__translit, .inter__gloss, .inter__grammar, .inter__code, .inter__ref, .syntax__where')) continue;
-      const piece = (node.textContent ?? '').replace(/¶/g, '');
-      const word = parent.closest(words);
-      const start = text.length;
-      text += piece;
-      if (word && verse.contains(word)) {
-        const last = found[found.length - 1];
-        if (last && last.element === word) last.end = text.length;
-        else found.push({ start, end: text.length, element: word });
-      }
-      // Words in separate elements with no space between them in the page.
-      if (words !== '.w' && word && !/\s$/.test(text)) text += ' ';
-    }
-    return { text: text.replace(/\s+/g, ' '), lang, element: verse, words: found };
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) readNode(reading, node, verse, words);
+    return { text: reading.text.replace(/\s+/g, ' '), lang, element: verse, words: reading.found };
   }
+
+  /** @typedef {{ text: string, found: { start: number, end: number, element: Element }[] }} Reading a verse's text as it is read, so far, and its words in it */
+
+  /** What is not read in a verse: numbers, buttons, and the notes around the original's words. */
+  const UNREAD = 'sup, button, .syntax__role, .syntax__gloss, .inter__translit, .inter__gloss, .inter__grammar, .inter__code, .inter__ref, .syntax__where';
+
+  /**
+   * Adds one text node of a verse to its reading.
+   *
+   * @param {Reading} reading
+   * @param {Node} node
+   * @param {Element} verse
+   * @param {string} words a selector for its words
+   */
+  function readNode(reading, node, verse, words) {
+    const parent = node.parentElement;
+    if (!parent || parent.closest(UNREAD)) return;
+    const word = parent.closest(words);
+    const start = reading.text.length;
+    reading.text += (node.textContent ?? '').replace(/¶/g, '');
+    markWord(reading, word, verse, start);
+    // Words in separate elements with no space between them in the page.
+    if (needsSpace(reading.text, word, words)) reading.text += ' ';
+  }
+
+  /**
+   * Notes where a word of the verse is in its reading: a word in several
+   * text nodes runs on.
+   *
+   * @param {Reading} reading
+   * @param {Element | null} word
+   * @param {Element} verse
+   * @param {number} start
+   */
+  function markWord(reading, word, verse, start) {
+    if (!word || !verse.contains(word)) return;
+    const last = reading.found[reading.found.length - 1];
+    if (last?.element === word) last.end = reading.text.length;
+    else reading.found.push({ start, end: reading.text.length, element: word });
+  }
+
+  /**
+   * @param {string} text
+   * @param {Element | null} word
+   * @param {string} words
+   */
+  const needsSpace = (text, word, words) => words !== '.w' && Boolean(word) && !/\s$/.test(text);
 
   // A passage longer than this arrives small, in its short form, so a whole
   // chapter does not cover the table. Two fingers make it large.
@@ -682,17 +1238,7 @@
       this.addEventListener('workspace-export', () => this.exportFile(), options);
       this.addEventListener('notes-export', () => this.exportNotes(), options);
       // A question's Answered box.
-      this.addEventListener('change', (event) => {
-        const box = event.target;
-        if (!(box instanceof HTMLInputElement) || box.dataset.action !== 'note-answered') return;
-        const card = box.closest('gesture-card[data-kind="note"]');
-        const note = this.notes.find((each) => each.id === /** @type {HTMLElement | null} */ (card)?.dataset.note);
-        if (!note || !(card instanceof HTMLElement)) return;
-        if (box.checked) note.answered = true;
-        else delete note.answered;
-        this.paintKind(card, note);
-        this.keep();
-      }, options);
+      this.addEventListener('change', (event) => this.answeredChanged(event), options);
       this.addEventListener('workspace-import', (event) => this.importFile(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-change', () => this.keep(), options);
@@ -717,15 +1263,7 @@
       this.addEventListener('chrome-arrange', () => this.drawSoon(), options);
       // On a phone, one panel is open at a time: the one that opens closes
       // the others (each sends panel-open only on a phone).
-      this.addEventListener('panel-open', (event) => {
-        const opened = /** @type {CustomEvent} */ (event).detail.panel;
-        const search = /** @type {any} */ (this.querySelector('passage-search'));
-        const strip = /** @type {any} */ (this.querySelector('time-line'));
-        const menu = /** @type {any} */ (this.querySelector('table-menu'));
-        if (opened !== 'search' && search && !search.collapsed) search.setCollapsed(true);
-        if (opened !== 'timeline' && strip && !strip.collapsed) strip.setCollapsed(true);
-        if (opened !== 'menu') menu?.setShown?.(false);
-      }, options);
+      this.addEventListener('panel-open', (event) => this.onePanel(/** @type {CustomEvent} */ (event).detail.panel), options);
       // A new text size or line spacing changes the size of the cards, so the
       // lines between them move.
       this.addEventListener('reading-change', () => this.drawSoon(), options);
@@ -831,15 +1369,10 @@
         if (event.pointerType !== 'touch' || !event.isTrusted) return;
         if (event.target) targets.set(event.pointerId, event.target);
         const rejected = guard.down({ id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp });
-        for (const id of rejected) {
-          if (id === event.pointerId) continue;
-          // A touch of the palm that something already took: take it back.
-          targets.get(id)?.dispatchEvent(new PointerEvent('pointercancel', { pointerId: id, pointerType: 'touch', bubbles: true }));
-        }
-        if (rejected.includes(event.pointerId)) {
-          event.stopPropagation();
-          event.preventDefault();
-        }
+        takeBack(rejected, event.pointerId, targets);
+        if (!rejected.includes(event.pointerId)) return;
+        event.stopPropagation();
+        event.preventDefault();
       }, capture);
 
       /** @param {PointerEvent} event */
@@ -881,21 +1414,26 @@
     wheel(event) {
       if (this.overPanel(event.target)) return;
       event.preventDefault();
-      // Lines, pages and pixels: a mouse wheel can count in lines.
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
-      const dx = event.deltaX * unit;
-      const dy = event.deltaY * unit;
-      const card = this.cardAt(event.target);
-
+      const unit = wheelUnit(event.deltaMode);
       // A pinch on a trackpad comes as a wheel with Control held.
-      if (event.ctrlKey || event.metaKey) {
-        if (card) card.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp(-dy / 200));
-        return;
-      }
-      this.offset = { x: this.offset.x - dx, y: this.offset.y - dy };
+      if (this.wheelZoom(event, unit)) return;
+      this.offset = { x: this.offset.x - event.deltaX * unit, y: this.offset.y - event.deltaY * unit };
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.paint());
       this.keepSoon();
+    },
+
+    /**
+     * A pinch on a trackpad (a wheel with Control or Command): the card under
+     * it zooms.
+     *
+     * @param {WheelEvent} event
+     * @param {number} unit
+     */
+    wheelZoom(event, unit) {
+      if (!event.ctrlKey && !event.metaKey) return false;
+      this.cardAt(event.target)?.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp((-event.deltaY * unit) / 200));
+      return true;
     },
 
     /**
@@ -1067,7 +1605,7 @@
           card.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
           this.raise(card);
           x += card.offsetWidth + ROW_GAP;
-          placed.push({ address, title: card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? address });
+          placed.push({ address, title: cardTitle(card, address) });
         }
         this.later = true;
       } finally {
@@ -1094,11 +1632,14 @@
     remoteKey(event) {
       if (document.documentElement.dataset.ui !== 'far') return;
       const target = htmlOf(event.target);
+      if (this.remoteEscape(event, target) || this.remoteEnter(event, target)) {
+        stopKey(event);
+        return;
+      }
       const direction = remoteDirection(event, target);
-      if (!this.remoteEscape(event, target) && !this.remoteEnter(event, target) && !direction) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (direction) this.remoteMove(target, direction);
+      if (!direction) return;
+      stopKey(event);
+      this.remoteMove(target, direction);
     },
 
     /**
@@ -1201,16 +1742,7 @@
      * @param {KeyboardEvent} event
      */
     panKey(event) {
-      if (event.target !== document.body && event.target !== this) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const step = event.shiftKey ? 400 : 80;
-      const moves = /** @type {Record<string, [number, number]>} */ ({
-        ArrowLeft: [step, 0],
-        ArrowRight: [-step, 0],
-        ArrowUp: [0, step],
-        ArrowDown: [0, -step],
-      });
-      const move = moves[event.key];
+      const move = freeKey(event, this) ? keyPan(event) : null;
       if (!move) return;
       event.preventDefault();
       this.offset = { x: this.offset.x + move[0], y: this.offset.y + move[1] };
@@ -1294,14 +1826,25 @@
     async place({ address, pointer, version }) {
       const card = await this.fetchCard(address, version ? { version } : {});
       if (!card) return;
-      const scale = Number(card.dataset.verses) > LONG ? LONG_SCALE : 1;
+      this.putDown(card, pointer, Number(card.dataset.verses) > LONG ? LONG_SCALE : 1);
+      this.keep();
+    },
+
+    /**
+     * Where a new card goes: in the finger that pulled it out, where it was
+     * let go, in a phone's free spot, or in the open part of the table.
+     *
+     * @param {Card} card
+     * @param {Pull | null} pointer
+     * @param {number} scale
+     */
+    putDown(card, pointer, scale) {
       if (pointer?.down) card.hold(pointer.id, pointer, scale);
       else if (pointer) card.placeAt(pointer, scale);
       else if (isPhone()) {
         const spot = this.phoneSpot(card, scale);
         card.placeAt(spot.at, spot.scale);
       } else card.placeAt(this.openSpot(), scale);
-      this.keep();
     },
 
     /**
@@ -1346,26 +1889,55 @@
       if (!Number.isFinite(x)) return;
       const source = this.sourceOf(span);
       const under = document.elementFromPoint(x, y);
-      const card = under?.closest('gesture-card');
-
-      if (card instanceof HTMLElement && this.world().contains(card) && card.dataset.kind === 'note') {
+      const card = this.tableCard(under);
+      // On a note: the words are quoted in it. On another card: a link. On
+      // the empty table: the words become a card of their own.
+      if (card?.dataset.kind === 'note') {
         this.highlight(source);
         this.quote(card, source, { x, y });
-        return;
-      }
-      if (card && this.world().contains(card)) {
-        const target = this.endAt(x, y);
-        if (!target) return;
-        this.highlight(source);
-        this.links = toggleLink(this.links, source, target);
-        this.keep();
-        return;
-      }
-      // Lifted on the empty table: the words become a card of their own.
-      if (under === this || under === this.world()) {
-        this.highlight(source);
-        this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
-      }
+      } else if (card) this.linkTo(source, x, y);
+      else this.dropOnTable(source, under, x, y);
+    },
+
+    /**
+     * The card on the table that an element is in, if any.
+     *
+     * @param {Element | null} element
+     * @returns {HTMLElement | null}
+     */
+    tableCard(element) {
+      const card = element?.closest('gesture-card');
+      return card instanceof HTMLElement && this.world().contains(card) ? card : null;
+    },
+
+    /**
+     * A link from the words to what is under the finger, or the link taken
+     * away if there is one.
+     *
+     * @param {Span} source
+     * @param {number} x
+     * @param {number} y
+     */
+    linkTo(source, x, y) {
+      const target = this.endAt(x, y);
+      if (!target) return;
+      this.highlight(source);
+      this.links = toggleLink(this.links, source, target);
+      this.keep();
+    },
+
+    /**
+     * Words lifted on the empty table become a card of their own.
+     *
+     * @param {Span} source
+     * @param {Element | null} under
+     * @param {number} x
+     * @param {number} y
+     */
+    dropOnTable(source, under, x, y) {
+      if (under !== this && under !== this.world()) return;
+      this.highlight(source);
+      this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
     },
 
     /**
@@ -1389,37 +1961,43 @@
      */
     async quote(card, span, point = null) {
       const note = this.notes.find((each) => each.id === card.dataset.note);
-      if (!note) return;
       const address = spanAddress(span);
-      if (note.quotes.some((each) => spanAddress(each) === address)) return;
-      const quotes = this.quotesOf(card);
+      if (!note || hasQuote(note, address)) return;
       const drawn = await this.loadQuote(address);
       // The same words dropped again while they loaded: one quote is enough.
-      if (note.quotes.some((each) => spanAddress(each) === address)) return;
-      if (drawn) quotes.set(address, drawn);
-      const quote = { type: 'quote', attrs: { span: address, title: drawn?.dataset.title ?? '' } };
-      // Being written: the quote goes in at the caret's line.
-      const writing = this.writing?.id === note.id ? this.writing : null;
-      if (writing) {
-        const { state } = writing.view;
-        const node = state.schema.nodeFromJSON(quote);
-        const at = state.selection.$from.depth ? state.selection.$from.after(1) : state.doc.content.size;
-        writing.view.dispatch(state.tr.insert(at, node));
-        return;
-      }
-      // Else where it was dropped: before the first block under the drop.
+      if (hasQuote(note, address)) return;
+      this.rememberQuote(card, address, drawn);
+      const quote = quoteNode(address, drawn);
+      // Being written: the quote goes in at the caret's line; else where it
+      // was dropped.
+      if (this.writing?.id === note.id) quoteAtCaret(this.writing.view, quote);
+      else this.quoteAtDrop(card, note, span, quote, point);
+    },
+
+    /**
+     * Keeps a quote's words as the server drew them, for its card.
+     *
+     * @param {HTMLElement} card
+     * @param {string} address
+     * @param {HTMLElement | null} drawn
+     */
+    rememberQuote(card, address, drawn) {
+      if (drawn) this.quotesOf(card).set(address, drawn);
+    },
+
+    /**
+     * Puts a quote in a note where it was dropped: before the first block
+     * under the drop, else at the end.
+     *
+     * @param {HTMLElement} card
+     * @param {{ doc?: any, text: string, quotes: Span[] }} note
+     * @param {Span} span
+     * @param {object} quote the quote node, as JSON
+     * @param {{ x: number, y: number } | null} point
+     */
+    quoteAtDrop(card, note, span, quote, point) {
       const doc = docOf(note).toJSON();
-      const host = card.querySelector('.note__text');
-      let index = doc.content.length;
-      if (point && host) {
-        const blocks = [...host.children];
-        const below = blocks.findIndex((block) => {
-          const box = block.getBoundingClientRect();
-          return point.y < box.top + box.height / 2;
-        });
-        if (below >= 0) index = below;
-      }
-      doc.content.splice(index, 0, quote);
+      doc.content.splice(dropIndex(card.querySelector('.note__text'), point, doc.content.length), 0, quote);
       note.doc = doc;
       note.quotes = [...note.quotes, { from: span.from, to: span.to }];
       this.redrawNote(card, note);
@@ -1493,16 +2071,19 @@
      */
     endAt(x, y) {
       const under = document.elementFromPoint(x, y);
-      const card = under?.closest('gesture-card');
-      if (!under || !card || !this.world().contains(card)) return null;
-      const word = wordAt(under);
-      const highlight = word ? this.highlights.find((each) => covers(each, word)) : null;
-      if (highlight) return highlight;
-      const index = indexOf(card);
-      if (!index.length) return null;
-      const first = wordAt(index[0].item);
-      const last = wordAt(index[index.length - 1].item);
-      return first && last ? { from: first, to: last } : null;
+      const card = this.tableCard(under);
+      if (!under || !card) return null;
+      return this.highlightAt(under) ?? wholeSpan(card);
+    },
+
+    /**
+     * The highlight a word is in, if any.
+     *
+     * @param {Element} element
+     */
+    highlightAt(element) {
+      const word = wordAt(element);
+      return word ? this.highlights.find((each) => covers(each, word)) : undefined;
     },
 
     /** @param {{ target: EventTarget | null, x?: number, y?: number }} detail */
@@ -1710,20 +2291,27 @@
      * @param {HTMLElement} card
      */
     headingTapped(card) {
-      const panel = /** @type {any} */ (this.querySelector('passage-search'));
+      const panel = this.panel();
       const address = card.dataset.address ?? '';
-      const kind = card.dataset.kind;
-      if (kind === 'passage' || kind === 'phrase') {
-        this.guideCard = card;
-        panel?.showGuide(address, this.notesOn(card));
-      } else if (kind === 'entity') {
-        panel?.showEntity(address);
-      } else if (kind === 'landscape') {
-        const subject = card.dataset.subject ?? '';
-        if (subject.startsWith('text:')) panel?.searchFor(subject.slice(5));
-        else if (/^[HG]\d/.test(subject)) panel?.searchFor(subject);
-        else if (subject.includes(':')) panel?.showEntity(subject);
-      }
+      /** @type {Record<string, () => void>} */
+      const byKind = {
+        passage: () => this.showGuideOf(card),
+        phrase: () => this.showGuideOf(card),
+        entity: () => panel?.showEntity(address),
+        landscape: () => showSubject(panel, card.dataset.subject ?? ''),
+      };
+      byKind[card.dataset.kind ?? '']?.();
+    },
+
+    /**
+     * A passage's or a phrase's guide, in the search panel; the table puts
+     * what the guide places beside this card.
+     *
+     * @param {HTMLElement} card
+     */
+    showGuideOf(card) {
+      this.guideCard = card;
+      this.panel()?.showGuide(card.dataset.address ?? '', this.notesOn(card));
     },
 
     /**
@@ -1774,12 +2362,19 @@
      *
      * @param {string[]} addresses
      */
+    /**
+     * Puts cards down one after another, each where a tapped result goes.
+     *
+     * @param {string[]} addresses
+     */
+    async placeEach(addresses) {
+      for (const address of addresses) await this.place({ address, pointer: null });
+    },
+
+    /** @param {string[]} addresses */
     async placeBeside(addresses) {
       const anchor = this.guideCard?.isConnected ? /** @type {Card} */ (/** @type {unknown} */ (this.guideCard)) : null;
-      if (!anchor) {
-        for (const address of addresses) await this.place({ address, pointer: null });
-        return;
-      }
+      if (!anchor) return this.placeEach(addresses);
       const world = this.world().getBoundingClientRect();
       const box = anchor.getBoundingClientRect();
       const scale = scaleOf(anchor.matrix);
@@ -1846,19 +2441,7 @@
      * @param {Element} root
      */
     paintRules(root) {
-      const rules = this.rules;
-      for (const element of root.querySelectorAll('.w')) {
-        const word = /** @type {HTMLElement} */ (element);
-        const styles = rules.length
-          ? stylesFor(rules, { s: word.dataset.s, e: word.dataset.e, marks: [...(word.parentElement?.classList ?? [])] })
-          : [];
-        const value = styles.join(' ');
-        if (value) {
-          if (word.dataset.rule !== value) word.dataset.rule = value;
-        } else if (word.dataset.rule !== undefined) {
-          delete word.dataset.rule;
-        }
-      }
+      for (const element of root.querySelectorAll('.w')) setRule(/** @type {HTMLElement} */ (element), ruleOf(/** @type {HTMLElement} */ (element), this.rules));
     },
 
     /** @param {{ code: string, entity: string }} detail */
@@ -2009,15 +2592,7 @@
     paintMap() {
       const map = this.mapCard();
       if (!map) return;
-      const named = new Set();
-      for (const card of this.world().querySelectorAll('gesture-card')) {
-        for (const id of cardNamed.get(card) ?? []) if (id.startsWith('place:')) named.add(id);
-      }
-      for (const marker of map.querySelectorAll('[data-place]')) {
-        const id = marker.getAttribute('data-place');
-        marker.classList.toggle('is-on-table', named.has(id));
-        marker.classList.toggle('is-shown', id === this.shown || this.shownPlaces.has(id ?? ''));
-      }
+      markPlaces(map, namedPlaces([...this.world().querySelectorAll('gesture-card')]), new Set([this.shown, ...this.shownPlaces]));
       this.mapView(map)?.relabel();
       this.drawSoon();
     },
@@ -2030,42 +2605,24 @@
     placeLines() {
       const map = this.mapCard();
       if (!map) return [];
-      /** @type {Element[]} */
-      const lines = [];
-      for (const card of this.world().querySelectorAll('gesture-card')) {
-        if (card === map) continue;
-        const places = (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'));
-        if (!places.length) continue;
-        const edgeBox = card.getBoundingClientRect();
-        const frame = this.mapView(map);
-        for (const id of places) {
-          if (frame && !frame.shows(id)) continue;
-          const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`);
-          if (!dot) continue;
-          const box = dot.getBoundingClientRect();
-          if (box.width > 0) lines.push(lineToDot(edgeBox, box, 'place'));
-        }
-      }
-      return lines;
+      const frame = this.mapView(map);
+      return [...this.world().querySelectorAll('gesture-card')].filter((card) => card !== map).flatMap((card) => placeLinesOf(card, map, frame));
     },
 
     /** @param {Element} root */
     paintStudy(root) {
       for (const element of root.querySelectorAll('.w')) {
-        const word = /** @type {HTMLElement} */ (element);
-        const same = (this.studied && word.dataset.s === this.studied) || (this.shown && word.dataset.e === this.shown);
-        word.classList.toggle('is-studied', Boolean(same));
+        element.classList.toggle('is-studied', studiedWord(/** @type {HTMLElement} */ (element), this.studied, this.shown));
       }
       // The Hebrew and Greek words with the Strong's number being studied.
       for (const element of root.querySelectorAll('[data-orig-s]')) {
-        const word = /** @type {HTMLElement} */ (element);
-        word.classList.toggle('is-studied', Boolean(this.studied) && word.dataset.origS === this.studied);
+        element.classList.toggle('is-studied', Boolean(this.studied) && /** @type {HTMLElement} */ (element).dataset.origS === this.studied);
       }
     },
 
     /** @param {Element} card */
     async loadEvents(card) {
-      const address = card instanceof HTMLElement ? card.dataset.address : null;
+      const address = addressOf(card);
       if (!address) return;
       if (address === MAP) {
         this.paintMap();
@@ -2091,35 +2648,12 @@
       const strip = /** @type {any} */ (this.querySelector('time-line'));
       if (!strip) return [];
       const cards = [...this.world().querySelectorAll('gesture-card')];
-
       // Every class change first, then every measurement: a measurement after
       // a change forces the browser to work out the styles again.
-      /** @type {Set<string>} */
-      const told = new Set();
-      for (const card of cards) {
-        for (const id of cardNamed.get(card) ?? []) if (id.startsWith('event:')) told.add(id);
-      }
-      for (const tick of strip.querySelectorAll('.is-on-table')) {
-        if (!told.has(tick.dataset.entity)) tick.classList.remove('is-on-table');
-      }
-      for (const id of told) strip.tickFor(id)?.classList.add('is-on-table');
-
-      /** @type {Map<string, DOMRect>} */
-      const ticks = new Map();
-      for (const id of told) {
-        const box = strip.tickFor(id)?.getBoundingClientRect();
-        if (box && box.width > 0) ticks.set(id, box);
-      }
-      /** @type {Element[]} */
-      const lines = [];
-      for (const card of cards) {
-        const events = (cardNamed.get(card) ?? []).filter((id) => ticks.has(id));
-        if (!events.length) continue;
-        // From the card's edge, so the line does not cross its text.
-        const edgeBox = card.getBoundingClientRect();
-        for (const id of events) lines.push(line(edgeBox, /** @type {DOMRect} */ (ticks.get(id)), 'time'));
-      }
-      return lines;
+      const told = toldEvents(cards);
+      markTicks(strip, told);
+      const ticks = tickBoxes(strip, told);
+      return cards.flatMap((card) => eventLines(card, ticks));
     },
 
     /** @param {Element} card */
@@ -2153,56 +2687,18 @@
      */
     referenceLines() {
       const cards = [...this.world().querySelectorAll('gesture-card')];
-
-      // Where each verse is on the table: one index for the whole frame, so a
-      // reference finds its target cards in one lookup.
-      /** @type {Map<string, { card: Element, verse: Element }[]>} */
-      const where = new Map();
-      for (const card of cards) {
-        for (const [id, verse] of versesOfCard(card)) {
-          const list = where.get(id);
-          if (list) list.push({ card, verse });
-          else where.set(id, [{ card, verse }]);
-        }
-      }
-
+      const verses = cards.map(versesOfCard);
+      const pairs = referencePairs(cards.map((card, at) => ({ verses: [...verses[at].keys()], refs: references.get(card) ?? null })));
       // Each verse is measured once per frame, however many lines it has.
       /** @type {Map<Element, DOMRect>} */
       const boxes = new Map();
-      /** @param {Element} card @param {Element} verse */
-      const boxOf = (card, verse) => {
-        let box = boxes.get(verse);
-        if (!box) {
-          box = this.verseBox(card, verse);
-          boxes.set(verse, box);
-        }
-        return box;
+      /** @param {{ card: number, id: string }} end */
+      const boxOf = ({ card, id }) => {
+        const verse = /** @type {Element} */ (verses[card].get(id));
+        if (!boxes.has(verse)) boxes.set(verse, this.verseBox(cards[card], verse));
+        return /** @type {DOMRect} */ (boxes.get(verse));
       };
-
-      const seen = new Set();
-      /** @type {Element[]} */
-      const lines = [];
-      for (const card of cards) {
-        const refs = references.get(card);
-        if (!refs) continue;
-        const own = versesOfCard(card);
-        for (const [fromId, list] of Object.entries(refs)) {
-          const from = own.get(fromId);
-          if (!from) continue;
-          for (const [target] of list) {
-            for (const toId of versesOf(target)) {
-              for (const { card: other, verse: to } of where.get(toId) ?? []) {
-                if (other === card) continue;
-                const key = fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                lines.push(line(boxOf(card, from), boxOf(other, to), 'ref'));
-              }
-            }
-          }
-        }
-      }
-      return lines;
+      return pairs.map(({ from, to }) => line(boxOf(from), boxOf(to), 'ref'));
     },
 
     drawSoon() {
@@ -2240,66 +2736,68 @@
       this.drawnAt = { ...this.offset };
       drawn.removeAttribute('transform');
       /** @type {HTMLElement | null} */ (this.querySelector('.table__labels'))?.style.removeProperty('translate');
-      /** @type {Element[]} */
       // The lines to the timeline end at the strip, which does not pan: they
       // have a layer of their own, drawn on every pan frame (they are few).
       /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
-      const lines = [...this.placeLines(), ...this.referenceLines()];
+      const links = this.linkLines();
+      this.placeLabels(links.labels);
+      drawn.replaceChildren(...this.placeLines(), ...this.referenceLines(), ...this.sameLines(), ...links.lines, ...this.guideLines(), ...this.pendingLines());
+    },
 
-      // The same words on several cards: a chain from each place to the next.
-      for (const span of this.highlights) {
+    /**
+     * The same words on several cards: a chain from each place to the next.
+     *
+     * @returns {Element[]}
+     */
+    sameLines() {
+      return this.highlights.flatMap((span) => {
         const places = this.placesOf(span);
-        for (let i = 1; i < places.length; i += 1) lines.push(line(places[i - 1].box, places[i].box, 'same'));
-      }
+        return places.slice(1).map((place, at) => line(places[at].box, place.box, 'same'));
+      });
+    },
 
-      // Links: each place of one end to the nearest place of the other. A
-      // typed link has an arrow at its far end, and every link has a label
-      // in the middle of its first line.
+    /**
+     * Links: each place of one end to the nearest place of the other. A typed
+     * link has an arrow at its far end, and every link has a label in the
+     * middle of its first line (a label with no place when it has no line).
+     */
+    linkLines() {
+      /** @type {Element[]} */
+      const lines = [];
       /** @type {{ at: Point, text: string, typed: boolean }[]} */
       const labels = [];
       for (const { a, b, type } of this.links) {
         const ends = this.placesOf(b);
-        /** @type {{ at: Point, text: string, typed: boolean } | null} */
-        let label = null;
-        for (const start of this.placesOf(a)) {
+        const drawn = this.placesOf(a).flatMap((start) => {
           const near = nearest(start, ends);
-          if (!near) continue;
-          const drawnLine = line(start.box, near.box, type ? 'link link--typed' : 'link');
-          if (type) drawnLine.setAttribute('marker-end', 'url(#link-arrow)');
-          lines.push(drawnLine);
-          if (!label) {
-            const x1 = Number(drawnLine.getAttribute('x1'));
-            const y1 = Number(drawnLine.getAttribute('y1'));
-            const x2 = Number(drawnLine.getAttribute('x2'));
-            const y2 = Number(drawnLine.getAttribute('y2'));
-            label = { at: { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, text: type || 'link', typed: Boolean(type) };
-          }
-        }
-        labels.push(label ?? { at: { x: NaN, y: NaN }, text: '', typed: false });
+          return near ? [linkLine(start.box, near.box, type)] : [];
+        });
+        lines.push(...drawn);
+        labels.push(drawn.length ? labelOn(drawn[0], type) : { at: { x: NaN, y: NaN }, text: '', typed: false });
       }
-      this.placeLabels(labels);
+      return { lines, labels };
+    },
 
-      // Where a held card lines up with others: thin lines across both.
-      if (this.guides.length) {
-        const world = this.world().getBoundingClientRect();
-        for (const guide of this.guides) {
-          const element = document.createElementNS(SVG, 'line');
-          element.setAttribute('class', 'guide');
-          element.setAttribute('x1', String(guide.x1 + world.left));
-          element.setAttribute('y1', String(guide.y1 + world.top));
-          element.setAttribute('x2', String(guide.x2 + world.left));
-          element.setAttribute('y2', String(guide.y2 + world.top));
-          lines.push(element);
-        }
-      }
+    /**
+     * Where a held card lines up with others: thin lines across both.
+     *
+     * @returns {Element[]}
+     */
+    guideLines() {
+      if (!this.guides.length) return [];
+      const world = this.world().getBoundingClientRect();
+      return this.guides.map((guide) => guideLine(guide, world));
+    },
 
-      // A link being drawn follows the finger.
-      if (this.pending) {
-        const finger = new DOMRect(this.pending.x, this.pending.y, 0, 0);
-        for (const start of this.placesOf(this.pending.span)) lines.push(line(start.box, finger, 'link'));
-      }
-
-      drawn.replaceChildren(...lines);
+    /**
+     * A link being drawn follows the finger.
+     *
+     * @returns {Element[]}
+     */
+    pendingLines() {
+      if (!this.pending) return [];
+      const finger = new DOMRect(this.pending.x, this.pending.y, 0, 0);
+      return this.placesOf(this.pending.span).map((start) => line(start.box, finger, 'link'));
     },
 
     /**
@@ -2646,10 +3144,8 @@
       const button = card.querySelector('[data-action="listen"]');
       if (!(button instanceof HTMLElement)) return;
       const mode = card.dataset.listening !== undefined;
-      const rest = card.dataset.readAt ?? '';
-      const from = rest ? ` from verse ${rest.split('.').slice(1).join(':')}` : '';
+      const label = listenLabel(mode, playing, card.dataset.readAt ?? '');
       button.setAttribute('aria-pressed', String(mode));
-      const label = mode ? (playing ? 'Pause: or tap the verse being read' : 'Stop listening; a tap on a verse plays it') : `Listen${from}`;
       button.setAttribute('aria-label', label);
       button.title = label;
       // The icon's drawing, directly: svg-icon draws once, from the page.
@@ -2714,11 +3210,8 @@
     async unquote(card, address) {
       const note = this.notes.find((each) => each.id === card.dataset.note);
       if (!note) return;
-      const writing = this.writing?.id === note.id ? this.writing : null;
-      if (writing) {
-        const at = quoteAt(writing.view.state.doc, address);
-        const node = at >= 0 ? writing.view.state.doc.nodeAt(at) : null;
-        if (node) writing.view.dispatch(writing.view.state.tr.delete(at, at + node.nodeSize));
+      if (this.writing?.id === note.id) {
+        unquoteIn(this.writing.view, address);
         return;
       }
       note.quotes = note.quotes.filter((each) => spanAddress(each) !== address);
@@ -2737,25 +3230,11 @@
      */
     paintKind(card, note) {
       const label = labelOf(note.kind);
-      // The title: the reader's own, else the kind's name.
-      const heading = card.querySelector('.passage__heading');
-      if (heading instanceof HTMLElement && !heading.isContentEditable) {
-        heading.textContent = note.title || label;
-        heading.classList.toggle('is-kind', !note.title);
-      }
+      paintTitle(card, note, label);
       if (note.kind) card.dataset.noteKind = note.kind;
       else delete card.dataset.noteKind;
-      card.toggleAttribute('data-answered', note.kind === 'question' && Boolean(note.answered));
-      const button = card.querySelector('.note__kind');
-      if (button) {
-        button.textContent = label;
-        button.setAttribute('aria-label', `${label}: change the kind of note`);
-        button.setAttribute('title', 'Change the kind: Note, Observation, Question, Interpretation, Application, Prayer');
-      }
-      const answered = card.querySelector('.note__answered');
-      if (answered instanceof HTMLElement) answered.hidden = note.kind !== 'question';
-      const box = card.querySelector('[data-action="note-answered"]');
-      if (box instanceof HTMLInputElement) box.checked = Boolean(note.answered);
+      paintKindButton(card, label);
+      paintAnswered(card, note);
     },
 
     /**
@@ -2770,79 +3249,77 @@
       const heading = card.querySelector('.passage__heading');
       if (!note || !(heading instanceof HTMLElement) || heading.isContentEditable) return;
       this.writing?.end();
-      const before = note.title ?? '';
       const dock = /** @type {any} */ (this.querySelector('note-editor'));
-      heading.contentEditable = 'plaintext-only';
-      heading.id = 'note-field';
-      heading.setAttribute('aria-label', 'Title of the note');
-      heading.spellcheck = true;
-      heading.focus({ preventScroll: true });
-      // The words there, selected, so typing replaces them.
-      const range = document.createRange();
-      range.selectNodeContents(heading);
-      getSelection()?.removeAllRanges();
-      getSelection()?.addRange(range);
+      const done = new AbortController();
+      const writing = { card, note, heading, dock, done, before: note.title ?? '' };
+      openTitle(heading);
       card.classList.add('is-writing');
       dock?.dock(note.id);
-      const done = new AbortController();
-      /** @param {boolean} keep */
-      const finish = (keep) => {
-        if (done.signal.aborted) return;
-        done.abort();
-        const text = (heading.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
-        heading.removeAttribute('contenteditable');
-        heading.removeAttribute('id');
-        heading.removeAttribute('aria-label');
-        card.classList.remove('is-writing');
-        dock?.undock();
-        const title = keep ? (text && text !== labelOf(note.kind) ? text : '') : before;
-        if (title) note.title = title;
-        else delete note.title;
-        this.paintKind(card, note);
-        this.drawSoon();
-        if ((note.title ?? '') !== before) this.keep();
+      listenTitle(heading, (keep) => this.closeTitle(writing, keep), done.signal);
+      heading.addEventListener('keys-type', () => this.drawSoon(), { signal: done.signal });
+    },
+
+    /**
+     * Ends the writing of a note's title: kept (Enter, a press elsewhere), or
+     * as it was (Escape). A title left empty, or the kind's own name, is no
+     * title: the kind's name shows.
+     *
+     * @param {{ card: HTMLElement, note: { kind?: string, title?: string }, heading: HTMLElement, dock: any, done: AbortController, before: string }} writing
+     * @param {boolean} keep
+     */
+    closeTitle({ card, note, heading, dock, done, before }, keep) {
+      if (done.signal.aborted) return;
+      done.abort();
+      const text = cleanTitle(heading.textContent);
+      closeTitleField(heading);
+      card.classList.remove('is-writing');
+      dock?.undock();
+      setTitle(note, keep ? titleFrom(text, note.kind) : before);
+      this.paintKind(card, note);
+      this.drawSoon();
+      if ((note.title ?? '') !== before) this.keep();
+    },
+
+    /**
+     * A question's Answered box was ticked or unticked.
+     *
+     * @param {Event} event
+     */
+    answeredChanged(event) {
+      const box = event.target;
+      if (!(box instanceof HTMLInputElement) || box.dataset.action !== 'note-answered') return;
+      const found = this.noteOn(box);
+      if (!found) return;
+      setAnswered(found.note, box.checked);
+      this.paintKind(found.card, found.note);
+      this.keep();
+    },
+
+    /**
+     * The note card an element is on, and its note.
+     *
+     * @param {Element} element
+     */
+    noteOn(element) {
+      const card = element.closest('gesture-card[data-kind="note"]');
+      const note = card instanceof HTMLElement ? this.notes.find((each) => each.id === card.dataset.note) : undefined;
+      return note ? { card: /** @type {HTMLElement} */ (card), note } : null;
+    },
+
+    /**
+     * On a phone, one panel is open at a time: the one that opens closes the
+     * others (each sends panel-open only on a phone).
+     *
+     * @param {string} opened
+     */
+    onePanel(opened) {
+      /** @type {Record<string, () => void>} */
+      const close = {
+        search: () => collapse(this.querySelector('passage-search')),
+        timeline: () => collapse(this.querySelector('time-line')),
+        menu: () => /** @type {any} */ (this.querySelector('table-menu'))?.setShown?.(false),
       };
-      const { signal } = done;
-      heading.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          heading.blur();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          finish(false);
-          heading.blur();
-        }
-      }, { signal });
-      heading.addEventListener('blur', () => finish(true), { signal });
-      // The app's own keys (touch-keys): typed at the caret.
-      heading.addEventListener('keys-type', (event) => {
-        const key = /** @type {CustomEvent} */ (event).detail.key;
-        if (key === 'enter') {
-          heading.blur();
-          return;
-        }
-        const selection = getSelection();
-        const at = selection?.rangeCount ? selection.getRangeAt(0) : null;
-        if (!at || !heading.contains(at.startContainer)) return;
-        if (key === 'back') {
-          if (at.collapsed) {
-            if (at.startOffset === 0) return;
-            at.setStart(at.startContainer, at.startOffset - 1);
-          }
-          at.deleteContents();
-        } else if (key === 'clear') {
-          heading.textContent = '';
-        } else {
-          at.deleteContents();
-          const text = document.createTextNode(key === 'space' ? ' ' : key);
-          at.insertNode(text);
-          at.setStartAfter(text);
-          at.collapse(true);
-          selection?.removeAllRanges();
-          selection?.addRange(at);
-        }
-        this.drawSoon();
-      }, { signal });
+      for (const [name, closeIt] of Object.entries(close)) if (name !== opened) closeIt();
     },
 
     /**
@@ -2912,51 +3389,69 @@
      * @param {{ x: number, y: number } | null} at where the caret goes, else at the end
      */
     writeNote(card, at) {
-      const id = card.dataset.note ?? '';
-      if (this.writing?.id === id && this.writing.card === card) return;
+      if (this.writing?.card === card) return;
       this.writing?.end();
-      const note = this.notes.find((each) => each.id === id);
+      const note = this.notes.find((each) => each.id === card.dataset.note);
       const host = card.querySelector('.note__text');
       if (!note || !(host instanceof HTMLElement)) return;
       const dock = /** @type {any} */ (this.querySelector('note-editor'));
-      const before = JSON.stringify(note.doc ?? null) + note.text;
+      const before = noteSnapshot(note);
       const { view, end } = editNoteText(host, docOf(note), {
         at,
         quotes: this.quotesOf(card),
         load: (span) => this.loadQuote(span),
-        change: (doc) => {
-          note.doc = doc.toJSON();
-          note.text = toText(doc);
-          // The quotes are the document's: one deleted, opened or folded
-          // changes the note's list, and the marks on the verses.
-          const spans = quotesIn(doc);
-          if (spans.join() !== note.quotes.map(spanAddress).join()) {
-            note.quotes = spans.flatMap((each) => parseSpanAddress(each) ?? []);
-            card.querySelector('.note__hint')?.toggleAttribute('hidden', note.quotes.length > 0);
-            this.paintQuoted(this.world());
-          }
-          this.drawSoon();
-          this.showCaret();
-          // Kept as it goes, in case the page closes; the undo step comes at
-          // the end.
-          clearTimeout(this.noteTimer);
-          this.noteTimer = setTimeout(() => save(this.current()), 600);
-        },
-        done: () => {
-          clearTimeout(this.noteTimer);
-          this.writing = null;
-          card.classList.remove('is-writing');
-          dock?.undock();
-          this.drawSoon();
-          if (JSON.stringify(note.doc ?? null) + note.text !== before) this.keep();
-        },
+        change: (doc) => this.noteChanged(card, note, doc),
+        done: () => this.noteDone(card, note, dock, before),
       });
       view.dom.id = 'note-field';
       card.classList.add('is-writing');
-      this.writing = { id, card, view, end };
+      this.writing = { id: note.id, card, view, end };
       this.raise(/** @type {any} */ (card));
-      dock?.dock(id);
+      dock?.dock(note.id);
       requestAnimationFrame(() => this.showCaret());
+    },
+
+    /**
+     * A note being written changed: its words are kept as they come (the
+     * undo step comes at the end), and its quotes are the document's.
+     *
+     * @param {HTMLElement} card
+     * @param {{ doc?: any, text: string, quotes: Span[] }} note
+     * @param {any} doc the note's document (ProseMirror)
+     */
+    noteChanged(card, note, doc) {
+      note.doc = doc.toJSON();
+      note.text = toText(doc);
+      // A quote deleted, opened or folded changes the note's list, and the
+      // marks on the verses.
+      const spans = quotesIn(doc);
+      if (spans.join() !== note.quotes.map(spanAddress).join()) {
+        note.quotes = spans.flatMap((each) => parseSpanAddress(each) ?? []);
+        card.querySelector('.note__hint')?.toggleAttribute('hidden', note.quotes.length > 0);
+        this.paintQuoted(this.world());
+      }
+      this.drawSoon();
+      this.showCaret();
+      // Kept as it goes, in case the page closes.
+      clearTimeout(this.noteTimer);
+      this.noteTimer = setTimeout(() => save(this.current()), 600);
+    },
+
+    /**
+     * A note's writing ended: one undo step, if its words changed.
+     *
+     * @param {HTMLElement} card
+     * @param {{ doc?: any, text: string }} note
+     * @param {any} dock
+     * @param {string} before
+     */
+    noteDone(card, note, dock, before) {
+      clearTimeout(this.noteTimer);
+      this.writing = null;
+      card.classList.remove('is-writing');
+      dock?.undock();
+      this.drawSoon();
+      if (noteSnapshot(note) !== before) this.keep();
     },
 
     /**
@@ -3018,7 +3513,7 @@
       if (note === false) return null;
       const card = await loadCard(address, version, note ? note.quotes : []);
       if (!card || !this.putCard(card, replacing, id)) return null;
-      this.markCard(card, { sync, compare: compare && version === 'both', note });
+      this.markCard(card, { sync, compare, version, note });
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
       this.loadReferences(card);
@@ -3058,11 +3553,11 @@
      * marks every card has.
      *
      * @param {HTMLElement} card
-     * @param {{ sync: boolean, compare: boolean, note: any }} state
+     * @param {{ sync: boolean, compare: boolean, version: string, note: any }} state
      */
-    markCard(card, { sync, compare, note }) {
+    markCard(card, { sync, compare, version, note }) {
       if (sync) this.setSync(card, true);
-      if (compare) this.setCompare(card, true);
+      if (compare) this.setCompare(card, version === 'both');
       if (note) this.fillNote(card, note);
       this.paintCard(card);
     },
@@ -3125,23 +3620,39 @@
 
     /** @returns {Workspace} what is on the table now */
     current() {
-      const cards = [...this.world().querySelectorAll('gesture-card')].flatMap((element) => {
-        const card = /** @type {Card} */ (element);
-        const address = card.dataset.address ?? '';
-        if (!address || !card.matrix) return [];
-        /** @type {StoredCard} */
-        const stored = { id: card.dataset.id ?? newId('c'), address, matrix: card.matrix, version: card.dataset.version ?? 'kjv' };
-        if (card.dataset.sync !== undefined) stored.sync = true;
-        if (card.dataset.compare !== undefined && stored.version === 'both') stored.compare = true;
-        const view = address === MAP ? this.mapView(card)?.view : null;
-        if (view && view.w < WIDTH) stored.view = { x: round(view.x), y: round(view.y), w: round(view.w) };
-        return [stored];
-      });
-      const panel = /** @type {any} */ (this.querySelector('passage-search'));
-      const trail = this.pendingTrail ?? (typeof panel?.trail === 'function' ? panel.trail() : emptyTrail());
+      const cards = [...this.world().querySelectorAll('gesture-card')].flatMap((card) => this.storedOf(/** @type {Card} */ (/** @type {unknown} */ (card))) ?? []);
       // The cards that did not load stay in the table that is kept.
       const kept = this.unloaded.filter((stored) => !cards.some((card) => card.id === stored.id));
-      return { offset: this.offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail };
+      return { offset: this.offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail: this.trailNow() };
+    },
+
+    /** The search panel's trail, or the one a table brought that the panel has not taken yet. */
+    trailNow() {
+      const panel = this.panel();
+      return this.pendingTrail ?? (typeof panel?.trail === 'function' ? panel.trail() : emptyTrail());
+    },
+
+    /**
+     * A card as the table keeps it: its id, address, place and version, and
+     * whether it is synced or compared; the map's card, its view.
+     *
+     * @param {Card} card
+     * @returns {StoredCard | null}
+     */
+    storedOf(card) {
+      const address = card.dataset.address ?? '';
+      if (!address || !card.matrix) return null;
+      return { id: idOf(card), address, matrix: card.matrix, version: versionOf(card), ...cardFlags(card), ...this.mapViewOf(card) };
+    },
+
+    /**
+     * The map card's view, if it is zoomed in.
+     *
+     * @param {Card} card
+     */
+    mapViewOf(card) {
+      const view = card.dataset.address === MAP ? this.mapView(card)?.view : null;
+      return view && view.w < WIDTH ? { view: { x: round(view.x), y: round(view.y), w: round(view.w) } } : {};
     },
 
     /**
@@ -3222,51 +3733,67 @@
       this.writing?.end();
       this.applying += 1;
       try {
-        const cards = [...this.world().querySelectorAll('gesture-card')];
-        /** @type {Map<string, HTMLElement>} */
-        const byId = new Map(cards.map((card) => [/** @type {HTMLElement} */ (card).dataset.id ?? '', /** @type {HTMLElement} */ (card)]));
+        const byId = new Map([...this.world().querySelectorAll('gesture-card')].map((card) => [idOf(/** @type {HTMLElement} */ (card)), /** @type {Card} */ (/** @type {unknown} */ (card))]));
         const { move, add, remove } = diffCards(this.current().cards, target.cards);
-        // A card that did not load and is not in the new state is gone.
-        this.unloaded = this.unloaded.filter((stored) => target.cards.some((card) => card.id === stored.id));
-        this.highlights = target.highlights;
-        this.links = target.links;
-        this.notes = target.notes;
-        this.rules = target.rules;
-        // An opened workspace brings its trail, and shows its step; an undo
-        // leaves the trail as it is, as it leaves the pan of the table.
-        if (record) /** @type {any} */ (this.querySelector('passage-search'))?.setTrail?.(target.trail, true);
-        if (target.offset.x !== this.offset.x || target.offset.y !== this.offset.y) {
-          this.offset = target.offset;
-          this.paint();
-        }
+        this.adopt(target, record);
         for (const id of remove) byId.get(id)?.remove();
-        /** @type {Promise<unknown>[]} */
-        const waits = add.map((stored) => this.restore(stored));
-        for (const stored of move) {
-          const card = /** @type {Card | undefined} */ (byId.get(stored.id));
-          // Not on the table: a card that did not load; it stays kept as it is.
-          if (!card) continue;
-          card.setMatrix(stored.matrix);
-          this.setSync(card, Boolean(stored.sync));
-          this.setCompare(card, Boolean(stored.compare));
-          // A workspace that is opened brings its view of the map; an undo
-          // leaves the view as it is, as it leaves the pan of the table.
-          if (record) this.mapView(card)?.setView(stored.view ?? { x: 0, y: 0, w: WIDTH });
-          // A note's quotes can differ between the two states.
-          if (card.dataset.kind === 'note') waits.push(this.replaceCard(card, stored.address, 'kjv'));
-        }
+        const waits = [...add.map((stored) => this.restore(stored)), ...move.map((stored) => this.moveCard(byId.get(stored.id), stored, record))];
         await Promise.all(waits);
-        paintHighlights(this.world(), this.highlights);
-        this.paintQuoted(this.world());
-        this.paintRules(this.world());
-        this.showRules();
-        this.paintMap();
-        this.drawSoon();
+        this.repaint();
         this.later = Boolean(this.later) || record;
       } finally {
         this.applying -= 1;
         this.finish();
       }
+    },
+
+    /**
+     * Takes a table state's marks, notes, rules and pan. An opened table
+     * brings its trail, and shows its step; an undo leaves the trail as it is,
+     * as it leaves the pan of the table.
+     *
+     * @param {Workspace} target
+     * @param {boolean} record
+     */
+    adopt(target, record) {
+      // A card that did not load and is not in the new state is gone.
+      this.unloaded = this.unloaded.filter((stored) => target.cards.some((card) => card.id === stored.id));
+      this.highlights = target.highlights;
+      this.links = target.links;
+      this.notes = target.notes;
+      this.rules = target.rules;
+      if (record) this.panel()?.setTrail?.(target.trail, true);
+      if (target.offset.x === this.offset.x && target.offset.y === this.offset.y) return;
+      this.offset = target.offset;
+      this.paint();
+    },
+
+    /**
+     * Moves a card to where a table state has it, with its sync and compare;
+     * an opened table also brings the map's view. A note's card loads again,
+     * as its quotes can differ between the two states.
+     *
+     * @param {Card | undefined} card none: a card that did not load, kept as it is
+     * @param {StoredCard} stored
+     * @param {boolean} record
+     */
+    moveCard(card, stored, record) {
+      if (!card) return null;
+      card.setMatrix(stored.matrix);
+      this.setSync(card, Boolean(stored.sync));
+      this.setCompare(card, Boolean(stored.compare));
+      if (record) this.mapView(card)?.setView(stored.view ?? { x: 0, y: 0, w: WIDTH });
+      return card.dataset.kind === 'note' ? this.replaceCard(card, stored.address, 'kjv') : null;
+    },
+
+    /** Marks every card again, after the table changed. */
+    repaint() {
+      paintHighlights(this.world(), this.highlights);
+      this.paintQuoted(this.world());
+      this.paintRules(this.world());
+      this.showRules();
+      this.paintMap();
+      this.drawSoon();
     },
 
     /**

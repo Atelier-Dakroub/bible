@@ -1,7 +1,7 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 166,
+ "count": 134,
  "allowed": {
   "app/elements/passage-search.html addEventListener callback": [
    1260,
@@ -40,9 +40,6 @@
   "app/data/audio.js chapterFile": [
    272
   ],
-  "app/elements/bible-table.html timeLines": [
-   272
-  ],
   "app/elements/gesture-card.html key": [
    272
   ],
@@ -51,12 +48,6 @@
   ],
   "app/routes/suggest/[text].js named": [
    272
-  ],
-  "app/elements/bible-table.html referenceLines": [
-   240
-  ],
-  "app/elements/bible-table.html draw": [
-   240
   ],
   "app/elements/map-view.html paint": [
    240
@@ -85,15 +76,6 @@
   "tools/crap.js nameFor": [
    182
   ],
-  "app/elements/bible-table.html readable": [
-   156
-  ],
-  "app/elements/bible-table.html quote": [
-   156
-  ],
-  "app/elements/bible-table.html flatMap callback": [
-   156
-  ],
   "app/elements/map-view.html showJourney": [
    156
   ],
@@ -119,12 +101,6 @@
    42
   ],
   "app/data/audio.js recordingsOf": [
-   132
-  ],
-  "app/elements/bible-table.html placeLines": [
-   132
-  ],
-  "app/elements/bible-table.html applyNow": [
    132
   ],
   "app/elements/map-view.html key": [
@@ -154,18 +130,6 @@
   "tools/mcp-server.js answer": [
    132
   ],
-  "app/elements/bible-table.html link": [
-   110
-  ],
-  "app/elements/bible-table.html headingTapped": [
-   110
-  ],
-  "app/elements/bible-table.html addEventListener callback": [
-   110,
-   72,
-   56,
-   42
-  ],
   "app/elements/map-view.html relabel": [
    110
   ],
@@ -186,18 +150,6 @@
   ],
   "tools/import-quotations.js versesOf": [
    110
-  ],
-  "app/elements/bible-table.html endAt": [
-   90
-  ],
-  "app/elements/bible-table.html paintMap": [
-   90
-  ],
-  "app/elements/bible-table.html paintKind": [
-   90
-  ],
-  "app/elements/bible-table.html finish": [
-   90
   ],
   "app/elements/reading-settings.html act": [
    90
@@ -234,9 +186,6 @@
   ],
   "tools/import-xrefs.js target": [
    90
-  ],
-  "app/elements/bible-table.html panKey": [
-   72
   ],
   "app/elements/gesture-card.html forgetLost": [
    72
@@ -279,24 +228,6 @@
   ],
   "tools/import-videos.js find callback": [
    72
-  ],
-  "app/elements/bible-table.html wheel": [
-   56
-  ],
-  "app/elements/bible-table.html place": [
-   56
-  ],
-  "app/elements/bible-table.html paintRules": [
-   56
-  ],
-  "app/elements/bible-table.html paintStudy": [
-   56
-  ],
-  "app/elements/bible-table.html listenLook": [
-   56
-  ],
-  "app/elements/bible-table.html writeNote": [
-   56
   ],
   "app/elements/gesture-card.html release": [
    56
@@ -374,27 +305,6 @@
   ],
   "tools/import-syntax.js verseOf": [
    56
-  ],
-  "app/elements/bible-table.html copyText": [
-   42
-  ],
-  "app/elements/bible-table.html placeRow": [
-   42
-  ],
-  "app/elements/bible-table.html remoteKey": [
-   42
-  ],
-  "app/elements/bible-table.html placeBeside": [
-   42
-  ],
-  "app/elements/bible-table.html loadEvents": [
-   42
-  ],
-  "app/elements/bible-table.html unquote": [
-   42
-  ],
-  "app/elements/bible-table.html fetchCard": [
-   42
   ],
   "app/elements/gesture-card.html moveMarking": [
    42

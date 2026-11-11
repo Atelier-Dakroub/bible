@@ -541,6 +541,7 @@ export type BibleTableMembers = {
   cardAt(target: EventTarget | null): Card | null;
   overPanel(target: EventTarget | null): boolean;
   wheel(event: WheelEvent): void;
+  wheelZoom(event: WheelEvent, unit: number): boolean;
   trackpad(signal: AbortSignal): void;
   listen(signal: AbortSignal): void;
   obey(command: {
@@ -579,6 +580,7 @@ export type BibleTableMembers = {
     pointer: Pull | null;
     version?: string | undefined;
   }): Promise<void>;
+  putDown(card: Card, pointer: Pull | null, scale: number): void;
   phoneSpot(card: Element, scale: number): {
     at: {
       x: number;
@@ -604,11 +606,23 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   }): void;
+  tableCard(element: Element | null): HTMLElement | null;
+  linkTo(source: Highlight, x: number, y: number): void;
+  dropOnTable(source: Highlight, under: Element | null, x: number, y: number): void;
   highlight(span: Highlight): void;
   quote(card: HTMLElement, span: Highlight, point?: {
     x: number;
     y: number;
   } | null | undefined): Promise<void>;
+  rememberQuote(card: HTMLElement, address: string, drawn: HTMLElement | null): void;
+  quoteAtDrop(card: HTMLElement, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+  }, span: Highlight, quote: object, point: {
+    x: number;
+    y: number;
+  } | null): void;
   drawnQuotes: WeakMap<Element, Map<string, HTMLElement>>;
   quotesOf(card: Element): Map<string, HTMLElement>;
   loadQuote(address: string): Promise<HTMLElement | null>;
@@ -619,6 +633,7 @@ export type BibleTableMembers = {
   }): void;
   sourceOf(span: Highlight): Highlight;
   endAt(x: number, y: number): Highlight | null;
+  highlightAt(element: Element): Highlight | undefined;
   tapped({
     target, x, y
   }: {
@@ -673,6 +688,7 @@ export type BibleTableMembers = {
     element
   }: Tap): boolean;
   headingTapped(card: HTMLElement): void;
+  showGuideOf(card: HTMLElement): void;
   notesAt(address: string): {
     id: string;
     title: string;
@@ -688,6 +704,7 @@ export type BibleTableMembers = {
     answered: boolean;
   }[];
   showNote(id: string): void;
+  placeEach(addresses: string[]): Promise<void>;
   placeBeside(addresses: string[]): Promise<void>;
   raise(card: HTMLElement): void;
   glideTo(box: DOMRect): void;
@@ -721,6 +738,17 @@ export type BibleTableMembers = {
   drawSoon(): void;
   placesOf(span: Highlight): Place[];
   draw(): void;
+  sameLines(): Element[];
+  linkLines(): {
+    lines: Element[];
+    labels: {
+      at: Point;
+      text: string;
+      typed: boolean;
+    }[];
+  };
+  guideLines(): Element[];
+  pendingLines(): Element[];
   placeLabels(labels: {
     at: Point;
     text: string;
@@ -764,6 +792,25 @@ export type BibleTableMembers = {
     title?: string | undefined;
   }): void;
   writeTitle(card: HTMLElement): void;
+  closeTitle({
+    card, note, heading, dock, done, before
+  }: {
+    card: HTMLElement;
+    note: {
+      kind?: string | undefined;
+      title?: string | undefined;
+    };
+    heading: HTMLElement;
+    dock: any;
+    done: AbortController;
+    before: string;
+  }, keep: boolean): void;
+  answeredChanged(event: Event): void;
+  noteOn(element: Element): {
+    card: HTMLElement;
+    note: Note;
+  } | null;
+  onePanel(opened: string): void;
   changeKind(card: HTMLElement): void;
   questions(): {
     id: string;
@@ -783,6 +830,15 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   } | null): void;
+  noteChanged(card: HTMLElement, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+  }, doc: any): void;
+  noteDone(card: HTMLElement, note: {
+    doc?: any;
+    text: string;
+  }, dock: any, before: string): void;
   showCaret(): void;
   writingArea(): Box;
   paintQuoted(root: Element): void;
@@ -792,10 +848,11 @@ export type BibleTableMembers = {
   noteAt(address: string): false | Note | null;
   putCard(card: HTMLElement, replacing: Element | null, id: string | undefined): boolean;
   markCard(card: HTMLElement, {
-    sync, compare, note
+    sync, compare, version, note
   }: {
     sync: boolean;
     compare: boolean;
+    version: string;
     note: any;
   }): void;
   fillNote(card: HTMLElement, note: {
@@ -815,6 +872,17 @@ export type BibleTableMembers = {
     bottom: number;
   };
   current(): Workspace;
+  trailNow(): any;
+  storedOf(card: Card): StoredCard | null;
+  mapViewOf(card: Card): {
+    view: {
+      x: number;
+      y: number;
+      w: number;
+    };
+  } | {
+    view?: undefined;
+  };
   keep(record?: boolean | undefined): void;
   finish(): void;
   showHistory(): void;
@@ -823,6 +891,9 @@ export type BibleTableMembers = {
   changing: Promise<unknown>;
   apply(target: Workspace, record: boolean): Promise<unknown>;
   applyNow(target: Workspace, record: boolean): Promise<void>;
+  adopt(target: Workspace, record: boolean): void;
+  moveCard(card: Card | undefined, stored: StoredCard, record: boolean): Promise<Card | null> | null;
+  repaint(): void;
   openWorkspace(workspace: Workspace, name: string, message: string): Promise<void>;
   setName(name: string): void;
   saveAs(name: string): void;
