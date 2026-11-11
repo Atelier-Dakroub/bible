@@ -1,19 +1,32 @@
 <!-- The Tools panel, which the rail (table-rail) opens, closes and places:
      beside its Tools button, or floating.
 
-     Four tabs:
-       Table      the style of new highlights; Snap; which edge the rail is
-                  on; and the size of the rail and the panels
-       Reading    the reader's settings (reading-settings): theme, paper, text
-                  size, line spacing, and what the text shows
-       Marks      rule marks (app/lib/rules.js), words marked on every card by
-                  what they are: the words of Christ, the supplied words, the
-                  divine name and every person, place or group; and the rules
-                  that are on, each with its style and a Remove button. A word
-                  study or a person in the search panel adds its own.
-       Workspace  save the table under a name, open or delete a saved one,
-                  start a new table, and send the table to a file or take one
-                  in. A finger on the name field opens the on-screen keyboard.
+     Four tabs, each one subject:
+       Reading  how the text looks (reading-settings: theme, paper, text
+                size, line spacing, layout, what the text shows), and Read
+                aloud: who reads and how fast
+       Marks    the style of new highlights; rule marks (app/lib/rules.js),
+                words marked on every card by what they are (the words of
+                Christ, the supplied words, the divine name, every person,
+                place or group); and the marks that are on, each with its
+                style and a Remove button. A word study or a person in the
+                search panel adds its own.
+       Table    Snap; where the tools are and their size; the size of the
+                whole interface (reading-settings' Interface); and when the
+                app's on-screen keyboard shows. On a phone, where the rail is
+                always at the bottom and the keyboard never shows, only Snap,
+                the size of the tools and the interface.
+       Saved    save the table under a name, open or delete a saved one,
+                send the table or its notes to a file, take a table in, or
+                start a new one. A finger on the name field opens the
+                on-screen keyboard.
+
+     Each choice of one among a few is a group of native radios (a fieldset
+     and its legend), shown as a segmented control; Snap and each mark on
+     every card is a checkbox. So the Tab key goes from group to group, the
+     arrow keys choose within one, and a screen reader says "2 of 4". The
+     panel keeps one height, so it does not jump from tab to tab; its body
+     scrolls.
 
      Docked, a tap or a click outside the panel closes it, as Escape does; a
      resting palm does not (the table's palm guard marks its touches, and the
@@ -32,6 +45,7 @@
        workspace-open   detail { name }
        workspace-new
        workspace-export detail { name }
+       notes-export     detail { name }: the table's notes, as a Markdown file
        workspace-import detail { name, text }
      The rail's edge and the chrome's size go to the rail (table-rail).
 
@@ -51,8 +65,8 @@
   export const state = {
     /** whether the panel is open */
     shown: false,
-    /** the tab on show: table, reading, marks or workspace */
-    tab: 'table',
+    /** the tab on show: reading, marks, table or saved */
+    tab: 'reading',
     keys: false,
     pen: 'inverse',
     name: '',
@@ -67,7 +81,7 @@
     /** who reads a recorded version: own, librivox or device (lib/speech.js) */
     reader: 'own',
   };
-  const TABS = ['table', 'reading', 'marks', 'workspace'];
+  const TABS = ['reading', 'marks', 'table', 'saved'];
 
   const PEN_KEY = 'bible.pen';
   const SNAP_KEY = 'bible.snap';
@@ -122,6 +136,9 @@
       });
 
       this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('change', (event) => this.choose(event), { signal });
+      for (const form of this.querySelectorAll('form:not(.menu__save)')) form.addEventListener('submit', (event) => event.preventDefault(), { signal });
+      this.paintChoices();
       this.addEventListener('keys-done', () => {
         this.keys = false;
       }, { signal });
@@ -181,9 +198,11 @@
 
     /** @param {string} tab */
     showTab(tab) {
-      this.tab = TABS.includes(tab) ? tab : 'table';
+      this.tab = TABS.includes(tab) ? tab : TABS[0];
       if (this.tab === 'marks') this.setRules(this.rules);
-      if (this.tab === 'workspace') this.refresh('');
+      if (this.tab === 'saved') this.refresh('');
+      this.paintChoices();
+      this.querySelector('.tools__body')?.scrollTo({ top: 0 });
       this.dispatchEvent(new Event('panel-change', { bubbles: true }));
     },
 
@@ -206,32 +225,48 @@
     setChrome({ edge, size }) {
       this.edge = edge;
       this.size = size;
+      this.paintChoices();
     },
 
-    /** @param {MouseEvent} event */
-    act(event) {
-      const button = event.target instanceof Element ? event.target.closest('button') : null;
-      if (!(button instanceof HTMLButtonElement)) return;
-      const action = button.dataset.action ?? '';
+    /** Checks the radio of each choice that is on, and the Snap switch. */
+    paintChoices() {
+      /** @type {Record<string, string>} */
+      const now = { pen: this.pen, edge: this.edge, size: this.size, reader: this.reader, speed: String(this.speed), keyboard: this.keyboard };
+      for (const input of this.querySelectorAll('input[type="radio"][data-choice]')) {
+        const radio = /** @type {HTMLInputElement} */ (input);
+        radio.checked = now[radio.dataset.choice ?? ''] === radio.value;
+      }
+      const snap = this.querySelector('input[data-choice="snap"]');
+      if (snap instanceof HTMLInputElement) snap.checked = this.snap;
+    },
+
+    /**
+     * A radio, the Snap switch, or a mark on every card, changed.
+     *
+     * @param {Event} event
+     */
+    choose(event) {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement) || input.closest('reading-settings')) return;
+      const choice = input.dataset.choice ?? '';
       const rail = /** @type {any} */ (document.querySelector('table-rail'));
-      if (action === 'tab') this.showTab(button.dataset.tab ?? 'table');
-      if (action === 'edge') rail?.setEdge(button.dataset.edge);
-      if (action === 'size') rail?.setSize(button.dataset.size);
-      if (action === 'reader') {
-        this.reader = button.dataset.reader ?? 'own';
+      if (choice === 'edge') rail?.setEdge(input.value);
+      if (choice === 'size') rail?.setSize(input.value);
+      if (choice === 'reader') {
+        this.reader = input.value || 'own';
         setReaderChoice(/** @type {any} */ (this.reader));
       }
-      if (action === 'speed') {
-        this.speed = Number(button.dataset.speed) || 1;
+      if (choice === 'speed') {
+        this.speed = Number(input.value) || 1;
         setSpeed(this.speed);
       }
-      if (action === 'keyboard') {
-        const value = /** @type {any} */ (button.dataset.keyboard ?? 'auto');
+      if (choice === 'keyboard') {
+        const value = /** @type {any} */ (input.value || 'auto');
         setKeysChoice(value);
         this.keyboard = value;
       }
-      if (action === 'snap') {
-        this.snap = !this.snap;
+      if (choice === 'snap') {
+        this.snap = input.checked;
         try {
           localStorage.setItem(SNAP_KEY, String(this.snap));
         } catch {
@@ -239,8 +274,8 @@
         }
         this.send('snap-change', { on: this.snap });
       }
-      if (action === 'pen') {
-        this.pen = button.dataset.pen ?? 'inverse';
+      if (choice === 'pen') {
+        this.pen = input.value || 'inverse';
         try {
           localStorage.setItem(PEN_KEY, this.pen);
         } catch {
@@ -248,14 +283,23 @@
         }
         this.send('pen-change', { style: this.pen });
       }
-      if (action === 'rule-preset') {
-        const { kind, value, label } = button.dataset;
+      if (choice === 'rule-preset') {
+        const { kind, value, label } = input.dataset;
         this.send('rule-add', { kind, value, label });
       }
+    },
+
+    /** @param {MouseEvent} event */
+    act(event) {
+      const button = event.target instanceof Element ? event.target.closest('button') : null;
+      if (!(button instanceof HTMLButtonElement)) return;
+      const action = button.dataset.action ?? '';
+      if (action === 'tab') this.showTab(button.dataset.tab ?? TABS[0]);
       if (action === 'rule-style') this.send('rule-style', { index: Number(button.dataset.index) });
       if (action === 'rule-remove') this.send('rule-remove', { index: Number(button.dataset.index) });
       if (action === 'new') this.send('workspace-new');
       if (action === 'export') this.send('workspace-export', { name: this.name });
+      if (action === 'notes-export') this.send('notes-export', { name: this.name });
       if (action === 'import') /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click();
       if (action === 'open-named') this.send('workspace-open', { name: button.dataset.name ?? '' });
       if (action === 'delete-named') {
@@ -299,20 +343,22 @@
       if (!presets.children.length) {
         presets.replaceChildren(
           ...PRESETS.map((preset) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.action = 'rule-preset';
-            button.dataset.kind = preset.kind;
-            button.dataset.value = preset.value;
-            button.dataset.label = preset.label;
-            button.textContent = preset.label;
-            return button;
+            const label = document.createElement('label');
+            label.className = 'tools__chip';
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.dataset.choice = 'rule-preset';
+            box.dataset.kind = preset.kind;
+            box.dataset.value = preset.value;
+            box.dataset.label = preset.label;
+            label.append(box, preset.label);
+            return label;
           }),
         );
       }
-      for (const button of presets.querySelectorAll('button')) {
-        const { kind = '', value = '' } = /** @type {HTMLElement} */ (button).dataset;
-        button.setAttribute('aria-pressed', String(rules.some((rule) => sameRule(rule, { kind, value }))));
+      for (const input of presets.querySelectorAll('input')) {
+        const { kind = '', value = '' } = /** @type {HTMLElement} */ (input).dataset;
+        /** @type {HTMLInputElement} */ (input).checked = rules.some((rule) => sameRule(rule, { kind, value }));
       }
       const list = /** @type {HTMLElement} */ (this.querySelector('.menu__rules'));
       list.replaceChildren(
@@ -344,7 +390,7 @@
       if (!rules.length) {
         const row = document.createElement('li');
         row.className = 'menu__none';
-        row.textContent = 'No marks yet.';
+        row.textContent = 'None yet. Choose one above, or mark a word from the search panel.';
         list.append(row);
       }
     },
@@ -388,7 +434,7 @@
       if (!named.length) {
         const row = document.createElement('li');
         row.className = 'menu__none';
-        row.textContent = 'No saved tables yet.';
+        row.textContent = 'None yet. Name this table above to keep it.';
         list.append(row);
       }
     },
@@ -396,7 +442,9 @@
 </script>
 
 <style>
-  /* Placed by the rail (table-rail), which sets its box. */
+  /* Placed by the rail (table-rail), which sets its box. One height for
+     every tab, so the panel does not jump as the tabs change; the body
+     scrolls. */
   :scope {
     position: absolute;
     /* With the search panel: above the cards at rest, below a held card. */
@@ -405,6 +453,7 @@
     flex-direction: column;
     box-sizing: border-box;
     /* The small viewport: the height with a phone's toolbars showing. */
+    height: min(40rem, calc(100svh - 1rem));
     max-height: calc(100svh - 1rem);
     zoom: var(--chrome-zoom, 1);
     border: 1px solid var(--card-edge);
@@ -418,95 +467,321 @@
   :scope:not(:state(keys)) touch-keys {
     display: none;
   }
+
+  /* The head: the grip, the tabs, Float and Close. */
   .tools__head {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 0.15rem;
-    padding: 0.25rem var(--bar-padding);
+    padding: 0.25rem var(--bar-padding) 0;
     border-bottom: 1px solid var(--line);
   }
+  /* The tabs: one row that scrolls if it must; the chosen one is lapis and
+     underlined, so it shows without colour too (and in forced colours). */
   .tools__tabs {
     display: flex;
     flex: 1;
-    gap: 0.15rem;
     min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .tools__tabs button {
-    min-height: 2.4rem;
-    padding: 0 0.6rem;
+    position: relative;
+    flex: none;
+    min-height: var(--control-height);
+    padding: 0 0.75rem;
     border: 0;
-    border-radius: var(--radius-small);
+    border-radius: 0;
     background: transparent;
     color: var(--ink-soft);
     font: var(--control-font);
   }
   .tools__tabs button[aria-selected='true'] {
-    background: var(--lapis);
-    color: var(--on-pigment);
+    color: var(--lapis);
   }
+  .tools__tabs button[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    inset: auto 0.5rem 0;
+    border-block-end: 3px solid currentColor;
+    border-radius: 2px 2px 0 0;
+  }
+  @media (hover: hover) {
+    .tools__tabs button:hover {
+      background: transparent;
+      color: var(--ink);
+    }
+  }
+
   .tools__body {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .tools__section:not([data-on]) {
+  .tools__section {
+    display: grid;
+    gap: 1.1rem;
+    padding: 0.9rem var(--bar-padding) 1.2rem;
+  }
+  .tools__section[hidden] {
     display: none;
   }
-  .tools__section button {
-    min-height: var(--control-height);
-    padding: var(--control-padding);
-    font: var(--control-font);
+  /* A part of a tab: a heading over its controls, set off by a rule. */
+  .tools__part {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 1rem 0 0;
+    border: 0;
+    border-top: 1px solid var(--line);
   }
-  .tools__row {
+  .tools__part:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .tools__heading {
+    margin: 0;
+    color: var(--ink);
+    font: 650 0.95rem/1.3 var(--sans);
+    text-wrap: balance;
+  }
+  /* A group of choices: its name over them, and a hint under them. */
+  .tools__field {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .tools__field > legend,
+  .tools__name {
+    margin: 0 0 0.35rem;
+    padding: 0;
+    color: var(--ink-soft);
+    font: 600 max(0.55rem, 11px)/1.4 var(--sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .tools__hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  /* A segmented control: native radios, each in its label. The chosen one
+     is filled in lapis; in forced colours, outlined. */
+  .tools__segments {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--bar-gap);
-    padding: var(--bar-padding);
+    gap: 0.25rem;
   }
-  .tools__row [aria-pressed='true'] {
+  .tools__segment {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: var(--control-height);
+    padding: 0 0.85rem;
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-small);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .tools__segment input,
+  .tools__chip input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  @media (hover: hover) {
+    .tools__segment:hover:not(:has(:checked)),
+    .tools__chip:hover:not(:has(:checked)) {
+      background: var(--tint);
+    }
+  }
+  .tools__segment:has(:checked) {
     border-color: var(--lapis);
     background: var(--lapis);
     color: var(--on-pigment);
   }
-  /* A pressed pen keeps its sample readable: lapis ground, paper marks. */
-  .menu__pens button[aria-pressed='true'] span {
-    border-color: currentColor;
+  .tools__segment:has(:focus-visible),
+  .tools__chip:has(:focus-visible),
+  .tools__switch:has(:focus-visible) {
+    outline: 2px solid var(--lapis);
+    outline-offset: 2px;
   }
-  /* Each style button shows its own mark. */
+  @media (forced-colors: active) {
+    .tools__segment:has(:checked),
+    .tools__chip:has(:checked) {
+      outline: 3px solid CanvasText;
+      outline-offset: -3px;
+    }
+  }
+  /* A pen's sample shows its own mark. */
   .pen--inverse span {
+    padding: 0 0.2em;
     background: var(--wash);
     color: var(--ink);
-    padding: 0 0.2em;
   }
   .pen--underline span {
     text-decoration: underline double;
     text-underline-offset: 0.2em;
   }
   .pen--box span {
-    border: 1px solid currentColor;
     padding: 0 0.2em;
+    border: 1px solid currentColor;
   }
+  .tools__segment span {
+    font: 1rem var(--serif);
+  }
+
+  /* A switch: a native checkbox (with the switch attribute where the
+     browser has it), its name, and a hint. */
+  .tools__switch {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.2rem 1rem;
+    min-height: var(--control-height);
+    cursor: pointer;
+  }
+  /* Drawn the same in every browser: Safari's own switch and other
+     browsers' checkbox both give way to this track and knob. */
+  .tools__switch input {
+    position: relative;
+    width: 2.75rem;
+    height: 1.6rem;
+    margin: 0;
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    background: var(--tint);
+    appearance: none;
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  .tools__switch input::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0.15rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 0 1px 3px var(--shade-held);
+    translate: 0 -50%;
+    transition: translate 0.15s;
+  }
+  .tools__switch input:checked {
+    border-color: var(--lapis);
+    background: var(--lapis);
+  }
+  .tools__switch input:checked::before {
+    translate: 1.1rem -50%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tools__switch input,
+    .tools__switch input::before {
+      transition: none;
+    }
+  }
+  @media (forced-colors: active) {
+    .tools__switch input {
+      border-color: CanvasText;
+    }
+    .tools__switch input::before {
+      background: CanvasText;
+    }
+    .tools__switch input:checked {
+      background: Highlight;
+    }
+  }
+  .tools__switch .tools__hint {
+    grid-column: 1 / -1;
+  }
+  .tools__switch-name {
+    font-weight: 600;
+  }
+
+  /* A mark on every card: a chip that is on or off (a checkbox). */
   .menu__presets {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--bar-gap);
-    padding: var(--bar-padding);
+    gap: 0.35rem;
   }
-  .menu__presets [aria-pressed='true'] {
-    outline: 2px solid var(--text);
-    outline-offset: -2px;
+  .tools__chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: var(--control-height);
+    padding: 0 0.85rem;
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    background: var(--paper);
+    cursor: pointer;
   }
-  .menu__rules {
+  .tools__chip::before {
+    content: '';
+    width: 0.55rem;
+    height: 0.55rem;
+    border: 1.5px solid var(--edge);
+    border-radius: 50%;
+  }
+  .tools__chip:has(:checked) {
+    border-color: var(--lapis);
+    background: color-mix(in srgb, var(--lapis) 10%, var(--paper));
+    color: var(--lapis);
+    font-weight: 600;
+  }
+  .tools__chip:has(:checked)::before {
+    border-color: var(--lapis);
+    background: var(--lapis);
+  }
+
+  /* The lists: marks on now, and saved tables. */
+  .menu__rules,
+  .menu__list {
     margin: 0;
     padding: 0;
     list-style: none;
-    border-top: 1px solid var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
   }
-  .menu__rules li {
+  .menu__rules li,
+  .menu__list li {
     display: flex;
     align-items: center;
     gap: var(--bar-gap);
-    padding: var(--bar-padding);
+    min-height: var(--control-height);
+    padding: 0 0 0 0.75rem;
     border-bottom: 1px solid var(--line);
+  }
+  .menu__rules li:last-child,
+  .menu__list li:last-child {
+    border-bottom: 0;
+  }
+  .menu__rules button,
+  .menu__list [data-action='delete-named'] {
+    min-height: var(--control-height);
+    padding: 0 0.75rem;
+    border: 0;
+    border-left: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font: var(--control-font);
   }
   .menu__sample {
     flex: none;
@@ -516,33 +791,44 @@
     flex: 1;
     min-width: 0;
   }
-  .menu__hint {
-    margin: 0;
-    padding: var(--bar-padding);
+  /* A saved table: its name at the start, and when it was saved under it. */
+  .menu__list .menu__open {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: var(--control-height);
+    padding: 0.35rem 0.75rem 0.35rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--control-font);
+    text-align: start;
+  }
+  .menu__list [aria-current='true'] {
+    font-weight: 700;
+  }
+  .menu__list [aria-current='true'] > :first-child::before {
+    content: '● ';
+    color: var(--lapis);
+  }
+  .menu__when {
     color: var(--muted);
-    font-size: 0.8rem;
-    line-height: 1.4;
+    font-size: 0.85em;
+    font-weight: 400;
   }
-  .menu__heading {
-    margin: 0;
-    padding: var(--bar-padding) var(--bar-padding) 0;
-    color: var(--ink-soft);
-    font: 600 max(0.55rem, 11px)/1.6 var(--sans);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .menu__none {
+    padding: 0.6rem 0.75rem !important;
+    color: var(--muted);
+    font-size: 0.85rem;
   }
-  /* The reading settings, with a name above each row when the sheet is
-     narrow (reading-settings's container query). */
-  .menu__reading {
-    container-type: inline-size;
-  }
-  .menu__reading reading-settings {
-    padding: var(--bar-padding);
-  }
+
+  /* Saved: the name and Save; actions as a row of plain buttons. */
   .menu__save {
     display: flex;
     gap: var(--bar-gap);
-    padding: var(--bar-padding);
   }
   .menu__save input {
     flex: 1;
@@ -557,149 +843,202 @@
     user-select: text;
     -webkit-user-select: text;
   }
-  .menu__list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--line);
-  }
-  .menu__list li {
-    display: flex;
-    border-bottom: 1px solid var(--line);
-  }
-  .menu__list .menu__open {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    border: 0;
-    text-align: start;
-  }
-  .menu__list [aria-current='true'] {
-    font-weight: 700;
-  }
-  .menu__list [data-action='delete-named'] {
-    border: 0;
-    border-left: 1px solid var(--line);
-    color: var(--muted);
-  }
-  .menu__when {
-    color: var(--muted);
-  }
-  .menu__none {
-    padding: var(--bar-padding);
-    color: var(--muted);
+  .menu__save button[type='submit'] {
+    border-color: var(--lapis);
+    background: var(--lapis);
+    color: var(--on-pigment);
   }
   .menu__actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--bar-gap);
-    padding: var(--bar-padding);
+  }
+  .menu__actions button,
+  .menu__save button {
+    min-height: var(--control-height);
+    padding: var(--control-padding);
+    font: var(--control-font);
   }
   .menu__status {
     display: block;
     min-height: 1.2rem;
-    padding: 0 var(--bar-padding) var(--bar-padding);
-    color: var(--muted);
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+  .menu__status:empty {
+    display: none;
   }
   .menu__file {
     display: none;
   }
-  /* On a phone the tabs share the width, and the panel is a sheet above
-     the rail. */
+  /* On a phone the rail is always at the bottom, panels do not float, and
+     the app's keyboard never shows: those choices go. On a touch screen
+     there is no Command or Control key to hold. */
   @media (max-width: 700px), (max-height: 500px) {
-    .tools__tabs button {
-      flex: 1;
-      padding: 0 0.3rem;
+    .tools__desk {
+      display: none;
     }
+  }
+  @media (pointer: coarse) {
+    .tools__keys {
+      display: none;
+    }
+  }
+  /* The reading settings: two groups to a row where there is room
+     (reading-settings's container query). */
+  .tools__section reading-settings {
+    container-type: inline-size;
   }
 </style>
 <div class="tools__head">
   <button type="button" class="panel__grip" data-grip="tools" aria-label="Move the tools panel: drag it, or use the arrow keys" title="Drag to move, or use the arrow keys; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
   <div class="tools__tabs" role="tablist" aria-label="Tools">
-    <button type="button" role="tab" data-action="tab" data-tab="table" aria-selected="${tab === 'table' ? 'true' : 'false'}" tabindex="${tab === 'table' ? '0' : '-1'}" aria-controls="tools-table">Table</button>
-    <button type="button" role="tab" data-action="tab" data-tab="reading" aria-selected="${tab === 'reading' ? 'true' : 'false'}" tabindex="${tab === 'reading' ? '0' : '-1'}" aria-controls="tools-reading">Reading</button>
-    <button type="button" role="tab" data-action="tab" data-tab="marks" aria-selected="${tab === 'marks' ? 'true' : 'false'}" tabindex="${tab === 'marks' ? '0' : '-1'}" aria-controls="tools-marks">Marks</button>
-    <button type="button" role="tab" data-action="tab" data-tab="workspace" aria-selected="${tab === 'workspace' ? 'true' : 'false'}" tabindex="${tab === 'workspace' ? '0' : '-1'}" aria-controls="tools-workspace">${name ? name : 'Workspace'}</button>
+    <button type="button" role="tab" id="tools-tab-reading" data-action="tab" data-tab="reading" aria-selected="${tab === 'reading' ? 'true' : 'false'}" tabindex="${tab === 'reading' ? '0' : '-1'}">Reading</button>
+    <button type="button" role="tab" id="tools-tab-marks" data-action="tab" data-tab="marks" aria-selected="${tab === 'marks' ? 'true' : 'false'}" tabindex="${tab === 'marks' ? '0' : '-1'}">Marks</button>
+    <button type="button" role="tab" id="tools-tab-table" data-action="tab" data-tab="table" aria-selected="${tab === 'table' ? 'true' : 'false'}" tabindex="${tab === 'table' ? '0' : '-1'}">Table</button>
+    <button type="button" role="tab" id="tools-tab-saved" data-action="tab" data-tab="saved" aria-selected="${tab === 'saved' ? 'true' : 'false'}" tabindex="${tab === 'saved' ? '0' : '-1'}">Saved</button>
   </div>
   <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="tools" aria-pressed="false" aria-label="Float the tools panel" title="Float: off the rail, where it stays"><svg-icon library="ui" name="float"></svg-icon></button>
   <button type="button" class="panel__button" data-chrome="close" data-panel="tools" aria-label="Close the tools panel" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>
 </div>
 <div class="tools__body">
-  <div id="tools-table" class="tools__section" role="tabpanel" aria-label="Table" data-on="${tab === 'table'}">
-    <h2 class="menu__heading">New highlights</h2>
-    <div class="tools__row menu__pens" role="group" aria-label="Style of new highlights">
-      <button type="button" class="pen--inverse" data-action="pen" data-pen="inverse" aria-pressed="${pen === 'inverse' ? 'true' : 'false'}" aria-label="Inverse"><span>Aa</span></button>
-      <button type="button" class="pen--underline" data-action="pen" data-pen="underline" aria-pressed="${pen === 'underline' ? 'true' : 'false'}" aria-label="Underline"><span>Aa</span></button>
-      <button type="button" class="pen--box" data-action="pen" data-pen="box" aria-pressed="${pen === 'box' ? 'true' : 'false'}" aria-label="Box"><span>Aa</span></button>
-    </div>
-    <h2 class="menu__heading">Cards</h2>
-    <div class="tools__row">
-      <button type="button" data-action="snap" aria-pressed="${snap ? 'true' : 'false'}">Snap</button>
-    </div>
-    <p class="menu__hint">With Snap on, a held card turns upright, goes to full size, and lines up with the other cards. Hold Command or Control to drag freely.</p>
-    <h2 class="menu__heading">Tools on the</h2>
-    <div class="tools__row" role="group" aria-label="Edge of the screen for the tools">
-      <button type="button" data-action="edge" data-edge="left" aria-pressed="${edge === 'left' ? 'true' : 'false'}">Left</button>
-      <button type="button" data-action="edge" data-edge="right" aria-pressed="${edge === 'right' ? 'true' : 'false'}">Right</button>
-      <button type="button" data-action="edge" data-edge="top" aria-pressed="${edge === 'top' ? 'true' : 'false'}">Top</button>
-      <button type="button" data-action="edge" data-edge="bottom" aria-pressed="${edge === 'bottom' ? 'true' : 'false'}">Bottom</button>
-    </div>
-    <h2 class="menu__heading">Size of the tools</h2>
-    <div class="tools__row" role="group" aria-label="Size of the tools and panels">
-      <button type="button" data-action="size" data-size="s" aria-pressed="${size === 's' ? 'true' : 'false'}">Small</button>
-      <button type="button" data-action="size" data-size="m" aria-pressed="${size === 'm' ? 'true' : 'false'}">Medium</button>
-      <button type="button" data-action="size" data-size="l" aria-pressed="${size === 'l' ? 'true' : 'false'}">Large</button>
-    </div>
-    <h2 class="menu__heading">Read by</h2>
-    <div class="tools__row" role="group" aria-label="Who reads aloud">
-      <button type="button" data-action="reader" data-reader="own" aria-pressed="${reader === 'own' ? 'true' : 'false'}">The app's voice</button>
-      <button type="button" data-action="reader" data-reader="librivox" aria-pressed="${reader === 'librivox' ? 'true' : 'false'}">LibriVox (KJV)</button>
-      <button type="button" data-action="reader" data-reader="device" aria-pressed="${reader === 'device' ? 'true' : 'false'}">This device</button>
-    </div>
-    <p class="menu__hint">The app's voice reads where its recording is made (the KJV and the BSB of John for now); LibriVox reads the KJV; this device's own voice reads the rest, and every version when chosen.</p>
-    <h2 class="menu__heading">Reading speed</h2>
-    <div class="tools__row" role="group" aria-label="Speed of reading aloud">
-      <button type="button" data-action="speed" data-speed="0.8" aria-pressed="${speed === 0.8 ? 'true' : 'false'}">Slower</button>
-      <button type="button" data-action="speed" data-speed="1" aria-pressed="${speed === 1 ? 'true' : 'false'}">Normal</button>
-      <button type="button" data-action="speed" data-speed="1.15" aria-pressed="${speed === 1.15 ? 'true' : 'false'}">1.15×</button>
-      <button type="button" data-action="speed" data-speed="1.3" aria-pressed="${speed === 1.3 ? 'true' : 'false'}">1.3×</button>
-      <button type="button" data-action="speed" data-speed="1.5" aria-pressed="${speed === 1.5 ? 'true' : 'false'}">1.5×</button>
-    </div>
-    <h2 class="menu__heading">On-screen keyboard</h2>
-    <div class="tools__row" role="group" aria-label="When the app's on-screen keyboard shows">
-      <button type="button" data-action="keyboard" data-keyboard="auto" aria-pressed="${keyboard === 'auto' ? 'true' : 'false'}">Automatic</button>
-      <button type="button" data-action="keyboard" data-keyboard="always" aria-pressed="${keyboard === 'always' ? 'true' : 'false'}">Always</button>
-      <button type="button" data-action="keyboard" data-keyboard="never" aria-pressed="${keyboard === 'never' ? 'true' : 'false'}">Never</button>
-    </div>
-    <p class="menu__hint">Automatic: for a finger on a touch screen with no keyboard of its own; not on a phone or a tablet, and not once a real key has been pressed. Always: for every finger, in place of the system's keyboard.</p>
-    <p class="menu__hint">The size of the tools and panels only; the text of the cards has its own size in Reading. A panel's grip drags it off the rail to float, and back onto the rail to dock. Kept in this browser.</p>
-  </div>
-  <div id="tools-reading" class="tools__section menu__reading" role="tabpanel" aria-label="Reading" data-on="${tab === 'reading'}">
-    <reading-settings></reading-settings>
-    <p class="menu__hint">Kept in this browser for the next visit.</p>
-  </div>
-  <div id="tools-marks" class="tools__section menu__marks" role="tabpanel" aria-label="Marks" data-on="${tab === 'marks'}">
-    <h2 class="menu__heading">Mark on every card</h2>
-    <div class="menu__presets"></div>
-    <h2 class="menu__heading">Marks on now</h2>
-    <ul class="menu__rules"></ul>
-    <p class="menu__hint">To mark one word, person or place: tap it on a card, then Mark it on every card in the search panel. The marks are kept with the table.</p>
-  </div>
-  <div id="tools-workspace" class="tools__section menu__workspace" role="tabpanel" aria-label="Workspace" data-on="${tab === 'workspace'}">
-    <h2 class="menu__heading">Save this table</h2>
-    <form class="menu__save">
-      <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" />
-      <button type="submit">Save</button>
+  <!-- Reading: how the text looks, and reading aloud. -->
+  <div id="tools-reading" class="tools__section" role="tabpanel" aria-labelledby="tools-tab-reading" hidden="${tab !== 'reading'}">
+    <section class="tools__part" aria-labelledby="tools-look">
+      <h2 id="tools-look" class="tools__heading">The text</h2>
+      <reading-settings except="ui"></reading-settings>
+    </section>
+    <form class="tools__part" aria-labelledby="tools-listen">
+      <h2 id="tools-listen" class="tools__heading">Read aloud</h2>
+      <fieldset class="tools__field" aria-describedby="tools-reader-hint">
+        <legend>Voice</legend>
+        <div class="tools__segments">
+          <label class="tools__segment"><input type="radio" name="reader" value="own" data-choice="reader" />The app's voice</label>
+          <label class="tools__segment"><input type="radio" name="reader" value="librivox" data-choice="reader" />LibriVox</label>
+          <label class="tools__segment"><input type="radio" name="reader" value="device" data-choice="reader" />This device</label>
+        </div>
+        <p id="tools-reader-hint" class="tools__hint">Where a voice has no recording of a passage, this device's voice reads it. LibriVox reads the KJV only.</p>
+      </fieldset>
+      <fieldset class="tools__field">
+        <legend>Speed</legend>
+        <div class="tools__segments">
+          <label class="tools__segment"><input type="radio" name="speed" value="0.8" data-choice="speed" aria-label="Slower, 0.8 times" />0.8×</label>
+          <label class="tools__segment"><input type="radio" name="speed" value="1" data-choice="speed" aria-label="Normal speed" />1×</label>
+          <label class="tools__segment"><input type="radio" name="speed" value="1.15" data-choice="speed" />1.15×</label>
+          <label class="tools__segment"><input type="radio" name="speed" value="1.3" data-choice="speed" />1.3×</label>
+          <label class="tools__segment"><input type="radio" name="speed" value="1.5" data-choice="speed" />1.5×</label>
+        </div>
+      </fieldset>
     </form>
-    <touch-keys for="workspace-name" enter="Save"></touch-keys>
-    <h2 class="menu__heading">Saved tables</h2>
-    <ul class="menu__list"></ul>
-    <div class="menu__actions">
-      <button type="button" data-action="new">New table</button>
-      <button type="button" data-action="export">Save to a file</button>
-      <button type="button" data-action="import">Open a file</button>
-    </div>
-    <output class="menu__status" aria-live="polite"></output>
-    <input class="menu__file" type="file" accept="application/json,.json" />
+  </div>
+
+  <!-- Marks: new highlights, and words marked on every card. -->
+  <div id="tools-marks" class="tools__section" role="tabpanel" aria-labelledby="tools-tab-marks" hidden="${tab !== 'marks'}">
+    <form class="tools__part" aria-labelledby="tools-pen">
+      <h2 id="tools-pen" class="tools__heading">New highlights</h2>
+      <fieldset class="tools__field">
+        <legend>Style</legend>
+        <div class="tools__segments">
+          <label class="tools__segment pen--inverse"><input type="radio" name="pen" value="inverse" data-choice="pen" aria-label="Filled" /><span>Aa</span></label>
+          <label class="tools__segment pen--underline"><input type="radio" name="pen" value="underline" data-choice="pen" aria-label="Underlined" /><span>Aa</span></label>
+          <label class="tools__segment pen--box"><input type="radio" name="pen" value="box" data-choice="pen" aria-label="Boxed" /><span>Aa</span></label>
+        </div>
+      </fieldset>
+    </form>
+    <form class="tools__part" aria-labelledby="tools-every">
+      <h2 id="tools-every" class="tools__heading">Mark on every card</h2>
+      <fieldset class="tools__field" aria-describedby="tools-every-hint">
+        <legend class="visually-hidden">Words to mark</legend>
+        <div class="menu__presets"></div>
+        <p id="tools-every-hint" class="tools__hint">One word, person or place: tap it on a card, then Mark it on every card in the search panel.</p>
+      </fieldset>
+    </form>
+    <section class="tools__part" aria-labelledby="tools-rules">
+      <h2 id="tools-rules" class="tools__heading">Marks on now</h2>
+      <ul class="menu__rules"></ul>
+    </section>
+  </div>
+
+  <!-- Table: how cards move, and where and how large the tools are. -->
+  <div id="tools-table" class="tools__section" role="tabpanel" aria-labelledby="tools-tab-table" hidden="${tab !== 'table'}">
+    <form class="tools__part" aria-labelledby="tools-cards">
+      <h2 id="tools-cards" class="tools__heading">Cards</h2>
+      <label class="tools__switch">
+        <span class="tools__switch-name">Snap</span>
+        <input type="checkbox" switch role="switch" data-choice="snap" aria-describedby="tools-snap-hint" />
+        <span id="tools-snap-hint" class="tools__hint">A card let go turns upright, goes to full size and lines up.<span class="tools__keys"> Hold Command or Control to drag freely.</span></span>
+      </label>
+    </form>
+    <form class="tools__part" aria-labelledby="tools-tools">
+      <h2 id="tools-tools" class="tools__heading">Tools and panels</h2>
+      <fieldset class="tools__field tools__desk">
+        <legend>Rail on the</legend>
+        <div class="tools__segments">
+          <label class="tools__segment"><input type="radio" name="edge" value="left" data-choice="edge" />Left</label>
+          <label class="tools__segment"><input type="radio" name="edge" value="right" data-choice="edge" />Right</label>
+          <label class="tools__segment"><input type="radio" name="edge" value="top" data-choice="edge" />Top</label>
+          <label class="tools__segment"><input type="radio" name="edge" value="bottom" data-choice="edge" />Bottom</label>
+        </div>
+      </fieldset>
+      <fieldset class="tools__field" aria-describedby="tools-size-hint">
+        <legend>Size of the tools</legend>
+        <div class="tools__segments">
+          <label class="tools__segment"><input type="radio" name="size" value="s" data-choice="size" />Small</label>
+          <label class="tools__segment"><input type="radio" name="size" value="m" data-choice="size" />Medium</label>
+          <label class="tools__segment"><input type="radio" name="size" value="l" data-choice="size" />Large</label>
+        </div>
+        <p id="tools-size-hint" class="tools__hint">The rail and the panels only.<span class="tools__desk"> A panel's grip drags it off the rail to float, and back to dock.</span></p>
+      </fieldset>
+    </form>
+    <section class="tools__part" aria-labelledby="tools-interface">
+      <h2 id="tools-interface" class="tools__heading">The whole screen</h2>
+      <reading-settings only="ui"></reading-settings>
+      <p class="tools__hint">Everything, cards too, on this device. Far is for a wall seen from across the room: the arrow keys move from card to card.</p>
+    </section>
+    <form class="tools__part tools__desk" aria-labelledby="tools-keys">
+      <h2 id="tools-keys" class="tools__heading">On-screen keyboard</h2>
+      <fieldset class="tools__field" aria-describedby="tools-keys-hint">
+        <legend class="visually-hidden">When the app's keyboard shows</legend>
+        <div class="tools__segments">
+          <label class="tools__segment"><input type="radio" name="keyboard" value="auto" data-choice="keyboard" />Automatic</label>
+          <label class="tools__segment"><input type="radio" name="keyboard" value="always" data-choice="keyboard" />Always</label>
+          <label class="tools__segment"><input type="radio" name="keyboard" value="never" data-choice="keyboard" />Never</label>
+        </div>
+        <p id="tools-keys-hint" class="tools__hint">Automatic: for a finger on a large touch screen with no keyboard near; never on a phone or a tablet.</p>
+      </fieldset>
+    </form>
+  </div>
+
+  <!-- Saved: this table, the saved ones, and files. -->
+  <div id="tools-saved" class="tools__section" role="tabpanel" aria-labelledby="tools-tab-saved" hidden="${tab !== 'saved'}">
+    <section class="tools__part" aria-labelledby="tools-save">
+      <h2 id="tools-save" class="tools__heading">This table</h2>
+      <form class="menu__save">
+        <input id="workspace-name" type="text" placeholder="Name" aria-label="Name of this table" autocomplete="off" enterkeyhint="done" />
+        <button type="submit">Save</button>
+      </form>
+      <touch-keys for="workspace-name" enter="Save"></touch-keys>
+      <output class="menu__status" aria-live="polite"></output>
+    </section>
+    <section class="tools__part" aria-labelledby="tools-saved-list">
+      <h2 id="tools-saved-list" class="tools__heading">Saved tables</h2>
+      <ul class="menu__list"></ul>
+    </section>
+    <section class="tools__part" aria-labelledby="tools-files">
+      <h2 id="tools-files" class="tools__heading">Files</h2>
+      <div class="menu__actions">
+        <button type="button" data-action="export">Save to a file</button>
+        <button type="button" data-action="import">Open a file</button>
+        <button type="button" data-action="notes-export">Notes as Markdown</button>
+      </div>
+      <input class="menu__file" type="file" accept="application/json,.json" />
+    </section>
+    <section class="tools__part" aria-labelledby="tools-new">
+      <h2 id="tools-new" class="tools__heading">Start again</h2>
+      <div class="menu__actions">
+        <button type="button" data-action="new">New table</button>
+      </div>
+      <p class="tools__hint">The table on show now goes; save it first to keep it.</p>
+    </section>
   </div>
 </div>

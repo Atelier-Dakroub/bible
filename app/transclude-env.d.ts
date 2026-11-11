@@ -47,8 +47,13 @@ type Link = {
 type Note = {
   id: string;
   text: string;
+  doc?: any;
   quotes: Highlight[];
+  kind?: Kind | undefined;
+  answered?: boolean | undefined;
+  title?: string | undefined;
 };
+type Kind = 'application' | 'interpretation' | 'observation' | 'prayer' | 'question';
 type Guide = {
   x1: number;
   y1: number;
@@ -383,6 +388,38 @@ type Image = {
   url: string;
   entities: string[];
 };
+type VideoView = Video & {
+  length: string;
+  shows: {
+    address: string;
+    title: string;
+  }[];
+  where: string;
+};
+type Video = {
+  id: string;
+  source: string;
+  title: string;
+  series: string;
+  part: string;
+  play: Play;
+  poster: string;
+  seconds: number | null;
+  passages: string[];
+  credit: string;
+  link: string;
+  site?: string | undefined;
+};
+type Play = {
+  kind: 'stream';
+  url: string;
+  captions?: string | undefined;
+} | {
+  kind: 'youtube';
+  id: string;
+} | {
+  kind: 'link';
+};
 type Fact = {
   text: string;
   source: string;
@@ -468,6 +505,7 @@ export type BibleTableMembers = {
   name: string;
   labels: HTMLButtonElement[];
   keepTimer: number;
+  noteTimer: any;
   guides: Guide[];
   rules: Rule[];
   pendingTrail: Trail | null;
@@ -616,22 +654,41 @@ export type BibleTableMembers = {
     y: number;
   }): void;
   highlight(span: Highlight): void;
-  quote(card: HTMLElement, span: Highlight): Promise<void>;
+  quote(card: HTMLElement, span: Highlight, point?: {
+    x: number;
+    y: number;
+  } | null | undefined): Promise<void>;
+  drawnQuotes: WeakMap<Element, Map<string, HTMLElement>>;
+  quotesOf(card: Element): Map<string, HTMLElement>;
+  loadQuote(address: string): Promise<HTMLElement | null>;
+  redrawNote(card: Element, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+  }): void;
   sourceOf(span: Highlight): Highlight;
   endAt(x: number, y: number): Highlight | null;
   tapped({
-    target
+    target, x, y
   }: {
     target: EventTarget | null;
+    x?: number | undefined;
+    y?: number | undefined;
   }): void;
   headingTapped(card: HTMLElement): void;
   notesAt(address: string): {
     id: string;
+    title: string;
     text: string;
+    kind?: string | undefined;
+    answered: boolean;
   }[];
   notesOn(card: HTMLElement): {
     id: string;
+    title: string;
     text: string;
+    kind?: string | undefined;
+    answered: boolean;
   }[];
   showNote(id: string): void;
   placeBeside(addresses: string[]): Promise<void>;
@@ -687,14 +744,32 @@ export type BibleTableMembers = {
   toastTimer: number;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
   unquote(card: HTMLElement, address: string): Promise<void>;
-  newNote(): Promise<void>;
-  editNote(id: string): void;
-  noteText({
-    id, text
-  }: {
-    id: string;
-    text: string;
+  paintKind(card: HTMLElement, note: {
+    kind?: string | undefined;
+    answered?: boolean | undefined;
+    title?: string | undefined;
   }): void;
+  writeTitle(card: HTMLElement): void;
+  changeKind(card: HTMLElement): void;
+  questions(): {
+    id: string;
+    title: string;
+    text: string;
+    answered: boolean;
+  }[];
+  fold(card: HTMLElement, address: string): void;
+  newNote(): Promise<void>;
+  writing: {
+    id: string;
+    card: HTMLElement;
+    view: any;
+    end: () => void;
+  } | null;
+  writeNote(card: HTMLElement, at: {
+    x: number;
+    y: number;
+  } | null): void;
+  showCaret(): void;
   paintQuoted(root: Element): void;
   fetchCard(address: string, {
     version, replacing, id, sync, compare
@@ -718,6 +793,12 @@ export type BibleTableMembers = {
   saveAs(name: string): void;
   openNamed(name: string): void;
   exportFile(): void;
+  markdownOf(card: Element, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+  }, heading?: number | undefined): string;
+  exportNotes(): void;
   importFile({
     name, text
   }: {
@@ -822,6 +903,7 @@ export type GestureCardMembers = {
   key(event: KeyboardEvent): void;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
+  forgetLost(keep?: number | undefined): void;
   held(now: number): boolean;
   startMarking(pointerId: number, word: string): void;
   moveMarking(event: PointerEvent): void;
@@ -834,6 +916,7 @@ export type GestureCardMembers = {
   setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
+  letGo(): void;
   snaps(event: PointerEvent): boolean;
   snapped(raw: Matrix, about: Point): Matrix;
   otherBoxes(): Box[];
@@ -916,6 +999,7 @@ export type MapViewMembers = {
   settle(wait?: number | undefined): void;
   press(event: PointerEvent): void;
   drag(event: PointerEvent): void;
+  forgetLost(keep?: number | undefined): void;
   release(event: PointerEvent): void;
   wheel(event: WheelEvent): void;
   trackpad(signal: AbortSignal): void;
@@ -933,7 +1017,6 @@ export type NoteEditorProps = {};
 /** Internal state of `<note-editor>`, from its <script element> block. */
 export type NoteEditorState = {
   open: boolean;
-  keys: boolean;
 };
 
 /** Members of `<note-editor>`, from its `export const prototype`. */
@@ -944,8 +1027,8 @@ export type NoteEditorMembers = {
   }: {
     signal: any;
   }): void;
-  edit(id: string, text: string): void;
-  close(): void;
+  dock(id: string): void;
+  undock(): void;
 };
 
 /** Properties of `<passage-search>`, from its <script element> block. */
@@ -1000,8 +1083,24 @@ export type PassageSearchMembers = {
   showWord(address: string): void;
   showGuide(address: string, notes: {
     id: string;
+    title?: string | undefined;
     text: string;
+    kind?: string | undefined;
+    answered?: boolean | undefined;
   }[], how?: How | undefined): Promise<void>;
+  questionList: {
+    id: string;
+    title?: string | undefined;
+    text: string;
+    answered: boolean;
+  }[];
+  setQuestions(list: {
+    id: string;
+    title?: string | undefined;
+    text: string;
+    answered: boolean;
+  }[]): void;
+  showQuestions(opening?: boolean | undefined): void;
   discover(which?: string | undefined): Promise<boolean>;
   searchFor(text: string): void;
   showRules(rules: {
@@ -1048,7 +1147,7 @@ export type ReadingSettingsMembers = {
   current(): {
     [k: string]: string;
   };
-  act(event: MouseEvent): void;
+  act(event: Event): void;
   paint(): void;
 };
 
@@ -1095,6 +1194,8 @@ export type TableMenuMembers = {
     edge: string;
     size: string;
   }): void;
+  paintChoices(): void;
+  choose(event: Event): void;
   act(event: MouseEvent): void;
   send(type: string, detail?: object | undefined): void;
   setName(name: string): void;
@@ -1268,6 +1369,71 @@ export type TouchProbeMembers = {
   measureScreen(): void;
   act(event: MouseEvent): void;
   reset(): void;
+};
+
+/** Properties of `<video-player>`, from its <script element> block. */
+export type VideoPlayerProps = {
+  kind: string;
+  src: string;
+  youtube: string;
+  captions: string;
+  poster: string;
+  label: string;
+  link: string;
+};
+
+/** Internal state of `<video-player>`, from its <script element> block. */
+export type VideoPlayerState = {
+  started: boolean;
+  playing: boolean;
+  waiting: boolean;
+  muted: boolean;
+  subtitles: boolean;
+  failed: boolean;
+  handoff: boolean;
+  rate: number;
+  clock: string;
+  canFull: boolean;
+  expanded: boolean;
+};
+
+/** Members of `<video-player>`, from its `export const prototype`. */
+export type VideoPlayerMembers = {
+  video: HTMLVideoElement | null;
+  frame: HTMLIFrameElement | null;
+  at: number;
+  length: number;
+  listenTimer: number;
+  startTimer: number;
+  captionsSet: boolean;
+  hls: any;
+  connected({
+    signal
+  }: {
+    signal: any;
+  }): void;
+  scrubber(): HTMLInputElement;
+  toggle(): void;
+  play(): void;
+  pause(): void;
+  seek(seconds: number): void;
+  setMuted(muted: boolean): void;
+  setRate(rate: number): void;
+  setSubtitles(on: boolean): void;
+  full(): void;
+  native(): boolean;
+  fill(): void;
+  start(): void;
+  withHls(video: HTMLVideoElement): Promise<void>;
+  blocked(): void;
+  fail(): void;
+  stop(): void;
+  fit(): void;
+  listen(): void;
+  command(func: string, args?: unknown[] | undefined): void;
+  heard(event: MessageEvent<any>): void;
+  played(code: number): void;
+  tick(at: number, length: number): void;
 };
 
 /** The `ctx` argument of `root/_layout.html`'s loader. */
@@ -1581,6 +1747,7 @@ export type SearchData = __Shape<{
     kind: string;
   }[];
   images: Image[];
+  videos: VideoView[];
   also: {
     code: string;
     label: string;
@@ -1620,6 +1787,7 @@ export type SearchData = __Shape<{
     kind: string;
   }[];
   images: Image[];
+  videos: VideoView[];
   also: {
     code: string;
     label: string;
@@ -1863,5 +2031,6 @@ declare global {
     "time-line": HTMLElement & TimeLineProps & TimeLineState & TimeLineMembers;
     "touch-keys": HTMLElement & TouchKeysProps & TouchKeysState & TouchKeysMembers;
     "touch-probe": HTMLElement & TouchProbeProps & TouchProbeState & TouchProbeMembers;
+    "video-player": HTMLElement & VideoPlayerProps & VideoPlayerState & VideoPlayerMembers;
   }
 }

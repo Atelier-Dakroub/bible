@@ -7,8 +7,12 @@
 
      The controls are tiles that show what they do: a theme or a paper as its
      own colors, a text size as a letter of that size, a line spacing as
-     lines, and each thing the text shows as a sample. A chosen tile has a
-     lapis ring. The theme tiles take their colors from the tokens with the
+     lines, and each thing the text shows as a sample. Each tile is a native
+     radio (one of a group) or checkbox (on or off) under its picture, so
+     the arrow keys and a screen reader work as they do on any form. A
+     chosen tile has a lapis ring. The attribute `only` (or `except`) names
+     the groups to show (or not): theme, paper, size, ui, leading, shows,
+     layout. The theme tiles take their colors from the tokens with the
      tile's own color scheme, so Night shows night's colors in the day.
 
      Interface: S, M, L, XL or Far. M is the size the page picks for the
@@ -69,8 +73,16 @@
   export const prototype = {
     connected({ signal }) {
       apply(load());
+      // Only some groups, or all but some: `only="ui"`, `except="ui"`.
+      const only = (this.getAttribute('only') ?? '').split(/\s+/).filter(Boolean);
+      const except = (this.getAttribute('except') ?? '').split(/\s+/).filter(Boolean);
+      for (const group of this.querySelectorAll('fieldset[data-group]')) {
+        const name = /** @type {HTMLElement} */ (group).dataset.group ?? '';
+        /** @type {HTMLElement} */ (group).hidden = only.length ? !only.includes(name) : except.includes(name);
+      }
       this.paint();
-      this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('change', (event) => this.act(event), { signal });
+      this.querySelector('form')?.addEventListener('submit', (event) => event.preventDefault(), { signal });
       // A change in another tab or window is a change here too.
       addEventListener('storage', (event) => {
         if (event.key !== KEY) return;
@@ -92,18 +104,18 @@
       return Object.fromEntries(Object.entries(SETTINGS).map(([name, values]) => [name, root.dataset[name] ?? values[0]]));
     },
 
-    /** @param {MouseEvent} event */
+    /** @param {Event} event */
     act(event) {
-      const button = event.target instanceof Element ? event.target.closest('button[data-set], button[data-toggle]') : null;
-      if (!(button instanceof HTMLElement)) return;
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
       const settings = this.current();
-      // A tile that is one of several sets its value; a tile on its own
-      // turns its setting on or off.
-      const name = button.dataset.set ?? button.dataset.toggle ?? '';
+      // A tile that is one of several (a radio) sets its value; a tile on
+      // its own (a checkbox) turns its setting on or off.
+      const name = input.dataset.set ?? input.dataset.toggle ?? '';
       const values = SETTINGS[name];
       if (!values) return;
-      if (button.dataset.toggle) settings[name] = settings[name] === 'on' ? 'off' : 'on';
-      else settings[name] = button.dataset.value ?? values[0];
+      if (input.dataset.toggle) settings[name] = input.checked ? 'on' : 'off';
+      else settings[name] = input.value || values[0];
       apply(settings);
       try {
         localStorage.setItem(KEY, JSON.stringify(settings));
@@ -116,13 +128,13 @@
 
     paint() {
       const settings = this.current();
-      for (const button of this.querySelectorAll('button[data-set]')) {
-        const element = /** @type {HTMLElement} */ (button);
-        element.setAttribute('aria-pressed', String(settings[element.dataset.set ?? ''] === element.dataset.value));
+      for (const input of this.querySelectorAll('input[data-set]')) {
+        const element = /** @type {HTMLInputElement} */ (input);
+        element.checked = settings[element.dataset.set ?? ''] === element.value;
       }
-      for (const button of this.querySelectorAll('button[data-toggle]')) {
-        const element = /** @type {HTMLElement} */ (button);
-        element.setAttribute('aria-pressed', String(settings[element.dataset.toggle ?? ''] === 'on'));
+      for (const input of this.querySelectorAll('input[data-toggle]')) {
+        const element = /** @type {HTMLInputElement} */ (input);
+        element.checked = settings[element.dataset.toggle ?? ''] === 'on';
       }
     },
   };
@@ -183,12 +195,34 @@
       background: var(--tint);
     }
   }
-  .reading__grid .reading__tile[aria-pressed='true'] {
+  .reading__grid .reading__tile:has(:checked) {
     border-color: var(--lapis);
     background: var(--paper);
     color: var(--lapis);
     box-shadow: inset 0 0 0 1px var(--lapis);
     font-weight: 700;
+  }
+  /* Each tile is a radio or a checkbox, unseen, under its picture: the
+     keys and a screen reader find it, and the tile shows its state. */
+  .reading__grid .reading__tile {
+    position: relative;
+    cursor: pointer;
+  }
+  .reading__input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .reading__grid .reading__tile:has(.reading__input:focus-visible) {
+    outline: 2px solid var(--lapis);
+    outline-offset: 2px;
+  }
+  .reading__group[hidden] {
+    display: none;
   }
   /* The picture in a tile. */
   .reading__swatch {
@@ -310,75 +344,75 @@
     line-height: 1.6;
   }
   /* An off tile shows its sample faded, so on and off read at a glance. */
-  .reading__tile[data-toggle][aria-pressed='false'] :is(.reading__sample) {
+  .reading__tile:has(input[data-toggle]:not(:checked)) :is(.reading__sample) {
     opacity: 0.45;
   }
 </style>
 
-<div class="reading__grid">
-  <fieldset class="reading__group">
+<form class="reading__grid">
+  <fieldset class="reading__group" data-group="theme">
     <legend class="reading__name">Theme</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile" data-set="theme" data-value="day"><span class="reading__swatch reading__swatch--day">Aa</span>Day</button>
-      <button type="button" class="reading__tile" data-set="theme" data-value="night"><span class="reading__swatch reading__swatch--night">Aa</span>Night</button>
-      <button type="button" class="reading__tile" data-set="theme" data-value="system"><span class="reading__swatch reading__swatch--system"><span>A</span><span>a</span></span>Computer</button>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="theme" value="day" data-set="theme" /><span class="reading__swatch reading__swatch--day">Aa</span>Day</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="theme" value="night" data-set="theme" /><span class="reading__swatch reading__swatch--night">Aa</span>Night</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="theme" value="system" data-set="theme" /><span class="reading__swatch reading__swatch--system"><span>A</span><span>a</span></span>Computer</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="paper">
     <legend class="reading__name">Paper</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile" data-set="paper" data-value="bright"><span class="reading__swatch reading__swatch--bright">Aa</span>Bright</button>
-      <button type="button" class="reading__tile" data-set="paper" data-value="soft"><span class="reading__swatch reading__swatch--soft">Aa</span>Soft</button>
-      <button type="button" class="reading__tile" data-set="paper" data-value="lamp"><span class="reading__swatch reading__swatch--lamp">Aa</span>Lamp</button>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="paper" value="bright" data-set="paper" /><span class="reading__swatch reading__swatch--bright">Aa</span>Bright</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="paper" value="soft" data-set="paper" /><span class="reading__swatch reading__swatch--soft">Aa</span>Soft</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="paper" value="lamp" data-set="paper" /><span class="reading__swatch reading__swatch--lamp">Aa</span>Lamp</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="size">
     <legend class="reading__name">Text size</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="1" aria-label="Text size 1, the smallest"><span class="reading__letter reading__letter--1">A</span>1</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="2" aria-label="Text size 2"><span class="reading__letter reading__letter--2">A</span>2</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="3" aria-label="Text size 3"><span class="reading__letter reading__letter--3">A</span>3</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="4" aria-label="Text size 4"><span class="reading__letter reading__letter--4">A</span>4</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="size" data-value="5" aria-label="Text size 5, the largest"><span class="reading__letter reading__letter--5">A</span>5</button>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="size" value="1" data-set="size" aria-label="Text size 1, the smallest" /><span class="reading__letter reading__letter--1">A</span>1</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="size" value="2" data-set="size" aria-label="Text size 2" /><span class="reading__letter reading__letter--2">A</span>2</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="size" value="3" data-set="size" aria-label="Text size 3" /><span class="reading__letter reading__letter--3">A</span>3</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="size" value="4" data-set="size" aria-label="Text size 4" /><span class="reading__letter reading__letter--4">A</span>4</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="size" value="5" data-set="size" aria-label="Text size 5, the largest" /><span class="reading__letter reading__letter--5">A</span>5</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="ui">
     <legend class="reading__name">Interface</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="s" aria-label="Interface: small, on this device"><span class="reading__button reading__button--s"><span>Aa</span></span>S</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="m" aria-label="Interface: medium, the size for this kind of screen"><span class="reading__button reading__button--m"><span>Aa</span></span>M</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="l" aria-label="Interface: large, on this device"><span class="reading__button reading__button--l"><span>Aa</span></span>L</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="xl" aria-label="Interface: extra large, on this device"><span class="reading__button reading__button--xl"><span>Aa</span></span>XL</button>
-      <button type="button" class="reading__tile reading__tile--size" data-set="ui" data-value="far" aria-label="Interface: from across the room, with the arrow keys moving from card to card"><span class="reading__button reading__button--far"><span>Aa</span></span>Far</button>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="ui" value="s" data-set="ui" aria-label="Interface: small, on this device" /><span class="reading__button reading__button--s"><span>Aa</span></span>S</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="ui" value="m" data-set="ui" aria-label="Interface: medium, the size for this kind of screen" /><span class="reading__button reading__button--m"><span>Aa</span></span>M</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="ui" value="l" data-set="ui" aria-label="Interface: large, on this device" /><span class="reading__button reading__button--l"><span>Aa</span></span>L</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="ui" value="xl" data-set="ui" aria-label="Interface: extra large, on this device" /><span class="reading__button reading__button--xl"><span>Aa</span></span>XL</label>
+      <label class="reading__tile reading__tile--size"><input type="radio" class="reading__input" name="ui" value="far" data-set="ui" aria-label="Interface: from across the room, with the arrow keys moving from card to card" /><span class="reading__button reading__button--far"><span>Aa</span></span>Far</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="leading">
     <legend class="reading__name">Line spacing</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile" data-set="leading" data-value="compact"><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 4.5h18M3 8h18M3 11.5h12"></path></svg>Compact</button>
-      <button type="button" class="reading__tile" data-set="leading" data-value="normal"><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 3h18M3 8h18M3 13h12"></path></svg>Normal</button>
-      <button type="button" class="reading__tile" data-set="leading" data-value="loose"><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 1.5h18M3 8h18M3 14.5h12"></path></svg>Loose</button>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="leading" value="compact" data-set="leading" /><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 4.5h18M3 8h18M3 11.5h12"></path></svg>Compact</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="leading" value="normal" data-set="leading" /><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 3h18M3 8h18M3 13h12"></path></svg>Normal</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="leading" value="loose" data-set="leading" /><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 1.5h18M3 8h18M3 14.5h12"></path></svg>Loose</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="shows">
     <legend class="reading__name">The text shows</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile" data-toggle="red" aria-label="Words of Christ in red"><span class="reading__sample reading__sample--red">Aa</span>Red letters</button>
-      <button type="button" class="reading__tile" data-toggle="numbers" aria-label="Verse numbers"><span class="reading__sample reading__sample--numbers"><span><sup>1</sup>In</span></span>Numbers</button>
-      <button type="button" class="reading__tile" data-toggle="initials" aria-label="An initial at a chapter's start"><span class="reading__sample reading__sample--initials"><b>I</b><span>n</span></span>Initials</button>
+      <label class="reading__tile"><input type="checkbox" class="reading__input" data-toggle="red" aria-label="Words of Christ in red" /><span class="reading__sample reading__sample--red">Aa</span>Red letters</label>
+      <label class="reading__tile"><input type="checkbox" class="reading__input" data-toggle="numbers" aria-label="Verse numbers" /><span class="reading__sample reading__sample--numbers"><span><sup>1</sup>In</span></span>Numbers</label>
+      <label class="reading__tile"><input type="checkbox" class="reading__input" data-toggle="initials" aria-label="An initial at a chapter's start" /><span class="reading__sample reading__sample--initials"><b>I</b><span>n</span></span>Initials</label>
     </div>
   </fieldset>
 
-  <fieldset class="reading__group">
+  <fieldset class="reading__group" data-group="layout">
     <legend class="reading__name">Layout</legend>
     <div class="reading__tiles">
-      <button type="button" class="reading__tile" data-set="layout" data-value="paragraphs"><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M6 3h15M3 7h18M3 11h18M3 15h9"></path></svg>Paragraphs</button>
-      <button type="button" class="reading__tile" data-set="layout" data-value="verses"><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 3h1M7 3h14M3 8h1M7 8h10M3 13h1M7 13h12"></path></svg>Verses</button>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="layout" value="paragraphs" data-set="layout" /><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M6 3h15M3 7h18M3 11h18M3 15h9"></path></svg>Paragraphs</label>
+      <label class="reading__tile"><input type="radio" class="reading__input" name="layout" value="verses" data-set="layout" /><svg class="reading__lines" viewBox="0 0 24 16" aria-hidden="true"><path d="M3 3h1M7 3h14M3 8h1M7 8h10M3 13h1M7 13h12"></path></svg>Verses</label>
     </div>
   </fieldset>
-</div>
+</form>
