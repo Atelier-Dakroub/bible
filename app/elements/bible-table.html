@@ -130,7 +130,7 @@
   import { covers, paintHighlights, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
-  import { LANGUAGE_NAMES, Reader, Recording, sayWord } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, Reader, Recording, readerChoice, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -2046,29 +2046,39 @@
         }
         set(false);
       };
-      // The KJV's recording: its first chapter's file begins now, muted, in
-      // the tap (a phone plays sound only from one), while the times come.
-      const opening = /^([1-3A-Z]{3})\.(\d+)/.exec(start || card.dataset.address || '');
-      if (version === 'kjv' && card.dataset.kind === 'passage' && opening) {
-        const audio = new Audio(`/audio/${opening[1]}.${opening[2]}.m4a`);
+      // A recording of the passage (data/audio.js), listed on the card: the
+      // one of the reader chosen in Tools (the app's voice first, then
+      // LibriVox's), unless the device's voice is chosen. Its file begins now,
+      // muted, in the tap (a phone plays sound only from one).
+      /** @type {import('../lib/speech.js').RecordedChapter[] | null} */
+      let chapters = null;
+      let reader = '';
+      try {
+        /** @type {{ kind: string, reader: string, chapters: import('../lib/speech.js').RecordedChapter[] }[]} */
+        const recordings = JSON.parse(button.dataset.listen || '[]');
+        const choice = readerChoice();
+        const recording = choice === 'device' ? null : (recordings.find((each) => each.kind === choice) ?? recordings[0]);
+        if (recording) {
+          chapters = recording.chapters;
+          reader = recording.reader;
+        }
+      } catch {
+        chapters = null;
+      }
+      if (chapters?.length) {
+        const opening = chapters.find((chapter) => chapter.verses.some((verse) => verse.id === start)) ?? chapters[0];
+        const audio = new Audio(opening.file);
         audio.muted = true;
         audio.play().catch(() => null);
-        const found = await fetch(`/listen/${encodeURIComponent(card.dataset.address ?? '')}`)
-          .then((response) => (response.ok ? response.json() : null))
-          .catch(() => null);
-        if (found?.chapters?.length) {
-          set(true);
-          this.toast(found.credit);
-          const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
-          // The lock screen's Play goes on from where the reading paused.
-          const resume = () => {
-            if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
-          };
-          new Recording(audio, { title, resume }).play(found.chapters, (id) => card.querySelector(`kjv-verse[data-ref="${CSS.escape(id)}"]`), ended, start);
-          return;
-        }
-        audio.pause();
-        audio.removeAttribute('src');
+        set(true);
+        if (reader) this.toast(reader === "The app's voice" ? "Read in the app's own voice." : `Read by ${reader}.`);
+        const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
+        // The lock screen's Play goes on from where the reading paused.
+        const resume = () => {
+          if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
+        };
+        new Recording(audio, { title, resume }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
+        return;
       }
       const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]');
       const lang = source?.getAttribute('lang') === 'hbo' || source?.getAttribute('lang') === 'he' ? 'he' : 'el';

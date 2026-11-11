@@ -1073,6 +1073,8 @@ export type TableMenuState = {
   edge: string;
   size: string;
   keyboard: string;
+  speed: number;
+  reader: string;
 };
 
 /** Members of `<table-menu>`, from its `export const prototype`. */

@@ -30,7 +30,14 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
-Reading aloud: the speaker on a passage card is a mode. Pressed (lapis), the
+Reading aloud: who reads is chosen in Tools, Table (Read by): the app's own
+voice (`tools/voice`: a plain male voice designed for the app and made with
+Qwen3-TTS, for the KJV and the BSB where its recording is made), LibriVox's
+reader of the KJV, or this device's own voice, which also reads whatever has
+no recording. The recordings a passage has are listed on its card, so a tap
+starts one at once.
+
+The speaker on a passage card is a mode. Pressed (lapis), the
 card reads aloud, verse by verse, marking the verse being read, and a tap on
 a verse plays from it; a tap on the verse being read pauses (the button
 shows the speaker again, still pressed), and a tap on any verse plays from

@@ -8,7 +8,8 @@
 //   POST /api/table/command  a command, as JSON; the answer is the table's reply
 //   POST /api/table/reply    a table's reply to a command, by its id
 //
-// And the KJV's recording: GET /audio/GEN.1.m4a (data/audio.js).
+// And the recordings (data/audio.js): GET /audio/GEN.1.m4a (LibriVox's KJV)
+// and /audio/<voice>/<version>/GEN.1.m4a (the app's own voice).
 //
 // A command must carry the secret in TABLE_TOKEN (the project's .env, which
 // npm run dev reads, and so does the MCP server): the server listens on the
@@ -45,7 +46,8 @@ function allowed(c) {
 export default (app) => {
   // The KJV's recording, a chapter to a file (data/audio.js), with byte
   // ranges so a player can begin at a verse.
-  app.get('/audio/:file', (c) => chapterFile(c.req.param('file'), c.req.header('range')));
+  app.get('/audio/:file', (c) => chapterFile('', c.req.param('file'), c.req.header('range')));
+  app.get('/audio/:voice/:version/:file', (c) => chapterFile(`${c.req.param('voice')}/${c.req.param('version')}`, c.req.param('file'), c.req.header('range')));
 
   app.get('/api/table/events', (c) =>
     streamSSE(c, async (stream) => {

@@ -89,6 +89,30 @@ export function setSpeed(value) {
   if (current?.audio) current.audio.playbackRate = value;
 }
 
+// Who reads a recorded version, kept in this browser: the app's own voice,
+// LibriVox's reader (the KJV), or the device's voice.
+const READER_KEY = 'bible.reader';
+export const READERS = /** @type {const} */ (['own', 'librivox', 'device']);
+
+/** @returns {typeof READERS[number]} */
+export function readerChoice() {
+  try {
+    const kept = localStorage.getItem(READER_KEY);
+    return READERS.includes(/** @type {any} */ (kept)) ? /** @type {any} */ (kept) : 'own';
+  } catch {
+    return 'own';
+  }
+}
+
+/** @param {typeof READERS[number]} value */
+export function setReaderChoice(value) {
+  try {
+    localStorage.setItem(READER_KEY, value);
+  } catch {
+    // No storage: the choice lasts until the page closes.
+  }
+}
+
 /** The name of a language, for "This device has no … voice". */
 export const LANGUAGE_NAMES = { en: 'English', he: 'Hebrew', el: 'Greek' };
 

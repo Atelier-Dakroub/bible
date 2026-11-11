@@ -41,7 +41,7 @@
 <script element>
   import { isPhone } from '../lib/screen.js';
   import { choice as keysChoice, setChoice as setKeysChoice, wantKeys } from '../lib/keyboard.js';
-  import { setSpeed, speed } from '../lib/speech.js';
+  import { readerChoice, setReaderChoice, setSpeed, speed } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
   import { listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
@@ -64,6 +64,8 @@
     keyboard: 'auto',
     /** the reading speed (lib/speech.js) */
     speed: 1,
+    /** who reads a recorded version: own, librivox or device (lib/speech.js) */
+    reader: 'own',
   };
   const TABS = ['table', 'reading', 'marks', 'workspace'];
 
@@ -98,6 +100,7 @@
       this.addEventListener('keydown', (event) => this.roveTabs(event), { signal });
       this.keyboard = keysChoice();
       this.speed = speed();
+      this.reader = readerChoice();
       const nameField = /** @type {HTMLInputElement} */ (this.querySelector('#workspace-name'));
       nameField.addEventListener('blur', () => {
         this.keys = false;
@@ -214,6 +217,10 @@
       if (action === 'tab') this.showTab(button.dataset.tab ?? 'table');
       if (action === 'edge') rail?.setEdge(button.dataset.edge);
       if (action === 'size') rail?.setSize(button.dataset.size);
+      if (action === 'reader') {
+        this.reader = button.dataset.reader ?? 'own';
+        setReaderChoice(/** @type {any} */ (this.reader));
+      }
       if (action === 'speed') {
         this.speed = Number(button.dataset.speed) || 1;
         setSpeed(this.speed);
@@ -643,6 +650,13 @@
       <button type="button" data-action="size" data-size="m" aria-pressed="${size === 'm' ? 'true' : 'false'}">Medium</button>
       <button type="button" data-action="size" data-size="l" aria-pressed="${size === 'l' ? 'true' : 'false'}">Large</button>
     </div>
+    <h2 class="menu__heading">Read by</h2>
+    <div class="tools__row" role="group" aria-label="Who reads aloud">
+      <button type="button" data-action="reader" data-reader="own" aria-pressed="${reader === 'own' ? 'true' : 'false'}">The app's voice</button>
+      <button type="button" data-action="reader" data-reader="librivox" aria-pressed="${reader === 'librivox' ? 'true' : 'false'}">LibriVox (KJV)</button>
+      <button type="button" data-action="reader" data-reader="device" aria-pressed="${reader === 'device' ? 'true' : 'false'}">This device</button>
+    </div>
+    <p class="menu__hint">The app's voice reads where its recording is made (the KJV and the BSB of John for now); LibriVox reads the KJV; this device's own voice reads the rest, and every version when chosen.</p>
     <h2 class="menu__heading">Reading speed</h2>
     <div class="tools__row" role="group" aria-label="Speed of reading aloud">
       <button type="button" data-action="speed" data-speed="0.8" aria-pressed="${speed === 0.8 ? 'true' : 'false'}">Slower</button>

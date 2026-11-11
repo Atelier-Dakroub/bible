@@ -5,6 +5,7 @@
   import { imageById } from '../../data/images.js';
   import { landscape } from '../../data/study.js';
   import { quoteMark } from '../../data/quotations.js';
+  import { recordingsOf } from '../../data/audio.js';
   import { parseAddress, stepAddress } from '../../lib/reference.js';
   import { parseSpanAddress } from '../../lib/words.js';
 
@@ -48,7 +49,7 @@
    *   shade: Box, levant: Box, levantClip: Box,
    *   source: Awaited<ReturnType<typeof original>> | null,
    *   reversed: import('../../data/bible.js').ReverseVerse[],
-   *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[]
+   *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[], listen: string
    * }} Card
    */
 
@@ -58,7 +59,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -136,7 +137,10 @@
     const next = stepAddress(address, 1, books) ?? '';
     const reversed = version === 'reverse' && source ? reverse(verses, source) : [];
     const syntax = version === 'syntax' ? await syntaxOf(ref) : null;
-    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed, syntax });
+    // The passage's recordings (data/audio.js), on the card, so a tap can
+    // start one at once: a phone plays sound only from a tap.
+    const listen = version === 'kjv' || version === 'bsb' ? JSON.stringify(await recordingsOf(ref, version)) : '';
+    return card({ kind: 'passage', address, version, title, verses, rows, opening: preview(verses), count: verseCount(verses.length), back, next, source, reversed, syntax, listen });
   };
 </script>
 
@@ -255,7 +259,7 @@
       <h2 class="passage__heading">${title}</h2>
       <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${next}" disabled="${!next}" aria-label="The passage after" title="The passage after"><svg-icon library="ui" name="next"></svg-icon></button>
       <span class="passage__spacer"></span>
-      <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
+      <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" data-listen="${listen}" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
