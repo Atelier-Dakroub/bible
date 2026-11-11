@@ -273,6 +273,7 @@
       <span class="passage__spacer"></span>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" data-listen="${listen}" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
+      <button if="kind === 'note'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the note as Markdown" title="Copy the note as Markdown"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
@@ -357,13 +358,22 @@
       </details>
       <p class="entity__credit">${entity ? entity.credit : ''}</p>
     </div>
-    <!-- A note: the reader's own words, which the table fills in, and the
-         spans it quotes, by address, so a quote is the text itself. -->
+    <!-- A note: the reader's own words, which the table fills in and where
+         it writes them (lib/note-editing.js), and the spans it quotes, by
+         address, so a quote is the text itself. The table moves each quote
+         to its place among the words (its quote block). -->
     <div if="kind === 'note'" class="note">
-      <p class="note__text" data-action="edit-note"></p>
-      <section each="quote of quotes" class="note__quote">
+      <!-- Its kind (lib/note-kinds.js), which a tap changes, and a
+           question's Answered box: the table fills both in. -->
+      <p class="note__head">
+        <button type="button" class="note__kind" data-action="note-kind">Note</button>
+        <label class="note__answered" hidden><input type="checkbox" data-action="note-answered" /> Answered</label>
+      </p>
+      <div class="note__text" data-action="edit-note"></div>
+      <section each="quote of quotes" class="note__quote" data-quote="${quote.address}" data-title="${quote.title}">
         <p class="note__source">
-          <span>${quote.title}</span>
+          <span class="note__source-title">${quote.title}</span>
+          <button type="button" class="note__unquote" data-fold="${quote.address}" aria-label="Make the quote from ${quote.title} a reference" title="Make it a reference"><svg-icon library="ui" name="fold"></svg-icon></button>
           <button type="button" class="note__unquote" data-unquote="${quote.address}" aria-label="Remove the quote from ${quote.title}">×</button>
         </p>
         <div class="note__words">

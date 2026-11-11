@@ -66,6 +66,34 @@
   import { LANGUAGE_NAMES, sayWord } from '../lib/speech.js';
   import { slideIn, slideOut } from '../lib/motion.js';
   import { dropCurrent, emptyTrail, record, windowOf } from '../lib/trail.js';
+  import { labelOf } from '../lib/note-kinds.js';
+
+  /**
+   * A note in a list: its title, if it has one, over the first of its words.
+   *
+   * @param {HTMLElement} button
+   * @param {{ title?: string, text: string }} note
+   * @param {number} limit
+   */
+  function writeNote(button, note, limit) {
+    const text = note.text.trim();
+    const words = text ? (text.length > limit ? `${text.slice(0, limit)} …` : text) : note.title ? '' : 'A note with no words yet';
+    button.replaceChildren();
+    if (note.title) button.append(Object.assign(document.createElement('strong'), { className: 'result__title', textContent: note.title }));
+    if (words) button.append(Object.assign(document.createElement('span'), { className: 'result__words', textContent: words }));
+  }
+
+  /**
+   * A note's kind, as a small label before its words: "Question · open".
+   *
+   * @param {{ kind?: string, answered?: boolean }} note
+   */
+  function kindLabel(note) {
+    const label = document.createElement('span');
+    label.className = `note-kind note-kind--${note.kind}`;
+    label.textContent = note.kind === 'question' ? `${labelOf(note.kind)} · ${note.answered ? 'answered' : 'open'}` : labelOf(note.kind);
+    return label;
+  }
 
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
   /** @typedef {import('../lib/trail.js').Trail} Trail */
@@ -153,6 +181,7 @@
         if (beside instanceof HTMLElement && beside.dataset.beside) {
           this.dispatchEvent(new CustomEvent('place-beside', { bubbles: true, detail: { addresses: beside.dataset.beside.split(',') } }));
         }
+        if (target?.closest('[data-questions]')) this.showQuestions();
         const note = target?.closest('[data-note-show]');
         if (note instanceof HTMLElement && note.dataset.noteShow) {
           this.dispatchEvent(new CustomEvent('show-note', { bubbles: true, detail: { id: note.dataset.noteShow } }));
@@ -372,7 +401,7 @@
 
     /**
      * @param {string} address a passage or a phrase
-     * @param {{ id: string, text: string }[]} notes the notes that quote it
+     * @param {{ id: string, title?: string, text: string, kind?: string, answered?: boolean }[]} notes the notes that quote it
      * @param {How} [how]
      */
     async showGuide(address, notes, how = 'open') {
@@ -393,13 +422,87 @@
         button.type = 'button';
         button.className = 'result';
         button.dataset.noteShow = note.id;
-        const text = note.text.trim();
-        button.textContent = text ? (text.length > 120 ? `${text.slice(0, 120)} …` : text) : 'A note with no text yet';
+        writeNote(button, note, 120);
+        if (note.kind) button.prepend(kindLabel(note));
         item.append(button);
         list.append(item);
       }
       holder.replaceChildren(heading, list);
       holder.hidden = false;
+    },
+
+    /** @type {{ id: string, title?: string, text: string, answered: boolean }[]} the table's questions */
+    questionList: [],
+
+    /**
+     * The table's questions (bible-table questions): the ? in the trail's
+     * row shows how many are open, and is there only when there are any.
+     *
+     * @param {{ id: string, title?: string, text: string, answered: boolean }[]} list
+     */
+    setQuestions(list) {
+      this.questionList = list;
+      const open = list.filter((each) => !each.answered).length;
+      const button = this.querySelector('[data-questions]');
+      if (!(button instanceof HTMLElement)) return;
+      button.hidden = !list.length;
+      const count = button.querySelector('.trail__count');
+      if (count) count.textContent = open ? String(open) : '';
+      button.setAttribute('aria-label', open === 1 ? '1 open question' : `${open} open questions`);
+      // The list, if it is the one on show, changes with them: in place,
+      // without opening the panel.
+      if (this.querySelector('.questions')) this.showQuestions(false);
+    },
+
+    /**
+     * Lists the table's questions, the open ones first; a tap on one brings
+     * its note into view. It is not a step on the trail.
+     *
+     * @param {boolean} [opening] whether to open the panel on it: false to
+     *   only redraw the list where it is
+     */
+    showQuestions(opening = true) {
+      if (opening) this.reveal();
+      const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
+      const section = document.createElement('section');
+      section.className = 'questions';
+      const list = (/** @type {string} */ title, /** @type {{ id: string, title?: string, text: string, answered: boolean }[]} */ items) => {
+        if (!items.length) return [];
+        const heading = document.createElement('h3');
+        heading.className = 'guide__heading';
+        heading.textContent = title;
+        const ol = document.createElement('ol');
+        ol.className = 'results__list';
+        for (const each of items) {
+          const item = document.createElement('li');
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'result';
+          button.dataset.noteShow = each.id;
+          writeNote(button, each, 140);
+          item.append(button);
+          ol.append(item);
+        }
+        return [heading, ol];
+      };
+      const open = this.questionList.filter((each) => !each.answered);
+      const answered = this.questionList.filter((each) => each.answered);
+      const none = Object.assign(document.createElement('p'), {
+        className: 'guide__none',
+        textContent: 'No questions on this table. A note becomes a question by a tap on its label.',
+      });
+      section.replaceChildren(
+        ...(this.questionList.length ? [] : [none]),
+        ...list(open.length === 1 ? '1 open question' : `${open.length} open questions`, open),
+        ...list('Answered', answered),
+      );
+      results.replaceChildren(section);
+      if (!opening) return;
+      this.setExpanded(true);
+      this.announce(results);
+      // The list is on show: its ? is pressed, a fact's ✦ is not.
+      this.querySelector('[data-questions]')?.setAttribute('aria-pressed', 'true');
+      this.querySelector('.trail__discover')?.setAttribute('aria-pressed', 'false');
     },
 
     /**
@@ -461,6 +564,7 @@
       const text = await response.text();
       if (request.signal.aborted) return false;
       const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
+      this.querySelector('[data-questions]')?.setAttribute('aria-pressed', 'false');
       // The step being left keeps where its list was scrolled to.
       const leaving = this.path.steps[this.path.index];
       if (leaving && how !== 'typed') leaving.scroll = results.scrollTop;
@@ -800,6 +904,29 @@
     padding: 0;
     font: 500 1.2rem/1 var(--sans);
   }
+  /* The table's open questions: a ? with their count. */
+  .trail__questions {
+    position: relative;
+    color: var(--ochre);
+  }
+  .trail__questions[aria-pressed='true'] {
+    background: var(--ochre);
+    color: var(--on-pigment);
+  }
+  .trail__questions[hidden] {
+    display: none;
+  }
+  .trail__count:not(:empty) {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.25rem;
+    min-width: 1rem;
+    padding: 0.05rem 0.25rem;
+    border-radius: 999px;
+    background: var(--ochre);
+    color: var(--on-pigment);
+    font: 700 max(0.55rem, 10px)/1.2 var(--sans);
+  }
   .trail__chips {
     display: flex;
     flex: 1;
@@ -933,6 +1060,7 @@
 </search>
 <nav class="search__trail" aria-label="Where you have been" hidden>
   <button type="button" class="trail__step trail__discover" data-discover="random" aria-label="Did you know?" title="Did you know?">✦</button>
+  <button type="button" class="trail__step trail__questions" data-questions hidden title="Questions on the table">?<span class="trail__count"></span></button>
   <button type="button" class="trail__step" data-trail="back" aria-label="Back" aria-keyshortcuts="Alt+ArrowLeft" disabled>‹</button>
   <button type="button" class="trail__step" data-trail="forward" aria-label="Forward" aria-keyshortcuts="Alt+ArrowRight" disabled>›</button>
   <ol class="trail__chips"></ol>

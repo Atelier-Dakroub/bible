@@ -45,12 +45,13 @@
        card-link-move  a link is being drawn: detail { span, x, y }
        card-link    a link was drawn: detail { span, x, y }, x and y on screen
        card-paint   the card moved or changed form, so lines to it move too
-       card-tap     one finger touched and lifted without moving: detail { target }
+       card-tap     one finger touched and lifted without moving: detail
+                    { target, x, y } (x and y on the screen; none from Enter)
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
   import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
-  import { centroid, step } from '../lib/gesture.js';
+  import { centroid, dropLost, step } from '../lib/gesture.js';
   import { paintWords, span, wordAt } from '../lib/words.js';
   import { boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
 
@@ -274,8 +275,12 @@
 
     /** @param {PointerEvent} event */
     press(event) {
-      // A button on the card is pressed, not dragged.
-      if (event.target instanceof Element && event.target.closest('button')) return;
+      // A button on the card is pressed, not dragged; in a note being
+      // written, a press places the caret or selects words.
+      if (event.target instanceof Element && event.target.closest('button, label, input, [contenteditable]:not([contenteditable="false"])')) return;
+      // The main button of a mouse moves the card; the others do not.
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      this.forgetLost();
       if (this.marking) return;
 
       const word = event.target instanceof Element ? wordAt(event.target) : null;

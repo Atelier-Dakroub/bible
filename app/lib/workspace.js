@@ -19,10 +19,11 @@
 /** @typedef {import('./links.js').Span} Span */
 /** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean, view?: { x: number, y: number, w: number } }} StoredCard `version` is kjv, bsb or both; `compare` marks the differences in both; `view` is the part of the map in the map card's frame (lib/map.js) */
 /** @typedef {import('./links.js').Link} Link */
-/** @typedef {{ id: string, text: string, quotes: Span[] }} Note */
+/** @typedef {{ id: string, text: string, doc?: any, quotes: Span[], kind?: import('./note-kinds.js').Kind, answered?: boolean, title?: string }} Note `doc` is its words as a document (lib/note-doc.js); `text` the same as plain text; `kind` its kind (lib/note-kinds.js), none for a plain note; `answered` a question's box; `title` the reader's own, else the kind's name shows */
 /** @typedef {import('./rules.js').Rule} Rule */
 /** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], trail: import('./trail.js').Trail }} Workspace `trail` is the search panel's research trail (lib/trail.js); like the offset, it is not a step to undo */
 
+import { isKind } from './note-kinds.js';
 import { isWordAddress, STYLES } from './words.js';
 import { sameRule, toRule } from './rules.js';
 import { TYPES } from './links.js';
@@ -107,6 +108,10 @@ function fromValue(value) {
         .map((/** @type {any} */ note) => ({
           id: note.id,
           text: typeof note.text === 'string' ? note.text : '',
+          ...(note.doc && typeof note.doc === 'object' && note.doc.type === 'doc' ? { doc: note.doc } : {}),
+          ...(isKind(note.kind) ? { kind: note.kind } : {}),
+          ...(note.answered === true ? { answered: true } : {}),
+          ...(typeof note.title === 'string' && note.title.trim() ? { title: note.title.trim().slice(0, 120) } : {}),
           quotes: Array.isArray(note.quotes) ? note.quotes.filter(isSpan).map(toSpan) : [],
         }))
     : [];

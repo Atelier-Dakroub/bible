@@ -90,7 +90,7 @@ export function wantKeys(given = {}) {
  * Shows the app's keyboard for a field, or not, and keeps the system's own
  * keyboard away while the app's shows.
  *
- * @param {HTMLInputElement | HTMLTextAreaElement} field
+ * @param {HTMLElement} field an input, a textarea or an editable element
  * @param {boolean} show
  */
 export function keysFor(field, show) {

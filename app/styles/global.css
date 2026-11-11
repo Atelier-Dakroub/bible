@@ -527,30 +527,364 @@ gesture-card[data-zoom='far'] .passage__tools {
   width: 22rem;
 }
 .note__text {
+  position: relative;
   min-height: 2.75rem;
   margin: 0 0 0.6rem;
   font: 1rem/1.45 var(--serif);
+  overflow-wrap: break-word;
   white-space: pre-wrap;
   cursor: text;
 }
-.note__text:empty::before {
+.note__text :is(p, h3, h4, ul, ol) {
+  margin: 0 0 0.5em;
+}
+.note__text > :last-child,
+.note__editor > :last-child {
+  margin-bottom: 0;
+}
+.note__text :is(ul, ol) {
+  padding-inline-start: 1.3em;
+}
+.note__text li > p {
+  margin: 0 0 0.2em;
+}
+.note__heading {
+  font: 650 1.15em/1.25 var(--serif);
+}
+h4.note__heading {
+  font-size: 1em;
+}
+.note__mark {
+  border-radius: 2px;
+  color: inherit;
+  padding: 0 0.1em;
+}
+.note__mark--ochre { background: color-mix(in srgb, var(--ochre) 28%, transparent); }
+.note__mark--lapis { background: color-mix(in srgb, var(--lapis) 22%, transparent); }
+.note__mark--verdigris { background: color-mix(in srgb, var(--verdigris) 26%, transparent); }
+/* No words yet: an invitation, until the writing starts. */
+.note__text.is-empty::before,
+.note__editor:has(> p:only-child > br:only-child)::before {
   content: 'Tap to write.';
+  position: absolute;
+  color: var(--muted);
+  pointer-events: none;
+}
+.note__editor:has(> p:only-child > br:only-child)::before {
+  content: 'Write here.';
+}
+/* The words while they are written (ProseMirror's editor): they select and
+   take the caret, as the rest of the card does not. */
+.note__editor {
+  min-height: inherit;
+  outline: none;
+  caret-color: var(--lapis);
+  user-select: text;
+  -webkit-user-select: text;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  -webkit-touch-callout: default;
+}
+.note__editor li {
+  position: relative;
+}
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+.ProseMirror-separator {
+  display: inline !important;
+  border: none !important;
+  margin: 0 !important;
+}
+/* A reference in a note: a small button in the colour of its kind, as the
+   app marks people (ochre), places (verdigris), groups (slate) and events
+   (purple); a passage in lapis, a word of the original in ink. A tap puts it
+   on the table. */
+.note__ref {
+  --ref: var(--lapis);
+  display: inline;
+  margin: 0 0.05em;
+  padding: 0.02em 0.4em 0.08em;
+  border: 1px solid color-mix(in srgb, var(--ref) 35%, transparent);
+  border-radius: 0.45em;
+  background: color-mix(in srgb, var(--ref) 10%, var(--paper));
+  color: var(--ref);
+  font: 600 0.88em/1.3 var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.note__ref--person { --ref: var(--ochre); }
+.note__ref--place { --ref: var(--verdigris); }
+.note__ref--group { --ref: var(--slate); }
+.note__ref--event { --ref: var(--purple); }
+.note__ref--word { --ref: var(--ink); font-style: italic; }
+@media (hover: hover) {
+  .note__ref:hover {
+    background: color-mix(in srgb, var(--ref) 18%, var(--paper));
+  }
+}
+.note__ref.ProseMirror-selectednode {
+  outline: 2px solid var(--ref);
+  outline-offset: 1px;
+}
+
+/* The suggestions under the words as a note is written (lib/note-suggest.js). */
+.note-suggest {
+  position: fixed;
+  z-index: 2000002;
+  box-sizing: border-box;
+  width: min(22rem, calc(100vw - 16px));
+  max-height: min(18rem, 50svh);
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  box-shadow: 0 8px 30px var(--shade-held);
+  color: var(--ink);
+  font: var(--control-font);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.note-suggest__item {
+  --ref: var(--lapis);
+  display: grid;
+  gap: 0.05rem;
+  min-height: 2.75rem;
+  align-content: center;
+  padding: 0.3rem 0.55rem;
+  border-radius: calc(var(--radius-small) - 2px);
+  cursor: pointer;
+}
+.note-suggest__item--person { --ref: var(--ochre); }
+.note-suggest__item--place { --ref: var(--verdigris); }
+.note-suggest__item--group { --ref: var(--slate); }
+.note-suggest__item--event { --ref: var(--purple); }
+.note-suggest__item--word { --ref: var(--ink); }
+.note-suggest__item[aria-selected='true'] {
+  background: color-mix(in srgb, var(--ref) 12%, var(--paper));
+}
+.note-suggest__label {
+  color: var(--ref);
+  font-weight: 600;
+}
+.note-suggest__detail {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-suggest__hint {
+  margin: 0.2rem 0.55rem 0.15rem;
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
+/* The formatting bar over words selected in a note (lib/note-format.js). */
+.note-format {
+  position: fixed;
+  z-index: 2000002;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  box-shadow: 0 6px 22px var(--shade-held);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.note-format__gap {
+  width: 1px;
+  height: 1.4rem;
+  margin: 0 0.2rem;
+  background: var(--line);
+}
+.note-format__button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-small) - 2px);
+  background: transparent;
+  color: var(--ink);
+}
+.note-format__button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.note-format__button[aria-pressed='true'] {
+  background: var(--lapis);
+  color: var(--paper);
+}
+@media (hover: hover) {
+  .note-format__button:hover:not([aria-pressed='true']) {
+    background: var(--tint);
+  }
+}
+/* A highlight's swatch: its pigment, ringed when the words have it. */
+.note-format__swatch::before {
+  content: '';
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
+}
+.note-format__swatch--ochre { --swatch: color-mix(in srgb, var(--ochre) 45%, var(--paper)); }
+.note-format__swatch--lapis { --swatch: color-mix(in srgb, var(--lapis) 38%, var(--paper)); }
+.note-format__swatch--verdigris { --swatch: color-mix(in srgb, var(--verdigris) 42%, var(--paper)); }
+.note-format__swatch[aria-pressed='true'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--lapis);
+}
+
+/* A note's kind (lib/note-kinds.js): a small label at its head and the
+   colour of its band. Observation lapis, Question ochre, Interpretation
+   purple, Application verdigris, Prayer rubric; a plain Note in ink. */
+gesture-card[data-note-kind='observation'] > .passage--note { --kind: var(--lapis); }
+gesture-card[data-note-kind='question'] > .passage--note { --kind: var(--ochre); }
+gesture-card[data-note-kind='interpretation'] > .passage--note { --kind: var(--purple); }
+gesture-card[data-note-kind='application'] > .passage--note { --kind: var(--verdigris); }
+gesture-card[data-note-kind='prayer'] > .passage--note { --kind: var(--rubric); }
+.note__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: -0.35rem 0 0.25rem;
+}
+.note__kind {
+  min-height: 2rem;
+  padding: 0 0.1rem;
+  border: 0;
+  background: none;
+  color: var(--kind);
+  font: 700 max(0.6rem, 11px)/1.2 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+gesture-card:not([data-note-kind]) .note__kind {
   color: var(--muted);
 }
+@media (hover: hover) {
+  .note__kind:hover {
+    text-decoration: underline;
+  }
+}
+.note__answered {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  color: var(--ink-soft);
+  font: 500 max(0.7rem, 12px)/1.2 var(--sans);
+  cursor: pointer;
+}
+.note__answered[hidden] {
+  display: none;
+}
+.note__answered input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--ochre);
+}
+/* An answered question: its band and label quieter. */
+gesture-card[data-answered] > .passage--note {
+  --kind: color-mix(in srgb, var(--ochre) 45%, var(--paper));
+}
+/* A note in the search panel's lists: its title over its first words. */
+.result__title {
+  display: block;
+  font-weight: 650;
+}
+.result__title + .result__words {
+  display: block;
+  color: var(--ink-soft);
+}
+
+/* The table's questions, in the search panel. */
+.questions {
+  padding: 0.25rem 0.9rem 0.8rem;
+}
+
+/* A note's kind before its words in the search panel's lists. */
+.note-kind {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--ink-soft);
+  font: 700 max(0.55rem, 10px)/1.2 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.note-kind--observation { color: var(--lapis); }
+.note-kind--question { color: var(--ochre); }
+.note-kind--interpretation { color: var(--purple); }
+.note-kind--application { color: var(--verdigris); }
+.note-kind--prayer { color: var(--rubric); }
+
+/* A note's title being written: the caret shows where. */
+gesture-card[data-kind='note'] .passage__heading[contenteditable] {
+  outline: none;
+  caret-color: var(--lapis);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  border-bottom: 1px dashed color-mix(in srgb, var(--lapis) 60%, transparent);
+}
+
+/* The note being written: a lapis ring. */
+gesture-card.is-writing > .passage {
+  outline: 2px solid var(--lapis);
+  outline-offset: 3px;
+}
+/* A quote among the note's words: the passage's own words, set off by a
+   rule at the left. */
 .note__quote {
-  margin: 0 0 0.6rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--line);
+  white-space: normal;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0 0 0.1rem 0.7rem;
+  border-left: 3px solid color-mix(in srgb, var(--lapis) 40%, transparent);
+}
+.note__quote.ProseMirror-selectednode {
+  outline: 2px solid var(--lapis);
+  outline-offset: 2px;
+}
+.note__quote.is-loading .note__words::before {
+  content: 'The words are on the way …';
+  color: var(--muted);
+  font: 0.8rem var(--sans);
 }
 .note__source {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.1rem;
   margin: 0;
   color: var(--muted);
   font: 0.75rem var(--sans);
 }
+.note__source-title {
+  flex: 1;
+}
+.note__unquote svg {
+  width: 1rem;
+  height: 1rem;
+}
 .note__unquote {
+  display: grid;
+  place-items: center;
   width: 2.2rem;
   height: 2.2rem;
   border: 0;

@@ -1,27 +1,20 @@
-<!-- The sheet that writes a note's text.
+<!-- The dock of the app's own keyboard, for writing a note where it lies
+     (bible-table writeNote, lib/note-editing.js).
 
-     The app's on-screen keyboard shows under the field only where the screen
-     has no keyboard of its own (lib/keyboard.js): a finger opened the note
-     on a touch screen that is not a phone or a tablet, and no real key has
-     been pressed. Its Hide key hides it and leaves the note open; a tap on
-     the field brings it back.
-
-     edit(id, text) opens it on a note. Each change sends `note-text` (bubbling)
-     with { id, text }, so the note card shows the words as they come. Done,
-     Escape, or a tap outside it (and outside the note being written) closes
-     it and sends `note-done` with { id }. On a phone it sits at the top, the
-     width of the screen, clear of the phone's own keyboard. A resting
-     palm does not close it (see table-menu).
-
-     A real keyboard types into the field as usual. -->
+     The words are written on the note's card itself; this only holds the
+     keys, and only where the screen has no keyboard of its own
+     (lib/keyboard.js): a finger opened the note on a touch screen that is
+     not a phone or a tablet, and no real key has been pressed. Elsewhere it
+     never shows. Its Hide key hides it and leaves the note open; Done ends
+     the writing (`note-done`, bubbling). A resting palm does not close it
+     (see table-menu). -->
 
 <script element>
   import { wantKeys } from '../lib/keyboard.js';
 
   export const state = {
+    /** whether the keys show */
     open: false,
-    /** whether the app's on-screen keyboard shows */
-    keys: false,
   };
 
   export const prototype = {
@@ -29,66 +22,32 @@
     note: '',
 
     connected({ signal }) {
-      const field = /** @type {HTMLTextAreaElement} */ (this.querySelector('textarea'));
-      field.addEventListener('input', () => {
-        this.dispatchEvent(new CustomEvent('note-text', { bubbles: true, detail: { id: this.note, text: field.value } }));
-      }, { signal });
-      field.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') this.close();
-      }, { signal });
-      field.addEventListener('pointerdown', (event) => {
-        this.keys = wantKeys({ pointer: event.pointerType });
-      }, { signal });
       this.addEventListener('keys-done', () => {
-        this.keys = false;
+        this.open = false;
       }, { signal });
-      document.addEventListener('pointerdown', (event) => {
-        if (!this.open || !(event.target instanceof Element)) return;
-        if (this.contains(event.target)) return;
-        // A tap on the note being written goes on writing it.
-        const card = event.target.closest('gesture-card[data-kind="note"]');
-        if (card instanceof HTMLElement && card.dataset.note === this.note) return;
-        setTimeout(() => {
-          if (!event.defaultPrevented) this.close();
-        });
-      }, { signal, capture: true });
       this.addEventListener('click', (event) => {
-        if (event.target instanceof Element && event.target.closest('[data-action="done"]')) this.close();
+        if (event.target instanceof Element && event.target.closest('[data-action="done"]')) {
+          this.dispatchEvent(new CustomEvent('note-done', { bubbles: true, detail: { id: this.note } }));
+        }
+      }, { signal });
+      // A press on the bar keeps the caret in the note.
+      this.addEventListener('pointerdown', (event) => {
+        if (!(event.target instanceof Element && event.target.closest('button'))) event.preventDefault();
       }, { signal });
     },
 
     /**
+     * Shows the keys for a note being written, if this screen wants them.
+     *
      * @param {string} id
-     * @param {string} text
      */
-    edit(id, text) {
-      if (this.open && this.note !== id) this.close();
+    dock(id) {
       this.note = id;
-      const field = /** @type {HTMLTextAreaElement} */ (this.querySelector('textarea'));
-      field.value = text;
-      // The keyboard for the finger that opened the note, if any.
-      this.keys = wantKeys();
-      this.open = true;
-      requestAnimationFrame(() => {
-        field.focus({ preventScroll: true });
-        field.setSelectionRange(field.value.length, field.value.length);
-      });
+      this.open = wantKeys();
     },
 
-    close() {
-      if (!this.open) return;
+    undock() {
       this.open = false;
-      this.keys = false;
-      // The focus, if it was here, goes to the note's card, else to the
-      // rail's Note button: not to the page.
-      const inside = this.contains(document.activeElement);
-      /** @type {HTMLTextAreaElement} */ (this.querySelector('textarea')).blur();
-      if (inside) {
-        const card = document.querySelector(`gesture-card[data-note="${CSS.escape(this.note)}"]`);
-        const back = card instanceof HTMLElement ? card : document.querySelector('table-rail [data-action="note"]');
-        if (back instanceof HTMLElement) back.focus({ preventScroll: true });
-      }
-      this.dispatchEvent(new CustomEvent('note-done', { bubbles: true, detail: { id: this.note } }));
       this.note = '';
     },
   };
@@ -114,9 +73,6 @@
   :scope:state(open) {
     display: block;
   }
-  :scope:not(:state(keys)) touch-keys {
-    display: none;
-  }
   /* On a phone: at the top, clear of the phone's keyboard, which rises
      from the bottom. */
   @media (max-width: 700px), (max-height: 500px) {
@@ -138,26 +94,10 @@
     padding: var(--control-padding);
     font: var(--control-font);
   }
-  textarea {
-    display: block;
-    box-sizing: border-box;
-    width: 100%;
-    height: 7rem;
-    padding: 0.75rem;
-    border: 0;
-    border-radius: 0 0 var(--radius) var(--radius);
-    background: var(--paper);
-    color: var(--ink);
-    font: 1rem/1.5 var(--serif);
-    resize: none;
-    user-select: text;
-    -webkit-user-select: text;
-  }
 </style>
 
 <div class="editor__bar">
-  <span>Note</span>
+  <span>Writing a note</span>
   <button type="button" data-action="done">Done</button>
 </div>
-<textarea id="note-field" aria-label="Text of the note"></textarea>
 <touch-keys for="note-field" enter="New line"></touch-keys>

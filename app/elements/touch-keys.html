@@ -4,7 +4,9 @@
      is pressed, or when the reader chooses Never (global.css).
 
      It types into the input or textarea named by `for` (an id): each key adds
-     to the end of the value and sends `input`, as typing does. Enter submits
+     to the end of the value and sends `input`, as typing does. Into an
+     editable element (a note, lib/note-editing.js) it sends `keys-type`
+     with { key } instead, and the editor types it at its caret. Enter submits
      an input's form, and starts a new line in a textarea. `enter` is the
      label of that key. Hide sends `keys-done` (bubbling), and the owner hides
      the keyboard. While it shows, its field asks the system for no keyboard
@@ -39,7 +41,7 @@
       }, { signal });
       // Shown or hidden by its owner: the field follows.
       const watch = new ResizeObserver(() => {
-        const field = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(String(this.for)));
+        const field = document.getElementById(String(this.for));
         if (field) keysFor(field, this.getClientRects().length > 0);
       });
       watch.observe(this);
@@ -51,7 +53,7 @@
       const key = event.target instanceof Element ? event.target.closest('[data-key]') : null;
       if (!(key instanceof HTMLElement)) return;
       event.preventDefault();
-      const input = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(String(this.for)));
+      const input = document.getElementById(String(this.for));
       if (!input) return;
 
       const name = key.dataset.key ?? '';
@@ -61,6 +63,11 @@
       }
       if (name === 'done') {
         this.dispatchEvent(new Event('keys-done', { bubbles: true }));
+        return;
+      }
+      if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
+        if (input.isContentEditable) input.dispatchEvent(new CustomEvent('keys-type', { detail: { key: this.shift && name.length === 1 ? name.toUpperCase() : name } }));
+        if (this.shift && name.length === 1) this.shift = false;
         return;
       }
       if (name === 'enter' && !(input instanceof HTMLTextAreaElement)) {
