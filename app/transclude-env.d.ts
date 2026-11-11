@@ -1733,6 +1733,32 @@ export type ViewportContext = {
 /** Data returned by `viewport`'s <script server> block. */
 export type ViewportData = {};
 
+/** The `ctx` argument of `voices`'s <script server> loader. */
+export type VoicesContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `voices`'s <script server> block. */
+export type VoicesData = {};
+
 /** The `ctx` argument of `index`'s <script server> loader. */
 export type IndexContext = {
   url: string;

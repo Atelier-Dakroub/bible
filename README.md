@@ -739,9 +739,11 @@ the times are in `app/data/audio/kjv.json`. The app's server streams the
 files, with byte ranges (`app/server.js`). A test cut of 40 verses in Genesis,
 and 48 across Deuteronomy, Psalms, Isaiah, Matthew, Acts and Revelation,
 began on their first words, but for words whisper misheard in the test
-itself. 1,185 of the 1,189 chapters play: the recording leaves out Exodus 22
-and 2 Chronicles 4 and 8, and most of Job 14, which the device's voice
-reads.
+itself. 1,185 of the 1,189 chapters play: the reader skipped Exodus 22,
+2 Chronicles 4 and 8, and Job 14 (each recording goes from the chapter before
+to the chapter after), which the device's voice reads. Other LibriVox readers
+have them: Darren L. Slider (Exodus 22), Joy Chan (2 Chronicles 4 and 8),
+Peter Tucker (Job 14).
 
 ```sh
 node tools/import-audio.js <LibriVox directory with sections.json> <work directory> [audio directory]

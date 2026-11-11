@@ -8,3 +8,6 @@ dist
 # The KJV read aloud (tools/import-audio.js): about 1.4 GB of chapter files,
 # served by routes/audio, not kept in git.
 /audio/
+
+# Voice samples for listening tests (the /voices page), made in the scratchpad.
+/app/public/voices/
