@@ -732,7 +732,9 @@
       const offset = { x: event.clientX - box.left, y: event.clientY - box.top };
       grip.setPointerCapture(event.pointerId);
       let moving = false;
-      const overRail = (/** @type {PointerEvent} */ e) => near(this.getBoundingClientRect(), e, 24);
+      // The rail does not move during the drag: its box is read once.
+      const railBox = this.getBoundingClientRect();
+      const overRail = (/** @type {PointerEvent} */ e) => near(railBox, e, 24);
       const move = (/** @type {PointerEvent} */ e) => {
         if (!moving && Math.hypot(e.clientX - start.x, e.clientY - start.y) < SLOP) return;
         moving = true;

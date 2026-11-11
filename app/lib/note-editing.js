@@ -193,7 +193,9 @@ export function edit(host, doc, hooks) {
         keymap(baseKeymap),
       ],
     }),
-    attributes: { class: 'note__editor', 'aria-label': 'Text of the note', spellcheck: 'true' },
+    // A text box of several lines, for a screen reader: the editable
+    // element alone does not always say so.
+    attributes: { class: 'note__editor', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Text of the note', spellcheck: 'true' },
     dispatchTransaction(transaction) {
       view.updateState(view.state.apply(transaction));
       if (transaction.docChanged) hooks.change(view.state.doc);

@@ -133,12 +133,18 @@ export function load() {
   }
 }
 
-/** @param {Workspace} workspace */
+/**
+ * Keeps the table in this browser.
+ *
+ * @param {Workspace} workspace
+ * @returns {boolean} false when storage is off or full: the table still works, but it is not kept
+ */
 export function save(workspace) {
   try {
     localStorage.setItem(KEY, JSON.stringify(workspace));
+    return true;
   } catch {
-    // Storage is off or full. The table still works; it is not kept.
+    return false;
   }
 }
 
@@ -242,7 +248,7 @@ export function loadNamed(name) {
 export function removeNamed(name) {
   const all = readNamed();
   delete all[name];
-  writeNamed(all);
+  return writeNamed(all);
 }
 
 // Files.
@@ -276,10 +282,46 @@ export function fromFile(text) {
   }
   if (!value || typeof value !== 'object') return null;
   if (value.format === FORMAT) {
-    return { name: typeof value.name === 'string' ? value.name : '', workspace: fromValue(value.workspace) };
+    return { name: typeof value.name === 'string' ? value.name.slice(0, 120) : '', workspace: withinLimits(fromValue(value.workspace)) };
   }
-  if (Array.isArray(value.cards)) return { name: '', workspace: fromValue(value) };
+  if (Array.isArray(value.cards)) return { name: '', workspace: withinLimits(fromValue(value)) };
   return null;
+}
+
+/**
+ * The most a table file may hold, far more than a table needs: a shared
+ * file with thousands of cards or a note of megabytes would freeze the
+ * browser that opens it, and ask the server for each card.
+ */
+export const FILE_LIMITS = { bytes: 5_000_000, cards: 300, notes: 1000, marks: 3000, noteText: 100_000, quotes: 200 };
+
+/**
+ * A workspace from a file, cut to the limits.
+ *
+ * @param {Workspace} workspace
+ * @returns {Workspace}
+ */
+function withinLimits(workspace) {
+  const limits = FILE_LIMITS;
+  return {
+    ...workspace,
+    cards: workspace.cards.slice(0, limits.cards),
+    highlights: workspace.highlights.slice(0, limits.marks),
+    links: workspace.links.slice(0, limits.marks),
+    notes: workspace.notes.slice(0, limits.notes).map((note) => (note.text.length > limits.noteText || note.quotes.length > limits.quotes ? cutNote(note) : note)),
+  };
+}
+
+/**
+ * A note too long for a file: its text cut, its formatting left out (the
+ * text stands for it), and its quotes cut.
+ *
+ * @param {Note} note
+ * @returns {Note}
+ */
+function cutNote(note) {
+  const { doc, ...rest } = note;
+  return { ...rest, text: note.text.slice(0, FILE_LIMITS.noteText), quotes: note.quotes.slice(0, FILE_LIMITS.quotes) };
 }
 
 /** @param {any} value */

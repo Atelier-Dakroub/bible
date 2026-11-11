@@ -18,6 +18,10 @@ import { versesIn } from '../lib/reference.js';
 /** Node's file system, where the app runs under Node; null elsewhere. */
 /** @type {any} */
 const files = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:fs/promises') ?? null;
+/** Node's streams of files, to send a recording a piece at a time. @type {any} */
+const fileStreams = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:fs') ?? null;
+/** @type {any} */
+const streams = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:stream') ?? null;
 const ROOT = /** @type {any} */ (globalThis).process?.env?.BIBLE_AUDIO ?? 'audio';
 
 /**
@@ -215,20 +219,19 @@ export function byteRange(range, size) {
 }
 
 /**
- * A file, or part of it, as the response.
+ * A file, or part of it, as the response, read as it is sent.
  *
  * @param {string} file
  * @param {{ start: number, end: number } | null} part null for the whole file
  * @param {number} size
  */
-async function sendBytes(file, part, size) {
+function sendBytes(file, part, size) {
   const { start, end } = part ?? { start: 0, end: size - 1 };
   const length = end - start + 1;
-  const handle = await files.open(file);
-  const bytes = new Uint8Array(length);
-  await handle.read(bytes, 0, length, start);
-  await handle.close();
-  return new Response(bytes, {
+  // A piece at a time, so many requests at once do not hold whole files in
+  // memory.
+  const body = streams.Readable.toWeb(fileStreams.createReadStream(file, { start, end }));
+  return new Response(body, {
     status: part ? 206 : 200,
     headers: {
       'Content-Type': 'audio/mp4',

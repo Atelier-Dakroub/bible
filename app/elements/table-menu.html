@@ -57,7 +57,7 @@
   import { choice as keysChoice, setChoice as setKeysChoice, typing, wantKeys } from '../lib/keyboard.js';
   import { readerChoice, setReaderChoice, setSpeed, speed } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
-  import { listNamed, removeNamed } from '../lib/workspace.js';
+  import { FILE_LIMITS, listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
 
   /** @typedef {import('../lib/rules.js').Rule} Rule */
@@ -182,6 +182,10 @@
         const chosen = file.files?.[0];
         file.value = '';
         if (!chosen) return;
+        if (chosen.size > FILE_LIMITS.bytes) {
+          this.refresh('That file is too large to be a saved table.');
+          return;
+        }
         const text = await chosen.text();
         this.send('workspace-import', { name: chosen.name.replace(/\.json$/i, ''), text });
       }, { signal });
@@ -413,9 +417,12 @@
         this.refresh(`Press Delete again to delete “${name}”. This cannot be undone.`);
         return;
       }
-      removeNamed(name);
-      if (name === this.name) this.setName('');
       this.deleting = '';
+      if (!removeNamed(name)) {
+        this.refresh(`“${name}” could not be deleted: this browser cannot change what it keeps now.`);
+        return;
+      }
+      if (name === this.name) this.setName('');
       this.refresh(`Deleted “${name}”.`);
     },
 

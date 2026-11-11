@@ -6,7 +6,7 @@ import { createHistory } from '../app/lib/history.js';
 import { nextType, TYPES } from '../app/lib/links.js';
 import { formatReference, parseAddress, parseReference, stepAddress, toAddress, versesIn } from '../app/lib/reference.js';
 import { edgeOf, parseSpanAddress, spanAddress, toggle } from '../app/lib/words.js';
-import { diffCards, empty, fromFile, parse, snapshot, toFile } from '../app/lib/workspace.js';
+import { diffCards, empty, FILE_LIMITS, fromFile, parse, snapshot, toFile } from '../app/lib/workspace.js';
 
 const books = JSON.parse(readFileSync(new URL('../app/data/kjv/books.json', import.meta.url), 'utf8'));
 const matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
@@ -168,4 +168,23 @@ test('a word starts a highlight, ends it, or both', () => {
   assert.equal(edgeOf(9, { from: 5, to: 9 }), 'end');
   assert.equal(edgeOf(7, { from: 5, to: 9 }), '');
   assert.equal(edgeOf(5, { from: 5, to: 5 }), 'both');
+});
+
+test('a table file is cut to the limits: a shared file cannot freeze the browser', () => {
+  const card = (/** @type {number} */ i) => ({ id: `c${i}`, address: 'JHN.3.16', matrix: { a: 1, b: 0, c: 0, d: 1, e: i, f: 0 } });
+  const file = JSON.stringify({
+    format: 'bible-table',
+    version: 1,
+    name: 'x'.repeat(500),
+    workspace: {
+      cards: Array.from({ length: 1000 }, (_, i) => card(i)),
+      notes: [{ id: 'n1', text: 'a'.repeat(200_000), doc: { type: 'doc', content: [] }, quotes: [] }],
+    },
+  });
+  const found = fromFile(file);
+  assert.ok(found);
+  assert.equal(found.name.length, 120);
+  assert.equal(found.workspace.cards.length, FILE_LIMITS.cards);
+  assert.equal(found.workspace.notes[0].text.length, FILE_LIMITS.noteText);
+  assert.equal(found.workspace.notes[0].doc, undefined);
 });

@@ -101,6 +101,20 @@ function optionOf(item, index, active, id) {
   return option;
 }
 
+/**
+ * The list box of the suggestions.
+ *
+ * @param {HTMLElement[]} options
+ * @param {string} id
+ */
+function listboxOf(options, id) {
+  const box = Object.assign(document.createElement('div'), { id });
+  box.setAttribute('role', 'listbox');
+  box.setAttribute('aria-label', 'Suggestions');
+  box.append(...options);
+  return box;
+}
+
 /** @param {Trigger['kind']} kind the hint under the list: what the keys do */
 const hintOf = (kind) =>
   Object.assign(document.createElement('p'), {
@@ -139,7 +153,9 @@ export function suggestions() {
     if (!open) return;
     list ??= makeList();
     const { items, active, trigger } = open;
-    list.replaceChildren(...items.map((item, index) => optionOf(item, index, index === active, id)), hintOf(trigger.kind));
+    // The hint is under the list box, not in it: a list box holds options
+    // only.
+    list.replaceChildren(listboxOf(items.map((item, index) => optionOf(item, index, index === active, id)), id), hintOf(trigger.kind));
     view.dom.setAttribute('aria-controls', id);
     view.dom.setAttribute('aria-expanded', 'true');
     view.dom.setAttribute('aria-activedescendant', `${id}-${active}`);
@@ -154,9 +170,6 @@ export function suggestions() {
   function makeList() {
     const made = document.createElement('div');
     made.className = 'note-suggest';
-    made.id = id;
-    made.setAttribute('role', 'listbox');
-    made.setAttribute('aria-label', 'Suggestions');
     made.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       const item = event.target instanceof Element ? event.target.closest('[data-index]') : null;

@@ -176,14 +176,42 @@ export function docOf(note) {
     doc.check();
     return doc;
   };
-  if (note.doc && typeof note.doc === 'object') {
+  const doc = note.doc && typeof note.doc === 'object' ? readable(read, note.doc) : null;
+  return doc ?? read(fromText(note.text ?? ''));
+}
+
+/**
+ * A stored document read in this schema: as it is, or without the marks
+ * this schema does not know (one from a later or an earlier version);
+ * null if it still does not fit, and the note reads from its text. That is
+ * said in the console, as the note's formatting is then not kept.
+ *
+ * @param {(json: any) => Node} read
+ * @param {any} json
+ */
+function readable(read, json) {
+  for (const each of [json, knownMarks(json)]) {
     try {
-      return read(note.doc);
+      return read(each);
     } catch {
-      // Not a document of this schema: read its text instead.
+      // Not a document of this schema yet.
     }
   }
-  return read(fromText(note.text ?? ''));
+  console.warn('A note does not fit the notes\' schema: it reads from its plain text, without its formatting.');
+  return null;
+}
+
+/**
+ * A document's JSON with only the marks this schema knows.
+ *
+ * @param {any} node
+ * @returns {any}
+ */
+function knownMarks(node) {
+  if (!node || typeof node !== 'object') return node;
+  const marks = Array.isArray(node.marks) ? node.marks.filter((/** @type {any} */ mark) => Object.hasOwn(schema.marks, mark?.type)) : undefined;
+  const content = Array.isArray(node.content) ? node.content.map(knownMarks) : undefined;
+  return { ...node, ...(marks ? { marks } : {}), ...(content ? { content } : {}) };
 }
 
 /**

@@ -92,6 +92,8 @@
   // How long after the card shows the detail is fetched, so the card's own
   // first drawing goes first.
   const DETAIL_WAIT_MS = 1500;
+  // How long after a detail that did not come it is asked for again.
+  const DETAIL_RETRY_MS = 15000;
   // How long after the last wheel event the map is drawn again.
   const WHEEL_DRAW_MS = 160;
 
@@ -326,8 +328,6 @@
   export const prototype = {
     /** @type {View | null} */
     view: null,
-    /** @type {import('../data/journeys.js').JourneyView | null} the journey drawn, if any */
-    journey: null,
     /** @type {Map<number, Point> | null} pointer id to position, on screen */
     points: null,
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
@@ -350,6 +350,8 @@
     detail: null,
     /** whether the detail is in the map */
     detailIn: false,
+    /** when a detail that did not come may be asked for again */
+    retryAt: 0,
 
     connected({ signal }) {
       this.view ??= wholeMap();
@@ -428,11 +430,25 @@
      * @returns {Promise<Element | null>}
      */
     fetchDetail() {
+      if (!this.detail && Date.now() < this.retryAt) return Promise.resolve(null);
       this.detail ??= fetch('/card/map:near-east?part=detail&fragment=detail')
         .then((response) => (response.ok ? response.text() : ''))
         .then((text) => new DOMParser().parseFromString(text, 'text/html').querySelector('#detail'))
-        .catch(() => null);
+        .catch(() => null)
+        .then((detail) => this.fetched(detail));
       return this.detail;
+    },
+
+    /**
+     * A detail that did not come is asked for again, a while later.
+     *
+     * @param {Element | null} detail
+     */
+    fetched(detail) {
+      if (detail) return detail;
+      this.detail = null;
+      this.retryAt = Date.now() + DETAIL_RETRY_MS;
+      return null;
     },
 
     /**
@@ -996,7 +1012,6 @@
       this.clearJourney();
       const svg = this.over();
       if (!svg) return;
-      this.journey = journey;
       const layer = svgNode('g', { class: 'map__journey', 'aria-hidden': 'true' });
       const { stops } = journey;
       layer.append(...legsOf(stops), ...proposedSites(stops));
@@ -1036,7 +1051,6 @@
 
     /** Takes the journey off the map. */
     clearJourney() {
-      this.journey = null;
       this.querySelector('.map__journey')?.remove();
       this.querySelector('.map__legend')?.remove();
     },

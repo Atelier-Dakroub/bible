@@ -126,9 +126,23 @@ async function entitiesFor(wanted, room) {
   return [...found.values()];
 }
 
+/**
+ * The words, decoded where they are still encoded; as they are where they
+ * cannot be ("100%" is not an encoding).
+ *
+ * @param {string} text
+ */
+function decoded(text) {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
 /** @param {{ params: Record<string, string>, request: Request }} ctx */
 export const GET = async ({ params, request }) => {
-  const text = decodeURIComponent(params.text ?? '').slice(0, 60);
+  const text = decoded(params.text ?? '').slice(0, 60);
   const kind = new URL(request.url).searchParams.get('kind');
   const found = kind === 'ref' ? await reference(text) : await named(text);
   return Response.json(found, { headers: { 'Cache-Control': 'max-age=3600' } });

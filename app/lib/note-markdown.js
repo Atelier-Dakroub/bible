@@ -17,14 +17,22 @@
 const plain = (/** @type {string} */ text) => text.replace(/([\\`*_[\]<>]|==)/g, (match) => `\\${match}`);
 
 /**
+ * A part of a link, encoded so that it cannot end the Markdown link early:
+ * encodeURIComponent leaves ( ) ' ! * as they are.
+ *
+ * @param {string} text
+ */
+const linkSafe = (text) => encodeURIComponent(text).replace(/[()'!*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+
+/**
  * A link to what a reference names, in the app.
  *
  * @param {{ address: string, kind: string }} ref
  * @param {string} origin
  */
 export function linkOf(ref, origin) {
-  if (ref.kind === 'word') return `${origin}/search?q=${encodeURIComponent(ref.address)}`;
-  return `${origin}/card/${encodeURIComponent(ref.address).replace(/%3A/g, ':')}`;
+  if (ref.kind === 'word') return `${origin}/search?q=${linkSafe(ref.address)}`;
+  return `${origin}/card/${linkSafe(ref.address).replace(/%3A/g, ':')}`;
 }
 
 /**

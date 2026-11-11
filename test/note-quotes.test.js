@@ -41,3 +41,8 @@ test('a note\'s quotes match its list: gone, doubled, and missing ones', () => {
   });
   assert.deepEqual(quotesIn(doc), ['JHN.1.1.w1-JHN.1.1.w3', 'PSA.23.1.w1-PSA.23.1.w4']);
 });
+
+test('folding a quote that is not in the note does nothing', () => {
+  const doc = docOf({ text: 'grace and truth' });
+  assert.equal(foldedIn(doc, 'JHN.1.14.w1-JHN.1.14.w3'), null);
+});

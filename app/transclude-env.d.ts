@@ -545,6 +545,7 @@ export type BibleTableMembers = {
   name: string;
   labels: HTMLButtonElement[];
   keepTimer: number;
+  glideFrame: number;
   noteTimer: any;
   guides: Guide[];
   rules: Rule[];
@@ -748,6 +749,7 @@ export type BibleTableMembers = {
   }[] | undefined): Promise<void>;
   showJourney(journey: JourneyView): Promise<void>;
   glide(dx: number, dy: number): void;
+  stopGlide(): void;
   paintMap(): void;
   placeLines(): Element[];
   paintStudy(root: Element): void;
@@ -906,6 +908,8 @@ export type BibleTableMembers = {
   };
   keep(record?: boolean | undefined): void;
   finish(): void;
+  unsaved: boolean;
+  saved(ok: boolean): void;
   showHistory(): void;
   undo(): void;
   redo(): void;
@@ -1096,7 +1100,6 @@ export type MapViewProps = {};
 /** Members of `<map-view>`, from its `export const prototype`. */
 export type MapViewMembers = {
   view: View | null;
-  journey: JourneyView | null;
   points: Map<number, Point_2> | null;
   tap: {
     id: number;
@@ -1116,6 +1119,7 @@ export type MapViewMembers = {
   drawTimer: number;
   detail: Promise<Element | null> | null;
   detailIn: boolean;
+  retryAt: number;
   connected({
     signal
   }: {
@@ -1125,6 +1129,7 @@ export type MapViewMembers = {
   addProbe(): void;
   showAncient(id: string): void;
   fetchDetail(): Promise<Element | null>;
+  fetched(detail: Element | null): Element | null;
   loadDetail(): Promise<void>;
   disconnected(): void;
   svg(): SVGSVGElement | null;
@@ -1288,6 +1293,7 @@ export type PassageSearchMembers = {
   }[]): void;
   run(query?: URLSearchParams | undefined, how?: How | undefined, scroll?: number | undefined): Promise<boolean>;
   fetchAnswer(query: URLSearchParams): Promise<string | null>;
+  failed(): null;
   showAnswer(text: string, how: How, scroll: number): HTMLElement | null;
   announceStudy(answer: HTMLElement | null): void;
   keepScroll(): void;

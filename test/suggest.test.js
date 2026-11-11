@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GET } from '../app/routes/suggest/[text].js';
 
-/** @param {string} text @param {string} kind */
-const suggest = async (text, kind) => {
-  const response = await GET({ params: { text: encodeURIComponent(text) }, request: new Request(`http://localhost/suggest/x?kind=${kind}`) });
+/** @param {string} text @param {string} kind @param {boolean} [raw] the text as the router gives it, decoded once */
+const suggest = async (text, kind, raw = false) => {
+  const response = await GET({ params: { text: raw ? text : encodeURIComponent(text) }, request: new Request(`http://localhost/suggest/x?kind=${kind}`) });
   return /** @type {{ kind: string, address: string, label: string }[]} */ (await response.json());
 };
 
@@ -32,4 +32,9 @@ test('@ and a Strong number, or a word as it is said, suggests the word first', 
   assert.equal(word.address, 'H430');
   const said = await suggest('agape', 'at');
   assert.ok(said.some((each) => each.kind === 'word' && each.address === 'G26'));
+});
+
+test('words that are not an encoding, or an object key, suggest nothing and do not fail', async () => {
+  assert.ok(Array.isArray(await suggest('100%', 'at', true)));
+  assert.deepEqual(await suggest('constructor', 'at'), []);
 });

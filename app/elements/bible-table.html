@@ -276,9 +276,10 @@
     const query = new URLSearchParams({ version, fragment: 'card' });
     if (quotes.length) query.set('quotes', quotes.map(spanAddress).join(','));
     const response = await fetch(`/card/${encodeURIComponent(address)}?${query}`).catch(() => null);
-    if (!response?.ok) return null;
+    const text = response?.ok ? await response.text().catch(() => null) : null;
+    if (text === null) return null;
     const holder = document.createElement('template');
-    holder.setHTMLUnsafe(await response.text());
+    holder.setHTMLUnsafe(text);
     return /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
   }
 
@@ -1127,6 +1128,8 @@
     /** @type {HTMLButtonElement[]} the link labels, kept and moved, not made again each frame */
     labels: [],
     keepTimer: 0,
+    /** the frame of a glide under way */
+    glideFrame: 0,
     /** @type {any} a note's keep while it is written */
     noteTimer: 0,
     /** @type {import('../lib/snap.js').Guide[]} where a held card lines up, in the world's coordinates */
@@ -1414,6 +1417,7 @@
     wheel(event) {
       if (this.overPanel(event.target)) return;
       event.preventDefault();
+      this.stopGlide();
       const unit = wheelUnit(event.deltaMode);
       // A pinch on a trackpad comes as a wheel with Control held.
       if (this.wheelZoom(event, unit)) return;
@@ -1745,15 +1749,20 @@
       const move = freeKey(event, this) ? keyPan(event) : null;
       if (!move) return;
       event.preventDefault();
+      this.stopGlide();
       this.offset = { x: this.offset.x + move[0], y: this.offset.y + move[1] };
       this.paint();
       this.keepSoon();
     },
 
-    /** Keeps the table once a run of wheel or key pans stops. */
+    /**
+     * Keeps the table once a run of wheel or key pans stops. A pan is not a
+     * step to undo, and while a note is written it would cut the note's
+     * steps in two.
+     */
     keepSoon() {
       clearTimeout(this.keepTimer);
-      this.keepTimer = setTimeout(() => this.keep(), 400);
+      this.keepTimer = setTimeout(() => this.keep(false), 400);
     },
 
     /** @returns {HTMLElement} */
@@ -1765,6 +1774,7 @@
     press(event) {
       // Only the empty table pans. A card or the search panel has its own gestures.
       if (event.target !== this && event.target !== this.world()) return;
+      this.stopGlide();
       this.setPointerCapture(event.pointerId);
       this.fingers?.set(event.pointerId, { x: event.clientX, y: event.clientY });
       this.classList.add('is-panning');
@@ -2570,6 +2580,7 @@
      * @param {number} dy
      */
     glide(dx, dy) {
+      this.stopGlide();
       const from = { ...this.offset };
       const start = performance.now();
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2579,10 +2590,15 @@
         const eased = 1 - (1 - t) ** 3;
         this.offset = { x: from.x + dx * eased, y: from.y + dy * eased };
         this.paint();
-        if (t < 1) requestAnimationFrame(frame);
+        if (t < 1) this.glideFrame = requestAnimationFrame(frame);
         else this.keep(false);
       };
-      requestAnimationFrame(frame);
+      this.glideFrame = requestAnimationFrame(frame);
+    },
+
+    /** Stops a glide under way, where it is: a hand, the wheel or a key takes the table. */
+    stopGlide() {
+      cancelAnimationFrame(this.glideFrame);
     },
 
     /**
@@ -2632,7 +2648,7 @@
       const response = await fetch(`/entities/${encodeURIComponent(address)}`).catch(() => null);
       if (!response?.ok) return;
       /** @type {Record<string, string[]>} */
-      const named = await response.json();
+      const named = await response.json().catch(() => ({}));
       cardNamed.set(card, [...new Set(Object.values(named).flat())]);
       this.paintMap();
       this.drawSoon();
@@ -2662,7 +2678,9 @@
       if (!address) return;
       const response = await fetch(`/xrefs/${encodeURIComponent(address)}`).catch(() => null);
       if (!response?.ok) return;
-      references.set(card, await response.json());
+      const found = await response.json().catch(() => null);
+      if (!found) return;
+      references.set(card, found);
       this.drawSoon();
     },
 
@@ -3373,7 +3391,11 @@
       const id = newId('n');
       this.notes = [...this.notes, { id, text: '', quotes: [] }];
       const card = await this.fetchCard(`note:${id}`, {});
-      if (!card) return;
+      // A note whose card did not come is not kept.
+      if (!card) {
+        this.notes = this.notes.filter((each) => each.id !== id);
+        return;
+      }
       card.placeAt(this.openSpot());
       this.keep();
       this.writeNote(card, null);
@@ -3512,7 +3534,11 @@
       // A note's card whose note is gone has nothing to show.
       if (note === false) return null;
       const card = await loadCard(address, version, note ? note.quotes : []);
-      if (!card || !this.putCard(card, replacing, id)) return null;
+      if (!card) {
+        this.toast('This card could not load. Check the connection and try again.');
+        return null;
+      }
+      if (!this.putCard(card, replacing, id)) return null;
       this.markCard(card, { sync, compare, version, note });
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
@@ -3667,7 +3693,7 @@
         return;
       }
       const workspace = this.current();
-      save(workspace);
+      this.saved(save(workspace));
       if (record) this.history?.record(snapshot(workspace));
       this.showHistory();
       /** @type {any} */ (this.querySelector('passage-search'))?.setQuestions?.(this.questions());
@@ -3680,7 +3706,22 @@
       const later = this.later;
       this.later = null;
       if (later !== null) this.keep(later);
-      else save(this.current());
+      else this.saved(save(this.current()));
+    },
+
+    /** whether the last save to this browser failed */
+    unsaved: false,
+
+    /**
+     * Says once, when the browser stops keeping the table (its storage is
+     * full or off), that the table is not kept; and again if it fails after
+     * working.
+     *
+     * @param {boolean} ok
+     */
+    saved(ok) {
+      if (!ok && !this.unsaved) this.toast('This browser cannot keep the table now. Save it to a file in Tools, Saved.');
+      this.unsaved = !ok;
     },
 
     showHistory() {

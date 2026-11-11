@@ -209,7 +209,9 @@ export function entities() {
 
 /** @param {string} id */
 export async function entity(id) {
-  return (await entities())[id] ?? null;
+  const all = await entities();
+  // Its own key only: "constructor" is not an entity.
+  return Object.hasOwn(all, id) ? all[id] : null;
 }
 
 /** @type {Promise<Record<string, { term: string, text: string }>> | null} */
@@ -270,7 +272,7 @@ export async function namesFor(ids) {
   /** @type {Map<string, string>} */
   const names = new Map();
   for (const id of ids) {
-    const found = known[id];
+    const found = Object.hasOwn(known, id) ? known[id] : null;
     if (!found || found.kind === 'event') continue;
     const forms = [found.name, ...String(found.alsoCalled ?? '').split(',')];
     for (const form of forms) {

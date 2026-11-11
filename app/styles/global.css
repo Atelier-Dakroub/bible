@@ -1722,6 +1722,13 @@ gesture-card[data-zoom='far'] .note__text {
   min-height: 24px;
   box-shadow: 0 1px 3px var(--shade-near);
 }
+/* A finger needs more: 44 px, as the video's and the timeline's controls. */
+@media (pointer: coarse) {
+  .map__zoom button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
 /* A disabled button on the map stays opaque, so the map does not show
    through its label. */
 .map__zoom button:disabled {

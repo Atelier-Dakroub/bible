@@ -39,4 +39,6 @@ test('a note becomes Markdown: headings, marks, links, lists and quotes', () => 
 test('a word links to its study, a person to its card', () => {
   assert.equal(linkOf({ address: 'G26', kind: 'word' }, 'https://x'), 'https://x/search?q=G26');
   assert.equal(linkOf({ address: 'person:abraham_58', kind: 'person' }, 'https://x'), 'https://x/card/person:abraham_58');
+  // A crafted address cannot end its link early.
+  assert.equal(linkOf({ address: 'x)(evil', kind: 'passage' }, 'https://x'), 'https://x/card/x%29%28evil');
 });

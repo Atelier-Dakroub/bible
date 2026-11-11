@@ -40,9 +40,9 @@ function topics() {
  */
 function resolve(known, name) {
   const key = name.trim().toUpperCase();
-  if (known[key]) return key;
+  if (Object.hasOwn(known, key)) return key;
   const head = key.split(',')[0].trim();
-  if (known[head]) return head;
+  if (Object.hasOwn(known, head)) return head;
   return Object.keys(known).find((each) => each.startsWith(`${key},`) || each.startsWith(`${head},`)) ?? '';
 }
 
@@ -54,7 +54,8 @@ function resolve(known, name) {
  */
 export async function topic(key) {
   const known = await topics();
-  const found = known[key];
+  // Its own key only: "constructor" is not a topic.
+  const found = Object.hasOwn(known, key) ? known[key] : null;
   if (!found) return null;
   let count = 0;
   const lines = found.lines.map((line) => {
@@ -75,7 +76,7 @@ export async function topicFor(text) {
   const known = await topics();
   const key = text.trim().toUpperCase();
   if (!/^[A-Z][A-Z ,'’-]*$/.test(key)) return '';
-  for (const each of [key, key.replace(/S$/, ''), `${key}S`, key.replace(/IES$/, 'Y')]) if (known[each]) return each;
+  for (const each of [key, key.replace(/S$/, ''), `${key}S`, key.replace(/IES$/, 'Y')]) if (Object.hasOwn(known, each)) return each;
   return '';
 }
 

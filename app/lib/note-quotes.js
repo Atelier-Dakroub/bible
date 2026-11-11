@@ -55,6 +55,8 @@ export function openRef(state, dispatch) {
  * @param {EditorView['dispatch']} [dispatch]
  */
 export function foldQuote(state, at, dispatch) {
+  // A quote that is gone (a stale button after an edit) is at -1.
+  if (at < 0) return false;
   const node = state.doc.nodeAt(at);
   if (node?.type !== schema.nodes.quote) return false;
   const address = refOfSpan(node.attrs.span);

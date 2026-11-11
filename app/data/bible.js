@@ -916,7 +916,8 @@ const CHRONOLOGY = "Dates follow Floyd Nolen Jones's chronology, in the traditio
 export async function entityView(id) {
   if (id.startsWith('world:')) return worldView(id);
   const all = await entities();
-  const found = all[id];
+  // Its own key only: "constructor" is not an entity.
+  const found = Object.hasOwn(all, id) ? all[id] : null;
   if (!found) return null;
   const parts = KIND_PARTS[found.kind]?.(found, linksIn(all), id) ?? { facts: [], relations: [] };
   return {

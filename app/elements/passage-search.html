@@ -736,9 +736,17 @@
       const request = new AbortController();
       this.request = request;
       const response = await fetch(`/search?${query}`, { signal: request.signal }).catch(() => null);
-      if (!response?.ok || request.signal.aborted) return null;
-      const text = await response.text().catch(() => null);
-      return request.signal.aborted ? null : text;
+      if (request.signal.aborted) return null;
+      const text = response?.ok ? await response.text().catch(() => null) : null;
+      if (request.signal.aborted) return null;
+      return text ?? this.failed();
+    },
+
+    /** The answer did not come (offline, or the server failed): the panel says so. */
+    failed() {
+      const status = this.querySelector('.search__status');
+      if (status) status.textContent = 'This could not load. Check the connection and try again.';
+      return null;
     },
 
     /**

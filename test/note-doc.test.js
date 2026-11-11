@@ -76,3 +76,12 @@ test('a note keeps its own title, trimmed, and none when empty', () => {
   assert.equal(kept.notes[0].title, 'Who is the Word?');
   assert.equal(kept.notes[1].title, undefined);
 });
+
+test('a mark the schema does not know goes, and the rest of the note stays', () => {
+  const doc = docOf({
+    doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'grace', marks: [{ type: 'strong' }, { type: 'sparkle' }] }] }] },
+    text: 'grace',
+  });
+  assert.equal(toText(doc), 'grace');
+  assert.deepEqual(doc.firstChild?.firstChild?.marks.map((mark) => mark.type.name), ['strong']);
+});

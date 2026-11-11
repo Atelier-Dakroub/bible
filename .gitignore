@@ -3,6 +3,9 @@ dist
 .env
 .env.*
 !.env.example
+# Wrangler's local secrets.
+.dev.vars
+.dev.vars.*
 .DS_Store
 
 # The KJV read aloud (tools/import-audio.js): about 1.4 GB of chapter files,
