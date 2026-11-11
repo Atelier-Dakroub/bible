@@ -1,0 +1,836 @@
+<!-- The app's video player: one look for every video, whatever its source.
+
+     Two engines under the same controls:
+       stream   an HLS stream (the JESUS film, at Mux), in a <video>. Safari
+                plays HLS itself; where the browser will not (Chrome on a
+                Mac reports that it may, then refuses), hls.js (Apache 2.0,
+                its light build, bundled with the app and loaded only then)
+                plays it through Media Source Extensions. Captions come
+                through app/routes/video/captions, as the source does not
+                allow other pages to read them.
+       youtube  a YouTube video (BibleProject), in YouTube's privacy-enhanced
+                frame with its own controls turned off. The page drives it
+                with messages (YouTube's iframe API, by postMessage), so no
+                YouTube script runs on this page. YouTube's own marks stay as
+                YouTube shows them: its terms do not allow a player to hide
+                them.
+
+     Nothing is fetched from the video's source until Play: the card shows the
+     poster. Full screen is the browser's where it has one for the player.
+     An iPhone has full screen only for a <video>: a stream goes there, in
+     the phone's own player; a YouTube frame cannot, so the player rises into
+     the top layer as a popover and fills the screen, with the same controls. One
+     video plays at a time: Play sends `video-play` (bubbling),
+     and every other player pauses. A tap on the picture plays or pauses it;
+     a drag on it moves the card, as on any card. If a phone will not start a
+     YouTube video from this page's tap (iOS may not), the frame's own
+     play button is let through, and a tap on it starts the video.
+
+     Attributes: kind (stream | youtube), src (the stream), youtube (the
+     video's id), captions (the captions' address), poster, label (the
+     video's title, for a screen reader), link (the video at its source). -->
+
+<script element>
+  const RATES = [1, 1.25, 1.5, 2, 0.75];
+  const YOUTUBE = 'https://www.youtube-nocookie.com';
+  // How long a YouTube frame may take to start before its own play button
+  // is let through.
+  const START_MS = 2500;
+
+  /** @param {number} seconds */
+  const clockOf = (seconds) => {
+    const whole = Math.max(0, Math.floor(seconds || 0));
+    const hours = Math.floor(whole / 3600);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const rest = String(whole % 60).padStart(2, '0');
+    return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+  };
+
+  export const properties = {
+    kind: 'stream',
+    src: '',
+    youtube: '',
+    captions: '',
+    poster: '',
+    label: '',
+    link: '',
+  };
+
+  export const state = {
+    started: false,
+    playing: false,
+    waiting: false,
+    muted: false,
+    subtitles: false,
+    failed: false,
+    /** the frame's own play button is let through (see START_MS) */
+    handoff: false,
+    rate: 1,
+    clock: '0:00',
+    canFull: false,
+    /** the player fills the screen, either way */
+    expanded: false,
+  };
+
+  export const prototype = {
+    /** @type {HTMLVideoElement | null} */
+    video: null,
+    /** @type {HTMLIFrameElement | null} */
+    frame: null,
+    at: 0,
+    length: 0,
+    /** @type {number} */
+    listenTimer: 0,
+    /** @type {number} */
+    startTimer: 0,
+    /** whether YouTube has been told the captions choice since it began */
+    captionsSet: false,
+    /** @type {any} hls.js, where the browser does not play the stream itself */
+    hls: null,
+
+    connected({ signal }) {
+      this.canFull = Boolean(document.fullscreenEnabled || 'showPopover' in HTMLElement.prototype);
+      document.addEventListener('fullscreenchange', () => {
+        this.expanded = document.fullscreenElement === this || this.matches(':popover-open');
+      }, { signal });
+      // The popover closed (Escape, or the button): it goes back to its card.
+      this.addEventListener('toggle', (event) => {
+        if (event.target !== this) return;
+        const open = /** @type {ToggleEvent} */ (event).newState === 'open';
+        this.expanded = open;
+        if (!open) {
+          this.removeAttribute('popover');
+          for (const name of ['--fill-x', '--fill-y', '--fill-w', '--fill-h']) this.style.removeProperty(name);
+        }
+      }, { signal });
+      // A phone turned or zoomed: the filled player fits what shows again.
+      const refit = () => {
+        if (this.matches(':popover-open')) this.fit();
+      };
+      window.visualViewport?.addEventListener('resize', refit, { signal });
+      window.visualViewport?.addEventListener('scroll', refit, { signal });
+      window.addEventListener('resize', refit, { signal });
+      this.addEventListener('click', (event) => {
+        const control = event.target instanceof Element ? event.target.closest('[data-player]') : null;
+        if (!(control instanceof HTMLElement)) return;
+        const what = control.dataset.player;
+        // The picture's tap comes as card-tap on a card (see above); a click
+        // on it here is from a page with no card.
+        if (what === 'toggle' && control.classList.contains('player__cover') && this.closest('gesture-card') && !this.expanded) return;
+        if (what === 'toggle') this.toggle();
+        else if (what === 'mute') this.setMuted(!this.muted);
+        else if (what === 'speed') this.setRate(RATES[(RATES.indexOf(this.rate) + 1) % RATES.length]);
+        else if (what === 'captions') this.setSubtitles(!this.subtitles);
+        else if (what === 'full') this.full();
+      }, { signal });
+      // A tap on the picture: the card holds the pointer (it may be a drag),
+      // so the tap comes as the card's card-tap, not as a click here.
+      this.closest('gesture-card')?.addEventListener('card-tap', (event) => {
+        const target = /** @type {CustomEvent} */ (event).detail?.target;
+        if (target instanceof Element && target.closest('.player__cover') && this.contains(target)) this.toggle();
+      }, { signal });
+      // The bar is the player's own: a drag on the scrubber is not a drag of
+      // the card.
+      const bar = /** @type {HTMLElement} */ (this.querySelector('.player__bar'));
+      bar.addEventListener('pointerdown', (event) => event.stopPropagation(), { signal });
+      // Filling the screen, the player is not on the card any more: no
+      // touch on it moves the card, and a tap on the picture is a click.
+      this.addEventListener('pointerdown', (event) => {
+        if (this.expanded) event.stopPropagation();
+      }, { signal });
+      const scrub = this.scrubber();
+      scrub.addEventListener('input', () => this.seek(Number(scrub.value)), { signal });
+      // Space or K plays and pauses, the left and right arrows step ten
+      // seconds, while the focus is in the player (and not on the scrubber,
+      // which has the arrows for its own).
+      this.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && this.matches(':popover-open')) {
+          this.hidePopover();
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (event.target === scrub) return;
+        if (event.key === 'k' || (event.key === ' ' && !(event.target instanceof HTMLButtonElement))) this.toggle();
+        else if (event.key === 'ArrowLeft') this.seek(this.at - 10);
+        else if (event.key === 'ArrowRight') this.seek(this.at + 10);
+        else return;
+        event.preventDefault();
+        event.stopPropagation();
+      }, { signal });
+      document.addEventListener('video-play', (event) => {
+        if (event.target !== this && this.playing) this.pause();
+      }, { signal });
+      window.addEventListener('message', (event) => this.heard(event), { signal });
+      signal.addEventListener('abort', () => this.stop());
+    },
+
+    /** @returns {HTMLInputElement} */
+    scrubber() {
+      return /** @type {HTMLInputElement} */ (this.querySelector('.player__scrub'));
+    },
+
+    toggle() {
+      if (this.playing) this.pause();
+      else this.play();
+    },
+
+    play() {
+      this.failed = false;
+      if (!this.started) this.start();
+      else if (this.video) this.video.play().catch(() => this.blocked());
+      else this.command('playVideo');
+      this.dispatchEvent(new CustomEvent('video-play', { bubbles: true }));
+    },
+
+    pause() {
+      if (this.video) this.video.pause();
+      else this.command('pauseVideo');
+      this.playing = false;
+    },
+
+    /** @param {number} seconds */
+    seek(seconds) {
+      const to = Math.max(0, Math.min(this.length || 0, seconds));
+      if (this.video) this.video.currentTime = to;
+      else this.command('seekTo', [to, true]);
+      this.tick(to, this.length);
+    },
+
+    /** @param {boolean} muted */
+    setMuted(muted) {
+      this.muted = muted;
+      if (this.video) this.video.muted = muted;
+      else this.command(muted ? 'mute' : 'unMute');
+    },
+
+    /** @param {number} rate */
+    setRate(rate) {
+      this.rate = rate;
+      if (this.video) this.video.playbackRate = rate;
+      else this.command('setPlaybackRate', [rate]);
+    },
+
+    /** @param {boolean} on */
+    setSubtitles(on) {
+      this.subtitles = on;
+      const track = this.video?.textTracks[0];
+      if (track) track.mode = on ? 'showing' : 'hidden';
+      // YouTube's own captions, in YouTube's style: its captions module.
+      if (this.frame) this.command(on ? 'loadModule' : 'unloadModule', ['captions']);
+    },
+
+    full() {
+      if (document.fullscreenElement === this) document.exitFullscreen();
+      else if (this.matches(':popover-open')) this.hidePopover();
+      else if (document.fullscreenEnabled) this.requestFullscreen().catch(() => this.fill());
+      else if (this.native()) /** @type {any} */ (this.video).webkitEnterFullscreen();
+      else this.fill();
+    },
+
+    /**
+     * Whether the phone's own full screen can take the video: an iPhone has
+     * no full screen for a page's element, only for a <video>, in its own
+     * player. A stream that has begun can go there; a YouTube frame cannot.
+     */
+    native() {
+      const video = /** @type {any} */ (this.video);
+      return Boolean(video && typeof video.webkitEnterFullscreen === 'function' && video.readyState >= 1);
+    },
+
+    /**
+     * Fills the screen without the Fullscreen API: the player becomes a
+     * manual popover, in the top layer, above the table and its panels, and
+     * placed against the screen even inside a turned card. It stays where it
+     * is in the page, so a YouTube frame in it does not load again.
+     */
+    fill() {
+      if (!('showPopover' in this)) return;
+      this.popover = 'manual';
+      this.fit();
+      this.showPopover();
+      // The focus in the player, so Escape and the keys reach it.
+      // (after the render that shows the close button)
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('.player__close'))?.focus({ preventScroll: true }));
+    },
+
+    /** The engine, made on the first Play. */
+    start() {
+      this.started = true;
+      this.waiting = true;
+      const screen = /** @type {HTMLElement} */ (this.querySelector('.player__screen'));
+      if (this.kind === 'youtube') {
+        const frame = document.createElement('iframe');
+        const query = new URLSearchParams({ enablejsapi: '1', controls: '0', playsinline: '1', rel: '0', iv_load_policy: '3', disablekb: '1', fs: '0', autoplay: '1', cc_lang_pref: 'en', cc_load_policy: this.subtitles ? '1' : '0', origin: location.origin });
+        frame.src = `${YOUTUBE}/embed/${encodeURIComponent(this.youtube)}?${query}`;
+        frame.title = this.label;
+        frame.allow = 'autoplay; encrypted-media; picture-in-picture';
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.addEventListener('load', () => this.listen());
+        this.frame = frame;
+        screen.append(frame);
+        this.startTimer = window.setTimeout(() => {
+          if (!this.playing) this.blocked();
+        }, START_MS);
+        return;
+      }
+      const video = document.createElement('video');
+      // Its size before the stream says (the CSS sets the box).
+      video.width = 1280;
+      video.height = 720;
+      video.playsInline = true;
+      video.preload = 'auto';
+      video.poster = this.poster;
+      video.src = this.src;
+      video.playbackRate = this.rate;
+      video.muted = this.muted;
+      if (this.captions) {
+        const track = document.createElement('track');
+        track.kind = 'captions';
+        track.srclang = 'en';
+        track.label = 'English';
+        track.src = this.captions;
+        video.append(track);
+        video.textTracks.addEventListener?.('addtrack', () => this.setSubtitles(this.subtitles));
+      }
+      video.addEventListener('timeupdate', () => this.tick(video.currentTime, video.duration));
+      video.addEventListener('durationchange', () => this.tick(video.currentTime, video.duration));
+      video.addEventListener('playing', () => {
+        this.playing = true;
+        this.waiting = false;
+      });
+      video.addEventListener('pause', () => {
+        this.playing = false;
+      });
+      video.addEventListener('waiting', () => {
+        this.waiting = true;
+      });
+      video.addEventListener('ended', () => {
+        this.playing = false;
+      });
+      video.addEventListener('error', () => {
+        // The browser would not play the stream itself: hls.js plays it.
+        if (!this.hls && video.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) this.withHls(video);
+        else if (!this.hls) this.fail();
+      });
+      this.video = video;
+      screen.append(video);
+      video.play().catch((error) => {
+        if (error?.name === 'NotAllowedError') this.blocked();
+      });
+    },
+
+    /**
+     * Plays the stream with hls.js, in the same <video>.
+     *
+     * @param {HTMLVideoElement} video
+     */
+    async withHls(video) {
+      const { default: Hls } = await import('hls.js/light');
+      if (!Hls.isSupported() || this.video !== video) {
+        this.fail();
+        return;
+      }
+      // No worker: the policy allows no script from a blob.
+      const hls = new Hls({ enableWorker: false, capLevelToPlayerSize: true });
+      this.hls = hls;
+      hls.on(Hls.Events.ERROR, (/** @type {string} */ _event, /** @type {any} */ data) => {
+        if (data.fatal) this.fail();
+      });
+      video.removeAttribute('src');
+      hls.attachMedia(video);
+      hls.loadSource(this.src);
+      video.play().catch((error) => {
+        if (error?.name === 'NotAllowedError') this.blocked();
+      });
+    },
+
+    /** The video would not start from this tap. */
+    blocked() {
+      this.waiting = false;
+      this.playing = false;
+      if (this.frame) this.handoff = true;
+    },
+
+    fail() {
+      this.failed = true;
+      this.waiting = false;
+      this.playing = false;
+    },
+
+    /** Takes the engine away: the card is gone. */
+    stop() {
+      clearInterval(this.listenTimer);
+      clearTimeout(this.startTimer);
+      this.hls?.destroy();
+      this.hls = null;
+      this.video?.pause();
+      this.video?.removeAttribute('src');
+      this.video?.load();
+      this.video?.remove();
+      this.frame?.remove();
+      this.video = null;
+      this.frame = null;
+    },
+
+    /**
+     * Fits the filled player to the part of the page that shows. After a
+     * phone turns, Safari often leaves the page a little zoomed, and the
+     * page's own width (100vw) then runs off the screen; the visual viewport
+     * is what shows.
+     */
+    fit() {
+      const view = window.visualViewport;
+      if (!view) return;
+      this.style.setProperty('--fill-x', `${view.offsetLeft}px`);
+      this.style.setProperty('--fill-y', `${view.offsetTop}px`);
+      this.style.setProperty('--fill-w', `${view.width}px`);
+      this.style.setProperty('--fill-h', `${view.height}px`);
+    },
+
+    // ---- YouTube, by message ----------------------------------------------
+
+    /**
+     * Asks the frame to report: YouTube's player answers `listening` with
+     * its events and, about four times a second, its time.
+     */
+    listen() {
+      let tries = 0;
+      clearInterval(this.listenTimer);
+      const ask = () => {
+        tries += 1;
+        if (tries > 40) clearInterval(this.listenTimer);
+        this.frame?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: this.youtube, channel: 'widget' }), YOUTUBE);
+      };
+      ask();
+      this.listenTimer = window.setInterval(ask, 250);
+    },
+
+    /**
+     * @param {string} func
+     * @param {unknown[]} [args]
+     */
+    command(func, args = []) {
+      this.frame?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args, id: this.youtube, channel: 'widget' }), YOUTUBE);
+    },
+
+    /** @param {MessageEvent} event */
+    heard(event) {
+      if (!this.frame || event.source !== this.frame.contentWindow || event.origin !== YOUTUBE) return;
+      /** @type {any} */
+      let data;
+      try {
+        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+      if (!data || typeof data !== 'object') return;
+      clearInterval(this.listenTimer);
+      if (data.event === 'onReady') {
+        if (this.muted) this.command('mute');
+        if (this.rate !== 1) this.command('setPlaybackRate', [this.rate]);
+        if (!this.subtitles) this.command('unloadModule', ['captions']);
+      }
+      if (data.event === 'onError') this.fail();
+      const info = data.info ?? {};
+      const stateNow = data.event === 'onStateChange' ? data.info : info.playerState;
+      if (typeof stateNow === 'number') this.played(stateNow);
+      if (typeof info.currentTime === 'number' || typeof info.duration === 'number') {
+        this.tick(info.currentTime ?? this.at, info.duration ?? this.length);
+      }
+    },
+
+    /**
+     * YouTube's player state: -1 unstarted, 0 ended, 1 playing, 2 paused,
+     * 3 buffering, 5 cued.
+     *
+     * @param {number} code
+     */
+    played(code) {
+      this.playing = code === 1;
+      this.waiting = code === 3;
+      if (code === 1) {
+        this.handoff = false;
+        clearTimeout(this.startTimer);
+        // YouTube turns its captions on for some viewers by itself; the
+        // player's own choice wins, once the captions module has loaded.
+        if (!this.captionsSet) {
+          this.captionsSet = true;
+          this.setSubtitles(this.subtitles);
+        }
+      }
+    },
+
+    // ---- The controls -----------------------------------------------------
+
+    /**
+     * @param {number} at
+     * @param {number} length
+     */
+    tick(at, length) {
+      this.at = Number.isFinite(at) ? at : 0;
+      this.length = Number.isFinite(length) ? length : 0;
+      const scrub = this.scrubber();
+      scrub.max = String(this.length || 0);
+      if (document.activeElement !== scrub || !scrub.matches(':active')) scrub.value = String(this.at);
+      scrub.style.setProperty('--done', `${this.length ? (this.at / this.length) * 100 : 0}%`);
+      this.clock = this.length ? `${clockOf(this.at)} / ${clockOf(this.length)}` : clockOf(this.at);
+      scrub.setAttribute('aria-valuetext', `${clockOf(this.at)} of ${clockOf(this.length)}`);
+    },
+  };
+</script>
+
+<style>
+  :scope {
+    display: block;
+    border-radius: var(--radius-small);
+    overflow: hidden;
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--edge);
+  }
+  .player__icon {
+    display: inline-flex;
+  }
+  .player__icon[hidden] {
+    display: none;
+  }
+  .player__stage {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+  }
+  .player__poster,
+  .player__screen,
+  .player__screen > video,
+  .player__screen > iframe,
+  .player__cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .player__poster {
+    object-fit: cover;
+  }
+  .player__screen > video {
+    object-fit: contain;
+    background: #000;
+  }
+  /* The picture takes a tap (play or pause) and a drag (the card's). */
+  .player__cover {
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .player__cover[data-handoff] {
+    pointer-events: none;
+  }
+  .player__big {
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--lapis);
+    font-size: 1.7rem;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+  }
+  .player__big[hidden] {
+    display: none;
+  }
+  /* Loading: an indeterminate <progress>, drawn as a ring. */
+  .player__wait {
+    width: 2.6rem;
+    height: 2.6rem;
+    margin: 0;
+    padding: 0;
+    border: 3px solid rgb(255 255 255 / 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    background: transparent;
+    appearance: none;
+  }
+  .player__wait::-webkit-progress-bar,
+  .player__wait::-webkit-progress-value {
+    display: none;
+    background: none;
+  }
+  .player__wait::-moz-progress-bar {
+    display: none;
+    background: none;
+  }
+  @media (forced-colors: active) {
+    .player__wait {
+      forced-color-adjust: none;
+      border-color: GrayText;
+      border-top-color: CanvasText;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .player__wait {
+      animation: player-spin 0.9s linear infinite;
+    }
+  }
+  @keyframes player-spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+  .player__wait[hidden] {
+    display: none;
+  }
+  .player__note {
+    position: absolute;
+    inset: auto 0 0;
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    background: var(--paper);
+    color: var(--ink);
+    font: var(--control-font);
+    font-size: 0.85rem;
+  }
+  .player__note[hidden] {
+    display: none;
+  }
+  .player__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3rem 0.4rem;
+    border-top: 1px solid var(--edge);
+    font: 500 0.8rem/1 var(--sans);
+    color: var(--ink-soft);
+  }
+  .player__button {
+    display: grid;
+    flex: none;
+    place-items: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink-soft);
+    font: 600 0.8rem/1 var(--sans);
+    font-size: 1.05rem;
+  }
+  @media (pointer: coarse) {
+    .player__button {
+      min-width: 2.75rem;
+      height: 2.75rem;
+    }
+  }
+  .player__button--play {
+    border-color: var(--lapis);
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .player__speed {
+    min-width: 2.75rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+  }
+  /* On (captions, mute): filled, as the card's own pressed buttons are. */
+  .player__button[aria-pressed='true'] {
+    border-color: var(--lapis);
+    background: var(--lapis);
+    color: var(--on-pigment);
+  }
+  .player__button[hidden] {
+    display: none;
+  }
+  @media (hover: hover) {
+    .player__button:hover {
+      background: var(--tint);
+      color: var(--ink);
+    }
+    .player__button[aria-pressed='true']:hover {
+      background: var(--lapis);
+      color: var(--on-pigment);
+      filter: brightness(1.12);
+    }
+    .player__button--play:hover {
+      background: var(--lapis);
+      color: var(--on-pigment);
+      filter: brightness(1.12);
+    }
+  }
+  .player__time {
+    flex: none;
+    min-width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  /* The scrubber: the native range input, a thin track, lapis where the
+     video has played (--done, set as it plays). */
+  .player__scrub {
+    --track: 4px;
+    --thumb: 14px;
+    --done: 0%;
+    flex: 1;
+    min-width: 3rem;
+    block-size: 2.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    appearance: none;
+    cursor: pointer;
+  }
+  .player__scrub::-webkit-slider-runnable-track {
+    block-size: var(--track);
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--lapis) var(--done), var(--edge) var(--done));
+  }
+  .player__scrub::-webkit-slider-thumb {
+    inline-size: var(--thumb);
+    block-size: var(--thumb);
+    margin-block-start: calc((var(--track) - var(--thumb)) / 2);
+    border: 2px solid var(--paper);
+    border-radius: 50%;
+    background: var(--lapis);
+    appearance: none;
+  }
+  .player__scrub::-moz-range-track {
+    block-size: var(--track);
+    border: 0;
+    border-radius: 999px;
+    background: var(--edge);
+  }
+  .player__scrub::-moz-range-progress {
+    block-size: var(--track);
+    border-radius: 999px;
+    background: var(--lapis);
+  }
+  .player__scrub::-moz-range-thumb {
+    inline-size: var(--thumb);
+    block-size: var(--thumb);
+    border: 2px solid var(--paper);
+    border-radius: 50%;
+    background: var(--lapis);
+  }
+  .player__scrub:focus-visible {
+    outline: 2px solid var(--lapis);
+    outline-offset: 4px;
+  }
+  /* Forced colors take the gradient away: the system's own slider. */
+  @media (forced-colors: active) {
+    .player__scrub {
+      appearance: auto;
+    }
+  }
+  /* Full screen: the picture as large as the screen, the bar under it. */
+  :scope:fullscreen {
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    background: #000;
+  }
+  :scope:fullscreen .player__stage {
+    flex: 1;
+    aspect-ratio: auto;
+  }
+  /* The popover's way (an iPhone): the picture and the bar together, in the
+     middle of the screen, as wide as fits. Its height is the small viewport
+     (svh), which ends above Safari's toolbar: Safari lets a page run under
+     the toolbar, and a bar at the foot of the large viewport is hidden
+     there. The insets keep it clear of a notch and the home bar. */
+  :scope:popover-open {
+    --bar: 3.75rem;
+    /* What shows (set by fit() from the visual viewport), and never past the
+       foot of the small viewport. */
+    --high: min(var(--fill-h, 100svh), 100svh);
+    --fit: min(100%, calc((var(--high) - var(--bar) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * 16 / 9));
+    position: fixed;
+    inset: auto;
+    left: var(--fill-x, 0px);
+    top: var(--fill-y, 0px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: var(--fill-w, 100vw);
+    height: var(--high);
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    border: 0;
+    border-radius: 0;
+    background: #000;
+    box-shadow: none;
+    overflow: hidden;
+  }
+  /* The way out, always on the screen: top right, clear of the notch. */
+  .player__close {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+    right: calc(env(safe-area-inset-right, 0px) + 0.6rem);
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1.35rem;
+    line-height: 0;
+    box-shadow: 0 1px 6px rgb(0 0 0 / 0.4);
+  }
+  .player__close[hidden] {
+    display: none;
+  }
+  .player__close:focus-visible {
+    outline: 2px solid var(--paper);
+    outline-offset: 3px;
+  }
+  :scope:popover-open::backdrop {
+    background: #000;
+  }
+  :scope:popover-open .player__stage {
+    flex: none;
+    width: var(--fit);
+    aspect-ratio: 16 / 9;
+  }
+  :scope:popover-open .player__bar {
+    width: var(--fit);
+    min-height: var(--bar);
+    box-sizing: border-box;
+    border-top: 0;
+    background: var(--paper);
+  }
+</style>
+
+<button type="button" class="player__close" data-player="full" aria-label="Leave full screen" hidden="${!expanded}"><svg-icon library="ui" name="close"></svg-icon></button>
+<div class="player__stage">
+  <img class="player__poster" src="${poster}" alt="" loading="lazy" referrerpolicy="no-referrer" hidden="${started}" />
+  <div class="player__screen"></div>
+  <div class="player__cover" data-player="toggle" data-handoff="${handoff}">
+    <span class="player__big" aria-hidden="true" hidden="${playing || waiting || handoff}"><svg-icon library="ui" name="play"></svg-icon></span>
+    <progress class="player__wait" aria-label="Loading the video" hidden="${!waiting || playing || handoff}"></progress>
+  </div>
+  <p class="player__note" role="status" hidden="${!failed}">This video will not play here. <a href="${link}" target="_blank" rel="noopener">Watch it at its source</a>.</p>
+</div>
+<div class="player__bar" role="group" aria-label="Video controls">
+  <button type="button" class="player__button player__button--play" data-player="toggle" aria-label="${playing ? 'Pause' : 'Play'} ${label}">
+    <span class="player__icon" hidden="${playing}"><svg-icon library="ui" name="play"></svg-icon></span>
+    <span class="player__icon" hidden="${!playing}"><svg-icon library="ui" name="pause"></svg-icon></span>
+  </button>
+  <input type="range" class="player__scrub" min="0" max="0" step="0.1" value="0" aria-label="Position in the video" />
+  <span class="player__time">${clock}</span>
+  <button type="button" class="player__button player__speed" data-player="speed" aria-label="Speed: ${rate} times" title="Speed">${rate}×</button>
+  <button type="button" class="player__button" data-player="captions" aria-pressed="${subtitles ? 'true' : 'false'}" aria-label="Captions" title="Captions" hidden="${kind === 'stream' && !captions}"><svg-icon library="ui" name="captions"></svg-icon></button>
+  <button type="button" class="player__button" data-player="mute" aria-pressed="${muted ? 'true' : 'false'}" aria-label="Mute" title="Mute">
+    <span class="player__icon" hidden="${muted}"><svg-icon library="ui" name="listen"></svg-icon></span>
+    <span class="player__icon" hidden="${!muted}"><svg-icon library="ui" name="muted"></svg-icon></span>
+  </button>
+  <button type="button" class="player__button" data-player="full" aria-pressed="${expanded ? 'true' : 'false'}" aria-label="Full screen" title="${expanded ? 'Leave full screen' : 'Full screen'}" hidden="${!canFull}"><svg-icon library="ui" name="expand"></svg-icon></button>
+</div>

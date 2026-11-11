@@ -3,6 +3,7 @@
   import { syntaxOf } from '../../data/syntax.js';
   import { entities, eventMarks, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
+  import { videoById } from '../../data/videos.js';
   import { landscape } from '../../data/study.js';
   import { quoteMark } from '../../data/quotations.js';
   import { recordingsOf } from '../../data/audio.js';
@@ -22,6 +23,8 @@
   //                             text:<words> occurs, chapter by chapter
   //   image:met-322585          a picture (data/images.js), with what it
   //                             shows and its credit
+  //   video:jesus-02            a video (data/videos.js), in the app's own
+  //                             player, with the passages it shows
   //   note:<id>                 a note; its text is in the browser, and
   //                             `quotes` names the spans it quotes
   export const prerender = false;
@@ -49,7 +52,8 @@
    *   shade: Box, levant: Box, levantClip: Box,
    *   source: Awaited<ReturnType<typeof original>> | null,
    *   reversed: import('../../data/bible.js').ReverseVerse[],
-   *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[], listen: string
+   *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[], listen: string,
+   *   video: import('../../data/videos.js').VideoView | null
    * }} Card
    */
 
@@ -59,7 +63,7 @@
    */
   /** A box on the map, for the cards that have no map. */
   const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
-  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', ...fields });
+  const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', video: null, ...fields });
 
   /** @param {{ params: Record<string, string>, url: string }} ctx */
   export default async ({ params, url }) => {
@@ -97,6 +101,14 @@
       const known = await entities();
       const shows = image.entities.filter((id) => known[id]).map((id) => ({ id, name: known[id].title }));
       return card({ kind: 'image', address, version, title: shows[0]?.name ?? 'Picture', opening: image.caption, image, shows });
+    }
+
+    // A video, and the passages it shows.
+    const film = /^video:([\w-]{1,60})$/.exec(address);
+    if (film) {
+      const video = videoById(film[1]);
+      if (!video) return new Response('No video has that address.', { status: 404 });
+      return card({ kind: 'video', address, version, title: video.title, opening: `${video.series} · ${video.where}`, video });
     }
 
     // A note, with the words it quotes.
@@ -312,6 +324,28 @@
           <li each="item of shows"><button type="button" class="entity__link" data-entity="${item.id}">${item.name}</button></li>
         </ul>
         <p class="entity__credit">${image ? image.title : ''}${image && image.date ? ', ' + image.date : ''}. ${image ? image.credit : ''}</p>
+      </figcaption>
+    </figure>
+    <!-- A video, in the app's own player (elements/video-player.html): the
+         poster until Play, then the video from its source; or a plate that
+         opens it at its owner's. Under it, what
+         it is, the passages it shows (a tap puts each on the table), and its
+         credit and source. -->
+    <figure if="video" class="video-card">
+      <video-player if="video && video.play.kind !== 'link'" kind="${video ? video.play.kind : ''}" src="${video && video.play.kind === 'stream' ? video.play.url : ''}" youtube="${video && video.play.kind === 'youtube' ? video.play.id : ''}" captions="${video && video.play.kind === 'stream' ? (video.play.captions ?? '') : ''}" poster="${video ? video.poster : ''}" label="${title}" link="${video ? video.link : ''}"></video-player>
+      <!-- A video that plays only at its owner's (The Chosen): a plate that
+           opens it there. -->
+      <a if="video && video.play.kind === 'link'" class="video-card__plate" href="${video ? video.link : ''}" target="_blank" rel="noopener noreferrer">
+        <span class="video-card__plate-series">${video ? video.series : ''}</span>
+        <span class="video-card__plate-part">${video ? video.part : ''}</span>
+        <span class="video-card__plate-go">Watch on ${video ? video.site : ''}<svg-icon library="ui" name="external" label=", in a new tab"></svg-icon></span>
+      </a>
+      <figcaption>
+        <p class="video-card__series">${video ? video.series : ''}${video && video.part ? ' · ' + video.part : ''}${video && video.length ? ' · ' + video.length : ''}</p>
+        <ul class="rr-chips video-card__shows">
+          <li each="item of video ? video.shows : []"><button type="button" class="entity__link" data-cite="${item.address}">${item.title}</button></li>
+        </ul>
+        <p class="entity__credit">${video ? video.credit : ''} <a if="video && video.play.kind !== 'link'" class="video-card__source" href="${video ? video.link : ''}" target="_blank" rel="noopener noreferrer">Watch at the source<svg-icon library="ui" name="external" label=", in a new tab"></svg-icon></a></p>
       </figcaption>
     </figure>
     <div if="entity" class="entity-card">

@@ -19,6 +19,7 @@ import { formatReference, parseAddress, toAddress, versesIn } from '../lib/refer
 import { parseSpanAddress } from '../lib/words.js';
 import { journeysFor } from './journeys.js';
 import { imagesOf } from './images.js';
+import { videosFor } from './videos.js';
 import { CREDIT as QUOTATIONS, quotationsOf } from './quotations.js';
 import { CREDIT as TOPICS, topic, topicsOf } from './topics.js';
 
@@ -244,6 +245,8 @@ export async function guideResults(address) {
     journeys: await journeysFor({ address }),
     // Pictures of the places and people the passage names, places first.
     images: imagesOf([...guide.places, ...guide.people].map((item) => item.id), 4),
+    // Videos of the passage: a scene of a film first, a book's overview after.
+    videos: videosFor(guide.address),
   });
 }
 

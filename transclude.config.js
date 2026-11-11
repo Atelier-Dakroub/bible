@@ -24,9 +24,28 @@ export default {
   lang: 'en',
 
   // A Content-Security-Policy built from the hashes of what each page inlines.
-  // Nothing here needs a CDN, so the policy is `self` and a script somebody
-  // injects has nowhere to come from.
-  csp: true,
+  // Nothing here needs a CDN, so scripts are `self` and a script somebody
+  // injects has nowhere to come from. The videos (data/videos.js) open it a
+  // little, for media only: YouTube's privacy-enhanced frame (BibleProject),
+  // the JESUS film's streams at Mux (read by hls.js where the browser does
+  // not play them itself), and both posters. No other site's script
+  // runs on a page: the player drives YouTube's frame by message.
+  csp: {
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'hashes'"],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'https://i.ytimg.com', 'https://imagedelivery.net'],
+      // blob: is hls.js's, which hands the video its stream as a MediaSource.
+      'media-src': ["'self'", 'blob:', 'https://stream.mux.com', 'https://*.mux.com'],
+      'connect-src': ["'self'", 'https://stream.mux.com', 'https://*.mux.com'],
+      'frame-src': ['https://www.youtube-nocookie.com'],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+      'frame-ancestors': ["'self'"],
+    },
+  },
 
   // The features these pages refuse: cameras, sensors, location, and the rest of
   // what a document never asks for. Take one out when a page wants it.

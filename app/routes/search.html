@@ -225,6 +225,20 @@
           </button>
         </li>
       </ul>
+      <!-- Videos of the passage (data/videos.js): a tap puts one on the
+           table as a card, where it plays in the app's own player. -->
+      <template if="videos.length">
+      <h3 class="guide__heading">Video</h3>
+      <ul class="films">
+        <li each="film of videos">
+          <button type="button" class="film result--pull" data-address="video:${film.id}">
+            <span class="film__poster"><img if="film.poster" src="${film.poster}" alt="" width="320" height="180" loading="lazy" referrerpolicy="no-referrer" /><span if="!film.poster" class="film__plate"><span class="film__plate-series">${film.series}</span><span class="film__plate-part">${film.part}</span></span><span class="film__play" aria-hidden="true"><svg-icon library="ui" name="${film.play.kind === 'link' ? 'external' : 'play'}"></svg-icon></span><span if="film.length" class="film__length">${film.length}</span></span>
+            <span class="film__title">${film.title}</span>
+            <span class="film__series">${film.series}${film.part ? ' · ' + film.part : ''} · ${film.where}</span>
+          </button>
+        </li>
+      </ul>
+      </template>
       <h3 class="guide__heading">Parallel passages</h3>
       <p if="guide && !guide.parallels.length" class="guide__none">None found.</p>
       <ol if="guide && guide.parallels.length" class="results__list">
@@ -312,5 +326,18 @@
         </button>
       </li>
     </ol>
+    <!-- Videos of a passage typed in the field, under it. -->
+    <section if="videos.length && !guide" class="videos" aria-label="Videos of the passage">
+      <h3 class="guide__heading">Video</h3>
+      <ul class="films">
+        <li each="film of videos">
+          <button type="button" class="film result--pull" data-address="video:${film.id}">
+            <span class="film__poster"><img if="film.poster" src="${film.poster}" alt="" width="320" height="180" loading="lazy" referrerpolicy="no-referrer" /><span if="!film.poster" class="film__plate"><span class="film__plate-series">${film.series}</span><span class="film__plate-part">${film.part}</span></span><span class="film__play" aria-hidden="true"><svg-icon library="ui" name="${film.play.kind === 'link' ? 'external' : 'play'}"></svg-icon></span><span if="film.length" class="film__length">${film.length}</span></span>
+            <span class="film__title">${film.title}</span>
+            <span class="film__series">${film.series}${film.part ? ' · ' + film.part : ''} · ${film.where}</span>
+          </button>
+        </li>
+      </ul>
+    </section>
   </div>
 </main>

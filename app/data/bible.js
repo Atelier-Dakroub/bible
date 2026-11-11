@@ -3,6 +3,7 @@
 // A book is loaded the first time something asks for it and kept. Search asks
 // for all 66, so the first search takes longer than the rest.
 
+import { videosFor } from './videos.js';
 import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
 import { loaders as referenceLoaders } from './xrefs/index.js';
@@ -90,7 +91,7 @@ import kings from './chronology/kings.json' with { type: 'json' };
  *   refsFor: string, refsTitle: string, studyCode: string,
  *   guide: import('./study.js').Guide | null, landscape: string, rule: RuleOffer | null,
  *   journeys: import('./journeys.js').JourneyView[], seeAlso: { id: string, title: string, kind: string }[],
- *   images: import('./images.js').Image[], also: { code: string, label: string }[]
+ *   images: import('./images.js').Image[], videos: import('./videos.js').VideoView[], also: { code: string, label: string }[]
  * }} Results
  */
 
@@ -122,6 +123,7 @@ export function answer(fields) {
     journeys: [],
     seeAlso: [],
     images: [],
+    videos: [],
     also: [],
     ...fields,
   };
@@ -1350,7 +1352,8 @@ export async function matching(text) {
 async function referenceResult(query, ref) {
   const { title, verses } = await passage(ref);
   const parts = [{ text: preview(verses, 200), hit: false }];
-  return answer({ query, summary: `Passage, ${verseCount(verses.length)}`, results: [{ address: toAddress(ref), title, parts }] });
+  // Videos of the passage (data/videos.js), under it.
+  return answer({ query, summary: `Passage, ${verseCount(verses.length)}`, results: [{ address: toAddress(ref), title, parts }], videos: videosFor(toAddress(ref)) });
 }
 
 /**
