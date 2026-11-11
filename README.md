@@ -736,8 +736,12 @@ the least edits), and each verse starts where the reader's voice comes back
 after the pause before it. The chapters are cut to AAC files, one each, in
 `audio/kjv` (about 1.5 GB, outside git; `BIBLE_AUDIO` names another place);
 the times are in `app/data/audio/kjv.json`. The app's server streams the
-files, with byte ranges (`app/server.js`). A test cut of 40 verses began on
-their first words, but for words whisper misheard in the test itself.
+files, with byte ranges (`app/server.js`). A test cut of 40 verses in Genesis,
+and 48 across Deuteronomy, Psalms, Isaiah, Matthew, Acts and Revelation,
+began on their first words, but for words whisper misheard in the test
+itself. 1,185 of the 1,189 chapters play: the recording leaves out Exodus 22
+and 2 Chronicles 4 and 8, and most of Job 14, which the device's voice
+reads.
 
 ```sh
 node tools/import-audio.js <LibriVox directory with sections.json> <work directory> [audio directory]
