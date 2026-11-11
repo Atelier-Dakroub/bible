@@ -1183,6 +1183,16 @@ export type PassageSearchMembers = {
   fold(): void;
   setExpanded(expanded: boolean): void;
   setCollapsed(collapsed: boolean): Promise<void>;
+  slidOut(step: number): Promise<boolean>;
+  afterCollapse(collapsed: boolean, inside: boolean): void;
+  clicked(event: MouseEvent, input: HTMLInputElement): void;
+  placeByKey(event: MouseEvent, target: Element | null): boolean;
+  clickActions(input: HTMLInputElement): [string, (element: HTMLElement) => void][];
+  tell(type: string, detail: object): void;
+  say(element: HTMLElement): void;
+  trailStep(where: string): void;
+  goBack(): void;
+  trailKey(event: KeyboardEvent): void;
   queueSearch(): void;
   showReferences(address: string): void;
   showQuotes(address: string): void;
@@ -1196,6 +1206,13 @@ export type PassageSearchMembers = {
     kind?: string | undefined;
     answered?: boolean | undefined;
   }[], how?: How | undefined): Promise<void>;
+  showNotesOn(notes: {
+    id: string;
+    title?: string | undefined;
+    text: string;
+    kind?: string | undefined;
+    answered?: boolean | undefined;
+  }[]): void;
   questionList: {
     id: string;
     title?: string | undefined;
@@ -1216,9 +1233,17 @@ export type PassageSearchMembers = {
     value: string;
   }[]): void;
   run(query?: URLSearchParams | undefined, how?: How | undefined, scroll?: number | undefined): Promise<boolean>;
+  fetchAnswer(query: URLSearchParams): Promise<string | null>;
+  showAnswer(text: string, how: How, scroll: number): HTMLElement | null;
+  announceStudy(answer: HTMLElement | null): void;
+  keepScroll(): void;
   remember(query: URLSearchParams, answer: HTMLElement | null, how: How, typed: string): void;
+  recordStep(query: URLSearchParams, answer: HTMLElement, how: How, typed: string, typing: boolean): void;
+  dropTyped(typing: boolean): void;
+  trailChanged(before: Trail, wasAway: boolean): void;
   go(index: number): Promise<void>;
   show(step: Step): Promise<void>;
+  showGuideStep(guide: string, step: Step): Promise<void>;
   trail(): {
     steps: ({
       query: string;
@@ -1235,8 +1260,30 @@ export type PassageSearchMembers = {
   };
   setTrail(trail: Trail, showStep?: boolean | undefined): void;
   paintTrail(): void;
+  trailParts(): {
+    nav: HTMLElement;
+    list: Element;
+    whole: HTMLElement;
+  } | null;
+  paintTrailButtons(): void;
+  trailChips(shown: {
+    start: number;
+    end: number;
+  }, more: boolean): any[];
+  paintWholeTrail(whole: HTMLElement): void;
+  stepButton(i: number, className: string): HTMLButtonElement;
   down(event: PointerEvent): void;
   move(event: PointerEvent): void;
+  pressOf(event: PointerEvent): {
+    address: string;
+    version: string;
+    start: {
+      x: number;
+      y: number;
+    };
+    pull: Pull_2;
+    out: boolean;
+  } | null;
   up(event: PointerEvent): void;
   cancel(event: PointerEvent): void;
   send(address: string, pointer: Pull_2 | null, version?: string | undefined): void;

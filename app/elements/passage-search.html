@@ -77,11 +77,105 @@
    * @param {number} limit
    */
   function writeNote(button, note, limit) {
-    const text = note.text.trim();
-    const words = text ? (text.length > limit ? `${text.slice(0, limit)} …` : text) : note.title ? '' : 'A note with no words yet';
+    const words = wordsOfNote(note, limit);
     button.replaceChildren();
     if (note.title) button.append(Object.assign(document.createElement('strong'), { className: 'result__title', textContent: note.title }));
     if (words) button.append(Object.assign(document.createElement('span'), { className: 'result__words', textContent: words }));
+  }
+
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /** @param {KeyboardEvent} event whether Option (Alt) alone is held */
+  const altOnly = (event) => event.altKey && !event.metaKey && !event.ctrlKey;
+
+  /** @param {boolean} collapsed whether the panel is folded, kept for the next visit */
+  function keepCollapsed(collapsed) {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // No storage: the state lasts until the page closes.
+    }
+  }
+
+  /**
+   * The field loses the focus as the panel closes, and takes it as it opens.
+   *
+   * @param {HTMLInputElement} input
+   * @param {boolean} collapsed
+   */
+  function focusField(input, collapsed) {
+    if (collapsed) input.blur();
+    else requestAnimationFrame(() => input.focus());
+  }
+
+  /** @param {Element} child it, in a list item */
+  function listItem(child) {
+    const li = document.createElement('li');
+    li.append(child);
+    return li;
+  }
+
+  /**
+   * The "…" that opens the whole trail.
+   *
+   * @param {boolean} open
+   * @param {number} count
+   */
+  function moreButton(open, count) {
+    const all = Object.assign(document.createElement('button'), { type: 'button', className: 'trail__chip trail__more', title: 'The whole trail', textContent: '…' });
+    all.dataset.trail = 'all';
+    all.setAttribute('aria-expanded', String(open));
+    all.setAttribute('aria-label', `The whole trail: ${count} steps`);
+    return all;
+  }
+
+  /** @param {string} kind a trail step's kind, as its pictogram */
+  function pictogram(kind) {
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('class', 'trail__icon');
+    icon.setAttribute('aria-hidden', 'true');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', `/kinds.svg#${PICTOGRAMS[kind] ?? 'search'}`);
+    icon.append(use);
+    return icon;
+  }
+
+  /**
+   * A note in the list of a guide's notes: a button that shows it.
+   *
+   * @param {{ id: string, title?: string, text: string, kind?: string, answered?: boolean }} note
+   */
+  function noteItem(note) {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'result' });
+    button.dataset.noteShow = note.id;
+    writeNote(button, note, 120);
+    if (note.kind) button.prepend(kindLabel(note));
+    return listItem(button);
+  }
+
+  /**
+   * The ? button's count of open questions, and its name.
+   *
+   * @param {HTMLElement} button
+   * @param {number} open
+   */
+  function paintQuestionCount(button, open) {
+    const count = button.querySelector('.trail__count');
+    if (count) count.textContent = open ? String(open) : '';
+    button.setAttribute('aria-label', open === 1 ? '1 open question' : `${open} open questions`);
+  }
+
+  /**
+   * The words of a note in a list: its first words, up to a limit.
+   *
+   * @param {{ title?: string, text: string }} note
+   * @param {number} limit
+   */
+  function wordsOfNote(note, limit) {
+    const text = note.text.trim();
+    if (!text) return note.title ? '' : 'A note with no words yet';
+    return text.length > limit ? `${text.slice(0, limit)} …` : text;
   }
 
   /**
@@ -161,83 +255,9 @@
         // No storage: the panel starts open.
       }
 
-      this.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        // Enter or Space on a result (a click with no pointer) puts it on the
-        // table, as a tap does; a tap is placed on its pointerup instead.
-        const placed = target?.closest('[data-address]');
-        if (event.detail === 0 && placed instanceof HTMLElement && placed.dataset.address) {
-          this.send(placed.dataset.address, null, placed.dataset.version ?? '');
-          return;
-        }
-        const refs = target?.closest('[data-refs]');
-        if (refs instanceof HTMLElement && refs.dataset.refs) this.showReferences(refs.dataset.refs);
-        const link = target?.closest('button[data-entity]');
-        if (link instanceof HTMLElement && link.dataset.entity) this.showEntity(link.dataset.entity);
-        const topic = target?.closest('button[data-topic]');
-        if (topic instanceof HTMLElement && topic.dataset.topic) this.showTopic(topic.dataset.topic);
-        const onMap = target?.closest('[data-show-map]');
-        if (onMap instanceof HTMLElement && onMap.dataset.showMap) {
-          this.dispatchEvent(new CustomEvent('show-on-map', { bubbles: true, detail: { ids: onMap.dataset.showMap } }));
-        }
-        const rule = target?.closest('[data-rule-kind]');
-        if (rule instanceof HTMLElement) {
-          const { ruleKind: kind, ruleValue: value, ruleLabel: label } = rule.dataset;
-          this.dispatchEvent(new CustomEvent('rule-add', { bubbles: true, detail: { kind, value, label } }));
-        }
-        const beside = target?.closest('[data-beside]');
-        if (beside instanceof HTMLElement && beside.dataset.beside) {
-          this.dispatchEvent(new CustomEvent('place-beside', { bubbles: true, detail: { addresses: beside.dataset.beside.split(',') } }));
-        }
-        if (target?.closest('[data-questions]')) this.showQuestions();
-        const note = target?.closest('[data-note-show]');
-        if (note instanceof HTMLElement && note.dataset.noteShow) {
-          this.dispatchEvent(new CustomEvent('show-note', { bubbles: true, detail: { id: note.dataset.noteShow } }));
-        }
-        const strongs = target?.closest('[data-strongs]');
-        if (strongs instanceof HTMLElement && strongs.dataset.strongs) {
-          input.value = strongs.dataset.strongs;
-          this.run(undefined, 'open');
-        }
-        const say = target?.closest('[data-say]');
-        if (say instanceof HTMLElement && say.dataset.say) {
-          const lang = say.dataset.sayLang === 'he' ? 'he' : 'el';
-          sayWord(say.dataset.say, lang).then((ok) => {
-            const status = this.querySelector('.search__status');
-            if (!ok && status) status.textContent = `This device has no ${LANGUAGE_NAMES[lang]} voice.`;
-            if (!ok) say.setAttribute('title', `This device has no ${LANGUAGE_NAMES[lang]} voice.`);
-          });
-        }
-        const search = target?.closest('[data-search]');
-        if (search instanceof HTMLElement && search.dataset.search) this.searchFor(search.dataset.search);
-        const discover = target?.closest('[data-discover]');
-        if (discover instanceof HTMLElement) this.discover(discover.dataset.discover);
-        const journey = target?.closest('[data-journey]');
-        if (journey instanceof HTMLElement && journey.dataset.journey) {
-          this.dispatchEvent(new CustomEvent('show-journey', { bubbles: true, detail: { journey: JSON.parse(journey.dataset.journey) } }));
-        }
-        const step = target?.closest('[data-trail]');
-        if (step instanceof HTMLElement) {
-          const where = step.dataset.trail;
-          // Away on a "Did you know?", Back returns to the step that was left.
-          if (where === 'back') this.go(this.away ? this.path.index : this.path.index - 1);
-          else if (where === 'forward') this.go(this.path.index + 1);
-          else if (where === 'all') {
-            this.wholeTrail = !this.wholeTrail;
-            this.paintTrail();
-          } else this.go(Number(where));
-        }
-      }, { signal });
+      this.addEventListener('click', (event) => this.clicked(event, input), { signal });
       // Alt and the arrow keys step through the trail, as in a browser.
-      document.addEventListener('keydown', (event) => {
-        if (!event.altKey || event.metaKey || event.ctrlKey) return;
-        // In a field or a note, Option and an arrow move by a word (on a Mac).
-        if (event.defaultPrevented || typing(event.target)) return;
-        if (event.key === 'ArrowLeft') this.go(this.away ? this.path.index : this.path.index - 1);
-        else if (event.key === 'ArrowRight') this.go(this.path.index + 1);
-        else return;
-        event.preventDefault();
-      }, { signal });
+      document.addEventListener('keydown', (event) => this.trailKey(event), { signal });
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           if (this.keys) this.keys = false;
@@ -340,26 +360,162 @@
       if (collapsed === this.collapsed) return;
       // The focus, inside the panel as it closes, goes to its button.
       const inside = collapsed && this.contains(document.activeElement);
-      if (collapsed) {
-        await slideOut(this, { y: -8 });
-        // Opened again during the slide: the later call holds.
-        if (step !== this.moves) return;
-      }
+      // Opened again during the slide: the later call holds.
+      if (collapsed && !(await this.slidOut(step))) return;
       this.collapsed = collapsed;
+      this.afterCollapse(collapsed, inside);
+    },
+
+    /**
+     * Slides the panel out; false if it was opened again meanwhile.
+     *
+     * @param {number} step
+     */
+    async slidOut(step) {
+      await slideOut(this, { y: -8 });
+      return step === this.moves;
+    },
+
+    /**
+     * After the panel opens or closes: the focus, its slide, its state kept,
+     * and on a phone, the other panels closed.
+     *
+     * @param {boolean} collapsed
+     * @param {boolean} inside whether the focus was in it as it closed
+     */
+    afterCollapse(collapsed, inside) {
       if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="search"]'))?.focus());
       slideIn(this, collapsed ? {} : { y: -8 });
       this.dispatchEvent(new Event('panel-change', { bubbles: true }));
-      try {
-        localStorage.setItem(COLLAPSED_KEY, String(collapsed));
-      } catch {
-        // No storage: the state lasts until the page closes.
-      }
+      keepCollapsed(collapsed);
       // On a phone, one panel is open at a time (bible-table closes the
       // others).
       if (!collapsed && isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'search' } }));
-      const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
-      if (collapsed) input.blur();
-      else requestAnimationFrame(() => input.focus());
+      focusField(/** @type {HTMLInputElement} */ (this.querySelector('input')), collapsed);
+    },
+
+    /**
+     * A click in the panel: Enter or Space on a result puts it on the table;
+     * else each thing the click is on does what it says.
+     *
+     * @param {MouseEvent} event
+     * @param {HTMLInputElement} input
+     */
+    clicked(event, input) {
+      const target = elementOf(event.target);
+      if (this.placeByKey(event, target)) return;
+      for (const [selector, act] of this.clickActions(input)) {
+        const found = target?.closest(selector);
+        if (found instanceof HTMLElement) act(found);
+      }
+    },
+
+    /**
+     * Enter or Space on a result (a click with no pointer) puts it on the
+     * table, as a tap does; a tap is placed on its pointerup instead.
+     *
+     * @param {MouseEvent} event
+     * @param {Element | null} target
+     */
+    placeByKey(event, target) {
+      const placed = target?.closest('[data-address]:not([data-address=""])');
+      if (event.detail !== 0 || !(placed instanceof HTMLElement)) return false;
+      this.send(placed.dataset.address ?? '', null, placed.dataset.version ?? '');
+      return true;
+    },
+
+    /**
+     * What a click does on each kind of thing in the panel.
+     *
+     * @param {HTMLInputElement} input
+     * @returns {[string, (element: HTMLElement) => void][]}
+     */
+    clickActions(input) {
+      const data = (/** @type {HTMLElement} */ element, /** @type {string} */ name) => element.dataset[name] ?? '';
+      return [
+        ['[data-refs]:not([data-refs=""])', (element) => this.showReferences(data(element, 'refs'))],
+        ['button[data-entity]:not([data-entity=""])', (element) => this.showEntity(data(element, 'entity'))],
+        ['button[data-topic]:not([data-topic=""])', (element) => this.showTopic(data(element, 'topic'))],
+        ['[data-show-map]:not([data-show-map=""])', (element) => this.tell('show-on-map', { ids: data(element, 'showMap') })],
+        ['[data-rule-kind]', (element) => this.tell('rule-add', { kind: element.dataset.ruleKind, value: element.dataset.ruleValue, label: element.dataset.ruleLabel })],
+        ['[data-beside]:not([data-beside=""])', (element) => this.tell('place-beside', { addresses: data(element, 'beside').split(',') })],
+        ['[data-questions]', () => this.showQuestions()],
+        ['[data-note-show]:not([data-note-show=""])', (element) => this.tell('show-note', { id: data(element, 'noteShow') })],
+        ['[data-strongs]:not([data-strongs=""])', (element) => {
+          input.value = data(element, 'strongs');
+          this.run(undefined, 'open');
+        }],
+        ['[data-say]:not([data-say=""])', (element) => this.say(element)],
+        ['[data-search]:not([data-search=""])', (element) => this.searchFor(data(element, 'search'))],
+        ['[data-discover]', (element) => this.discover(element.dataset.discover)],
+        ['[data-journey]:not([data-journey=""])', (element) => this.tell('show-journey', { journey: JSON.parse(data(element, 'journey')) })],
+        ['[data-trail]', (element) => this.trailStep(data(element, 'trail'))],
+      ];
+    },
+
+    /**
+     * Sends an event to the table (bubbling).
+     *
+     * @param {string} type
+     * @param {object} detail
+     */
+    tell(type, detail) {
+      this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
+    },
+
+    /**
+     * Says a word of the original in the device's voice; with none, says so.
+     *
+     * @param {HTMLElement} element its data-say, and data-say-lang (he or el)
+     */
+    say(element) {
+      const lang = element.dataset.sayLang === 'he' ? 'he' : 'el';
+      sayWord(element.dataset.say ?? '', lang).then((ok) => {
+        if (ok) return;
+        const missing = `This device has no ${LANGUAGE_NAMES[lang]} voice.`;
+        const status = this.querySelector('.search__status');
+        if (status) status.textContent = missing;
+        element.setAttribute('title', missing);
+      });
+    },
+
+    /**
+     * A button of the trail: Back, Forward, the whole trail, or a step.
+     *
+     * @param {string} where
+     */
+    trailStep(where) {
+      /** @type {Record<string, () => void>} */
+      const steps = {
+        back: () => this.goBack(),
+        forward: () => this.go(this.path.index + 1),
+        all: () => {
+          this.wholeTrail = !this.wholeTrail;
+          this.paintTrail();
+        },
+      };
+      (steps[where] ?? (() => this.go(Number(where))))();
+    },
+
+    /** Back on the trail; away on a "Did you know?", to the step that was left. */
+    goBack() {
+      this.go(this.away ? this.path.index : this.path.index - 1);
+    },
+
+    /**
+     * Option (Alt) and the arrow keys step through the trail, as in a
+     * browser; in a field or a note, they move by a word (on a Mac).
+     *
+     * @param {KeyboardEvent} event
+     */
+    trailKey(event) {
+      if (!altOnly(event) || event.defaultPrevented || typing(event.target)) return;
+      /** @type {Record<string, () => void>} */
+      const keys = { ArrowLeft: () => this.goBack(), ArrowRight: () => this.go(this.path.index + 1) };
+      const act = keys[event.key];
+      if (!act) return;
+      act();
+      event.preventDefault();
     },
 
     queueSearch() {
@@ -421,25 +577,20 @@
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = '';
       this.reveal();
-      if (!(await this.run(new URLSearchParams({ guide: address, fragment: 'results' }), how))) return;
+      if (await this.run(new URLSearchParams({ guide: address, fragment: 'results' }), how)) this.showNotesOn(notes);
+    },
+
+    /**
+     * The table's notes on the passage of a guide, under it.
+     *
+     * @param {{ id: string, title?: string, text: string, kind?: string, answered?: boolean }[]} notes
+     */
+    showNotesOn(notes) {
       const holder = this.querySelector('.guide__notes');
       if (!(holder instanceof HTMLElement) || !notes.length) return;
-      const heading = document.createElement('h3');
-      heading.className = 'guide__heading';
-      heading.textContent = notes.length === 1 ? 'A note on it' : `${notes.length} notes on it`;
-      const list = document.createElement('ol');
-      list.className = 'results__list';
-      for (const note of notes) {
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'result';
-        button.dataset.noteShow = note.id;
-        writeNote(button, note, 120);
-        if (note.kind) button.prepend(kindLabel(note));
-        item.append(button);
-        list.append(item);
-      }
+      const heading = Object.assign(document.createElement('h3'), { className: 'guide__heading', textContent: notes.length === 1 ? 'A note on it' : `${notes.length} notes on it` });
+      const list = Object.assign(document.createElement('ol'), { className: 'results__list' });
+      list.append(...notes.map(noteItem));
       holder.replaceChildren(heading, list);
       holder.hidden = false;
     },
@@ -455,13 +606,10 @@
      */
     setQuestions(list) {
       this.questionList = list;
-      const open = list.filter((each) => !each.answered).length;
       const button = this.querySelector('[data-questions]');
       if (!(button instanceof HTMLElement)) return;
       button.hidden = !list.length;
-      const count = button.querySelector('.trail__count');
-      if (count) count.textContent = open ? String(open) : '';
-      button.setAttribute('aria-label', open === 1 ? '1 open question' : `${open} open questions`);
+      paintQuestionCount(button, list.filter((each) => !each.answered).length);
       // The list, if it is the one on show, changes with them: in place,
       // without opening the panel.
       if (this.querySelector('.questions')) this.showQuestions(false);
@@ -567,30 +715,67 @@
      */
     async run(query, how = 'typed', scroll = 0) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
+      const asked = query ?? new URLSearchParams({ q: input.value, fragment: 'results' });
+      const text = await this.fetchAnswer(asked);
+      if (text === null) return false;
+      const answer = this.showAnswer(text, how, scroll);
+      this.announceStudy(answer);
+      if (how !== 'trail') this.remember(asked, answer, how, input.value);
+      return true;
+    },
+
+    /**
+     * The answer to a search, as HTML; null if it fails, or a later search
+     * took its place.
+     *
+     * @param {URLSearchParams} query
+     * @returns {Promise<string | null>}
+     */
+    async fetchAnswer(query) {
       this.request?.abort();
       const request = new AbortController();
       this.request = request;
-
-      query ??= new URLSearchParams({ q: input.value, fragment: 'results' });
       const response = await fetch(`/search?${query}`, { signal: request.signal }).catch(() => null);
-      if (!response?.ok || request.signal.aborted) return false;
-      const text = await response.text();
-      if (request.signal.aborted) return false;
+      if (!response?.ok || request.signal.aborted) return null;
+      const text = await response.text().catch(() => null);
+      return request.signal.aborted ? null : text;
+    },
+
+    /**
+     * Shows an answer in the results, where it was scrolled to.
+     *
+     * @param {string} text
+     * @param {How} how
+     * @param {number} scroll
+     */
+    showAnswer(text, how, scroll) {
       const results = /** @type {HTMLElement} */ (this.querySelector('.search__results'));
       this.querySelector('[data-questions]')?.setAttribute('aria-pressed', 'false');
       // The step being left keeps where its list was scrolled to.
-      const leaving = this.path.steps[this.path.index];
-      if (leaving && how !== 'typed') leaving.scroll = results.scrollTop;
+      if (how !== 'typed') this.keepScroll();
       results.setHTMLUnsafe(text);
       if (results.childElementCount && !this.quiet) this.setExpanded(true);
       results.scrollTop = scroll;
       this.announce(results);
-      const answer = /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
-      const code = answer?.dataset.code ?? '';
-      const entity = answer?.dataset.entity ?? '';
-      this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail: { code, entity } }));
-      if (how !== 'trail') this.remember(query, answer, how, input.value);
-      return true;
+      return /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
+    },
+
+    /**
+     * Tells the table what the answer studies: a Strong's number, a person or
+     * a place (their words are marked on every card).
+     *
+     * @param {HTMLElement | null} answer
+     */
+    announceStudy(answer) {
+      const detail = { code: answer?.dataset.code ?? '', entity: answer?.dataset.entity ?? '' };
+      this.dispatchEvent(new CustomEvent('study', { bubbles: true, detail }));
+    },
+
+    /** The trail's step on show keeps where its list was scrolled to. */
+    keepScroll() {
+      const results = this.querySelector('.search__results');
+      const leaving = this.path.steps[this.path.index];
+      if (leaving && results) leaving.scroll = results.scrollTop;
     },
 
     /**
@@ -602,31 +787,55 @@
      * @param {string} typed the text in the field
      */
     remember(query, answer, how, typed) {
-      const kind = answer?.dataset.trailKind ?? '';
-      const label = answer?.dataset.trailLabel ?? '';
-      const asked = new URLSearchParams(query);
-      asked.delete('fragment');
       const typing = how === 'typed' || how === 'submit';
       const before = this.path;
       const wasAway = this.away;
       this.away = false;
-      if (!kind) {
-        // An empty search: a search being typed that was cleared goes.
-        if (typing && this.typing) this.path = dropCurrent(this.path);
-        this.typing = false;
-      } else {
-        /** @type {import('../lib/trail.js').Step} */
-        const step = { query: asked.toString(), label, kind };
-        if (asked.has('q')) step.typed = typed;
-        this.path = record(this.path, step, typing && this.typing);
-        // Typing goes on in the same step until Enter, or until something
-        // else is opened.
-        this.typing = how === 'typed';
-      }
-      if (this.path !== before || wasAway) {
-        this.paintTrail();
-        this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
-      }
+      if (answer?.dataset.trailKind) this.recordStep(query, /** @type {HTMLElement} */ (answer), how, typed, typing);
+      else this.dropTyped(typing);
+      this.trailChanged(before, wasAway);
+    },
+
+    /**
+     * An answer becomes a step of the trail. Typing goes on in the same step
+     * until Enter, or until something else is opened.
+     *
+     * @param {URLSearchParams} query
+     * @param {HTMLElement} answer
+     * @param {How} how
+     * @param {string} typed
+     * @param {boolean} typing
+     */
+    recordStep(query, answer, how, typed, typing) {
+      const asked = new URLSearchParams(query);
+      asked.delete('fragment');
+      /** @type {import('../lib/trail.js').Step} */
+      const step = { query: asked.toString(), label: answer.dataset.trailLabel ?? '', kind: answer.dataset.trailKind ?? '' };
+      if (asked.has('q')) step.typed = typed;
+      this.path = record(this.path, step, typing && this.typing);
+      this.typing = how === 'typed';
+    },
+
+    /**
+     * An empty search: a search being typed that was cleared goes.
+     *
+     * @param {boolean} typing
+     */
+    dropTyped(typing) {
+      if (typing && this.typing) this.path = dropCurrent(this.path);
+      this.typing = false;
+    },
+
+    /**
+     * Draws the trail again, and tells the table, if it changed.
+     *
+     * @param {import('../lib/trail.js').Trail} before
+     * @param {boolean} wasAway
+     */
+    trailChanged(before, wasAway) {
+      if (this.path === before && !wasAway) return;
+      this.paintTrail();
+      this.dispatchEvent(new CustomEvent('trail-change', { bubbles: true }));
     },
 
     /**
@@ -637,9 +846,7 @@
     async go(index) {
       const step = this.path.steps[index];
       if (!step || (index === this.path.index && !this.away)) return;
-      const results = /** @type {HTMLElement | null} */ (this.querySelector('.search__results'));
-      const leaving = this.path.steps[this.path.index];
-      if (leaving && results) leaving.scroll = results.scrollTop;
+      this.keepScroll();
       this.path = { ...this.path, index };
       this.typing = false;
       this.wholeTrail = false;
@@ -661,14 +868,25 @@
       const query = new URLSearchParams(step.query);
       const guide = query.get('guide');
       if (guide) {
-        await this.showGuide(guide, this.notesFor?.(guide) ?? [], 'trail');
-        const results = this.querySelector('.search__results');
-        if (results) results.scrollTop = step.scroll ?? 0;
+        await this.showGuideStep(guide, step);
         return;
       }
       input.value = step.typed ?? '';
       query.set('fragment', 'results');
       await this.run(query, 'trail', step.scroll ?? 0);
+    },
+
+    /**
+     * A guide's step again: with the table's notes on the passage, where its
+     * list was scrolled to.
+     *
+     * @param {string} guide
+     * @param {import('../lib/trail.js').Step} step
+     */
+    async showGuideStep(guide, step) {
+      await this.showGuide(guide, this.notesFor?.(guide) ?? [], 'trail');
+      const results = this.querySelector('.search__results');
+      if (results) results.scrollTop = step.scroll ?? 0;
     },
 
     /** The trail, to keep with the workspace. */
@@ -709,79 +927,89 @@
      * the row, newest first, as a browser's history list.
      */
     paintTrail() {
-      const nav = /** @type {HTMLElement | null} */ (this.querySelector('.search__trail'));
-      const list = this.querySelector('.trail__chips');
-      const whole = /** @type {HTMLElement | null} */ (this.querySelector('.trail__all'));
-      if (!nav || !list || !whole) return;
-      const { steps, index } = this.path;
+      const parts = this.trailParts();
+      if (!parts) return;
       // The row is always there: it holds the ✦ for "Did you know?".
-      nav.hidden = false;
-      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', this.away ? index < 0 : index <= 0);
-      this.querySelector('.trail__discover')?.setAttribute('aria-pressed', String(this.away));
-      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
+      parts.nav.hidden = false;
+      this.paintTrailButtons();
       // A few chips around the step on show; "…" lists them all.
       const shown = windowOf(this.path, CHIPS);
       const more = shown.before || shown.after;
       if (!more) this.wholeTrail = false;
+      parts.list.replaceChildren(...this.trailChips(shown, more));
+      parts.list.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      this.paintWholeTrail(parts.whole);
+    },
 
-      /** @param {number} i @param {string} className */
-      const stepButton = (i, className) => {
-        const step = steps[i];
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `${className} trail__chip--${step.kind}`;
-        button.dataset.trail = String(i);
-        button.title = step.label;
-        if (i === index && !this.away) button.setAttribute('aria-current', 'step');
-        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        icon.setAttribute('class', 'trail__icon');
-        icon.setAttribute('aria-hidden', 'true');
-        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', `/kinds.svg#${PICTOGRAMS[step.kind] ?? 'search'}`);
-        icon.append(use);
-        const text = document.createElement('span');
-        text.className = 'trail__label';
-        text.textContent = step.label;
-        button.append(icon, text);
-        return button;
-      };
-      /** @param {Element} child */
-      const item = (child) => {
-        const li = document.createElement('li');
-        li.append(child);
-        return li;
-      };
+    /** The trail's row, its chips and its whole list, if they are there. */
+    trailParts() {
+      const nav = /** @type {HTMLElement | null} */ (this.querySelector('.search__trail'));
+      const list = this.querySelector('.trail__chips');
+      const whole = /** @type {HTMLElement | null} */ (this.querySelector('.trail__all'));
+      return nav && list && whole ? { nav, list, whole } : null;
+    },
 
+    /** Back, Forward and the ✦, each as it stands on the trail. */
+    paintTrailButtons() {
+      const { steps, index } = this.path;
+      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="back"]'))?.toggleAttribute('disabled', this.away ? index < 0 : index <= 0);
+      this.querySelector('.trail__discover')?.setAttribute('aria-pressed', String(this.away));
+      /** @type {HTMLButtonElement | null} */ (this.querySelector('[data-trail="forward"]'))?.toggleAttribute('disabled', index >= steps.length - 1);
+    },
+
+    /**
+     * The chips of the steps around the one on show, and "…" when there are
+     * more.
+     *
+     * @param {{ start: number, end: number }} shown
+     * @param {boolean} more
+     */
+    trailChips(shown, more) {
       const chips = [];
-      for (let i = shown.start; i < shown.end; i += 1) chips.push(item(stepButton(i, 'trail__chip')));
-      if (more) {
-        const all = document.createElement('button');
-        all.type = 'button';
-        all.className = 'trail__chip trail__more';
-        all.dataset.trail = 'all';
-        all.setAttribute('aria-expanded', String(this.wholeTrail));
-        all.setAttribute('aria-label', `The whole trail: ${steps.length} steps`);
-        all.title = 'The whole trail';
-        all.textContent = '…';
-        chips.push(item(all));
-      }
-      list.replaceChildren(...chips);
-      list.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      for (let i = shown.start; i < shown.end; i += 1) chips.push(listItem(this.stepButton(i, 'trail__chip')));
+      if (more) chips.push(listItem(moreButton(this.wholeTrail, this.path.steps.length)));
+      return chips;
+    },
 
+    /**
+     * The whole trail, newest first, when it is open.
+     *
+     * @param {HTMLElement} whole
+     */
+    paintWholeTrail(whole) {
       whole.hidden = !this.wholeTrail;
-      if (this.wholeTrail) {
-        const rows = [];
-        for (let i = steps.length - 1; i >= 0; i -= 1) rows.push(item(stepButton(i, 'trail__row')));
-        whole.replaceChildren(...rows);
-        whole.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
-      } else whole.replaceChildren();
+      if (!this.wholeTrail) {
+        whole.replaceChildren();
+        return;
+      }
+      const rows = this.path.steps.map((_, i) => listItem(this.stepButton(i, 'trail__row'))).reverse();
+      whole.replaceChildren(...rows);
+      whole.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+    },
+
+    /**
+     * A step of the trail as a button: its pictogram and its label.
+     *
+     * @param {number} i
+     * @param {string} className
+     */
+    stepButton(i, className) {
+      const step = this.path.steps[i];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `${className} trail__chip--${step.kind}`;
+      button.dataset.trail = String(i);
+      button.title = step.label;
+      if (i === this.path.index && !this.away) button.setAttribute('aria-current', 'step');
+      button.append(pictogram(step.kind), Object.assign(document.createElement('span'), { className: 'trail__label', textContent: step.label }));
+      return button;
     },
 
     /** @param {PointerEvent} event */
     down(event) {
       // The main button only: a right-click opens the browser's menu.
       if (event.button !== 0) return;
-      const item = event.target instanceof Element ? event.target.closest('[data-address]') : null;
+      const item = elementOf(event.target)?.closest('[data-address]');
       if (!(item instanceof HTMLElement)) return;
       this.press = {
         address: item.dataset.address ?? '',
@@ -794,12 +1022,11 @@
 
     /** @param {PointerEvent} event */
     move(event) {
-      const press = this.press;
-      if (!press || press.pull.id !== event.pointerId) return;
+      const press = this.pressOf(event);
+      if (!press) return;
       press.pull.x = event.clientX;
       press.pull.y = event.clientY;
       if (press.out) return;
-
       const dx = event.clientX - press.start.x;
       const dy = event.clientY - press.start.y;
       if (Math.hypot(dx, dy) < SLOP) return;
@@ -811,6 +1038,16 @@
       }
       press.out = true;
       this.send(press.address, press.pull, press.version);
+    },
+
+    /**
+     * The press under way, if it is this pointer's.
+     *
+     * @param {PointerEvent} event
+     */
+    pressOf(event) {
+      const press = this.press;
+      return press && press.pull.id === event.pointerId ? press : null;
     },
 
     /** @param {PointerEvent} event */

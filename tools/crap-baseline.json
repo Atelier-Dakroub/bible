@@ -1,12 +1,8 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 134,
+ "count": 121,
  "allowed": {
-  "app/elements/passage-search.html addEventListener callback": [
-   1260,
-   90
-  ],
   "app/routes/card/[address].html (anonymous)": [
    1056
   ],
@@ -104,18 +100,6 @@
    132
   ],
   "app/elements/map-view.html key": [
-   132
-  ],
-  "app/elements/passage-search.html setCollapsed": [
-   132
-  ],
-  "app/elements/passage-search.html run": [
-   132
-  ],
-  "app/elements/passage-search.html remember": [
-   132
-  ],
-  "app/elements/passage-search.html paintTrail": [
    132
   ],
   "app/lib/speech.js next": [
@@ -238,12 +222,6 @@
   "app/elements/map-view.html act": [
    56
   ],
-  "app/elements/passage-search.html showGuide": [
-   56
-  ],
-  "app/elements/passage-search.html show": [
-   56
-  ],
   "app/elements/table-menu.html addEventListener callback": [
    56,
    56,
@@ -322,21 +300,6 @@
    42
   ],
   "app/elements/map-view.html release": [
-   42
-  ],
-  "app/elements/passage-search.html writeNote": [
-   42
-  ],
-  "app/elements/passage-search.html setQuestions": [
-   42
-  ],
-  "app/elements/passage-search.html go": [
-   42
-  ],
-  "app/elements/passage-search.html down": [
-   42
-  ],
-  "app/elements/passage-search.html move": [
    42
   ],
   "app/elements/reading-settings.html connected": [
