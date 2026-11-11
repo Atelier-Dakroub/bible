@@ -38,10 +38,15 @@ voice at its most typical, and put it and its words here as `<name>.wav` and
 
 ## Making a recording
 
+The model and its Python environment are in `../bible-voice` (beside this
+project, outside git), with a script that runs this one:
+
 ```sh
-QWEN_BASE=<Qwen3-TTS-12Hz-1.7B-Base folder> WHISPER_MODEL=<ggml-base.en.bin> \
-  <python with qwen-tts> tools/voice/generate.py --voice plain-male --version kjv --books JHN --books ROM
+../bible-voice/run.sh --voice plain-male --version kjv --books JHN --books ROM
 ```
+
+Without it: `QWEN_BASE=<Qwen3-TTS-12Hz-1.7B-Base folder> WHISPER_MODEL=<ggml-base.en.bin>
+<python with qwen-tts> tools/voice/generate.py …`.
 
 - Each verse is read alone, with a seed from its address (the same take
   again on a second run), and checked by whisper; a take with more than 20%
@@ -60,4 +65,5 @@ QWEN_BASE=<Qwen3-TTS-12Hz-1.7B-Base folder> WHISPER_MODEL=<ggml-base.en.bin> \
 Python 3.12 with `qwen-tts` (Apache 2.0) and its PyTorch, the Qwen3-TTS Base
 model from Hugging Face (Qwen/Qwen3-TTS-12Hz-1.7B-Base, Apache 2.0, about
 4 GB), ffmpeg and whisper.cpp (`whisper-cli`) with ggml-base.en.bin. Keep the
-model and the environment in a folder that lasts (not a temporary one).
+model and the environment in a folder that lasts: `../bible-voice`, whose
+`requirements.txt` rebuilds the environment.
