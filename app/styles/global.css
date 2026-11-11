@@ -74,6 +74,71 @@ body {
   padding: 2rem 1rem;
 }
 
+/* The guide's pages (app/routes/guide/*.md, lib/markdown.js) and the
+   Credits page: text to read, at the reader's size. */
+.guide {
+  font: calc(1rem * var(--read-scale, 1)) / var(--leading, 1.6) var(--serif);
+}
+.guide h1,
+.guide h2,
+.guide h3 {
+  font-family: var(--sans);
+  line-height: 1.25;
+  text-wrap: balance;
+  scroll-margin-top: 1rem;
+}
+.guide h2 {
+  margin-top: 2.2rem;
+}
+.guide__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font: var(--control-font);
+}
+.guide__nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+.guide__note {
+  margin: 1rem 0;
+  padding: 0.6rem 0.9rem;
+  border-inline-start: 0.25rem solid var(--lapis);
+  border-radius: var(--radius-small);
+  background: var(--tint);
+}
+.guide__note > :first-child {
+  margin-top: 0;
+}
+.guide__note > :last-child {
+  margin-bottom: 0;
+}
+.guide table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--control-font);
+}
+.guide th,
+.guide td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.guide kbd,
+.guide code {
+  padding: 0.05em 0.35em;
+  border: 1px solid var(--line);
+  border-radius: 0.3em;
+  background: var(--tint);
+  font: 0.88em var(--sans);
+  white-space: nowrap;
+}
+.guide li + li {
+  margin-top: 0.3rem;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

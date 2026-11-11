@@ -71,5 +71,5 @@ These are under the MIT License with the code: `app/data/journeys.js` (the
 journeys' routes, written by hand from the text; their places are
 Theographic's), `app/data/canon.js` (the books by kind, and their
 traditional authors), the icons in `app/icons/` and `app/public/icons/`, and
-the guide in `docs/guide/`. `app/data/facts.js` is code: it works out each
+the guide in `app/routes/guide/`. `app/data/facts.js` is code: it works out each
 "Did you know?" from the data above, and names its source.

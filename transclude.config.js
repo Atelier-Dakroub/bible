@@ -5,6 +5,8 @@
 // proxy, no feed, no sitemap, no service worker list, no script on any page.
 // See the configuration page in the docs for the whole list.
 
+import { guidePage } from './app/lib/markdown.js';
+
 export default {
   appDir: 'app',
   routesDir: 'routes',
@@ -58,6 +60,10 @@ export default {
   // Cards arrive on the table as fragments, and a card is a custom element.
   // This defines and styles an element that a fetched fragment brings in.
   watchElements: true,
+
+  // The guide's pages are Markdown (app/routes/guide/*.md): this turns each
+  // into a page, with its title and the way back (lib/markdown.js).
+  markdown: guidePage,
 
   outDir: 'dist',
   typesFile: 'app/transclude-env.d.ts',

@@ -654,6 +654,19 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  .tools__foot {
+    display: flex;
+    flex: none;
+    gap: 1.25rem;
+    padding: 0.55rem var(--bar-padding);
+    border-top: 1px solid var(--line);
+  }
+  .tools__foot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    color: var(--lapis);
+  }
   .tools__section {
     display: grid;
     gap: 1.1rem;
@@ -1176,3 +1189,9 @@
     </section>
   </div>
 </div>
+<!-- How the app works, and where its data comes from: pages of their own.
+     The table is kept as it is, and comes back as it was. -->
+<nav class="tools__foot" aria-label="About the app">
+  <a href="/guide">The guide</a>
+  <a href="/credits">Credits</a>
+</nav>

@@ -21,6 +21,10 @@ aloud" below). `.env.example` lists the optional settings.
 `npm run verify` runs the tests, the CRAP check, the types and a build; see
 CONTRIBUTING.md.
 
+The guide for the reader is at `/guide` in the app (Tools has a link). Its
+pages are Markdown, in `app/routes/guide/`: Transclude serves each as a page,
+through the converter in `app/lib/markdown.js`.
+
 ## Licenses
 
 The code is under the MIT License (LICENSE). The data comes from many
