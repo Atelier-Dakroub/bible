@@ -73,7 +73,10 @@ function typeKey(view, key) {
   const { state, dispatch } = view;
   if (key === 'back') backspace(state, dispatch);
   else if (key === 'enter') enter(state, dispatch) || splitBlock(state, dispatch);
-  else if (key === 'clear') dispatch(state.tr.delete(0, state.doc.content.size).setSelection(TextSelection.create(state.tr.doc, 1)));
+  else if (key === 'clear') {
+    const tr = state.tr.delete(0, state.doc.content.size);
+    dispatch(tr.setSelection(TextSelection.atStart(tr.doc)));
+  }
   else {
     const text = key === 'space' ? ' ' : key;
     // Through the input rules, as typing goes: "- " starts a list.

@@ -37,7 +37,7 @@ const ALIASES = {
   revelations: 'REV',
 };
 
-const TYPED = /^\s*((?:[1-3]|iii|ii|i)?\s*[a-z][a-z.\s]*?)\s*(\d+)(?:\s*[:.]\s*(\d+)(?:\s*[-–—]\s*(?:(\d+)\s*[:.]\s*)?(\d+))?)?\s*$/i;
+const TYPED = /^\s*((?:[1-3]|iii|ii|i)?\s*[a-z][a-z.\s]*?)\s*(\d+)(?:\s*[:.]\s*(\d+)(?:\s*[-–—]\s*(?:(\d+)\s*[:.]\s*)?(\d+))?|\s*[-–—]\s*(\d+))?\s*$/i;
 const ADDRESS = /^([1-3]?[A-Z]{2,3})\.(\d+)(?:\.(\d+)(?:-(?:(\d+)\.)?(\d+))?)?$/;
 
 /**
@@ -50,9 +50,12 @@ const ADDRESS = /^([1-3]?[A-Z]{2,3})\.(\d+)(?:\.(\d+)(?:-(?:(\d+)\.)?(\d+))?)?$/
 export function parseReference(text, books) {
   const match = TYPED.exec(text);
   if (!match) return null;
-  const [, bookText, chapter, from, toChapter, to] = match;
+  const [, bookText, chapter, from, toChapter, to, toNumber] = match;
   const book = findBook(bookText, books);
   if (!book) return null;
+  // "Jude 3-5": in a book of one chapter, a range of verses. Elsewhere a
+  // range of chapters, which is not a reference here.
+  if (toNumber !== undefined) return book.verses.length === 1 ? checked(book, 1, chapter, toNumber) : null;
   return checked(book, Number(chapter), from, to, toChapter);
 }
 
@@ -139,6 +142,10 @@ function normalize(text) {
  * @returns {Reference | null}
  */
 function checked(book, chapter, fromText, toText, toChapterText) {
+  // A book of one chapter is cited by verse alone: "Jude 5" is Jude 1:5.
+  if (book.verses.length === 1 && chapter > 1 && fromText === undefined && toChapterText === undefined) {
+    return checked(book, 1, String(chapter), toText);
+  }
   const count = book.verses[chapter - 1];
   if (!count) return null;
 

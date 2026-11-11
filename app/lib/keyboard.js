@@ -100,3 +100,14 @@ export function keysFor(field, show) {
 }
 
 if (typeof document !== 'undefined') document.documentElement.dataset.keys = choice();
+
+/**
+ * Whether keys pressed here are typing: in an input, a textarea, a select,
+ * or editable text (a note, a note's title). The page's own shortcuts leave
+ * those keys alone.
+ *
+ * @param {EventTarget | null} target
+ */
+export function typing(target) {
+  return typeof Element !== 'undefined' && target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'));
+}

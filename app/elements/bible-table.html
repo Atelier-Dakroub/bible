@@ -452,6 +452,8 @@
       this.applying += 1;
       Promise.all(workspace.cards.map((stored) => this.restore(stored))).finally(() => {
         this.applying -= 1;
+        const missing = this.unloaded.length;
+        if (missing) this.toast(missing === 1 ? 'One card could not load. It is kept: reload to try again.' : `${missing} cards could not load. They are kept: reload to try again.`);
         this.history?.reset(snapshot(this.current()));
         this.finish();
       });
@@ -587,6 +589,8 @@
       this.addEventListener('card-remove', (event) => {
         const card = /** @type {HTMLElement} */ (event.target);
         if (Reader.current?.items.some((item) => card.contains(item.element))) Reader.current.stop();
+        // A note being written ends first, so Undo brings back its words.
+        if (this.writing?.card === card) this.writing.end();
         const note = card.dataset.kind === 'note' ? card.dataset.note : '';
         queueMicrotask(() => {
           if (note) {
@@ -791,7 +795,9 @@
         } catch (error) {
           reply = { ok: false, error: error instanceof Error ? error.message : String(error) };
         }
-        fetch('/api/table/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: command.id, ...reply }) }).catch(() => {});
+        // The key of this table's stream shows the reply is from a table the
+        // command went to.
+        fetch('/api/table/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...reply, id: command.id, key: command.key }) }).catch(() => {});
       });
       signal.addEventListener('abort', () => stream.close());
     },
@@ -1980,9 +1986,20 @@
     },
 
     /** @param {StoredCard} stored */
-    async restore({ id, address, matrix, version, sync, compare, view }) {
+    /** @type {StoredCard[]} cards of the saved table that did not load */
+    unloaded: [],
+
+    /** @param {StoredCard} stored */
+    async restore(stored) {
+      const { id, address, matrix, version, sync, compare, view } = stored;
       const card = await this.fetchCard(address, { version, id, sync, compare });
-      card?.setMatrix(matrix);
+      // A card that does not load (offline, a server error) stays in the
+      // saved table, so the next visit tries it again.
+      if (!card) {
+        this.unloaded = [...this.unloaded.filter((each) => each.id !== id), stored];
+        return;
+      }
+      card.setMatrix(matrix);
       if (card && view) {
         await customElements.whenDefined('map-view');
         this.mapView(card)?.setView(view);
@@ -1998,8 +2015,12 @@
      */
     async switchVersion(card, version) {
       const address = card.dataset.address;
-      if (!address || card.dataset.version === version) return;
+      // A second tap while the first version loads waits for nothing: the
+      // card is being replaced already.
+      if (!address || card.dataset.version === version || card.dataset.loading !== undefined) return;
+      card.dataset.loading = '';
       await this.replaceCard(card, address, version);
+      delete card.dataset.loading;
       this.keep();
     },
 
@@ -2634,7 +2655,10 @@
       const card = /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
       if (!card) return null;
       card.dataset.id = id ?? newId('c');
-      if (replacing?.isConnected) replacing.replaceWith(card);
+      // The card it was to replace went while it loaded (removed, or replaced
+      // by another change): it must not come back as a second card.
+      if (replacing && !replacing.isConnected) return null;
+      if (replacing) replacing.replaceWith(card);
       else this.world().append(card);
       if (sync) this.setSync(card, true);
       if (compare && version === 'both') this.setCompare(card, true);
@@ -2701,7 +2725,9 @@
       });
       const panel = /** @type {any} */ (this.querySelector('passage-search'));
       const trail = this.pendingTrail ?? (typeof panel?.trail === 'function' ? panel.trail() : emptyTrail());
-      return { offset: this.offset, cards, highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail };
+      // The cards that did not load stay in the table that is kept.
+      const kept = this.unloaded.filter((stored) => !cards.some((card) => card.id === stored.id));
+      return { offset: this.offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail };
     },
 
     /**
@@ -2757,13 +2783,37 @@
      * @param {Workspace} target
      * @param {boolean} record whether this is a new step in the history
      */
-    async apply(target, record) {
+    /** @type {Promise<unknown>} the table change under way, so the next waits for it */
+    changing: Promise.resolve(),
+
+    /**
+     * Puts a table state on the table. Changes run one after another: two that
+     * overlap (Undo pressed twice fast) would each add the same card.
+     *
+     * @param {Workspace} target
+     * @param {boolean} record
+     */
+    apply(target, record) {
+      const run = () => this.applyNow(target, record);
+      this.changing = this.changing.then(run, run);
+      return this.changing;
+    },
+
+    /**
+     * @param {Workspace} target
+     * @param {boolean} record
+     */
+    async applyNow(target, record) {
+      // A note being written ends first, so its words are kept.
+      this.writing?.end();
       this.applying += 1;
       try {
         const cards = [...this.world().querySelectorAll('gesture-card')];
         /** @type {Map<string, HTMLElement>} */
         const byId = new Map(cards.map((card) => [/** @type {HTMLElement} */ (card).dataset.id ?? '', /** @type {HTMLElement} */ (card)]));
         const { move, add, remove } = diffCards(this.current().cards, target.cards);
+        // A card that did not load and is not in the new state is gone.
+        this.unloaded = this.unloaded.filter((stored) => target.cards.some((card) => card.id === stored.id));
         this.highlights = target.highlights;
         this.links = target.links;
         this.notes = target.notes;
@@ -2779,7 +2829,9 @@
         /** @type {Promise<unknown>[]} */
         const waits = add.map((stored) => this.restore(stored));
         for (const stored of move) {
-          const card = /** @type {Card} */ (byId.get(stored.id));
+          const card = /** @type {Card | undefined} */ (byId.get(stored.id));
+          // Not on the table: a card that did not load; it stays kept as it is.
+          if (!card) continue;
           card.setMatrix(stored.matrix);
           this.setSync(card, Boolean(stored.sync));
           this.setCompare(card, Boolean(stored.compare));

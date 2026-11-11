@@ -54,3 +54,13 @@ test('a cross-reference keeps its whole range when it runs into the next chapter
   // Joshua 5:13–6:2, the captain of the Lord's host, once cut at 5:15.
   assert.ok(results.results.some((result) => result.address === 'JOS.5.13-6.2'));
 });
+
+test('a book of one chapter is cited by verse alone', () => {
+  assert.equal(typed('Jude 5'), 'JUD.1.5');
+  assert.equal(typed('Obadiah 3'), 'OBA.1.3');
+  assert.equal(typed('3 John 2'), '3JN.1.2');
+  assert.equal(typed('Jude 3-5'), 'JUD.1.3-5');
+  assert.equal(typed('Jude 1:5'), 'JUD.1.5');
+  assert.equal(typed('Jude 30'), null);
+  assert.equal(typed('John 3-4'), null);
+});

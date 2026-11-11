@@ -172,6 +172,10 @@ test('the cross-references of a verse read as search results, with credit', asyn
 test('a target address names its verses', () => {
   assert.deepEqual(versesOf('ROM.5.8'), ['ROM.5.8']);
   assert.deepEqual(versesOf('1JN.4.9-10'), ['1JN.4.9', '1JN.4.10']);
+  // On into the next chapter: the rest of chapter 4, then 5:1-32.
+  const across = versesOf('GEN.4.25-5.32');
+  assert.ok(across.includes('GEN.4.26') && across.includes('GEN.5.1') && across.includes('GEN.5.32'));
+  assert.ok(!across.includes('GEN.5.33') && !across.includes('GEN.4.24'));
 });
 
 test('the words of a passage carry their Strong\'s numbers', async () => {

@@ -1244,6 +1244,10 @@ export function allVerses() {
   return corpus;
 }
 
+/** The longest search, in characters, and the most words one search tests. */
+export const MAX_QUERY = 200;
+export const MAX_TERMS = 12;
+
 /**
  * A reference finds its passage. Anything else finds the verses that hold
  * every word. A word of four letters or more also matches the start of a
@@ -1256,7 +1260,9 @@ export function allVerses() {
  * @returns {Promise<Results>}
  */
 export async function search(query, limit = 50) {
-  const text = query.trim();
+  // A search is a few words: a longer one is cut (see MAX_QUERY), so no one
+  // request can hold the server.
+  const text = query.trim().slice(0, MAX_QUERY).trim();
   if (!text) return answer({});
 
   // A Strong's number, such as H2617 or g25, finds the verses that use it;
@@ -1330,7 +1336,9 @@ export async function search(query, limit = 50) {
  */
 export async function matching(text) {
   const quoted = /^".+"$/.test(text);
-  const terms = quoted ? [text.slice(1, -1)] : text.split(/\s+/);
+  // Each word is one test over every verse: a long list of words, or one
+  // word many times over, would hold the server for seconds.
+  const terms = quoted ? [text.slice(1, -1).slice(0, MAX_QUERY)] : [...new Set(text.slice(0, MAX_QUERY).split(/\s+/).filter(Boolean))].slice(0, MAX_TERMS);
   const patterns = terms.map(wordPattern);
   const tests = patterns.map((pattern) => new RegExp(pattern, 'i'));
   const marker = new RegExp(patterns.join('|'), 'gi');

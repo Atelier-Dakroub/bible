@@ -104,18 +104,30 @@ export function firstCovered(index, span) {
   return entry && entry.key <= to ? entry.item : null;
 }
 
+/** The most verses a chapter has (Psalm 119). */
+const MOST_VERSES = 176;
+
 /**
- * The verse ids a one-chapter address names: `ROM.5.8` is one verse, and
- * `1JN.4.9-10` is two.
+ * The verse ids an address names: `ROM.5.8` is one verse, `1JN.4.9-10` is
+ * two, and `GEN.4.25-5.32` runs on into the next chapter. With no verse
+ * counts at hand, a chapter left whole names its verses up to the most any
+ * chapter has: the ids past its end name no verse, and match nothing.
  *
  * @param {string} address
  * @returns {string[]}
  */
 export function versesOf(address) {
   const [base, end] = address.split('-');
-  const parts = base.split('.');
-  const first = Number(parts[2]);
-  const last = end ? Number(end) : first;
-  const prefix = `${parts[0]}.${parts[1]}`;
-  return Array.from({ length: Math.max(0, last - first + 1) }, (_, i) => `${prefix}.${first + i}`);
+  const [book, chapterText, verseText] = base.split('.');
+  const chapter = Number(chapterText);
+  const first = Number(verseText);
+  const [endChapter, endVerse] = end?.includes('.') ? end.split('.').map(Number) : [chapter, end ? Number(end) : first];
+  /** @type {string[]} */
+  const ids = [];
+  for (let at = chapter; at <= endChapter && at - chapter < 10; at += 1) {
+    const from = at === chapter ? first : 1;
+    const to = at === endChapter ? endVerse : MOST_VERSES;
+    for (let verse = from; verse <= to; verse += 1) ids.push(`${book}.${at}.${verse}`);
+  }
+  return ids;
 }

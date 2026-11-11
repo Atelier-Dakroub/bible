@@ -54,7 +54,7 @@
 
 <script element>
   import { isPhone } from '../lib/screen.js';
-  import { choice as keysChoice, setChoice as setKeysChoice, wantKeys } from '../lib/keyboard.js';
+  import { choice as keysChoice, setChoice as setKeysChoice, typing, wantKeys } from '../lib/keyboard.js';
   import { readerChoice, setReaderChoice, setSpeed, speed } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
   import { listNamed, removeNamed } from '../lib/workspace.js';
@@ -167,8 +167,8 @@
         this.send('workspace-import', { name: chosen.name.replace(/\.json$/i, ''), text });
       }, { signal });
       document.addEventListener('keydown', (event) => {
-        const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
-        if (typing || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+        // Typing in a field, a note or its title has its own undo.
+        if (event.defaultPrevented || typing(event.target) || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
         event.preventDefault();
         this.send(event.shiftKey ? 'table-redo' : 'table-undo');
       }, { signal });

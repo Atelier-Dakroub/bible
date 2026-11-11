@@ -25,3 +25,8 @@ test('the app keyboard shows for a finger on a screen with no keyboard, until a 
   assert.equal(wantKeys({ ...panel, pointer: 'touch', choice: 'never' }), false);
   assert.equal(wantKeys({ ...panel, pointer: 'mouse', choice: 'always' }), false);
 });
+
+test('nothing is typing outside a page', async () => {
+  const { typing } = await import('../app/lib/keyboard.js');
+  assert.equal(typing(null), false);
+});
