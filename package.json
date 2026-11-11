@@ -13,7 +13,8 @@
     "test": "node --test",
     "import:kjv": "node tools/import-kjv.js",
     "mcp": "node tools/mcp-server.js",
-    "verify": "npm test && npm run check && npm run build"
+    "verify": "npm run crap && npm run check && npm run build",
+    "crap": "node tools/crap.js"
   },
   "dependencies": {
     "@transclude/core": "^1.5.0",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "typescript": "^7.0",
-    "vite": "^8"
+    "vite": "^8",
+    "acorn": "^8.19.0"
   }
 }

@@ -1,0 +1,499 @@
+{
+ "limit": 30,
+ "written": "2026-11-11",
+ "count": 172,
+ "allowed": {
+  "app/elements/bible-table.html tapped": [
+   1260
+  ],
+  "app/elements/passage-search.html addEventListener callback": [
+   1260,
+   90
+  ],
+  "app/routes/card/[address].html (anonymous)": [
+   1056
+  ],
+  "app/elements/bible-table.html readAloud": [
+   930
+  ],
+  "app/elements/table-rail.html arrange": [
+   600
+  ],
+  "app/elements/bible-table.html remoteKey": [
+   552
+  ],
+  "app/elements/touch-keys.html press": [
+   552
+  ],
+  "app/elements/bible-table.html clicked": [
+   506
+  ],
+  "app/elements/video-player.html heard": [
+   420
+  ],
+  "app/lib/note-format.js draw": [
+   420
+  ],
+  "app/elements/bible-table.html obey": [
+   342
+  ],
+  "app/elements/bible-table.html copyCard": [
+   342
+  ],
+  "app/elements/bible-table.html showCaret": [
+   342
+  ],
+  "app/elements/bible-table.html fetchCard": [
+   342
+  ],
+  "app/elements/table-menu.html choose": [
+   342
+  ],
+  "app/elements/table-menu.html act": [
+   342
+  ],
+  "app/elements/table-rail.html act": [
+   306
+  ],
+  "tools/crap.js visit": [
+   306
+  ],
+  "tools/import-relief.js rings": [
+   306
+  ],
+  "app/data/audio.js chapterFile": [
+   272
+  ],
+  "app/elements/bible-table.html timeLines": [
+   272
+  ],
+  "app/elements/gesture-card.html key": [
+   272
+  ],
+  "app/routes/search.html trailOf": [
+   272
+  ],
+  "app/routes/suggest/[text].js named": [
+   272
+  ],
+  "app/elements/bible-table.html referenceLines": [
+   240
+  ],
+  "app/elements/bible-table.html draw": [
+   240
+  ],
+  "app/elements/map-view.html paint": [
+   240
+  ],
+  "tools/import-quotations.js addresses": [
+   240
+  ],
+  "tools/import-strongs.js align": [
+   240
+  ],
+  "tools/import-topics.js refParts": [
+   240
+  ],
+  "app/lib/words.js paintHighlights": [
+   210
+  ],
+  "tools/import-syntax.js wordOf": [
+   210
+  ],
+  "app/elements/gesture-card.html press": [
+   182
+  ],
+  "app/elements/gesture-card.html drag": [
+   182
+  ],
+  "tools/crap.js nameFor": [
+   182
+  ],
+  "app/elements/bible-table.html readable": [
+   156
+  ],
+  "app/elements/bible-table.html quote": [
+   156
+  ],
+  "app/elements/bible-table.html flatMap callback": [
+   156
+  ],
+  "app/elements/map-view.html showJourney": [
+   156
+  ],
+  "app/elements/time-line.html rove": [
+   156
+  ],
+  "app/elements/video-player.html addEventListener callback": [
+   156,
+   156
+  ],
+  "tools/import-relief.js hillShade": [
+   156
+  ],
+  "tools/import-topics.js csv": [
+   156
+  ],
+  "tools/mcp-server.js run": [
+   156,
+   132,
+   132,
+   90,
+   72,
+   42
+  ],
+  "app/data/audio.js recordingsOf": [
+   132
+  ],
+  "app/elements/bible-table.html placeLines": [
+   132
+  ],
+  "app/elements/bible-table.html applyNow": [
+   132
+  ],
+  "app/elements/map-view.html key": [
+   132
+  ],
+  "app/elements/passage-search.html setCollapsed": [
+   132
+  ],
+  "app/elements/passage-search.html run": [
+   132
+  ],
+  "app/elements/passage-search.html remember": [
+   132
+  ],
+  "app/elements/passage-search.html paintTrail": [
+   132
+  ],
+  "app/lib/speech.js next": [
+   132
+  ],
+  "app/routes/search.html (anonymous)": [
+   132
+  ],
+  "tools/import-syntax.js clauseOf": [
+   132
+  ],
+  "tools/mcp-server.js answer": [
+   132
+  ],
+  "app/elements/bible-table.html link": [
+   110
+  ],
+  "app/elements/bible-table.html headingTapped": [
+   110
+  ],
+  "app/elements/bible-table.html addEventListener callback": [
+   110,
+   72,
+   56,
+   42
+  ],
+  "app/elements/map-view.html relabel": [
+   110
+  ],
+  "app/elements/table-rail.html rove": [
+   110
+  ],
+  "app/elements/touch-probe.html act": [
+   110
+  ],
+  "app/lib/note-suggest.js draw": [
+   110
+  ],
+  "app/routes/design.html (anonymous)": [
+   110
+  ],
+  "tools/import-coast.js rings": [
+   110
+  ],
+  "tools/import-quotations.js versesOf": [
+   110
+  ],
+  "app/elements/bible-table.html endAt": [
+   90
+  ],
+  "app/elements/bible-table.html paintMap": [
+   90
+  ],
+  "app/elements/bible-table.html paintKind": [
+   90
+  ],
+  "app/elements/bible-table.html finish": [
+   90
+  ],
+  "app/elements/reading-settings.html act": [
+   90
+  ],
+  "app/elements/table-rail.html gripKey": [
+   90
+  ],
+  "app/elements/time-line.html setCollapsed": [
+   90
+  ],
+  "app/lib/keyboard.js addEventListener callback": [
+   90
+  ],
+  "app/lib/note-suggest.js handleKeyDown": [
+   90
+  ],
+  "app/routes/voices.html load": [
+   90
+  ],
+  "tools/import-bsb.js add": [
+   90
+  ],
+  "tools/import-quotations.js addressOf": [
+   90
+  ],
+  "tools/import-relief.js simplify": [
+   90
+  ],
+  "tools/import-strongs.js readUsfm": [
+   90
+  ],
+  "tools/import-videos.js walk": [
+   90
+  ],
+  "tools/import-xrefs.js target": [
+   90
+  ],
+  "app/elements/bible-table.html panKey": [
+   72
+  ],
+  "app/elements/gesture-card.html forgetLost": [
+   72
+  ],
+  "app/elements/map-view.html drag": [
+   72
+  ],
+  "app/elements/table-menu.html roveTabs": [
+   72
+  ],
+  "app/elements/table-rail.html gripDown": [
+   72
+  ],
+  "app/elements/time-line.html addEventListener callback": [
+   72
+  ],
+  "app/elements/time-line.html placeReigns": [
+   72
+  ],
+  "app/elements/video-player.html tick": [
+   72
+  ],
+  "app/lib/note-suggest.js look": [
+   72
+  ],
+  "app/routes/design.html map callback": [
+   72
+  ],
+  "tools/import-audio.js heard": [
+   72
+  ],
+  "tools/import-relief.js loadGrid": [
+   72
+  ],
+  "tools/import-rivers.js readShp": [
+   72
+  ],
+  "tools/import-syntax.js parse": [
+   72
+  ],
+  "tools/import-videos.js find callback": [
+   72
+  ],
+  "app/elements/bible-table.html wheel": [
+   56
+  ],
+  "app/elements/bible-table.html place": [
+   56
+  ],
+  "app/elements/bible-table.html paintRules": [
+   56
+  ],
+  "app/elements/bible-table.html paintStudy": [
+   56
+  ],
+  "app/elements/bible-table.html listenLook": [
+   56
+  ],
+  "app/elements/bible-table.html writeNote": [
+   56
+  ],
+  "app/elements/gesture-card.html release": [
+   56
+  ],
+  "app/elements/map-view.html press": [
+   56
+  ],
+  "app/elements/map-view.html act": [
+   56
+  ],
+  "app/elements/passage-search.html showGuide": [
+   56
+  ],
+  "app/elements/passage-search.html show": [
+   56
+  ],
+  "app/elements/table-menu.html addEventListener callback": [
+   56,
+   56,
+   42
+  ],
+  "app/elements/table-rail.html addEventListener callback": [
+   56
+  ],
+  "app/elements/time-line.html connected": [
+   56
+  ],
+  "app/elements/touch-probe.html place": [
+   56
+  ],
+  "app/lib/note-editing.js typeKey": [
+   56
+  ],
+  "app/lib/note-suggest.js update": [
+   56
+  ],
+  "app/lib/speech.js score": [
+   56
+  ],
+  "app/lib/speech.js session": [
+   56
+  ],
+  "app/lib/speech.js play": [
+   56
+  ],
+  "app/routes/design.html text": [
+   56
+  ],
+  "app/routes/design.html atlas": [
+   56
+  ],
+  "tools/import-ancient.js simplify": [
+   56
+  ],
+  "tools/import-ancient.js toPath": [
+   56
+  ],
+  "tools/import-coast.js simplify": [
+   56
+  ],
+  "tools/import-images.js image": [
+   56
+  ],
+  "tools/import-map.js simplify": [
+   56
+  ],
+  "tools/import-parallels.js versesOf": [
+   56
+  ],
+  "tools/import-relief.js attrs": [
+   56
+  ],
+  "tools/import-rivers.js simplify": [
+   56
+  ],
+  "tools/import-syntax.js verseOf": [
+   56
+  ],
+  "app/elements/bible-table.html copyText": [
+   42
+  ],
+  "app/elements/bible-table.html placeRow": [
+   42
+  ],
+  "app/elements/bible-table.html placeBeside": [
+   42
+  ],
+  "app/elements/bible-table.html loadEvents": [
+   42
+  ],
+  "app/elements/bible-table.html unquote": [
+   42
+  ],
+  "app/elements/gesture-card.html moveMarking": [
+   42
+  ],
+  "app/elements/map-view.html connected": [
+   42
+  ],
+  "app/elements/map-view.html loadDetail": [
+   42
+  ],
+  "app/elements/map-view.html measure": [
+   42
+  ],
+  "app/elements/map-view.html shows": [
+   42
+  ],
+  "app/elements/map-view.html release": [
+   42
+  ],
+  "app/elements/passage-search.html writeNote": [
+   42
+  ],
+  "app/elements/passage-search.html setQuestions": [
+   42
+  ],
+  "app/elements/passage-search.html go": [
+   42
+  ],
+  "app/elements/passage-search.html down": [
+   42
+  ],
+  "app/elements/passage-search.html move": [
+   42
+  ],
+  "app/elements/reading-settings.html connected": [
+   42
+  ],
+  "app/elements/table-menu.html setShown": [
+   42
+  ],
+  "app/elements/table-rail.html insets": [
+   42
+  ],
+  "app/elements/touch-probe.html down": [
+   42
+  ],
+  "app/lib/speech.js read": [
+   42
+  ],
+  "app/lib/speech.js addEventListener callback": [
+   42
+  ],
+  "tools/import-ancient.js shpRings": [
+   42
+  ],
+  "tools/import-map.js partsOf": [
+   42
+  ],
+  "tools/import-parallels.js find callback": [
+   42
+  ],
+  "tools/import-senses.js addressOf": [
+   42
+  ],
+  "tools/import-topics.js addressOf": [
+   42
+  ],
+  "tools/import-xrefs.js verse": [
+   42
+  ],
+  "tools/lib/versification.js hebrewToKjv": [
+   42
+  ],
+  "tools/mcp-server.js on callback": [
+   42
+  ],
+  "app/lib/chrome.js place": [
+   35
+  ],
+  "app/data/bible.js entityView": [
+   34
+  ]
+ }
+}
