@@ -1,11 +1,8 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 47,
+ "count": 37,
  "allowed": {
-  "tools/crap.js visit": [
-   306
-  ],
   "tools/import-relief.js rings": [
    306
   ],
@@ -21,27 +18,13 @@
   "tools/import-syntax.js wordOf": [
    210
   ],
-  "tools/crap.js nameFor": [
-   182
-  ],
   "tools/import-relief.js hillShade": [
    156
   ],
   "tools/import-topics.js csv": [
    156
   ],
-  "tools/mcp-server.js run": [
-   156,
-   132,
-   132,
-   90,
-   72,
-   42
-  ],
   "tools/import-syntax.js clauseOf": [
-   132
-  ],
-  "tools/mcp-server.js answer": [
    132
   ],
   "tools/import-coast.js rings": [
@@ -129,9 +112,6 @@
    42
   ],
   "tools/lib/versification.js hebrewToKjv": [
-   42
-  ],
-  "tools/mcp-server.js on callback": [
    42
   ]
  }

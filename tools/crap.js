@@ -102,14 +102,25 @@ function scripts(/** @type {string} */ path, /** @type {string} */ text) {
 const BRANCHES = new Set(['IfStatement', 'ConditionalExpression', 'ForStatement', 'ForInStatement', 'ForOfStatement', 'WhileStatement', 'DoWhileStatement', 'CatchClause', 'LogicalExpression']);
 const FUNCTIONS = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
 
+/** @param {any} parent the name of a property's or a method's key */
+const keyName = (parent) => parent.key?.name ?? parent.key?.value;
+
+/** @param {any} call the name of the function called: a method's, or the function's */
+const calleeName = (call) => call.callee?.property?.name ?? call.callee?.name ?? 'call';
+
+/** @type {Record<string, (parent: any, child: any) => string | undefined>} how each kind of parent names a function in it */
+const NAMERS = {
+  Property: keyName,
+  MethodDefinition: keyName,
+  PropertyDefinition: keyName,
+  VariableDeclarator: (parent) => parent.id?.name,
+  AssignmentExpression: (parent) => parent.left?.property?.name ?? parent.left?.name,
+  CallExpression: (parent, child) => (child === parent.callee ? undefined : `${calleeName(parent)} callback`),
+};
+
 /** The name a function is known by: its own, or the key or variable it is given to. */
 function nameFor(/** @type {any} */ parent, /** @type {any} */ child) {
-  if (!parent) return undefined;
-  if (parent.type === 'Property' || parent.type === 'MethodDefinition' || parent.type === 'PropertyDefinition') return parent.key?.name ?? parent.key?.value;
-  if (parent.type === 'VariableDeclarator') return parent.id?.name;
-  if (parent.type === 'AssignmentExpression') return parent.left?.property?.name ?? parent.left?.name;
-  if (parent.type === 'CallExpression' && child !== parent.callee) return `${parent.callee?.property?.name ?? parent.callee?.name ?? 'call'} callback`;
-  return undefined;
+  return parent ? NAMERS[parent.type]?.(parent, child) : undefined;
 }
 
 /**
@@ -121,26 +132,40 @@ function functionsOf(code, offset) {
   const ast = acorn.parse(code, { ecmaVersion: 'latest', sourceType: 'module', allowAwaitOutsideFunction: true, allowReturnOutsideFunction: true });
   /** @type {{ name: string, start: number, end: number, complexity: number }[]} */
   const list = [];
+  /**
+   * A function starts a new count; a branch adds one to the count of the
+   * function it is in.
+   *
+   * @param {any} node @param {any} owner @param {string | undefined} name
+   */
+  const enter = (node, owner, name) => {
+    if (FUNCTIONS.has(node.type)) {
+      const found = { name: fnName(node, name), start: node.start + offset, end: node.end + offset, complexity: 1 };
+      list.push(found);
+      return found;
+    }
+    if (owner && isBranch(node)) owner.complexity += 1;
+    return owner;
+  };
   /** @param {any} node @param {any} owner @param {string | undefined} name */
   const visit = (node, owner, name) => {
     if (!node || typeof node.type !== 'string') return;
-    let current = owner;
-    if (FUNCTIONS.has(node.type)) {
-      current = { name: node.id?.name ?? name ?? '(anonymous)', start: node.start + offset, end: node.end + offset, complexity: 1 };
-      list.push(current);
-    } else if (current && (BRANCHES.has(node.type) || (node.type === 'SwitchCase' && node.test))) {
-      current.complexity += 1;
-    }
-    for (const [key, value] of Object.entries(node)) {
-      if (key === 'start' || key === 'end') continue;
-      for (const child of Array.isArray(value) ? value : [value]) {
-        if (child && typeof child === 'object') visit(child, current, nameFor(node, child));
-      }
-    }
+    const current = enter(node, owner, name);
+    for (const child of childrenOf(node)) visit(child, current, nameFor(node, child));
   };
   visit(ast, null, undefined);
   return list;
 }
+
+/** @param {any} node @param {string | undefined} given its name: its own, or the one it is given, or (anonymous) */
+const fnName = (node, given) => node.id?.name ?? given ?? '(anonymous)';
+
+/** @param {any} node whether it adds a path: a branch, a loop, a case, a catch, or && || ?? */
+const isBranch = (node) => BRANCHES.has(node.type) || (node.type === 'SwitchCase' && Boolean(node.test));
+
+/** @param {any} node the nodes in it, in order */
+const childrenOf = (node) =>
+  Object.entries(node).flatMap(([key, value]) => (key === 'start' || key === 'end' ? [] : [value].flat().filter((child) => child && typeof child === 'object')));
 
 const files = [...walk(join(ROOT, 'app')), ...walk(join(ROOT, 'tools'))].filter((path) => /\.(js|html)$/.test(path));
 /** @type {{ file: string, line: number, name: string, complexity: number, coverage: number, crap: number }[]} */
