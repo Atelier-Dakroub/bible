@@ -288,6 +288,19 @@ type Contact = {
   y: number;
   t: number;
 };
+type CreditGroup = {
+  title: string;
+  sources: Credit[];
+};
+type Credit = {
+  name: string;
+  by: string;
+  gives: string;
+  license: string;
+  licenseUrl?: string | undefined;
+  url?: string | undefined;
+  changes?: string | undefined;
+};
 type Part = {
   text: string;
   hit: boolean;
@@ -1787,6 +1800,34 @@ export type RootLayoutContext = {
 
 /** Data returned by `root/_layout.html`. */
 export type RootLayoutData = {};
+
+/** The `ctx` argument of `credits`'s <script server> loader. */
+export type CreditsContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `credits`'s <script server> block. */
+export type CreditsData = {
+  groups: CreditGroup[];
+};
 
 /** The `ctx` argument of `design`'s <script server> loader. */
 export type DesignContext = {

@@ -1,4 +1,4 @@
-// The kinds of note (Joe's choice, 2026-11-11): the four of an inductive
+// The kinds of note (chosen 2026-11-11): the four of an inductive
 // study, in its order (see, ask, explain, apply), and Prayer. A note with no
 // kind is a plain Note. A tap on a note's label goes to the next kind; a
 // Question has an Answered box, and the search panel lists the open ones.

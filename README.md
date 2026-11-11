@@ -4,6 +4,33 @@ A multi-touch research surface for the Bible. The text goes on a table as
 cards that you move, turn, scale, highlight and connect. The app is built
 with [transclude](https://transclude.dev).
 
+## Quick start
+
+You need Node 22.9 or later (`.nvmrc`).
+
+```sh
+npm install
+npm run dev      # then open http://localhost:1960/table
+```
+
+The texts, dictionaries, maps and pictures are in the repository, so nothing
+else needs to be downloaded or imported. The recordings are not (about
+1.7 GB): without them, the device's own voice reads aloud (see "Reading
+aloud" below). `.env.example` lists the optional settings.
+
+`npm run verify` runs the tests, the CRAP check, the types and a build; see
+CONTRIBUTING.md.
+
+## Licenses
+
+The code is under the MIT License (LICENSE). The data comes from many
+sources under their own licenses, public domain, CC0, CC BY, CC BY-SA, ODbL
+and LGPL among them: DATA-LICENSES.md gives the license of each file, and
+the app's Credits page (`/credits`) gives each source with its creator and a
+link. The libraries in the browser build are in THIRD-PARTY-NOTICES.md.
+
+## The app
+
 `/table` is the table: search the text, then tap a result or drag it out
 sideways to put the passage on the table as a card. Cards move, turn and
 scale; a drag on the empty table pans everything, and the table has no edge.

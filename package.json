@@ -2,6 +2,10 @@
   "name": "bible",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.9"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=.env node_modules/.bin/transclude-dev",
     "build": "transclude-build",
@@ -14,7 +18,8 @@
     "import:kjv": "node tools/import-kjv.js",
     "mcp": "node tools/mcp-server.js",
     "verify": "npm run crap && npm run check && npm run build",
-    "crap": "node tools/crap.js"
+    "crap": "node tools/crap.js",
+    "notices": "node tools/notices.js"
   },
   "dependencies": {
     "@transclude/core": "^1.5.0",

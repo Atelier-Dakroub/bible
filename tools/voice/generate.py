@@ -36,13 +36,13 @@ TRIES = 4
 PAUSE = 0.55  # seconds between verses
 SR = 24000
 # The voice model adds a fizz above 7 kHz that is heard as hiss; a gentle
-# shelf takes 6 dB off it (Joe chose it by ear, 2026-11-10). The chapters
+# shelf takes 6 dB off it (chosen by ear, 2026-11-10). The chapters
 # made before it are listed in softened.txt once tools/voice/soften.js has
 # treated them; a chapter made here is listed as it is made.
 SOFTEN = 'highshelf=f=7000:g=-6:t=s:w=0.7'
 # The model picks each sound at random among the likely ones; at its default
 # (0.9) a rare name is said a different way from verse to verse (Eliakim).
-# At 0.6 the reading is steadier and still natural: Joe chose it by ear over
+# At 0.6 the reading is steadier and still natural: chosen by ear over
 # respelled names, which sounded spelled out (2026-11-11).
 TEMPERATURE = 0.6
 
@@ -156,7 +156,7 @@ def read(address, text):
 
 times = json.load(open(TIMES)) if os.path.exists(TIMES) else {
     'source': 'The app\'s own reading, made with Qwen3-TTS (Apache 2.0) in a voice designed for it (tools/voice)',
-    'license': 'Ours',
+    'license': 'CC0-1.0',
     'reader': {'plain-male': 'The app\'s voice: a plain male voice', 'calm-male': 'The app\'s voice: a calm male voice', 'plain-female': 'The app\'s voice: a plain female voice'}.get(args.voice, args.voice),
     'chapters': {},
 }

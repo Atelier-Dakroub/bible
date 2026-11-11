@@ -10,7 +10,7 @@ GPU in the VM. Write down what fails, and how, next to each step.
 2. On the Mac, run `npm run dev` in this project.
 3. Copy the latest launch script into the VM:
    ```sh
-   scp tools/vm/table joe@192.168.64.18:bin/table
+   scp tools/vm/table <user>@<vm-address>:bin/table
    ```
 4. In the VM, switch to a text console (`sudo chvt 3`) and log in.
 

@@ -1,0 +1,63 @@
+<script server>
+  import { CREDITS } from '../data/credits.js';
+
+  // The sources of the app's data, each with its creator, its license and
+  // what the app changed (data/credits.js). DATA-LICENSES.md gives the same
+  // by file.
+  export default () => ({ groups: CREDITS });
+</script>
+
+<title>Credits</title>
+
+<style>
+  .credits h2 {
+    margin-top: 2.2rem;
+    font: 600 1.15rem/1.3 var(--sans);
+  }
+  .credits__list {
+    display: grid;
+    gap: 1.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .credits__source h3 {
+    margin: 0 0 0.15rem;
+    font: 600 1rem/1.35 var(--serif);
+  }
+  .credits__source p {
+    margin: 0.1rem 0;
+    line-height: 1.45;
+  }
+  .credits__by,
+  .credits__changes {
+    color: var(--ink-soft);
+  }
+  .credits__terms {
+    font: 0.9rem/1.45 var(--sans);
+  }
+</style>
+
+<main class="page credits">
+  <p><a href="/table">Back to the table</a></p>
+  <h1>Credits</h1>
+  <p>
+    The app is made from the work of many people. Here is each source of its data, with its creator, its license and
+    what the app changed. The app's code is under the MIT License.
+  </p>
+
+  <section each="group of groups">
+    <h2>${group.title}</h2>
+    <ul class="credits__list">
+      <li each="source of group.sources" class="credits__source">
+        <h3>${source.name}</h3>
+        <p class="credits__by">${source.by}</p>
+        <p>${source.gives}</p>
+        <p class="credits__terms">
+          License: <a if="source.licenseUrl" href="${source.licenseUrl}">${source.license}</a><span if="!source.licenseUrl">${source.license}</span><template if="source.url"> · <a href="${source.url}">The source</a></template>
+        </p>
+        <p if="source.changes" class="credits__changes">Changed: ${source.changes}</p>
+      </li>
+    </ul>
+  </section>
+</main>
