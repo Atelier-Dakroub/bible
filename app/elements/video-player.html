@@ -37,6 +37,38 @@
   // is let through.
   const START_MS = 2500;
 
+  /** @type {Record<string, number>} the arrows on the scrubber step five seconds */
+  const SCRUB_STEPS = { ArrowLeft: -5, ArrowRight: 5 };
+  /** @type {Record<string, number>} elsewhere in the player, ten */
+  const PLAYER_STEPS = { ArrowLeft: -10, ArrowRight: 10 };
+
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /** @param {KeyboardEvent} event whether it plays or pauses: K, or Space off a button */
+  const isPlayKey = (event) => event.key === 'k' || (event.key === ' ' && !(event.target instanceof HTMLButtonElement));
+
+  /** @param {number} n it, or 0 if it is not a finite number */
+  const finite = (n) => (Number.isFinite(n) ? n : 0);
+
+  /** @param {number} at @param {number} length how much is done, as a percentage */
+  const percent = (at, length) => (length ? (at / length) * 100 : 0);
+
+  /**
+   * A message from the YouTube frame, as an object; null if it is not one.
+   *
+   * @param {unknown} data
+   * @returns {any}
+   */
+  function parseMessage(data) {
+    try {
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** @param {number} seconds */
   const clockOf = (seconds) => {
     const whole = Math.max(0, Math.floor(seconds || 0));
@@ -110,19 +142,7 @@
       window.visualViewport?.addEventListener('resize', refit, { signal });
       window.visualViewport?.addEventListener('scroll', refit, { signal });
       window.addEventListener('resize', refit, { signal });
-      this.addEventListener('click', (event) => {
-        const control = event.target instanceof Element ? event.target.closest('[data-player]') : null;
-        if (!(control instanceof HTMLElement)) return;
-        const what = control.dataset.player;
-        // The picture's tap comes as card-tap on a card (see above); a click
-        // on it here is from a page with no card.
-        if (what === 'toggle' && control.classList.contains('player__cover') && this.closest('gesture-card') && !this.expanded) return;
-        if (what === 'toggle') this.toggle();
-        else if (what === 'mute') this.setMuted(!this.muted);
-        else if (what === 'speed') this.setRate(RATES[(RATES.indexOf(this.rate) + 1) % RATES.length]);
-        else if (what === 'captions') this.setSubtitles(!this.subtitles);
-        else if (what === 'full') this.full();
-      }, { signal });
+      this.addEventListener('click', (event) => this.control(event), { signal });
       // A tap on the picture: the card holds the pointer (it may be a drag),
       // so the tap comes as the card's card-tap, not as a click here.
       this.closest('gesture-card')?.addEventListener('card-tap', (event) => {
@@ -143,32 +163,89 @@
       // Space or K plays and pauses, and the left and right arrows step ten
       // seconds, while the focus is in the player. On the scrubber, the arrows
       // step five seconds, not the range's own tenth of a second.
-      this.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && this.matches(':popover-open')) {
-          this.hidePopover();
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-        if (event.target === scrub) {
-          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-          this.seek(this.at + (event.key === 'ArrowRight' ? 5 : -5));
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-        if (event.key === 'k' || (event.key === ' ' && !(event.target instanceof HTMLButtonElement))) this.toggle();
-        else if (event.key === 'ArrowLeft') this.seek(this.at - 10);
-        else if (event.key === 'ArrowRight') this.seek(this.at + 10);
-        else return;
-        event.preventDefault();
-        event.stopPropagation();
-      }, { signal });
+      this.addEventListener('keydown', (event) => this.keyed(event), { signal });
       document.addEventListener('video-play', (event) => {
         if (event.target !== this && this.playing) this.pause();
       }, { signal });
       window.addEventListener('message', (event) => this.heard(event), { signal });
       signal.addEventListener('abort', () => this.stop());
+    },
+
+    /**
+     * A click on one of the player's controls.
+     *
+     * @param {MouseEvent} event
+     */
+    control(event) {
+      const control = elementOf(event.target)?.closest('[data-player]');
+      if (!(control instanceof HTMLElement) || this.coverOnCard(control)) return;
+      /** @type {Record<string, () => void>} */
+      const controls = {
+        toggle: () => this.toggle(),
+        mute: () => this.setMuted(!this.muted),
+        speed: () => this.setRate(RATES[(RATES.indexOf(this.rate) + 1) % RATES.length]),
+        captions: () => this.setSubtitles(!this.subtitles),
+        full: () => this.full(),
+      };
+      controls[control.dataset.player ?? '']?.();
+    },
+
+    /**
+     * Whether a click is on the picture of a player on a card: its tap comes
+     * as card-tap (see connected). A click on it is from a page with no card,
+     * or from the player filling the screen.
+     *
+     * @param {HTMLElement} control
+     */
+    coverOnCard(control) {
+      return control.dataset.player === 'toggle' && control.classList.contains('player__cover') && Boolean(this.closest('gesture-card')) && !this.expanded;
+    },
+
+    /**
+     * Space or K plays and pauses, and the left and right arrows step ten
+     * seconds, while the focus is in the player. On the scrubber, the arrows
+     * step five seconds, not the range's own tenth of a second. Escape
+     * closes the filled player.
+     *
+     * @param {KeyboardEvent} event
+     */
+    keyed(event) {
+      const act = this.keyAction(event);
+      if (!act) return;
+      act();
+      event.preventDefault();
+      event.stopPropagation();
+    },
+
+    /**
+     * What a key does in the player, or null.
+     *
+     * @param {KeyboardEvent} event
+     * @returns {(() => void) | null}
+     */
+    keyAction(event) {
+      if (event.key === 'Escape' && this.matches(':popover-open')) return () => this.hidePopover();
+      return event.target === this.scrubber() ? this.stepKey(SCRUB_STEPS, event.key) : this.playerKey(event);
+    },
+
+    /**
+     * A step through the video, if the key is one.
+     *
+     * @param {Record<string, number>} steps
+     * @param {string} key
+     */
+    stepKey(steps, key) {
+      const step = steps[key];
+      return step ? () => this.seek(this.at + step) : null;
+    },
+
+    /**
+     * Elsewhere in the player: a step, or K or Space to play and pause.
+     *
+     * @param {KeyboardEvent} event
+     */
+    playerKey(event) {
+      return this.stepKey(PLAYER_STEPS, event.key) ?? (isPlayKey(event) ? () => this.toggle() : null);
     },
 
     /** @returns {HTMLInputElement} */
@@ -431,28 +508,53 @@
 
     /** @param {MessageEvent} event */
     heard(event) {
-      if (!this.frame || event.source !== this.frame.contentWindow || event.origin !== YOUTUBE) return;
-      /** @type {any} */
-      let data;
-      try {
-        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      } catch {
-        return;
-      }
-      if (!data || typeof data !== 'object') return;
+      const data = this.frameMessage(event);
+      if (!data) return;
       clearInterval(this.listenTimer);
-      if (data.event === 'onReady') {
-        if (this.muted) this.command('mute');
-        if (this.rate !== 1) this.command('setPlaybackRate', [this.rate]);
-        if (!this.subtitles) this.command('unloadModule', ['captions']);
-      }
+      if (data.event === 'onReady') this.ready();
       if (data.event === 'onError') this.fail();
+      this.report(data);
+    },
+
+    /**
+     * A message from this player's YouTube frame, as an object; null if it
+     * is from elsewhere, or not one.
+     *
+     * @param {MessageEvent} event
+     */
+    frameMessage(event) {
+      if (!this.frame || event.source !== this.frame.contentWindow || event.origin !== YOUTUBE) return null;
+      return parseMessage(event.data);
+    },
+
+    /** The YouTube player is ready: it takes the player's own choices. */
+    ready() {
+      if (this.muted) this.command('mute');
+      if (this.rate !== 1) this.command('setPlaybackRate', [this.rate]);
+      if (!this.subtitles) this.command('unloadModule', ['captions']);
+    },
+
+    /**
+     * What the YouTube player reports: its state, where it is, and how long
+     * the video is.
+     *
+     * @param {any} data
+     */
+    report(data) {
       const info = data.info ?? {};
       const stateNow = data.event === 'onStateChange' ? data.info : info.playerState;
       if (typeof stateNow === 'number') this.played(stateNow);
-      if (typeof info.currentTime === 'number' || typeof info.duration === 'number') {
-        this.tick(info.currentTime ?? this.at, info.duration ?? this.length);
-      }
+      this.timed(info);
+    },
+
+    /**
+     * Where the video is, and how long it is, when the report has either.
+     *
+     * @param {{ currentTime?: number, duration?: number }} info
+     */
+    timed(info) {
+      if (typeof info.currentTime !== 'number' && typeof info.duration !== 'number') return;
+      this.tick(info.currentTime ?? this.at, info.duration ?? this.length);
     },
 
     /**
@@ -483,12 +585,13 @@
      * @param {number} length
      */
     tick(at, length) {
-      this.at = Number.isFinite(at) ? at : 0;
-      this.length = Number.isFinite(length) ? length : 0;
+      this.at = finite(at);
+      this.length = finite(length);
       const scrub = this.scrubber();
-      scrub.max = String(this.length || 0);
+      scrub.max = String(this.length);
+      // Not while a hand moves it.
       if (document.activeElement !== scrub || !scrub.matches(':active')) scrub.value = String(this.at);
-      scrub.style.setProperty('--done', `${this.length ? (this.at / this.length) * 100 : 0}%`);
+      scrub.style.setProperty('--done', `${percent(this.at, this.length)}%`);
       this.clock = this.length ? `${clockOf(this.at)} / ${clockOf(this.length)}` : clockOf(this.at);
       scrub.setAttribute('aria-valuetext', `${clockOf(this.at)} of ${clockOf(this.length)}`);
     },

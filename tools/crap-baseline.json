@@ -1,16 +1,13 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 89,
+ "count": 80,
  "allowed": {
   "app/routes/card/[address].html (anonymous)": [
    1056
   ],
   "app/elements/touch-keys.html press": [
    552
-  ],
-  "app/elements/video-player.html heard": [
-   420
   ],
   "app/lib/note-format.js draw": [
    420
@@ -47,13 +44,6 @@
   ],
   "tools/crap.js nameFor": [
    182
-  ],
-  "app/elements/time-line.html rove": [
-   156
-  ],
-  "app/elements/video-player.html addEventListener callback": [
-   156,
-   156
   ],
   "tools/import-relief.js hillShade": [
    156
@@ -102,9 +92,6 @@
   "app/elements/reading-settings.html act": [
    90
   ],
-  "app/elements/time-line.html setCollapsed": [
-   90
-  ],
   "app/lib/keyboard.js addEventListener callback": [
    90
   ],
@@ -132,15 +119,6 @@
   "tools/import-xrefs.js target": [
    90
   ],
-  "app/elements/time-line.html addEventListener callback": [
-   72
-  ],
-  "app/elements/time-line.html placeReigns": [
-   72
-  ],
-  "app/elements/video-player.html tick": [
-   72
-  ],
   "app/lib/note-suggest.js look": [
    72
   ],
@@ -161,9 +139,6 @@
   ],
   "tools/import-videos.js find callback": [
    72
-  ],
-  "app/elements/time-line.html connected": [
-   56
   ],
   "app/elements/touch-probe.html place": [
    56

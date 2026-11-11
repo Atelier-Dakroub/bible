@@ -60,76 +60,192 @@
     }
   }
 
+  /**
+   * @param {string} key
+   * @param {string} value
+   */
+  function keepText(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // No storage: the choice lasts until the page closes.
+    }
+  }
+
+  /** The chronology of the kings, as kept on this device: Jones's by default. */
+  function storedKings() {
+    try {
+      const kings = localStorage.getItem(CHRONOLOGY_KEY) ?? 'jones';
+      return kings in CHRONOLOGIES ? kings : 'jones';
+    } catch {
+      return 'jones';
+    }
+  }
+
+  /**
+   * A reign's date by the chosen chronology, as [where on the axis, the
+   * date]; null for Jones's, or one the chronology does not give.
+   *
+   * @param {HTMLElement} tick
+   * @param {string} chosen
+   * @returns {[number, string] | null}
+   */
+  function altOf(tick, chosen) {
+    if (chosen === 'jones' || !tick.dataset.alts) return null;
+    return JSON.parse(tick.dataset.alts)[chosen] ?? null;
+  }
+
+  /**
+   * A reign's label by the chosen chronology. A reign it does not date keeps
+   * Jones's date, and says so.
+   *
+   * @param {string} jones the label by Jones, "Saul, 1095 BC"
+   * @param {string} chosen
+   * @param {[number, string] | null} alt
+   */
+  function reignLabel(jones, chosen, alt) {
+    const name = CHRONOLOGIES[/** @type {keyof typeof CHRONOLOGIES} */ (chosen)];
+    if (chosen === 'jones') return jones;
+    if (!alt) return `${jones} (Jones; ${name} gives no date)`;
+    return `${jones.replace(/, [^,]*$/, '')}, ${alt[1]} (${name})`;
+  }
+
+  /**
+   * Puts a reign's tick at its start by the chosen chronology, and names the
+   * chronology in its label. Jones's place and label are kept from the page.
+   *
+   * @param {HTMLElement} tick
+   * @param {string} chosen
+   */
+  function placeReign(tick, chosen) {
+    const jonesAt = (tick.dataset.jonesAt ??= tick.style.getPropertyValue('--at').trim());
+    const jonesLabel = (tick.dataset.jonesLabel ??= tick.getAttribute('aria-label') ?? '');
+    const alt = altOf(tick, chosen);
+    tick.style.setProperty('--at', alt ? String(alt[0]) : jonesAt);
+    const label = reignLabel(jonesLabel, chosen, alt);
+    tick.setAttribute('aria-label', label);
+    tick.setAttribute('title', label);
+    tick.classList.toggle('is-alt', Boolean(alt));
+  }
+
+  /** @param {KeyboardEvent} event whether Command, Control or Option is held */
+  const modified = (event) => event.metaKey || event.ctrlKey || event.altKey;
+
+  /**
+   * The Tab key's stop moves from one item to the next, and the focus with
+   * it.
+   *
+   * @param {HTMLElement} from
+   * @param {HTMLElement} to
+   */
+  function moveStop(from, to) {
+    from.tabIndex = -1;
+    to.tabIndex = 0;
+    to.focus();
+  }
+
   export const prototype = {
     /** a count of the openings and closings, so a late slide knows it is late */
     moves: 0,
 
     connected({ signal }) {
-      try {
-        // On a phone the strip starts closed, as it would cover half the
-        // screen.
-        const stored = localStorage.getItem(COLLAPSED_KEY);
-        this.collapsed = stored === null ? isPhone() : stored === 'true';
-        this.world = localStorage.getItem(WORLD_KEY) === 'true';
-      } catch {
-        // No storage: the strip starts open, without the world lanes.
-      }
-
+      this.restore();
       // The table draws its lines to the ticks again when the strip changes
       // size.
       const measure = new ResizeObserver(() => {
         this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
       });
       measure.observe(this);
+      this.addEventListener('click', (event) => this.clicked(event), { signal });
+      this.tabStops();
+      this.addEventListener('keydown', (event) => this.rove(event), { signal });
+      this.kings = storedKings();
+      this.placeReigns();
+      this.addEventListener('change', (event) => this.kingsChanged(event), { signal });
+      return () => measure.disconnect();
+    },
 
-      this.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest('[data-action="about"]')) {
-          this.about = !this.about;
-          return;
-        }
-        if (target?.closest('[data-action="world"]')) {
-          this.world = !this.world;
-          remember(WORLD_KEY, this.world);
-          return;
-        }
-        // A tap on the axis between ticks: the nearest tick, if one is
-        // near, as the ticks stand closer than a finger is wide.
-        const tick = target?.closest('[data-entity]') ?? (target?.closest('.timeline__axis') && event instanceof MouseEvent ? this.nearestTick(event.clientX) : null);
-        if (tick instanceof HTMLElement) {
-          this.dispatchEvent(new CustomEvent('show-entity', { bubbles: true, detail: { id: tick.dataset.entity } }));
-        }
-      }, { signal });
+    /**
+     * Opens or closes the strip and its world lanes as they were. On a phone
+     * the strip starts closed, as it would cover half the screen; with no
+     * storage, it starts open, without the world lanes.
+     */
+    restore() {
+      try {
+        const stored = localStorage.getItem(COLLAPSED_KEY);
+        this.collapsed = stored === null ? isPhone() : stored === 'true';
+        this.world = localStorage.getItem(WORLD_KEY) === 'true';
+      } catch {
+        // No storage.
+      }
+    },
 
-      // The ticks are one stop for the Tab key, and the world's spans
-      // another; the arrow keys move within each (rove).
+    /**
+     * The ticks are one stop for the Tab key, and the world's spans another;
+     * the arrow keys move within each (rove).
+     */
+    tabStops() {
       for (const kind of ROVING) {
         this.querySelectorAll(kind).forEach((each, i) => {
           /** @type {HTMLElement} */ (each).tabIndex = i === 0 ? 0 : -1;
         });
       }
-      this.addEventListener('keydown', (event) => this.rove(event), { signal });
-      try {
-        const kings = localStorage.getItem(CHRONOLOGY_KEY) ?? 'jones';
-        if (kings in CHRONOLOGIES) this.kings = kings;
-      } catch {
-        // No storage: Jones's dates.
-      }
-      this.placeReigns();
-      this.addEventListener('change', (event) => {
-        const select = event.target instanceof HTMLSelectElement ? event.target : null;
-        if (select?.dataset.action !== 'kings') return;
-        this.kings = select.value in CHRONOLOGIES ? select.value : 'jones';
-        try {
-          localStorage.setItem(CHRONOLOGY_KEY, this.kings);
-        } catch {
-          // No storage: the choice lasts until the page closes.
-        }
-        this.placeReigns();
-        this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
-      }, { signal });
+    },
 
-      return () => measure.disconnect();
+    /**
+     * A click: the note on the dates, the world lanes, or a tick, which shows
+     * its event.
+     *
+     * @param {MouseEvent} event
+     */
+    clicked(event) {
+      const target = event.target instanceof Element ? event.target : null;
+      if (this.toggleFrom(target)) return;
+      const tick = target?.closest('[data-entity]') ?? this.axisTick(target, event);
+      if (tick instanceof HTMLElement) this.dispatchEvent(new CustomEvent('show-entity', { bubbles: true, detail: { id: tick.dataset.entity } }));
+    },
+
+    /**
+     * The note on the dates, or the world lanes, shown or hidden; false if
+     * the click is on neither button.
+     *
+     * @param {Element | null} target
+     */
+    toggleFrom(target) {
+      if (target?.closest('[data-action="about"]')) {
+        this.about = !this.about;
+        return true;
+      }
+      if (!target?.closest('[data-action="world"]')) return false;
+      this.world = !this.world;
+      remember(WORLD_KEY, this.world);
+      return true;
+    },
+
+    /**
+     * A tap on the axis between ticks: the nearest tick, if one is near, as
+     * the ticks stand closer than a finger is wide.
+     *
+     * @param {Element | null} target
+     * @param {MouseEvent} event
+     */
+    axisTick(target, event) {
+      return target?.closest('.timeline__axis') ? this.nearestTick(event.clientX) : null;
+    },
+
+    /**
+     * Another chronology of the kings chosen: kept, and the reigns placed by
+     * it.
+     *
+     * @param {Event} event
+     */
+    kingsChanged(event) {
+      const select = event.target instanceof HTMLSelectElement ? event.target : null;
+      if (select?.dataset.action !== 'kings') return;
+      this.kings = select.value in CHRONOLOGIES ? select.value : 'jones';
+      keepText(CHRONOLOGY_KEY, this.kings);
+      this.placeReigns();
+      this.dispatchEvent(new Event('timeline-toggle', { bubbles: true }));
     },
 
     /**
@@ -138,21 +254,8 @@
      * date keeps Jones's date, and says so.
      */
     placeReigns() {
-      const chosen = this.kings;
       for (const tick of /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('.timeline__tick[data-alts]'))) {
-        if (!tick.dataset.alts) continue;
-        // Jones's place and label, kept from the page.
-        tick.dataset.jonesAt ??= tick.style.getPropertyValue('--at').trim();
-        tick.dataset.jonesLabel ??= tick.getAttribute('aria-label') ?? '';
-        /** @type {Record<string, [number, string]>} */
-        const alts = JSON.parse(tick.dataset.alts);
-        const alt = chosen === 'jones' ? null : alts[chosen];
-        const title = tick.dataset.jonesLabel.replace(/, [^,]*$/, '');
-        tick.style.setProperty('--at', alt ? String(alt[0]) : tick.dataset.jonesAt);
-        const label = chosen === 'jones' ? tick.dataset.jonesLabel : alt ? `${title}, ${alt[1]} (${CHRONOLOGIES[/** @type {keyof typeof CHRONOLOGIES} */ (chosen)]})` : `${tick.dataset.jonesLabel} (Jones; ${CHRONOLOGIES[/** @type {keyof typeof CHRONOLOGIES} */ (chosen)]} gives no date)`;
-        tick.setAttribute('aria-label', label);
-        tick.setAttribute('title', label);
-        tick.classList.toggle('is-alt', Boolean(alt));
+        if (tick.dataset.alts) placeReign(tick, this.kings);
       }
     },
 
@@ -164,23 +267,43 @@
      * @param {KeyboardEvent} event
      */
     rove(event) {
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const kind = ROVING.find((each) => target?.matches(each));
-      if (!target || !kind || event.metaKey || event.ctrlKey || event.altKey) return;
-      const items = /** @type {HTMLElement[]} */ ([...this.querySelectorAll(kind)]).filter((each) => each.getClientRects().length);
-      const direction = ARROWS[event.key];
-      /** @type {HTMLElement | null} */
-      let next = null;
-      if (direction) next = items[nearestIn(target.getBoundingClientRect(), items.map((each) => each.getBoundingClientRect()), direction)] ?? null;
-      else if (event.key === 'Home') next = items[0];
-      else if (event.key === 'End') next = items[items.length - 1];
-      else return;
+      const from = this.roveFrom(event);
+      if (!from) return;
+      const next = this.roveTarget(from.kind, from.target, event.key);
+      if (next === undefined) return;
       event.preventDefault();
       event.stopPropagation();
-      if (!next) return;
-      target.tabIndex = -1;
-      next.tabIndex = 0;
-      next.focus();
+      if (next) moveStop(from.target, next);
+    },
+
+    /**
+     * The tick or span a key is pressed on, and its kind; null if it is
+     * neither, or a modifier is held.
+     *
+     * @param {KeyboardEvent} event
+     */
+    roveFrom(event) {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const kind = ROVING.find((each) => target?.matches(each));
+      return target && kind && !modified(event) ? { target, kind } : null;
+    },
+
+    /**
+     * Where a key moves from an item: the nearest that way, or the first or
+     * the last; undefined if the key does not move.
+     *
+     * @param {string} kind
+     * @param {HTMLElement} target
+     * @param {string} key
+     * @returns {HTMLElement | null | undefined}
+     */
+    roveTarget(kind, target, key) {
+      const items = /** @type {HTMLElement[]} */ ([...this.querySelectorAll(kind)]).filter((each) => each.getClientRects().length);
+      const direction = ARROWS[key];
+      if (direction) return items[nearestIn(target.getBoundingClientRect(), items.map((each) => each.getBoundingClientRect()), direction)] ?? null;
+      /** @type {Record<string, () => HTMLElement | undefined>} */
+      const ends = { Home: () => items[0], End: () => items.at(-1) };
+      return ends[key] ? (ends[key]() ?? null) : undefined;
     },
 
     /**
@@ -195,17 +318,33 @@
       if (collapsed === this.collapsed) return;
       // The focus, inside the strip as it closes, goes to its button.
       const inside = collapsed && this.contains(document.activeElement);
-      if (collapsed) {
-        await slideOut(this, { y: 16 });
-        if (step !== this.moves) return;
-      }
+      if (collapsed && !(await this.slidOut(step))) return;
       this.collapsed = collapsed;
+      this.afterCollapse(collapsed, inside);
+    },
+
+    /**
+     * Slides the strip out; false if it was opened again meanwhile.
+     *
+     * @param {number} step
+     */
+    async slidOut(step) {
+      await slideOut(this, { y: 16 });
+      return step === this.moves;
+    },
+
+    /**
+     * After the strip opens or closes: the focus, its slide, its state kept,
+     * and on a phone, the other panels closed (bible-table closes them).
+     *
+     * @param {boolean} collapsed
+     * @param {boolean} inside whether the focus was in it as it closed
+     */
+    afterCollapse(collapsed, inside) {
       if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="timeline"]'))?.focus());
       slideIn(this, collapsed ? {} : { y: 16 });
       remember(COLLAPSED_KEY, collapsed);
       this.dispatchEvent(new Event('panel-change', { bubbles: true }));
-      // On a phone, one panel is open at a time (bible-table closes the
-      // others).
       if (!collapsed && isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'timeline' } }));
     },
 

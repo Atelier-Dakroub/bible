@@ -1578,9 +1578,22 @@ export type TimeLineMembers = {
   }: {
     signal: any;
   }): () => void;
+  restore(): void;
+  tabStops(): void;
+  clicked(event: MouseEvent): void;
+  toggleFrom(target: Element | null): boolean;
+  axisTick(target: Element | null, event: MouseEvent): HTMLElement | null;
+  kingsChanged(event: Event): void;
   placeReigns(): void;
   rove(event: KeyboardEvent): void;
+  roveFrom(event: KeyboardEvent): {
+    target: HTMLElement;
+    kind: string;
+  } | null;
+  roveTarget(kind: string, target: HTMLElement, key: string): HTMLElement | null | undefined;
   setCollapsed(collapsed: boolean): Promise<void>;
+  slidOut(step: number): Promise<boolean>;
+  afterCollapse(collapsed: boolean, inside: boolean): void;
   nearestTick(x: number): HTMLElement | null;
   tickFor(id: string): HTMLElement | null;
 };
@@ -1695,6 +1708,12 @@ export type VideoPlayerMembers = {
   }: {
     signal: any;
   }): void;
+  control(event: MouseEvent): void;
+  coverOnCard(control: HTMLElement): boolean;
+  keyed(event: KeyboardEvent): void;
+  keyAction(event: KeyboardEvent): (() => void) | null;
+  stepKey(steps: Record<string, number>, key: string): (() => void) | null;
+  playerKey(event: KeyboardEvent): (() => void) | null;
   scrubber(): HTMLInputElement;
   toggle(): void;
   play(): void;
@@ -1715,6 +1734,13 @@ export type VideoPlayerMembers = {
   listen(): void;
   command(func: string, args?: unknown[] | undefined): void;
   heard(event: MessageEvent<any>): void;
+  frameMessage(event: MessageEvent<any>): any;
+  ready(): void;
+  report(data: any): void;
+  timed(info: {
+    currentTime?: number | undefined;
+    duration?: number | undefined;
+  }): void;
   played(code: number): void;
   tick(at: number, length: number): void;
 };
