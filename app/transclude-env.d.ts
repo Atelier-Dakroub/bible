@@ -1353,10 +1353,12 @@ export type ReadingSettingsMembers = {
   }: {
     signal: any;
   }): void;
+  showGroups(): void;
   current(): {
     [k: string]: string;
   };
   act(event: Event): void;
+  save(settings: Record<string, string>): void;
   paint(): void;
 };
 
@@ -1662,6 +1664,7 @@ export type TouchProbeMembers = {
     signal: any;
   }): () => void;
   down(event: PointerEvent): void;
+  guardPalm(event: PointerEvent): void;
   move(event: PointerEvent): void;
   up(event: PointerEvent): void;
   count(): void;
@@ -1671,6 +1674,7 @@ export type TouchProbeMembers = {
   tick(): void;
   measureScreen(): void;
   act(event: MouseEvent): void;
+  toggleRecording(): void;
   reset(): void;
 };
 
@@ -1876,9 +1880,7 @@ export type DesignData = {
       id: string;
       name: string;
     }[];
-    seeAlso: {
-      name: string;
-    }[];
+    seeAlso: any;
   };
   person: {
     title: string;
@@ -1906,41 +1908,15 @@ export type DesignData = {
   } | null;
   israel: {
     viewBox: string;
-    land: string[];
-    lakes: string[];
+    land: any;
+    lakes: any;
     clip: string;
-    rivers: string[];
-    places: {
-      id: string;
-      name: string;
-      x: string;
-      y: string;
-      verses: number;
-      peak: boolean;
-      water: boolean;
-      r: number;
-      dx: number;
-      dy: number;
-    }[];
+    rivers: any;
+    places: any;
     font: number;
     halo: number;
-    relief: {
-      id: string;
-      n: number;
-    }[];
-    shade: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    } | {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    };
+    relief: any;
+    shade: any;
     waters: {
       x: number;
       y: number;
@@ -1950,41 +1926,15 @@ export type DesignData = {
   };
   world: {
     viewBox: string;
-    land: string[];
-    lakes: string[];
+    land: any;
+    lakes: any;
     clip: string;
-    rivers: string[];
-    places: {
-      id: string;
-      name: string;
-      x: string;
-      y: string;
-      verses: number;
-      peak: boolean;
-      water: boolean;
-      r: number;
-      dx: number;
-      dy: number;
-    }[];
+    rivers: any;
+    places: any;
     font: number;
     halo: number;
-    relief: {
-      id: string;
-      n: number;
-    }[];
-    shade: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    } | {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      href: string;
-    };
+    relief: any;
+    shade: any;
     waters: {
       x: number;
       y: number;

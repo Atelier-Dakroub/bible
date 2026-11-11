@@ -175,98 +175,218 @@ export function layout(input) {
  * @returns {Layout}
  */
 function place(input) {
-  const { width: W, height: H, gap: g, phone } = input;
   // A phone has the rail at the bottom, the width of the screen, and each
   // panel is a sheet above it, the width of the screen too; nothing floats.
-  const edge = phone ? 'bottom' : input.edge;
-  const standing = upright(edge);
-
-  /** @type {Box} */
-  const rail = standing
-    ? { x: edge === 'left' ? g : W - g - input.rail.w, y: g, w: input.rail.w, h: null }
-    : { x: g, y: edge === 'top' ? g : H - g - input.rail.h, w: phone ? W - 2 * g : input.rail.w, h: null };
-
-  // The part of the screen beside the rail.
-  const area = {
-    left: edge === 'left' ? 2 * g + input.rail.w : g,
-    top: edge === 'top' ? 2 * g + input.rail.h : g,
-    right: edge === 'right' ? W - 2 * g - input.rail.w : W - g,
-    bottom: edge === 'bottom' ? H - 2 * g - input.rail.h : H - g,
-  };
+  const edge = input.phone ? 'bottom' : input.edge;
+  const rail = railBox(input, edge);
+  const area = areaBeside(input, edge);
   const free = { ...area };
   // The rail's own side of that part, before the docked panels take some.
   const near = { ...area };
+  if (input.phone) return { rail, ...phoneSheets(input, area), free };
+  const timeline = timelineBox(input, edge, area, free);
+  const search = searchBox(input, edge, area, free);
+  return { rail, search, timeline, tools: toolsBox(input, edge, near), free };
+}
 
-  if (phone) {
-    const sheet = (/** @type {number} */ h, /** @type {boolean} */ full) => ({
-      x: g,
-      y: full ? g : Math.max(g, area.bottom - h),
-      w: W - 2 * g,
-      h: full ? area.bottom - g : null,
-    });
-    return {
-      rail,
-      search: input.search.open ? { ...sheet(input.search.h, input.search.expanded), y: g } : null,
-      timeline: input.timeline.open ? sheet(input.timeline.h, false) : null,
-      tools: input.tools.open ? sheet(input.tools.h, false) : null,
-      free,
-    };
+/** @typedef {{ left: number, top: number, right: number, bottom: number }} Area */
+
+/**
+ * The rail: along its edge, at its own size; a phone's the width of the
+ * screen.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @returns {Box}
+ */
+function railBox(input, edge) {
+  const { width: W, height: H, gap: g } = input;
+  if (upright(edge)) return { x: edge === 'left' ? g : W - g - input.rail.w, y: g, w: input.rail.w, h: null };
+  return { x: g, y: edge === 'top' ? g : H - g - input.rail.h, w: input.phone ? W - 2 * g : input.rail.w, h: null };
+}
+
+/**
+ * The part of the screen beside the rail.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @returns {Area}
+ */
+function areaBeside(input, edge) {
+  const { width: W, height: H, gap: g, rail } = input;
+  return {
+    left: edge === 'left' ? 2 * g + rail.w : g,
+    top: edge === 'top' ? 2 * g + rail.h : g,
+    right: edge === 'right' ? W - 2 * g - rail.w : W - g,
+    bottom: edge === 'bottom' ? H - 2 * g - rail.h : H - g,
+  };
+}
+
+/**
+ * On a phone, each open panel is a sheet above the rail; the search, open
+ * with results, fills the screen above it.
+ *
+ * @param {LayoutInput} input
+ * @param {Area} area
+ */
+function phoneSheets(input, area) {
+  const g = input.gap;
+  const sheet = (/** @type {number} */ h, /** @type {boolean} */ full) => ({
+    x: g,
+    y: full ? g : Math.max(g, area.bottom - h),
+    w: input.width - 2 * g,
+    h: full ? area.bottom - g : null,
+  });
+  return {
+    search: input.search.open ? { ...sheet(input.search.h, input.search.expanded), y: g } : null,
+    timeline: input.timeline.open ? sheet(input.timeline.h, false) : null,
+    tools: input.tools.open ? sheet(input.tools.h, false) : null,
+  };
+}
+
+/**
+ * The timeline: floating where it was left, or docked along the far edge
+ * from a top rail (else the bottom), which takes its height from the area
+ * and from the cards' part.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} area
+ * @param {Area} free
+ * @returns {Box | null}
+ */
+function timelineBox(input, edge, area, free) {
+  const strip = input.timeline;
+  if (!strip.open) return null;
+  if (!strip.float) return dockTimeline(input, edge, area, free);
+  const w = Math.min(strip.w, input.width);
+  return { ...kept(strip.float, w, strip.h, input.width, input.height), w, h: null };
+}
+
+/**
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} area
+ * @param {Area} free
+ * @returns {Box}
+ */
+function dockTimeline(input, edge, area, free) {
+  const h = input.timeline.h;
+  const atTop = edge === 'top';
+  const y = atTop ? area.top : area.bottom - h;
+  if (atTop) {
+    area.top = y + h + input.gap;
+    free.top = area.top;
+  } else {
+    area.bottom = y - input.gap;
+    free.bottom = area.bottom;
   }
+  return { x: area.left, y, w: area.right - area.left, h: null };
+}
 
-  /** @type {Box | null} */
-  let timeline = null;
-  if (input.timeline.open) {
-    if (input.timeline.float) {
-      const w = Math.min(input.timeline.w, W);
-      timeline = { ...kept(input.timeline.float, w, input.timeline.h, W, H), w, h: null };
-    } else {
-      const atTop = edge === 'top';
-      const y = atTop ? area.top : area.bottom - input.timeline.h;
-      timeline = { x: area.left, y, w: area.right - area.left, h: null };
-      if (atTop) area.top = y + input.timeline.h + g;
-      else area.bottom = y - g;
-      if (atTop) free.top = area.top;
-      else free.bottom = area.bottom;
-    }
-  }
+/**
+ * The search: floating where it was left, or docked beside the rail, which
+ * takes its width from the cards' part.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} area
+ * @param {Area} free
+ * @returns {Box | null}
+ */
+function searchBox(input, edge, area, free) {
+  const search = input.search;
+  if (!search.open) return null;
+  const w = Math.min(search.w, area.right - area.left);
+  return search.float ? floatSearch(input, search.float, w) : dockSearch(input, edge, area, free, w);
+}
 
-  /** @type {Box | null} */
-  let search = null;
-  if (input.search.open) {
-    const w = Math.min(input.search.w, area.right - area.left);
-    if (input.search.float) {
-      const at = kept(input.search.float, w, input.search.h, W, H);
-      // Open with results, a floating search reaches most of the way down.
-      const h = input.search.expanded ? Math.max(input.search.h, Math.round((H - at.y - g) * 0.9)) : null;
-      search = { ...at, w, h };
-    } else {
-      const x = edge === 'right' ? area.right - w : area.left;
-      // At rest, beside a bottom rail, the field sits low, near the rail.
-      const y = !input.search.expanded && edge === 'bottom' ? area.bottom - input.search.h : area.top;
-      search = { x, y, w, h: input.search.expanded ? area.bottom - area.top : null };
-      if (edge === 'right') free.right = Math.min(free.right, x - g);
-      else free.left = Math.max(free.left, x + w + g);
-    }
-  }
+/**
+ * Open with results, a floating search reaches most of the way down.
+ *
+ * @param {LayoutInput} input
+ * @param {Point} float
+ * @param {number} w
+ * @returns {Box}
+ */
+function floatSearch(input, float, w) {
+  const at = kept(float, w, input.search.h, input.width, input.height);
+  const h = input.search.expanded ? Math.max(input.search.h, Math.round((input.height - at.y - input.gap) * 0.9)) : null;
+  return { ...at, w, h };
+}
 
-  /** @type {Box | null} */
-  let tools = null;
-  if (input.tools.open) {
-    const w = Math.min(input.tools.w, W - 2 * g);
-    const h = Math.min(input.tools.h, H - 2 * g);
-    if (input.tools.float) {
-      tools = { ...kept(input.tools.float, w, h, W, H), w, h: null };
-    } else if (standing) {
-      // Beside its button on the rail, as far down as it fits.
-      const x = edge === 'left' ? near.left : near.right - w;
-      const y = Math.round(Math.min(Math.max(g, input.tools.anchor.y - 24), H - g - h));
-      tools = { x, y, w, h: null };
-    } else {
-      const x = Math.round(Math.min(Math.max(g, input.tools.anchor.x - w / 2), W - g - w));
-      const y = edge === 'top' ? near.top : near.bottom - h;
-      tools = { x, y, w, h: null };
-    }
-  }
+/**
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} area
+ * @param {Area} free
+ * @param {number} w
+ * @returns {Box}
+ */
+function dockSearch(input, edge, area, free, w) {
+  const x = edge === 'right' ? area.right - w : area.left;
+  if (edge === 'right') free.right = Math.min(free.right, x - input.gap);
+  else free.left = Math.max(free.left, x + w + input.gap);
+  return { x, y: searchTop(input, edge, area), w, h: input.search.expanded ? area.bottom - area.top : null };
+}
 
-  return { rail, search, timeline, tools, free };
+/**
+ * At rest, beside a bottom rail, the field sits low, near the rail.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} area
+ */
+const searchTop = (input, edge, area) => (!input.search.expanded && edge === 'bottom' ? area.bottom - input.search.h : area.top);
+
+/**
+ * The tools: floating where they were left, or by their button on the
+ * rail.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} near
+ * @returns {Box | null}
+ */
+function toolsBox(input, edge, near) {
+  const tools = input.tools;
+  if (!tools.open) return null;
+  const { width: W, height: H, gap: g } = input;
+  const w = Math.min(tools.w, W - 2 * g);
+  const h = Math.min(tools.h, H - 2 * g);
+  if (tools.float) return { ...kept(tools.float, w, h, W, H), w, h: null };
+  return upright(edge) ? toolsBeside(input, edge, near, w, h) : toolsAlong(input, edge, near, w, h);
+}
+
+/**
+ * Beside its button on a rail on the left or the right, as far down as it
+ * fits.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} near
+ * @param {number} w
+ * @param {number} h
+ * @returns {Box}
+ */
+function toolsBeside(input, edge, near, w, h) {
+  const x = edge === 'left' ? near.left : near.right - w;
+  const y = Math.round(Math.min(Math.max(input.gap, input.tools.anchor.y - 24), input.height - input.gap - h));
+  return { x, y, w, h: null };
+}
+
+/**
+ * Over or under its button on a rail along the top or the bottom.
+ *
+ * @param {LayoutInput} input
+ * @param {Edge} edge
+ * @param {Area} near
+ * @param {number} w
+ * @param {number} h
+ * @returns {Box}
+ */
+function toolsAlong(input, edge, near, w, h) {
+  const x = Math.round(Math.min(Math.max(input.gap, input.tools.anchor.x - w / 2), input.width - input.gap - w));
+  const y = edge === 'top' ? near.top : near.bottom - h;
+  return { x, y, w, h: null };
 }

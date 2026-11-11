@@ -918,21 +918,59 @@ export async function entityView(id) {
   const all = await entities();
   const found = all[id];
   if (!found) return null;
+  const parts = KIND_PARTS[found.kind]?.(found, linksIn(all), id) ?? { facts: [], relations: [] };
+  return {
+    id,
+    kind: found.kind,
+    title: found.title,
+    facts: [KIND_LABEL[/** @type {keyof typeof KIND_LABEL} */ (found.kind)] ?? found.kind, ...parts.facts],
+    summary: found.summary ?? '',
+    summaryParts: summaryOf(found),
+    moreParts: found.more ? citations(found.more, books) : [],
+    relations: parts.relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
+    credit: creditOf(found, id),
+    mapped: isMapped(found),
+  };
+}
 
+/** @typedef {import('./entities.js').Entity} Entity */
+/** @typedef {{ id: string, name: string }[]} Named */
+/** @typedef {{ named: (other: string | null | undefined) => Named, many: (list: string[] | undefined) => Named }} Links */
+/** @typedef {{ facts: string[], relations: [string, Named][] }} Parts an entity's facts after its kind, and its relations */
+
+/**
+ * The other entities an entity names, as links: those that exist.
+ *
+ * @param {Record<string, Entity>} all
+ * @returns {Links}
+ */
+function linksIn(all) {
   /** @param {string | null | undefined} other */
   const named = (other) => (other && all[other] ? [{ id: other, name: all[other].title }] : []);
   /** @param {string[] | undefined} list */
   const many = (list) => (list ?? []).flatMap((other) => named(other));
-  /** @type {[string, { id: string, name: string }[]][]} */
-  let relations = [];
-  /** @type {string[]} */
-  const facts = [KIND_LABEL[/** @type {keyof typeof KIND_LABEL} */ (found.kind)] ?? found.kind];
+  return { named, many };
+}
 
-  if (found.kind === 'person') {
-    if (found.born !== null || found.died !== null) {
-      facts.push([found.born !== null ? `born ${formatYear(found.born)}` : '', found.died !== null ? `died ${formatYear(found.died)}` : ''].filter(Boolean).join(', '));
-    }
-    relations = [
+/** @param {Entity} found a person's years: born and died, as known */
+const lifespan = (found) =>
+  [found.born !== null ? `born ${formatYear(found.born)}` : '', found.died !== null ? `died ${formatYear(found.died)}` : ''].filter(Boolean).join(', ');
+
+/** @param {Entity} found whether a person's birth or death is dated */
+const datedLife = (found) => found.born !== null || found.died !== null;
+
+/**
+ * A person: their years, their family, where they were born and died, and
+ * their groups and events.
+ *
+ * @param {Entity} found
+ * @param {Links} links
+ * @returns {Parts}
+ */
+function personParts(found, { named, many }) {
+  return {
+    facts: datedLife(found) ? [lifespan(found)] : [],
+    relations: [
       ['Father', named(found.father)],
       ['Mother', named(found.mother)],
       ['Spouses', many(found.partners)],
@@ -942,51 +980,100 @@ export async function entityView(id) {
       ['Died in', named(found.deathPlace)],
       ['Groups', many(found.groups)],
       ['Events', many(found.events)],
-    ];
-  }
-  if (found.kind === 'place') {
-    if (found.type) facts.push(found.type);
-    if (found.lat !== null && found.lon !== null) facts.push(`${found.lat.toFixed(3)}, ${found.lon.toFixed(3)}`);
-    if (found.start !== null) facts.push(`${formatYear(found.start)} to ${formatYear(found.end)}`);
-    if (found.comment) facts.push(found.comment);
-    relations = [
+    ],
+  };
+}
+
+/**
+ * A place: its type, where it is, its years, and a comment.
+ *
+ * @param {Entity} found
+ * @param {Links} links
+ * @returns {Parts}
+ */
+function placeParts(found, { named, many }) {
+  const where = found.lat !== null && found.lon !== null ? `${found.lat.toFixed(3)}, ${found.lon.toFixed(3)}` : '';
+  const years = found.start !== null ? `${formatYear(found.start)} to ${formatYear(found.end)}` : '';
+  return {
+    facts: [found.type, where, years, found.comment].filter(Boolean),
+    relations: [
       ['Same place as', named(found.sameAs)],
       ['Part of', many(found.partOf)],
-    ];
-  }
-  if (found.kind === 'event') {
-    facts.push(`${found.approx ? 'about ' : ''}${formatYear(found.start)}${found.duration ? `, lasting ${duration(found.duration)}` : ''}`);
-    // A king's reign, by the modern chronologies too (data/chronology).
-    const reign = /** @type {Record<string, Record<string, number[]>>} */ (kings.reigns)[id];
-    if (reign) {
-      const span = (/** @type {number[]} */ [from, to]) => (from === to ? formatYear(from) : `${1 - from}–${formatYear(to)}`);
-      facts.push(Object.entries(reign).map(([key, years]) => `${/** @type {Record<string, string>} */ (kings.chronologies)[key]}: ${span(years)}`).join('; '));
-    }
-    relations = [
+    ],
+  };
+}
+
+/**
+ * An event: when, and how long; a king's reign by the modern chronologies
+ * too (data/chronology).
+ *
+ * @param {Entity} found
+ * @param {Links} links
+ * @param {string} id
+ * @returns {Parts}
+ */
+function eventParts(found, { named, many }, id) {
+  const when = `${found.approx ? 'about ' : ''}${formatYear(found.start)}${found.duration ? `, lasting ${duration(found.duration)}` : ''}`;
+  return {
+    facts: [when, ...reignFacts(id)],
+    relations: [
       ['Part of', named(found.partOf)],
       ['People', many(found.participants)],
       ['Places', many(found.locations)],
-    ];
-  }
-  if (found.kind === 'group') relations = [['Members', many(found.members)]];
-
-  const dated = found.kind === 'event' || (found.kind === 'person' && (found.born !== null || found.died !== null));
-  const reigned = found.kind === 'event' && id in kings.reigns;
-  const credit = `From Theographic (CC BY-SA)${found.summary ? " and Easton's Bible Dictionary" : ''}.${dated ? ` ${CHRONOLOGY}` : ''}${reigned ? ' The reign by Albright, Thiele, Galil and Kitchen: Wikipedia, "Kings of Israel and Judah" (CC BY-SA).' : ''}`;
-  return {
-    id,
-    kind: found.kind,
-    title: found.title,
-    facts,
-    summary: found.summary ?? '',
-    // With more to read, the summary drops its ellipsis: Read more follows.
-    summaryParts: citations(found.more ? (found.summary ?? '').replace(/ …$/, '') : (found.summary ?? ''), books),
-    moreParts: found.more ? citations(found.more, books) : [],
-    relations: relations.filter(([, items]) => items.length).map(([label, items]) => ({ label, items })),
-    credit,
-    mapped: found.kind === 'place' && found.lat !== null && onMap(found.lon, found.lat),
+    ],
   };
 }
+
+/**
+ * A king's reign by each modern chronology, as one fact; none for an event
+ * that is not a reign.
+ *
+ * @param {string} id
+ */
+function reignFacts(id) {
+  const reign = /** @type {Record<string, Record<string, number[]>>} */ (kings.reigns)[id];
+  if (!reign) return [];
+  const span = (/** @type {number[]} */ [from, to]) => (from === to ? formatYear(from) : `${1 - from}–${formatYear(to)}`);
+  return [Object.entries(reign).map(([key, years]) => `${/** @type {Record<string, string>} */ (kings.chronologies)[key]}: ${span(years)}`).join('; ')];
+}
+
+/** @type {Record<string, (found: Entity, links: Links, id: string) => Parts>} what each kind of entity shows */
+const KIND_PARTS = {
+  person: personParts,
+  place: placeParts,
+  event: eventParts,
+  group: (found, { many }) => ({ facts: [], relations: [['Members', many(found.members)]] }),
+};
+
+/**
+ * The summary, in parts with its references. With more to read, it drops
+ * its ellipsis: Read more follows.
+ *
+ * @param {Entity} found
+ */
+function summaryOf(found) {
+  const summary = found.summary ?? '';
+  return citations(found.more ? summary.replace(/ …$/, '') : summary, books);
+}
+
+/** @param {Entity} found whether its dates are Jones's: an event, or a dated person */
+const isDated = (found) => found.kind === 'event' || (found.kind === 'person' && datedLife(found));
+
+/**
+ * Where an entity's words and dates come from.
+ *
+ * @param {Entity} found
+ * @param {string} id
+ */
+function creditOf(found, id) {
+  const easton = found.summary ? " and Easton's Bible Dictionary" : '';
+  const dated = isDated(found) ? ` ${CHRONOLOGY}` : '';
+  const reigned = found.kind === 'event' && id in kings.reigns ? ' The reign by Albright, Thiele, Galil and Kitchen: Wikipedia, "Kings of Israel and Judah" (CC BY-SA).' : '';
+  return `From Theographic (CC BY-SA)${easton}.${dated}${reigned}`;
+}
+
+/** @param {Entity} found whether it is a place on the map */
+const isMapped = (found) => found.kind === 'place' && found.lat !== null && onMap(found.lon, found.lat);
 
 /**
  * A polity or period on the world-history track, as the search panel shows it.

@@ -1,7 +1,7 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 60,
+ "count": 47,
  "allowed": {
   "tools/crap.js visit": [
    306
@@ -44,23 +44,11 @@
   "tools/mcp-server.js answer": [
    132
   ],
-  "app/elements/touch-probe.html act": [
-   110
-  ],
-  "app/routes/design.html (anonymous)": [
-   110
-  ],
   "tools/import-coast.js rings": [
    110
   ],
   "tools/import-quotations.js versesOf": [
    110
-  ],
-  "app/elements/reading-settings.html act": [
-   90
-  ],
-  "app/routes/voices.html load": [
-   90
   ],
   "tools/import-bsb.js add": [
    90
@@ -80,9 +68,6 @@
   "tools/import-xrefs.js target": [
    90
   ],
-  "app/routes/design.html map callback": [
-   72
-  ],
   "tools/import-audio.js heard": [
    72
   ],
@@ -97,18 +82,6 @@
   ],
   "tools/import-videos.js find callback": [
    72
-  ],
-  "app/elements/touch-probe.html place": [
-   56
-  ],
-  "app/lib/note-editing.js typeKey": [
-   56
-  ],
-  "app/routes/design.html text": [
-   56
-  ],
-  "app/routes/design.html atlas": [
-   56
   ],
   "tools/import-ancient.js simplify": [
    56
@@ -137,12 +110,6 @@
   "tools/import-syntax.js verseOf": [
    56
   ],
-  "app/elements/reading-settings.html connected": [
-   42
-  ],
-  "app/elements/touch-probe.html down": [
-   42
-  ],
   "tools/import-ancient.js shpRings": [
    42
   ],
@@ -166,12 +133,6 @@
   ],
   "tools/mcp-server.js on callback": [
    42
-  ],
-  "app/lib/chrome.js place": [
-   35
-  ],
-  "app/data/bible.js entityView": [
-   34
   ]
  }
 }

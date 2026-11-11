@@ -70,16 +70,31 @@
     resize();
   }
 
+  /** @param {string | null} text its words, split at spaces */
+  const wordsOf = (text) => (text ?? '').split(/\s+/).filter(Boolean);
+
+  /**
+   * A tile's value: a tile that is one of several (a radio) sets its value;
+   * a tile on its own (a checkbox) turns its setting on or off.
+   *
+   * @param {HTMLInputElement} input
+   * @param {string[]} values the setting's, the default first
+   */
+  const valueOf = (input, values) => (input.dataset.toggle ? (input.checked ? 'on' : 'off') : input.value || values[0]);
+
+  /** @param {Record<string, string>} settings kept in this browser; a private window keeps nothing, and they hold for this visit */
+  function keep(settings) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(settings));
+    } catch {
+      // No storage.
+    }
+  }
+
   export const prototype = {
     connected({ signal }) {
       apply(load());
-      // Only some groups, or all but some: `only="ui"`, `except="ui"`.
-      const only = (this.getAttribute('only') ?? '').split(/\s+/).filter(Boolean);
-      const except = (this.getAttribute('except') ?? '').split(/\s+/).filter(Boolean);
-      for (const group of this.querySelectorAll('fieldset[data-group]')) {
-        const name = /** @type {HTMLElement} */ (group).dataset.group ?? '';
-        /** @type {HTMLElement} */ (group).hidden = only.length ? !only.includes(name) : except.includes(name);
-      }
+      this.showGroups();
       this.paint();
       this.addEventListener('change', (event) => this.act(event), { signal });
       this.querySelector('form')?.addEventListener('submit', (event) => event.preventDefault(), { signal });
@@ -98,6 +113,16 @@
       }, { signal });
     },
 
+    /** Only some groups, or all but some: `only="ui"`, `except="ui"`. */
+    showGroups() {
+      const only = wordsOf(this.getAttribute('only'));
+      const except = wordsOf(this.getAttribute('except'));
+      for (const group of /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('fieldset[data-group]'))) {
+        const name = group.dataset.group ?? '';
+        group.hidden = only.length ? !only.includes(name) : except.includes(name);
+      }
+    },
+
     /** The settings now, each with its value or its default. */
     current() {
       const root = document.documentElement;
@@ -108,20 +133,21 @@
     act(event) {
       const input = event.target;
       if (!(input instanceof HTMLInputElement)) return;
-      const settings = this.current();
-      // A tile that is one of several (a radio) sets its value; a tile on
-      // its own (a checkbox) turns its setting on or off.
       const name = input.dataset.set ?? input.dataset.toggle ?? '';
       const values = SETTINGS[name];
       if (!values) return;
-      if (input.dataset.toggle) settings[name] = input.checked ? 'on' : 'off';
-      else settings[name] = input.value || values[0];
+      this.save({ ...this.current(), [name]: valueOf(input, values) });
+    },
+
+    /**
+     * The settings applied to the page, kept, shown on the tiles, and told
+     * to the table.
+     *
+     * @param {Record<string, string>} settings
+     */
+    save(settings) {
       apply(settings);
-      try {
-        localStorage.setItem(KEY, JSON.stringify(settings));
-      } catch {
-        // A private window keeps nothing; the setting holds for this visit.
-      }
+      keep(settings);
       this.paint();
       this.dispatchEvent(new CustomEvent('reading-change', { bubbles: true, detail: settings }));
     },

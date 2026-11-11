@@ -137,75 +137,91 @@
     summary.textContent = chosen.length ? `Your picks: ${chosen.map(([passage, label]) => `${passage}: ${label}`).join(' · ')}` : '';
   };
 
-  const load = async () => {
+  /** The samples: the people's recordings first, then the made voices. */
+  const fetchSamples = async () => {
     const [made, human] = await Promise.all(
       ['/voices/samples.json', '/voices/librivox.json'].map((url) => fetch(url).then((response) => (response.ok ? response.json() : [])).catch(() => [])),
     );
-    const all = [...human, ...made];
+    return [...human, ...made];
+  };
+
+  /** @param {any[]} all the samples, by passage and version */
+  const byPassage = (all) => {
+    /** @type {Map<string, any[]>} */
+    const groups = new Map();
+    for (const sample of all) {
+      const key = `${sample.passage} (${sample.version})`;
+      groups.set(key, [...(groups.get(key) ?? []), sample]);
+    }
+    return groups;
+  };
+
+  /**
+   * A pick kept in this browser.
+   *
+   * @param {string} passage
+   * @param {string} label
+   */
+  const pick = (passage, label) => {
+    picks[passage] = label;
+    try {
+      localStorage.setItem(KEY, JSON.stringify(picks));
+    } catch {
+      // No storage: the pick lasts until the page closes.
+    }
+    paintPicks();
+  };
+
+  /** @param {any} sample what is known of it: its description, its length, and whisper's misheard words */
+  const metaOf = (sample) =>
+    [sample.description, sample.seconds ? `${sample.seconds} s` : '', typeof sample.wer === 'number' ? `${Math.round(sample.wer * 100)}% words misheard by whisper` : ''].filter(Boolean).join(' · ');
+
+  /**
+   * A sample's player, with its name, a radio to pick it, and what is
+   * known of it. One plays at a time.
+   *
+   * @param {any} sample
+   * @param {string} passage
+   */
+  const sampleRow = (sample, passage) => {
+    const row = Object.assign(document.createElement('div'), { className: 'sample' });
+    row.dataset.gender = gender(sample);
+    const name = Object.assign(document.createElement('span'), { className: 'sample__name', textContent: sample.voiceLabel ?? `${sample.engine} ${sample.voice}` });
+    const label = document.createElement('label');
+    const radio = Object.assign(document.createElement('input'), { type: 'radio', name: passage, checked: picks[passage] === name.textContent });
+    radio.addEventListener('change', () => pick(passage, name.textContent ?? ''));
+    label.append(radio, 'Best');
+    const audio = Object.assign(document.createElement('audio'), { controls: true, preload: 'none', src: sample.file });
+    audio.addEventListener('play', () => {
+      for (const other of document.querySelectorAll('audio')) if (other !== audio) other.pause();
+    });
+    row.append(name, label, audio, Object.assign(document.createElement('span'), { className: 'sample__meta', textContent: metaOf(sample) }));
+    return row;
+  };
+
+  /**
+   * A passage's samples, and its text to read along once it comes.
+   *
+   * @param {string} passage
+   * @param {any[]} samples
+   */
+  const passageSection = (passage, samples) => {
+    const section = Object.assign(document.createElement('section'), { className: 'passage-test' });
+    const heading = Object.assign(document.createElement('h2'), { textContent: passage });
+    section.append(heading, ...samples.map((sample) => sampleRow(sample, passage)));
+    textOf(samples[0].passage).then((text) => {
+      if (text) heading.after(Object.assign(document.createElement('p'), { className: 'passage-test__text', textContent: text }));
+    });
+    return section;
+  };
+
+  const load = async () => {
+    const all = await fetchSamples();
     if (!all.length) {
       list.innerHTML = '<p>No samples yet.</p>';
       return;
     }
-    /** @type {Map<string, any[]>} */
-    const byPassage = new Map();
-    for (const sample of all) {
-      const key = `${sample.passage} (${sample.version})`;
-      if (!byPassage.has(key)) byPassage.set(key, []);
-      byPassage.get(key)?.push(sample);
-    }
-    list.replaceChildren();
-    for (const [passage, samples] of byPassage) {
-      const section = document.createElement('section');
-      section.className = 'passage-test';
-      const heading = document.createElement('h2');
-      heading.textContent = passage;
-      section.append(heading);
-      for (const sample of samples) {
-        const row = document.createElement('div');
-        row.className = 'sample';
-        row.dataset.gender = gender(sample);
-        const name = document.createElement('span');
-        name.className = 'sample__name';
-        name.textContent = sample.voiceLabel ?? `${sample.engine} ${sample.voice}`;
-        const label = document.createElement('label');
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = passage;
-        radio.checked = picks[passage] === name.textContent;
-        radio.addEventListener('change', () => {
-          picks[passage] = name.textContent ?? '';
-          try {
-            localStorage.setItem(KEY, JSON.stringify(picks));
-          } catch {
-            // No storage: the pick lasts until the page closes.
-          }
-          paintPicks();
-        });
-        label.append(radio, 'Best');
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.preload = 'none';
-        audio.src = sample.file;
-        // One plays at a time.
-        audio.addEventListener('play', () => {
-          for (const other of document.querySelectorAll('audio')) if (other !== audio) other.pause();
-        });
-        const meta = document.createElement('span');
-        meta.className = 'sample__meta';
-        const bits = [sample.description, sample.seconds ? `${sample.seconds} s` : '', typeof sample.wer === 'number' ? `${Math.round(sample.wer * 100)}% words misheard by whisper` : ''];
-        meta.textContent = bits.filter(Boolean).join(' · ');
-        row.append(name, label, audio, meta);
-        section.append(row);
-      }
-      list.append(section);
-      textOf(samples[0].passage).then((text) => {
-        if (!text) return;
-        const p = document.createElement('p');
-        p.className = 'passage-test__text';
-        p.textContent = text;
-        heading.after(p);
-      });
-    }
+    list.replaceChildren(...[...byPassage(all)].map(([passage, samples]) => passageSection(passage, samples)));
     paintPicks();
   };
 

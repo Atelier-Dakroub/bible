@@ -60,7 +60,23 @@ const rules = inputRules({
   ],
 });
 
-const backspace = chainCommands(deleteSelection, joinBackward, selectNodeBackward);
+/**
+ * The character (or the reference) before the caret, deleted: what a real
+ * Backspace has the browser do, for the app's own ⌫ key. A character is a
+ * whole one, not half of an emoji.
+ *
+ * @type {import('prosemirror-state').Command}
+ */
+export const deleteBack = (state, dispatch) => {
+  const { empty, $from } = state.selection;
+  const before = $from.nodeBefore;
+  if (!empty || !before) return false;
+  const size = before.isText ? ([...(before.text ?? '')].at(-1)?.length ?? 1) : before.nodeSize;
+  dispatch?.(state.tr.delete($from.pos - size, $from.pos).scrollIntoView());
+  return true;
+};
+
+const backspace = chainCommands(deleteSelection, deleteBack, joinBackward, selectNodeBackward);
 const enter = chainCommands(splitListItem(schema.nodes.list_item), baseKeymap.Enter);
 
 /**
@@ -71,19 +87,30 @@ const enter = chainCommands(splitListItem(schema.nodes.list_item), baseKeymap.En
  */
 function typeKey(view, key) {
   const { state, dispatch } = view;
-  if (key === 'back') backspace(state, dispatch);
-  else if (key === 'enter') enter(state, dispatch) || splitBlock(state, dispatch);
-  else if (key === 'clear') {
-    const tr = state.tr.delete(0, state.doc.content.size);
-    dispatch(tr.setSelection(TextSelection.atStart(tr.doc)));
-  }
-  else {
-    const text = key === 'space' ? ' ' : key;
-    // Through the input rules, as typing goes: "- " starts a list.
-    const { from, to } = state.selection;
-    const handled = view.someProp('handleTextInput', (handle) => handle(view, from, to, text));
-    if (!handled) dispatch(state.tr.insertText(text, from, to));
-  }
+  /** @type {Record<string, () => unknown>} */
+  const own = {
+    back: () => backspace(state, dispatch),
+    enter: () => enter(state, dispatch) || splitBlock(state, dispatch),
+    clear: () => {
+      const tr = state.tr.delete(0, state.doc.content.size);
+      dispatch(tr.setSelection(TextSelection.atStart(tr.doc)));
+    },
+  };
+  if (Object.hasOwn(own, key)) own[key]();
+  else typeText(view, key === 'space' ? ' ' : key);
+}
+
+/**
+ * Types text at the caret, through the input rules, as typing goes: "- "
+ * starts a list.
+ *
+ * @param {EditorView} view
+ * @param {string} text
+ */
+function typeText(view, text) {
+  const { from, to } = view.state.selection;
+  const handled = view.someProp('handleTextInput', (handle) => handle(view, from, to, text));
+  if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
 }
 
 /**

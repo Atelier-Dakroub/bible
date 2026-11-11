@@ -27,41 +27,196 @@
     const ref = parseAddress(address, books);
     if (!ref) throw new Error(`No passage has the address ${address}`);
     const found = await passage(ref);
-    const verses = found.verses.map((verse, i) => ({
-        // The initial marks the first verse of a chapter, so it has no number.
-        label: i === 0 && verse.n === 1 ? '' : verse.label ?? String(verse.n),
-        note: notes[verse.id] ?? '',
-        noteRef: verse.label ?? String(verse.n),
-        runs: verse.blocks.flatMap((block) =>
-          block.runs.map((run) => {
-            const at = highlight ? run.text.indexOf(highlight) : -1;
-            const parts =
-              at < 0
-                ? [{ text: run.text, mark: false }]
-                : [
-                    { text: run.text.slice(0, at), mark: false },
-                    { text: highlight, mark: true },
-                    { text: run.text.slice(at + highlight.length), mark: false },
-                  ].filter((part) => part.text);
-            return { marks: run.marks.join(' '), parts };
-          }),
-        ),
-      // The KJV marks a new paragraph with ¶. It starts a paragraph here, and
-      // the mark itself is left out: one less thing on the page.
-      paragraph: i > 0 && /^\s*¶/.test(verse.blocks[0]?.runs[0]?.text ?? ''),
-    }));
+    const verses = found.verses.map((verse, i) => verseOf(verse, i, notes, highlight));
+    dropPilcrows(verses);
+    return { title: found.title, verses, paragraphs: paragraphsOf(verses).map((list, i) => ({ verses: list, initial: i === 0 && found.verses[0]?.n === 1 })) };
+  }
+
+  /** @typedef {Awaited<ReturnType<typeof passage>>['verses'][number]} Verse */
+
+  /**
+   * A verse as the specimen prints it. The initial marks the first verse of
+   * a chapter, so it has no number. The KJV marks a new paragraph with ¶:
+   * it starts a paragraph here.
+   *
+   * @param {Verse} verse
+   * @param {number} i
+   * @param {Record<string, string>} notes
+   * @param {string} highlight
+   */
+  function verseOf(verse, i, notes, highlight) {
+    const number = verse.label ?? String(verse.n);
+    return {
+      label: chapterStart(verse, i) ? '' : number,
+      note: notes[verse.id] ?? '',
+      noteRef: number,
+      runs: verse.blocks.flatMap((block) => block.runs.map((run) => ({ marks: run.marks.join(' '), parts: partsOf(run.text, highlight) }))),
+      paragraph: i > 0 && opensParagraph(verse),
+    };
+  }
+
+  /** @param {Verse} verse @param {number} i whether it is the first verse of a chapter, which the initial marks */
+  const chapterStart = (verse, i) => i === 0 && verse.n === 1;
+
+  /** @param {Verse} verse whether it begins with the KJV's ¶ */
+  const opensParagraph = (verse) => /^\s*¶/.test(verse.blocks[0]?.runs[0]?.text ?? '');
+
+  /**
+   * A run's text in parts, the highlighted words marked.
+   *
+   * @param {string} text
+   * @param {string} highlight
+   */
+  function partsOf(text, highlight) {
+    const at = highlight ? text.indexOf(highlight) : -1;
+    if (at < 0) return [{ text, mark: false }];
+    return [
+      { text: text.slice(0, at), mark: false },
+      { text: highlight, mark: true },
+      { text: text.slice(at + highlight.length), mark: false },
+    ].filter((part) => part.text);
+  }
+
+  /**
+   * The ¶ itself is left out: one less thing on the page.
+   *
+   * @param {ReturnType<typeof verseOf>[]} verses
+   */
+  function dropPilcrows(verses) {
     for (const verse of verses) {
       const first = verse.runs[0]?.parts[0];
       if (first) first.text = first.text.replace(/^\s*¶\s*/, '');
     }
-    /** @type {(typeof verses)[]} */
+  }
+
+  /**
+   * The verses in paragraphs.
+   *
+   * @template {{ paragraph: boolean }} V
+   * @param {V[]} verses
+   */
+  function paragraphsOf(verses) {
+    /** @type {V[][]} */
     const paragraphs = [];
     for (const verse of verses) {
       if (!paragraphs.length || verse.paragraph) paragraphs.push([]);
       paragraphs[paragraphs.length - 1].push(verse);
     }
-    return { title: found.title, verses, paragraphs: paragraphs.map((list, i) => ({ verses: list, initial: i === 0 && found.verses[0]?.n === 1 })) };
+    return paragraphs;
   }
+
+  /**
+   * The map's layers for an atlas: the close view has GSHHG's close coast
+   * and the Levant's own sharper contours and hill shade; the whole map, the
+   * coast simplified to about 2 km.
+   *
+   * @param {{ map: any, detail: any, relief: any }} sources
+   * @param {boolean} close
+   */
+  function layersOf({ map, detail, relief }, close) {
+    return close
+      ? { land: [detail.coast.land], lakes: [detail.coast.lakes], clip: 'rr-land-detail', bands: relief.levant.bands, prefix: 'rr-levant', shade: 'hillshade-levant' }
+      : { land: map.land, lakes: map.lakes, clip: 'rr-land', bands: relief.bands, prefix: 'rr-relief', shade: 'hillshade' };
+  }
+
+  /**
+   * A piece of the map, as an atlas draws it: the land, the relief, the
+   * water and the names that have room. The names are the most named places
+   * whose names have room, as the map card names them at its first level
+   * (lib/map.js nameLevels). The map is about 1000 pixels wide here, and the
+   * labels are in pixels.
+   *
+   * @param {{ map: any, detail: any, relief: any }} sources
+   * @param {[number, number, number, number]} box west, north, east, south
+   * @param {{ x: number, y: number, label: string, size?: number }[]} waters
+   * @param {boolean} [close] a close view of the Levant
+   */
+  function atlas(sources, box, waters, close = false) {
+    const { map, relief } = sources;
+    const corner = project(box[0], box[1]);
+    const far = project(box[2], box[3]);
+    const view = { x: corner.x, y: corner.y, w: far.x - corner.x, h: far.y - corner.y };
+    const inView = (/** @type {{ x: string, y: string }} */ place) =>
+      Number(place.x) > view.x && Number(place.x) < view.x + view.w && Number(place.y) > view.y && Number(place.y) < view.y + view.h;
+    const candidates = map.places.filter((/** @type {any} */ place) => inView(place) && place.verses >= 20).reverse();
+    const levels = nameLevels(
+      candidates.map((/** @type {any} */ place) => ({ x: Number(place.x), y: Number(place.y), chars: place.name.length })),
+      1000 / view.w,
+      { font: 13, gap: 7 },
+    );
+    const k = view.w / 1000;
+    const layers = layersOf(sources, close);
+    return {
+      viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
+      land: layers.land,
+      lakes: layers.lakes,
+      clip: layers.clip,
+      rivers: map.rivers,
+      places: candidates.filter((/** @type {any} */ _, /** @type {number} */ i) => levels[i] === 0).map((/** @type {any} */ place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
+      font: 13 * k,
+      halo: 3 * k,
+      relief: layers.bands.map((/** @type {any} */ _, /** @type {number} */ n) => ({ id: `${layers.prefix}-${n}`, n })),
+      shade: { href: `/map/${layers.shade}.png`, ...relief.shades[layers.shade] },
+      waters: waters.map((water) => {
+        const at = project(water.x, water.y);
+        return { x: at.x, y: at.y, label: water.label, size: 13 * k * (water.size ?? 1) };
+      }),
+    };
+  }
+
+  /** @param {string[]} facts where a place is, from its third fact: "31.78, 35.23" */
+  function whereOf(facts) {
+    const [lat, lon] = (facts[2] ?? '').split(',').map(Number);
+    return Number.isFinite(lat) ? `${lat.toFixed(2)}° N, ${lon.toFixed(2)}° E` : '';
+  }
+
+  /** @param {string} summary cut at a word near 320 characters */
+  const shortSummary = (summary) => (summary.length > 320 ? `${summary.slice(0, 320).replace(/\s+\S*$/, '')} …` : summary);
+
+  /**
+   * Nearby: the most named places within about 15 km of Jerusalem.
+   *
+   * @param {any} map
+   */
+  function nearby(map) {
+    const here = map.places.find((/** @type {any} */ each) => each.id === 'place:jerusalem_636');
+    if (!here) return [];
+    return map.places
+      .filter((/** @type {any} */ each) => each.id !== here.id && each.name !== here.name)
+      .map((/** @type {any} */ each) => ({ ...each, km: Math.hypot(Number(each.x) - Number(here.x), Number(each.y) - Number(here.y)) * KM_PER_UNIT }))
+      .filter((/** @type {any} */ each) => each.km >= 2 && each.km < 15)
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => b.verses - a.verses)
+      .slice(0, 4)
+      .map((/** @type {any} */ each) => ({ name: `${each.name}, ${Math.round(each.km)} km` }));
+  }
+
+  /**
+   * The place card's specimen: Jerusalem.
+   *
+   * @param {Awaited<ReturnType<typeof entityView>>} place
+   * @param {any} map
+   */
+  function placeOf(place, map) {
+    const { facts = [], summary = '', relations = [], title = '' } = place ?? {};
+    return {
+      title,
+      kicker: facts.slice(0, 2).join(' · '),
+      where: whereOf(facts),
+      summary: shortSummary(summary),
+      partOf: relations.find((relation) => /part of/i.test(relation.label))?.items.slice(0, 3) ?? [],
+      seeAlso: nearby(map),
+    };
+  }
+
+  /** @param {Awaited<ReturnType<typeof entityView>>} person the person card's specimen: David */
+  const personOf = (person) => ({
+    title: person?.title ?? '',
+    kicker: (person?.facts ?? []).slice(0, 2).join(' · '),
+    summary: (person?.summary ?? '').slice(0, 200).replace(/\s+\S*$/, '') + ' …',
+  });
+
+  /** @param {Awaited<ReturnType<typeof strongsResults>>} word a word's study, if it has one */
+  const wordOf = (word) => (word.stats ? { summary: word.stats.summary, renderings: word.stats.renderings.slice(0, 4), bars: word.stats.bars } : null);
 
   export default async () => {
     const [opening, red, jerusalem, david, found, word, map, refs] = await Promise.all([
@@ -89,96 +244,22 @@
     opening.verses[2].note = see('JHN.1.3');
     red.verses[2].note = see('JHN.3.16');
 
-    /**
-     * A piece of the map, as an atlas draws it: the land, the relief, the
-     * water and the names that have room.
-     *
-     * @param {[number, number, number, number]} box west, north, east, south
-     * @param {{ x: number, y: number, label: string, size?: number }[]} waters
-     * @param {boolean} [close] a close view of the Levant: its own sharper
-     *   contours and hill shade
-     */
-    const atlas = (box, waters, close = false) => {
-      const corner = project(box[0], box[1]);
-      const far = project(box[2], box[3]);
-      const view = { x: corner.x, y: corner.y, w: far.x - corner.x, h: far.y - corner.y };
-      const inView = (/** @type {{ x: string, y: string }} */ place) =>
-        Number(place.x) > view.x && Number(place.x) < view.x + view.w && Number(place.y) > view.y && Number(place.y) < view.y + view.h;
-      // The most named places whose names have room, as the map card names
-      // them at its first level (lib/map.js nameLevels). The map is about
-      // 1000 pixels wide here, and the labels are in pixels.
-      const candidates = map.places.filter((place) => inView(place) && place.verses >= 20).reverse();
-      const levels = nameLevels(
-        candidates.map((place) => ({ x: Number(place.x), y: Number(place.y), chars: place.name.length })),
-        1000 / view.w,
-        { font: 13, gap: 7 },
-      );
-      const k = view.w / 1000;
-      return {
-        viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
-        // The close view has GSHHG's close coast; the whole map, the coast
-        // simplified to about 2 km.
-        land: close ? [detail.coast.land] : map.land,
-        lakes: close ? [detail.coast.lakes] : map.lakes,
-        clip: close ? 'rr-land-detail' : 'rr-land',
-        rivers: map.rivers,
-        places: candidates.filter((_, i) => levels[i] === 0).map((place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
-        font: 13 * k,
-        halo: 3 * k,
-        relief: (close ? relief.levant.bands : relief.bands).map((_, n) => ({ id: `${close ? 'rr-levant' : 'rr-relief'}-${n}`, n })),
-        shade: { href: `/map/${close ? 'hillshade-levant' : 'hillshade'}.png`, ...relief.shades[close ? 'hillshade-levant' : 'hillshade'] },
-        waters: waters.map((water) => {
-          const at = project(water.x, water.y);
-          return { x: at.x, y: at.y, label: water.label, size: 13 * k * (water.size ?? 1) };
-        }),
-      };
-    };
-
-    const { facts = [], summary = '', relations = [], title = '' } = jerusalem ?? {};
-    const [lat, lon] = (facts[2] ?? '').split(',').map(Number);
+    const sources = { map, detail, relief };
 
     return {
       opening,
       red,
-      place: {
-        title,
-        kicker: facts.slice(0, 2).join(' · '),
-        where: Number.isFinite(lat) ? `${lat.toFixed(2)}° N, ${lon.toFixed(2)}° E` : '',
-        summary: summary.length > 320 ? `${summary.slice(0, 320).replace(/\s+\S*$/, '')} …` : summary,
-        partOf: relations.find((relation) => /part of/i.test(relation.label))?.items.slice(0, 3) ?? [],
-        // Nearby: the most named places within about 15 km.
-        seeAlso: (() => {
-          const here = map.places.find((each) => each.id === 'place:jerusalem_636');
-          if (!here) return [];
-          return map.places
-            .filter((each) => each.id !== here.id && each.name !== here.name)
-            .map((each) => ({ ...each, km: Math.hypot(Number(each.x) - Number(here.x), Number(each.y) - Number(here.y)) * KM_PER_UNIT }))
-            .filter((each) => each.km >= 2 && each.km < 15)
-            .sort((a, b) => b.verses - a.verses)
-            .slice(0, 4)
-            .map((each) => ({ name: `${each.name}, ${Math.round(each.km)} km` }));
-        })(),
-      },
-      person: {
-        title: david?.title ?? '',
-        kicker: (david?.facts ?? []).slice(0, 2).join(' · '),
-        summary: (david?.summary ?? '').slice(0, 200).replace(/\s+\S*$/, '') + ' …',
-      },
+      place: placeOf(jerusalem, map),
+      person: personOf(david),
       results: found.results.map((result) => ({ title: result.title, parts: result.parts })),
-      word: word.stats
-        ? {
-            summary: word.stats.summary,
-            renderings: word.stats.renderings.slice(0, 4),
-            bars: word.stats.bars,
-          }
-        : null,
+      word: wordOf(word),
       // The Levant: from the coast of Lebanon to the Negeb.
-      israel: atlas([33.9, 33.4, 37.4, 30.7], [
+      israel: atlas(sources, [33.9, 33.4, 37.4, 30.7], [
         { x: 34.45, y: 32.75, label: 'The Great Sea' },
         { x: 35.5, y: 31.47, label: 'Salt Sea', size: 0.7 },
       ], true),
       // The whole map: from Italy to Persia.
-      world: atlas([8, 46, 62, 18], [
+      world: atlas(sources, [8, 46, 62, 18], [
         { x: 18.5, y: 34.2, label: 'The Great Sea' },
         { x: 34.5, y: 43.3, label: 'Black Sea' },
         { x: 50.5, y: 42.2, label: 'Caspian Sea', size: 0.8 },

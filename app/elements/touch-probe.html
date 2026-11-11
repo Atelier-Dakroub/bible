@@ -37,6 +37,20 @@
   // The ring's size when the panel reports no contact area, in CSS pixels.
   const RING = 56;
 
+  /** The page fills the screen, or stops filling it. */
+  function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }
+
+  /**
+   * A touch's size as the panel reports it, or '' when it reports none.
+   *
+   * @param {PointerEvent} event
+   * @param {boolean} reported
+   */
+  const sizeOf = (event, reported) => (reported ? `${Math.round(event.width)}×${Math.round(event.height)}` : '');
+
   export const prototype = {
     /** @type {Map<number, HTMLElement> | null} */
     rings: null,
@@ -79,16 +93,23 @@
       ring.dataset.kind = event.pointerType;
       /** @type {HTMLElement} */ (this.querySelector('.probe__rings')).append(ring);
       /** @type {Map<number, HTMLElement>} */ (this.rings).set(event.pointerId, ring);
-
       this.kind = event.pointerType;
       this.count();
       this.place(event);
       this.log(event);
+      if (event.pointerType === 'touch') this.guardPalm(event);
+    },
 
-      if (event.pointerType !== 'touch') return;
+    /**
+     * A touch the palm guard takes for a palm: its ring is marked, and
+     * counted.
+     *
+     * @param {PointerEvent} event
+     */
+    guardPalm(event) {
       const palm = this.guard?.down({ id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp }) ?? [];
       for (const id of palm) this.rings?.get(id)?.setAttribute('data-palm', '');
-      if (palm.length) this.palms += palm.length;
+      this.palms += palm.length;
     },
 
     /** @param {PointerEvent} event */
@@ -119,18 +140,15 @@
     place(event) {
       const ring = this.rings?.get(event.pointerId);
       if (!ring) return;
-
       const reported = event.width > NO_GEOMETRY || event.height > NO_GEOMETRY;
       if (event.pointerType === 'touch') this.noteContact(event, reported);
-      const w = reported ? event.width : RING;
-      const h = reported ? event.height : RING;
-
+      const [w, h] = reported ? [event.width, event.height] : [RING, RING];
       ring.style.width = `${w}px`;
       ring.style.height = `${h}px`;
       ring.style.translate = `${event.clientX - w / 2}px ${event.clientY - h / 2}px`;
       ring.textContent = `${event.pointerId}`;
       ring.title = `${event.pointerType} ${event.pointerId}: ${Math.round(event.width)} × ${Math.round(event.height)}, pressure ${event.pressure.toFixed(2)}`;
-      ring.dataset.size = reported ? `${Math.round(event.width)}×${Math.round(event.height)}` : '';
+      ring.dataset.size = sizeOf(event, reported);
     },
 
     /**
@@ -171,22 +189,26 @@
     act(event) {
       const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
       if (!(button instanceof HTMLButtonElement)) return;
-      const action = button.dataset.action;
+      /** @type {Record<string, () => void>} */
+      const actions = {
+        fullscreen: () => toggleFullscreen(),
+        record: () => this.toggleRecording(),
+        save: () => {
+          if (this.entries.length) download(this.entries);
+        },
+        reset: () => this.reset(),
+      };
+      actions[button.dataset.action ?? '']?.();
+    },
 
-      if (action === 'fullscreen') {
-        if (document.fullscreenElement) document.exitFullscreen();
-        else document.documentElement.requestFullscreen();
+    /** Starts recording, afresh, or stops. */
+    toggleRecording() {
+      if (!this.recording) {
+        this.entries = [];
+        this.startedAt = performance.now();
       }
-      if (action === 'record') {
-        if (!this.recording) {
-          this.entries = [];
-          this.startedAt = performance.now();
-        }
-        this.recording = !this.recording;
-        this.saved = this.entries.length;
-      }
-      if (action === 'save' && this.entries.length) download(this.entries);
-      if (action === 'reset') this.reset();
+      this.recording = !this.recording;
+      this.saved = this.entries.length;
     },
 
     reset() {
