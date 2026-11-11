@@ -1,7 +1,7 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 95,
+ "count": 89,
  "allowed": {
   "app/routes/card/[address].html (anonymous)": [
    1056
@@ -24,9 +24,6 @@
   "app/data/audio.js chapterFile": [
    272
   ],
-  "app/elements/gesture-card.html key": [
-   272
-  ],
   "app/routes/search.html trailOf": [
    272
   ],
@@ -47,12 +44,6 @@
   ],
   "tools/import-syntax.js wordOf": [
    210
-  ],
-  "app/elements/gesture-card.html press": [
-   182
-  ],
-  "app/elements/gesture-card.html drag": [
-   182
   ],
   "tools/crap.js nameFor": [
    182
@@ -141,9 +132,6 @@
   "tools/import-xrefs.js target": [
    90
   ],
-  "app/elements/gesture-card.html forgetLost": [
-   72
-  ],
   "app/elements/time-line.html addEventListener callback": [
    72
   ],
@@ -173,9 +161,6 @@
   ],
   "tools/import-videos.js find callback": [
    72
-  ],
-  "app/elements/gesture-card.html release": [
-   56
   ],
   "app/elements/time-line.html connected": [
    56
@@ -230,9 +215,6 @@
   ],
   "tools/import-syntax.js verseOf": [
    56
-  ],
-  "app/elements/gesture-card.html moveMarking": [
-   42
   ],
   "app/elements/reading-settings.html connected": [
    42

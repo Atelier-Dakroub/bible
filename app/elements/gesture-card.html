@@ -103,6 +103,40 @@
   // The card touched last goes on top. One counter for every card on the page.
   let top = 1;
 
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /**
+   * Whether a press is a control's: a button on the card is pressed, not
+   * dragged; in a note being written, a press places the caret or selects
+   * words.
+   *
+   * @param {Element | null} target
+   */
+  const ownPress = (target) => Boolean(target?.closest('button, label, input, [contenteditable]:not([contenteditable="false"])'));
+
+  /** @param {PointerEvent} event a mouse's other buttons do not move the card */
+  const otherButton = (event) => event.pointerType === 'mouse' && event.button !== 0;
+
+  /** @param {PointerEvent} event a mouse or a pen that moves with no button down is not holding the card */
+  const heldUp = (event) => event.pointerType !== 'touch' && event.buttons === 0;
+
+  /**
+   * Whether a lift ends a tap: the same pointer, short and still.
+   *
+   * @param {{ id: number, t: number } | null} tap
+   * @param {PointerEvent} event
+   */
+  const isTap = (tap, event) => tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS;
+
+  /**
+   * Whether a point has moved from another by more than a still finger does.
+   *
+   * @param {{ x: number, y: number }} from
+   * @param {PointerEvent} event
+   */
+  const movedFrom = (from, event) => Math.hypot(event.clientX - from.x, event.clientY - from.y) > STILL_PX;
+
   // A card that a finger holds goes above everything else on the page,
   // including a panel at the edge of the table, and comes down when it is let
   // go. A panel sits between the two levels.
@@ -245,27 +279,43 @@
     key(event) {
       // Keys typed into a field on the card are the field's.
       if (event.target !== this || event.metaKey || event.ctrlKey) return;
-      const far = event.shiftKey ? KEY_STEP_LONG : KEY_STEP;
-      const moves = /** @type {Record<string, [number, number]>} */ ({
-        ArrowLeft: [-far, 0],
-        ArrowRight: [far, 0],
-        ArrowUp: [0, -far],
-        ArrowDown: [0, far],
-      });
-      const move = moves[event.key];
-      if (move) this.moveBy(move[0], move[1]);
-      else if (event.key === '+' || event.key === '=') this.zoomAt(this.middle(), KEY_SCALE);
-      else if (event.key === '-' || event.key === '_') this.zoomAt(this.middle(), 1 / KEY_SCALE);
-      else if (event.key === ']') this.turnAt(this.middle(), KEY_TURN);
-      else if (event.key === '[') this.turnAt(this.middle(), -KEY_TURN);
-      else if (event.key === 'Enter') {
-        const heading = this.querySelector('.passage__heading') ?? this;
-        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: heading } }));
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      const act = this.keyActions(event.shiftKey)[event.key];
+      if (!act) return;
+      act();
+      event.preventDefault();
+    },
+
+    /**
+     * What each key does with the focus on the card: the arrows move it
+     * (further with Shift), + and - scale it, [ and ] turn it, Enter opens
+     * its heading, and Delete takes it off the table.
+     *
+     * @param {boolean} long
+     * @returns {Record<string, () => void>}
+     */
+    keyActions(long) {
+      const far = long ? KEY_STEP_LONG : KEY_STEP;
+      const zoom = (/** @type {number} */ factor) => () => this.zoomAt(this.middle(), factor);
+      const turn = (/** @type {number} */ angle) => () => this.turnAt(this.middle(), angle);
+      const remove = () => {
         this.dispatchEvent(new CustomEvent('card-remove', { bubbles: true }));
         this.remove();
-      } else return;
-      event.preventDefault();
+      };
+      return {
+        ArrowLeft: () => this.moveBy(-far, 0),
+        ArrowRight: () => this.moveBy(far, 0),
+        ArrowUp: () => this.moveBy(0, -far),
+        ArrowDown: () => this.moveBy(0, far),
+        '+': zoom(KEY_SCALE),
+        '=': zoom(KEY_SCALE),
+        '-': zoom(1 / KEY_SCALE),
+        _: zoom(1 / KEY_SCALE),
+        ']': turn(KEY_TURN),
+        '[': turn(-KEY_TURN),
+        Enter: () => this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: this.querySelector('.passage__heading') ?? this } })),
+        Delete: remove,
+        Backspace: remove,
+      };
     },
 
     /** @returns {HTMLElement} */
@@ -275,27 +325,45 @@
 
     /** @param {PointerEvent} event */
     press(event) {
-      // A button on the card is pressed, not dragged; in a note being
-      // written, a press places the caret or selects words.
-      if (event.target instanceof Element && event.target.closest('button, label, input, [contenteditable]:not([contenteditable="false"])')) return;
-      // The main button of a mouse moves the card; the others do not.
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const target = elementOf(event.target);
+      if (ownPress(target) || otherButton(event)) return;
       this.forgetLost();
-      if (this.marking) return;
-
-      const word = event.target instanceof Element ? wordAt(event.target) : null;
-      // A mouse or a pen has one point, so Option (Alt) stands in for the
-      // hand that holds the card.
-      const alone = event.pointerType !== 'touch' && event.altKey && this.points?.size === 0;
-      if (word && (alone || this.held(event.timeStamp))) {
-        this.startMarking(event.pointerId, word);
-        return;
-      }
-      // The first finger down might be a tap; a second finger means it is not.
-      this.tap = this.points?.size === 0
-        ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target }
-        : null;
+      if (this.marking || this.markFrom(event, target)) return;
+      this.tap = this.firstTap(event);
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * The first finger down might be a tap; a second finger means it is not.
+     *
+     * @param {PointerEvent} event
+     */
+    firstTap(event) {
+      return this.points?.size === 0 ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target } : null;
+    },
+
+    /**
+     * Starts marking words from the word pressed, when the card is held
+     * (or Option is down); false if this press does not mark.
+     *
+     * @param {PointerEvent} event
+     * @param {Element | null} target
+     */
+    markFrom(event, target) {
+      const word = target ? wordAt(target) : null;
+      if (!word || !(this.alone(event) || this.held(event.timeStamp))) return false;
+      this.startMarking(event.pointerId, word);
+      return true;
+    },
+
+    /**
+     * A mouse or a pen has one point, so Option (Alt) stands in for the hand
+     * that holds the card.
+     *
+     * @param {PointerEvent} event
+     */
+    alone(event) {
+      return event.pointerType !== 'touch' && event.altKey && this.points?.size === 0;
     },
 
     /**
@@ -306,22 +374,38 @@
      * @param {number} [keep] the pointer of the event being handled
      */
     forgetLost(keep) {
-      const held = (/** @type {number} */ id) => {
-        try {
-          return this.hasPointerCapture(id);
-        } catch {
-          return false;
-        }
-      };
-      if (this.marking && this.marking.id !== keep && !held(this.marking.id)) {
-        this.marking = null;
-        this.paintMarking();
-      }
+      const held = (/** @type {number} */ id) => this.holds(id);
+      this.dropLostMarking(keep);
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!dropLost(points, held, keep)) return;
       this.still = null;
       if (this.tap && !points.has(this.tap.id)) this.tap = null;
       if (points.size === 0) this.letGo();
+    },
+
+    /**
+     * Whether the card still holds a pointer.
+     *
+     * @param {number} id
+     */
+    holds(id) {
+      try {
+        return this.hasPointerCapture(id);
+      } catch {
+        return false;
+      }
+    },
+
+    /**
+     * Forgets a marking whose pointer is gone.
+     *
+     * @param {number} [keep] the pointer of the event being handled
+     */
+    dropLostMarking(keep) {
+      const marking = this.marking;
+      if (!marking || marking.id === keep || this.holds(marking.id)) return;
+      this.marking = null;
+      this.paintMarking();
     },
 
     /**
@@ -353,12 +437,12 @@
       const marking = /** @type {{ id: number, anchor: string, current: string, linking: boolean }} */ (this.marking);
       const under = document.elementFromPoint(event.clientX, event.clientY);
       // Once the finger leaves the card, the gesture is a link until it lifts.
-      if (marking.linking || !under || !this.contains(under)) {
+      if (marking.linking || !this.contains(under)) {
         marking.linking = true;
         this.sendLink('card-link-move', event);
         return;
       }
-      const word = wordAt(under);
+      const word = wordAt(/** @type {Element} */ (under));
       if (!word || word === marking.current) return;
       marking.current = word;
       this.paintMarking();
@@ -471,33 +555,56 @@
       }
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
-      // A mouse or a pen that moves with no button down is not holding the
-      // card, whatever the card missed.
-      if (event.pointerType !== 'touch' && event.buttons === 0) {
+      // Whatever the card missed.
+      if (heldUp(event)) {
         this.release(event);
         return;
       }
       this.forgetLost(event.pointerId);
-
-      const tap = this.tap;
-      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
-
-      // The holding finger settles again wherever it stops moving.
-      const still = this.still;
-      if (points.size === 1 && still && Math.hypot(event.clientX - still.x, event.clientY - still.y) > STILL_PX) {
-        this.still = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-      }
-
+      this.dropMovedTap(event);
+      this.settleStill(event, points);
       const after = new Map(points);
       after.set(event.pointerId, this.local({ x: event.clientX, y: event.clientY }));
+      this.moveTo(points, after, event);
+    },
 
+    /**
+     * A tap that moves is not a tap.
+     *
+     * @param {PointerEvent} event
+     */
+    dropMovedTap(event) {
+      if (this.tap && movedFrom(this.tap, event)) this.tap = null;
+    },
+
+    /**
+     * The holding finger settles again wherever it stops moving.
+     *
+     * @param {PointerEvent} event
+     * @param {Map<number, Point>} points
+     */
+    settleStill(event, points) {
+      const still = this.still;
+      if (points.size === 1 && still && movedFrom(still, event)) this.still = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    },
+
+    /**
+     * Moves the card as the fingers moved, kept within its sizes, snapped
+     * unless Command or Control is held.
+     *
+     * @param {Map<number, Point>} points
+     * @param {Map<number, Point>} after
+     * @param {PointerEvent} event
+     */
+    moveTo(points, after, event) {
       const moved = multiply(step(points, after), /** @type {Matrix} */ (this.raw ?? this.matrix));
       const about = centroid(after);
-      this.raw = clampScale(moved, MIN_SCALE, MAX_SCALE, about);
-      this.matrix = this.snaps(event) ? this.snapped(this.raw, about) : this.raw;
-      if (!this.snaps(event)) this.showGuides([]);
+      const raw = clampScale(moved, MIN_SCALE, MAX_SCALE, about);
+      this.raw = raw;
+      const snaps = this.snaps(event);
+      this.matrix = snaps ? this.snapped(raw, about) : raw;
+      if (!snaps) this.showGuides([]);
       this.points = after;
-
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.paint());
     },
@@ -513,11 +620,20 @@
       this.still = null;
       const tap = this.tap;
       this.tap = null;
-      if (tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS) {
-        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target, x: tap.x, y: tap.y } }));
-      }
+      this.sendTap(tap, event);
       if (points.size > 0) return;
       this.letGo();
+    },
+
+    /**
+     * Tells the table of a tap, if the lift ends one.
+     *
+     * @param {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} tap
+     * @param {PointerEvent} event
+     */
+    sendTap(tap, event) {
+      if (!tap || !isTap(tap, event)) return;
+      this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target, x: tap.x, y: tap.y } }));
     },
 
     /** No pointer holds the card: it comes down, and the table keeps it. */

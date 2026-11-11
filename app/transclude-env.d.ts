@@ -1024,9 +1024,21 @@ export type GestureCardMembers = {
   };
   settle(): void;
   key(event: KeyboardEvent): void;
+  keyActions(long: boolean): Record<string, () => void>;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
+  firstTap(event: PointerEvent): {
+    id: number;
+    x: number;
+    y: number;
+    t: number;
+    target: EventTarget | null;
+  } | null;
+  markFrom(event: PointerEvent, target: Element | null): boolean;
+  alone(event: PointerEvent): boolean;
   forgetLost(keep?: number | undefined): void;
+  holds(id: number): boolean;
+  dropLostMarking(keep?: number | undefined): void;
   held(now: number): boolean;
   startMarking(pointerId: number, word: string): void;
   moveMarking(event: PointerEvent): void;
@@ -1038,7 +1050,17 @@ export type GestureCardMembers = {
   placeAt(at: Point, scale?: number | undefined): void;
   setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
+  dropMovedTap(event: PointerEvent): void;
+  settleStill(event: PointerEvent, points: Map<number, Point>): void;
+  moveTo(points: Map<number, Point>, after: Map<number, Point>, event: PointerEvent): void;
   release(event: PointerEvent): void;
+  sendTap(tap: {
+    id: number;
+    x: number;
+    y: number;
+    t: number;
+    target: EventTarget | null;
+  } | null, event: PointerEvent): void;
   letGo(): void;
   snaps(event: PointerEvent): boolean;
   snapped(raw: Matrix, about: Point): Matrix;
