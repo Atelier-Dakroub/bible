@@ -188,6 +188,9 @@
       if (shown) {
         this.showTab(this.tab);
         requestAnimationFrame(() => slideIn(this, { y: -8 }));
+        // The focus goes into the panel, to its tab: the panel is far from
+        // the rail in the page's order.
+        requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('[role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true }));
         // On a phone, one panel is open at a time (bible-table closes the
         // others).
         if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
@@ -317,6 +320,26 @@
     },
 
     /**
+     * Notes the list button that has the focus, so a list drawn again can
+     * give it back to the same button (Delete pressed twice, Style, Remove);
+     * or to the list's first button, if that one is gone.
+     *
+     * @returns {() => void} what puts the focus back
+     */
+    focusKeeper() {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !active.closest('.menu__list, .menu__rules')) return () => {};
+      const { action = '', name, index } = active.dataset;
+      const list = active.closest('.menu__list, .menu__rules');
+      return () => {
+        const same = [...(list?.querySelectorAll(`[data-action="${CSS.escape(action)}"]`) ?? [])].find(
+          (each) => /** @type {HTMLElement} */ (each).dataset.name === name && /** @type {HTMLElement} */ (each).dataset.index === index,
+        );
+        /** @type {HTMLElement | null | undefined} */ (same ?? list?.querySelector('button'))?.focus({ preventScroll: true });
+      };
+    },
+
+    /**
      * @param {string} type
      * @param {object} [detail]
      */
@@ -339,6 +362,7 @@
      */
     setRules(rules) {
       this.rules = rules;
+      const restore = this.focusKeeper();
       const presets = /** @type {HTMLElement} */ (this.querySelector('.menu__presets'));
       if (!presets.children.length) {
         presets.replaceChildren(
@@ -393,6 +417,7 @@
         row.textContent = 'None yet. Choose one above, or mark a word from the search panel.';
         list.append(row);
       }
+      restore();
     },
 
     /**
@@ -402,6 +427,7 @@
      */
     refresh(message) {
       if (!message.startsWith('Press Delete')) this.deleting = '';
+      const restore = this.focusKeeper();
       const status = /** @type {HTMLElement} */ (this.querySelector('.menu__status'));
       status.textContent = message;
       const list = /** @type {HTMLElement} */ (this.querySelector('.menu__list'));
@@ -437,6 +463,7 @@
         row.textContent = 'None yet. Name this table above to keep it.';
         list.append(row);
       }
+      restore();
     },
   };
 </script>

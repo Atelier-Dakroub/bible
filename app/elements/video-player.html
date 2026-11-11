@@ -140,9 +140,9 @@
       }, { signal });
       const scrub = this.scrubber();
       scrub.addEventListener('input', () => this.seek(Number(scrub.value)), { signal });
-      // Space or K plays and pauses, the left and right arrows step ten
-      // seconds, while the focus is in the player (and not on the scrubber,
-      // which has the arrows for its own).
+      // Space or K plays and pauses, and the left and right arrows step ten
+      // seconds, while the focus is in the player. On the scrubber, the arrows
+      // step five seconds, not the range's own tenth of a second.
       this.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && this.matches(':popover-open')) {
           this.hidePopover();
@@ -150,7 +150,13 @@
           event.stopPropagation();
           return;
         }
-        if (event.target === scrub) return;
+        if (event.target === scrub) {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          this.seek(this.at + (event.key === 'ArrowRight' ? 5 : -5));
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         if (event.key === 'k' || (event.key === ' ' && !(event.target instanceof HTMLButtonElement))) this.toggle();
         else if (event.key === 'ArrowLeft') this.seek(this.at - 10);
         else if (event.key === 'ArrowRight') this.seek(this.at + 10);
@@ -326,7 +332,16 @@
      * @param {HTMLVideoElement} video
      */
     async withHls(video) {
-      const { default: Hls } = await import('hls.js/light');
+      /** @type {any} */
+      let Hls;
+      try {
+        ({ default: Hls } = await import('hls.js/light'));
+      } catch {
+        // The player's code did not load (offline, or a new deploy): say the
+        // video will not play here, with its link to the source.
+        if (this.video === video) this.fail();
+        return;
+      }
       if (!Hls.isSupported() || this.video !== video) {
         this.fail();
         return;
@@ -824,7 +839,7 @@
     <span class="player__icon" hidden="${playing}"><svg-icon library="ui" name="play"></svg-icon></span>
     <span class="player__icon" hidden="${!playing}"><svg-icon library="ui" name="pause"></svg-icon></span>
   </button>
-  <input type="range" class="player__scrub" min="0" max="0" step="0.1" value="0" aria-label="Position in the video" />
+  <input type="range" class="player__scrub" min="0" max="0" step="1" value="0" aria-label="Position in the video" />
   <span class="player__time">${clock}</span>
   <button type="button" class="player__button player__speed" data-player="speed" aria-label="Speed: ${rate} times" title="Speed">${rate}×</button>
   <button type="button" class="player__button" data-player="captions" aria-pressed="${subtitles ? 'true' : 'false'}" aria-label="Captions" title="Captions" hidden="${kind === 'stream' && !captions}"><svg-icon library="ui" name="captions"></svg-icon></button>

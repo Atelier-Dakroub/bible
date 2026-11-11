@@ -592,7 +592,16 @@
         // A note being written ends first, so Undo brings back its words.
         if (this.writing?.card === card) this.writing.end();
         const note = card.dataset.kind === 'note' ? card.dataset.note : '';
+        // The focus, if it was on the card, goes to the nearest card left,
+        // not to the top of the page.
+        const box = card.getBoundingClientRect();
+        const focused = card.contains(document.activeElement);
         queueMicrotask(() => {
+          if (focused) {
+            const others = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
+            const next = others[nearestTo({ x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 }, others.map((each) => each.getBoundingClientRect()))];
+            next?.focus({ preventScroll: true });
+          }
           if (note) {
             this.notes = this.notes.filter((each) => each.id !== note);
             this.paintQuoted(this.world());
@@ -1049,8 +1058,28 @@
       const world = this.world();
       world.style.left = `${x}px`;
       world.style.top = `${y}px`;
-      this.drawSoon();
+      // A pan moves every line and label by the same amount: they move with
+      // it, and are drawn again only once the pan rests. On a table of many
+      // cards and cross-references, drawing every frame drops frames.
+      const at = this.drawnAt;
+      if (!at) {
+        this.drawSoon();
+        return;
+      }
+      const dx = x - at.x;
+      const dy = y - at.y;
+      /** @type {SVGGElement | null} */ (this.querySelector('.table__drawn'))?.setAttribute('transform', `translate(${dx} ${dy})`);
+      const labels = /** @type {HTMLElement | null} */ (this.querySelector('.table__labels'));
+      if (labels) labels.style.translate = `${dx}px ${dy}px`;
+      /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
+      clearTimeout(this.restTimer);
+      this.restTimer = setTimeout(() => this.drawSoon(), 120);
     },
+
+    /** @type {{ x: number, y: number } | null} the pan at the last drawing of the lines */
+    drawnAt: null,
+    /** @type {any} */
+    restTimer: 0,
 
     /**
      * @param {{ address: string, pointer: Pull | null, version?: string }} detail
@@ -1158,6 +1187,8 @@
       if (note.quotes.some((each) => spanAddress(each) === address)) return;
       const quotes = this.quotesOf(card);
       const drawn = await this.loadQuote(address);
+      // The same words dropped again while they loaded: one quote is enough.
+      if (note.quotes.some((each) => spanAddress(each) === address)) return;
       if (drawn) quotes.set(address, drawn);
       const quote = { type: 'quote', attrs: { span: address, title: drawn?.dataset.title ?? '' } };
       // Being written: the quote goes in at the caret's line.
@@ -1896,8 +1927,15 @@
 
     draw() {
       const drawn = /** @type {SVGGElement} */ (this.querySelector('.table__drawn'));
+      // Drawn where they are now: the pan's shift is in the boxes again.
+      this.drawnAt = { ...this.offset };
+      drawn.removeAttribute('transform');
+      /** @type {HTMLElement | null} */ (this.querySelector('.table__labels'))?.style.removeProperty('translate');
       /** @type {Element[]} */
-      const lines = [...this.timeLines(), ...this.placeLines(), ...this.referenceLines()];
+      // The lines to the timeline end at the strip, which does not pan: they
+      // have a layer of their own, drawn on every pan frame (they are few).
+      /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
+      const lines = [...this.placeLines(), ...this.referenceLines()];
 
       // The same words on several cards: a chain from each place to the next.
       for (const span of this.highlights) {
@@ -2229,7 +2267,8 @@
         const resume = () => {
           if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
         };
-        new Recording(audio, { title, resume }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
+        const failed = () => this.toast('The recording could not be played. Check the connection and try again.');
+        new Recording(audio, { title, resume, failed }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
         return;
       }
       const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]');
@@ -3145,6 +3184,7 @@
     </marker>
   </defs>
   <g class="table__drawn"></g>
+  <g class="table__fixed"></g>
 </svg>
 <div class="table__labels"></div>
 <p class="table__toast" role="status"></p>

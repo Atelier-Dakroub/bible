@@ -291,7 +291,12 @@
     announce(results) {
       const status = this.querySelector('.search__status');
       if (!status) return;
-      const said = results.querySelector('.stats__summary, .results__summary, h2, h3, .discover p');
+      // What the answer is, in order of what says it best: its own words
+      // (data-announce), its summary, its title; not the first heading that
+      // happens to come first (a word study's "Senses").
+      const said = ['[data-announce]', '.stats__summary', '.results__summary', 'h2', '.discover p', 'h3']
+        .map((selector) => results.querySelector(selector))
+        .find(Boolean);
       status.textContent = '';
       const text = (said?.textContent ?? '').replace(/\s+/g, ' ').trim();
       if (text) setTimeout(() => (status.textContent = text), 100);

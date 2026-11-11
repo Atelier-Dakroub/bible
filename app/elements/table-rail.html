@@ -91,7 +91,9 @@
       else {
         this.addEventListener('keydown', (event) => this.rove(event), { signal });
         this.addEventListener('focusin', (event) => this.roveTo(/** @type {Element} */ (event.target)), { signal });
-        queueMicrotask(() => this.roveTo(this.querySelector('[data-action="search"]')));
+        // The Tab key's stop: Search, or Show when the rail is hidden (its
+        // other buttons are not shown then).
+        queueMicrotask(() => this.roveTo(this.querySelector(this.cleared ? '[data-action="show"]' : '[data-action="search"]')));
       }
       // A panel's grip with the keys: the arrow keys move the panel.
       table.addEventListener('keydown', (event) => this.gripKey(event), { signal });

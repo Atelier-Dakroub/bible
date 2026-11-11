@@ -621,6 +621,11 @@ export type BibleTableMembers = {
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
   paint(): void;
+  restTimer: any;
+  drawnAt: {
+    x: number;
+    y: number;
+  } | null;
   place({
     address, pointer, version
   }: {
@@ -729,9 +734,8 @@ export type BibleTableMembers = {
     text: string;
     typed: boolean;
   }[]): void;
-  restore({
-    id, address, matrix, version, sync, compare, view
-  }: StoredCard): Promise<void>;
+  unloaded: StoredCard[];
+  restore(stored: StoredCard): Promise<void>;
   switchVersion(card: Card, version: string): Promise<void>;
   replaceCard(card: Card, address: string, version: string): Promise<Card | null>;
   step(card: Card, address: string): Promise<void>;
@@ -787,7 +791,9 @@ export type BibleTableMembers = {
   showHistory(): void;
   undo(): void;
   redo(): void;
-  apply(target: Workspace, record: boolean): Promise<void>;
+  changing: Promise<unknown>;
+  apply(target: Workspace, record: boolean): Promise<unknown>;
+  applyNow(target: Workspace, record: boolean): Promise<void>;
   openWorkspace(workspace: Workspace, name: string, message: string): Promise<void>;
   setName(name: string): void;
   saveAs(name: string): void;
@@ -961,6 +967,7 @@ export type MapViewMembers = {
   level: number;
   settleTimer: number;
   glideFrame: number;
+  glideDone: (() => void) | null;
   drawn: View | null;
   quick: boolean;
   drawTimer: number;
@@ -984,6 +991,7 @@ export type MapViewMembers = {
   measure(): void;
   relabel(): void;
   setView(view: View): void;
+  stopGlide(): void;
   glideTo(target: View): Promise<void>;
   fit(ids: string[], more?: {
     x: number;
@@ -1197,6 +1205,7 @@ export type TableMenuMembers = {
   paintChoices(): void;
   choose(event: Event): void;
   act(event: MouseEvent): void;
+  focusKeeper(): () => void;
   send(type: string, detail?: object | undefined): void;
   setName(name: string): void;
   setRules(rules: Rule[]): void;

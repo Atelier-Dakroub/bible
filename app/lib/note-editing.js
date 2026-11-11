@@ -100,6 +100,8 @@ export function edit(host, doc, hooks) {
   host.classList.remove('is-empty');
   let ended = false;
   const quotes = hooks.quotes ?? new Map();
+  /** @type {Set<HTMLElement>} the quote elements in the editor now */
+  const shown = new Set();
   // A quote last: a line after it, to go on writing.
   const start = doc.lastChild?.type === schema.nodes.quote ? doc.copy(doc.content.addToEnd(schema.nodes.paragraph.create())) : doc;
   const view = new EditorView(host, {
@@ -109,6 +111,9 @@ export function edit(host, doc, hooks) {
       quote: (node) => {
         const span = node.attrs.span;
         let dom = quotes.get(span);
+        // One element can be in one place: a second quote of the same words
+        // (pasted, or dropped twice) shows a copy of them.
+        if (dom && shown.has(dom)) dom = /** @type {HTMLElement} */ (dom.cloneNode(true));
         if (!dom) {
           dom = document.createElement('section');
           dom.className = 'note__quote is-loading';
@@ -125,11 +130,13 @@ export function edit(host, doc, hooks) {
           });
         }
         dom.contentEditable = 'false';
+        const view = dom;
+        shown.add(view);
         return {
-          dom,
+          dom: view,
           stopEvent: (event) => event.target instanceof Element && Boolean(event.target.closest('button')),
           ignoreMutation: () => true,
-          destroy: () => dom?.removeAttribute('contenteditable'),
+          destroy: () => shown.delete(view),
         };
       },
     },

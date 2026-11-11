@@ -127,6 +127,8 @@
     level: -1,
     settleTimer: 0,
     glideFrame: 0,
+    /** @type {(() => void) | null} the end of the glide under way, for whoever waits on it */
+    glideDone: null,
     /** @type {View | null} the view the map was last drawn at */
     drawn: null,
     /** whether the map is moving, and shown as a picture until it stops */
@@ -238,7 +240,7 @@
     },
 
     disconnected() {
-      cancelAnimationFrame(this.glideFrame);
+      this.stopGlide();
       clearTimeout(this.settleTimer);
       clearTimeout(this.drawTimer);
     },
@@ -368,11 +370,22 @@
      * @param {View} view
      */
     setView(view) {
-      cancelAnimationFrame(this.glideFrame);
+      this.stopGlide();
       this.view = moveView(view, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
       this.quick = false;
       this.classList.remove('is-quick');
       this.paint();
+    },
+
+    /**
+     * Stops a glide under way, where it is. Whoever waits on it goes on: an
+     * interrupted glide is over, not lost.
+     */
+    stopGlide() {
+      cancelAnimationFrame(this.glideFrame);
+      const done = this.glideDone;
+      this.glideDone = null;
+      done?.();
     },
 
     /**
@@ -382,13 +395,14 @@
      * @returns {Promise<void>}
      */
     glideTo(target) {
-      cancelAnimationFrame(this.glideFrame);
+      this.stopGlide();
       const from = /** @type {View} */ (this.view);
       const to = moveView(target, { x: 0, y: 0 }, { x: 0, y: 0 }, 1);
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const start = performance.now();
       this.begin();
       return new Promise((resolve) => {
+        this.glideDone = resolve;
         const frame = (/** @type {number} */ now) => {
           const t = reduced ? 1 : Math.min(1, (now - start) / GLIDE_MS);
           const eased = 1 - (1 - t) ** 3;
@@ -404,6 +418,7 @@
           if (t < 1) this.glideFrame = requestAnimationFrame(frame);
           else {
             this.view = to;
+            this.glideDone = null;
             this.end();
             this.settle(0);
             resolve();
@@ -561,7 +576,7 @@
       } catch {
         return;
       }
-      cancelAnimationFrame(this.glideFrame);
+      this.stopGlide();
       const points = /** @type {Map<number, Point>} */ (this.points);
       this.tap = points.size === 0
         ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target }
@@ -644,7 +659,7 @@
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
       const at = { x: event.clientX, y: event.clientY };
       const view = /** @type {View} */ (this.view);
-      cancelAnimationFrame(this.glideFrame);
+      this.stopGlide();
       this.begin();
       this.drawTimer = setTimeout(() => this.end(), WHEEL_DRAW_MS);
       if (event.ctrlKey || event.metaKey) {

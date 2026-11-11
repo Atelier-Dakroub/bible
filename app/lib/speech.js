@@ -143,6 +143,8 @@ export async function sayWord(text, lang) {
   const speech = synth();
   const voice = await voiceFor(lang);
   if (!speech || !voice) return false;
+  // A reading under way stops first, so its card shows it has stopped.
+  /** @type {any} */ (Reader.current)?.stop();
   speech.cancel();
   const utterance = new SpeechSynthesisUtterance(lang === 'he' ? sayableHebrew(text) : text);
   utterance.voice = voice;
@@ -179,6 +181,8 @@ export class Reader {
     for (const lang of new Set(items.map((item) => item.lang))) {
       if (!speech || !(await voiceFor(lang))) return lang;
     }
+    // Another reading began while the voices loaded: it wins.
+    if (Reader.current !== this) return null;
     this.items = items;
     this.at = Math.min(Math.max(0, start), items.length - 1) - 1;
     this.onEnd = onEnd ?? null;
@@ -198,6 +202,7 @@ export class Reader {
       return;
     }
     const voice = await voiceFor(item.lang);
+    if (this.stopped || Reader.current !== this) return;
     const utterance = new SpeechSynthesisUtterance(item.lang === 'he' ? sayableHebrew(item.text) : item.text);
     if (voice) {
       utterance.voice = voice;
@@ -217,8 +222,11 @@ export class Reader {
       item.element.classList.remove('is-read');
       if (!this.stopped && Reader.current === this) this.next();
     });
+    // An utterance cut off (another word said, the voice failed) ends the
+    // reading, so its card shows Listen again, not Pause.
     utterance.addEventListener('error', () => {
       item.element.classList.remove('is-read');
+      if (!this.stopped && Reader.current === this) this.finish(item.element);
     });
     speech.speak(utterance);
   }
@@ -274,11 +282,14 @@ export class Recording {
   onEnd = null;
   /** @type {AbortController | null} */
   listening = null;
+  /** whether a file would not play */
+  failed = false;
 
   /**
    * @param {HTMLAudioElement} audio
-   * @param {{ title?: string, resume?: () => void }} [options] the passage's
-   *   name, for the lock screen, and how to go on after a pause there
+   * @param {{ title?: string, resume?: () => void, failed?: () => void }} [options] the passage's
+   *   name, for the lock screen, how to go on after a pause there, and what
+   *   to do when the recording cannot be played (a missing file, no network)
    */
   constructor(audio, options = {}) {
     this.audio = audio;
@@ -329,6 +340,13 @@ export class Recording {
     for (const chapter of left) {
       if (this.stopped) return;
       await this.chapter(chapter, elementOf);
+      // The file would not play: say so, and stop where it was.
+      if (this.failed && !this.stopped) {
+        this.session('none');
+        this.options.failed?.();
+        this.finish(this.marked);
+        return;
+      }
     }
     this.session('none');
     this.finish();
@@ -352,13 +370,19 @@ export class Recording {
         listening.abort();
         resolve(undefined);
       };
+      /** @param {unknown} [error] */
+      const fail = (error) => {
+        // A pause or a stop also rejects play(): that is not a failure.
+        if (!(error instanceof DOMException && error.name === 'AbortError') && !this.stopped) this.failed = true;
+        done();
+      };
       const begin = () => {
         audio.currentTime = first.at;
         audio.muted = false;
         // Faster or slower, at the same pitch.
         audio.playbackRate = speed();
         audio.preservesPitch = true;
-        audio.play().catch(done);
+        audio.play().catch(fail);
       };
       if (!audio.src.endsWith(chapter.file)) audio.src = chapter.file;
       if (audio.readyState >= 1) begin();
@@ -388,7 +412,7 @@ export class Recording {
         this.mark(verse ? elementOf(verse.id) : null);
       }, { signal: listening.signal });
       audio.addEventListener('ended', done, { signal: listening.signal });
-      audio.addEventListener('error', done, { signal: listening.signal });
+      audio.addEventListener('error', () => fail(), { signal: listening.signal });
     });
   }
 
