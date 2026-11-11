@@ -63,14 +63,23 @@ for (const { id, verses: counts } of books) {
   /** @type {{ style: string, text: string }[]} the title before verse 1, if any */
   let pending = [];
 
+  // A paragraph marker begins a new block, even of the same style: two
+  // lines of poetry in a row (\q2, \q2) are two lines, not one run of text
+  // ("righteousness" and "for the sake" were once joined). Text that goes on
+  // over a line break, with no marker, keeps a space at the break.
+  let fresh = false;
+  let broken = false;
+
   /** @param {string} text */
   const add = (text) => {
     const words = clean(text);
     if (!words.trim()) return;
     const target = verse ?? pending;
     const last = target.at(-1);
-    if (last && last.style === style) last.text += words;
+    if (last && last.style === style && !fresh) last.text += broken && !/\s$/.test(last.text) && !/^\s/.test(words) ? ` ${words}` : words;
     else target.push({ style, text: words.trimStart() });
+    fresh = false;
+    broken = false;
   };
 
   for (const raw of lines) {
@@ -85,11 +94,13 @@ for (const { id, verses: counts } of books) {
     if (!line || SKIP.test(line) || chapter === 0) continue;
 
     let rest = line;
+    broken = true;
     const marker = /^\\([a-z]+\d?)\s?/.exec(rest);
     if (marker && marker[1] !== 'v') {
       const next = BLOCKS[/** @type {keyof typeof BLOCKS} */ (marker[1])];
       if (!next) continue;
       style = next;
+      fresh = true;
       rest = rest.slice(marker[0].length);
       if (style === 'd') verse = null;
     }
