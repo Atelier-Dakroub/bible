@@ -404,9 +404,12 @@
         element.style.height = '';
       };
       const W = innerWidth;
-      const H = innerHeight;
+      // The table's own height (100lvh): on a phone it runs down behind the
+      // browser's bottom bar, which the chrome treats as an inset.
+      const H = Math.max(innerHeight, Math.round(table.getBoundingClientRect().height));
       const gap = Math.round(0.5 * rem);
       const safe = this.insets();
+      safe.bottom += H - innerHeight;
       // Hidden, the rail is its Show button alone, as large as the button.
       if (this.cleared) this.style.width = '';
       const railBox = this.getBoundingClientRect();

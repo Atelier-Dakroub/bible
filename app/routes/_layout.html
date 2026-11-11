@@ -8,6 +8,17 @@
      the table's chrome keeps clear of them by the safe-area insets
      (lib/chrome.js layout, table-rail). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!-- Added to a phone's Home Screen, the table opens as an app of its own:
+     the whole screen, no browser bars, the status bar see-through over it
+     (black-translucent), so the table runs under the notch, and its chrome
+     keeps clear by the safe-area insets. In a browser tab the status bar is
+     the browser's. -->
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Bible" />
 
 <!-- No navigation here. The table fills the screen, so each page brings what
      it needs around itself. -->

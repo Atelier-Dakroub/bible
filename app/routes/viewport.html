@@ -1,0 +1,94 @@
+<title>Viewport</title>
+
+<!-- A diagnostic page: what a browser reports about the screen, and where
+     each kind of viewport ends on it, drawn as colored frames. Made for
+     Safari on an iPhone in portrait, where the table looked cut off above
+     and below. Not linked from the app. -->
+
+<style>
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  body {
+    padding: 0;
+    background: #e4ddcf;
+    font: 13px/1.4 system-ui, sans-serif;
+    color: #2a231d;
+  }
+  .frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-sizing: border-box;
+    width: 100%;
+    pointer-events: none;
+  }
+  .frame span {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    padding: 0 4px;
+    background: #fff;
+    font-weight: 700;
+  }
+  .lvh { height: 100lvh; border: 6px solid #d00; }
+  .dvh { height: 100dvh; border: 6px dashed #080; }
+  .svh { height: 100svh; border: 4px dotted #00c; }
+  .pct { height: 100%; border: 2px solid #f0f; }
+  .safe {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    border-style: solid;
+    border-color: rgb(255 160 0 / 0.5);
+    border-width: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    pointer-events: none;
+  }
+  pre {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: 0;
+    padding: 10px 12px;
+    translate: -50% -50%;
+    border-radius: 8px;
+    background: #fff;
+    white-space: pre-wrap;
+    width: min(90%, 30rem);
+  }
+  .probe { position: absolute; visibility: hidden; }
+</style>
+
+<div class="frame lvh"><span style="color:#d00">100lvh</span></div>
+<div class="frame dvh"><span style="color:#080; bottom: 22px">100dvh</span></div>
+<div class="frame svh"><span style="color:#00c; bottom: 42px">100svh</span></div>
+<div class="frame pct"><span style="color:#f0f; bottom: 62px">100%</span></div>
+<div class="safe"></div>
+<div class="probe" id="lvh" style="height:100lvh"></div>
+<div class="probe" id="dvh" style="height:100dvh"></div>
+<div class="probe" id="svh" style="height:100svh"></div>
+<div class="probe" id="safe" style="padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)"></div>
+<pre id="out">…</pre>
+
+<script>
+  const show = () => {
+    const px = (id) => Math.round(document.getElementById(id).getBoundingClientRect().height);
+    const safe = getComputedStyle(document.getElementById('safe'));
+    const vv = window.visualViewport;
+    document.getElementById('out').textContent = [
+      `Orange band: safe-area insets (top ${safe.paddingTop}, right ${safe.paddingRight}, bottom ${safe.paddingBottom}, left ${safe.paddingLeft})`,
+      `Frames: red 100lvh = ${px('lvh')}, green dashed 100dvh = ${px('dvh')}, blue dotted 100svh = ${px('svh')}, pink 100% = ${document.documentElement.clientHeight}`,
+      `innerWidth × innerHeight: ${innerWidth} × ${innerHeight}`,
+      `visualViewport: ${vv ? `${Math.round(vv.width)} × ${Math.round(vv.height)}, offsetTop ${Math.round(vv.offsetTop)}` : 'none'}`,
+      `screen: ${screen.width} × ${screen.height}, dpr ${devicePixelRatio}`,
+      `standalone: ${matchMedia('(display-mode: standalone)').matches}`,
+      navigator.userAgent,
+    ].join('\n');
+  };
+  show();
+  addEventListener('resize', show);
+  window.visualViewport?.addEventListener('resize', show);
+</script>

@@ -2472,9 +2472,15 @@
      its toolbar from a fixed element that spans the screen, and paints them
      solid over it, so a fixed table looks cut off above and below. The page
      does not scroll (routes/table.html), so absolute holds it still. */
+  /* As tall as the largest viewport (lvh): on a phone, down behind the
+     browser's floating bottom bar too, where the page can draw; the rail
+     keeps above that bar (table-rail). */
   :scope {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100lvh;
     display: block;
     overflow: hidden;
     touch-action: none;

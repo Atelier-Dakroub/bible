@@ -219,8 +219,34 @@ for (const book of books) {
   // The chapters: each from just after the one before to the next.
   for (const chapter of data.chapters) {
     const ids = chapter.verses.map((/** @type {{ id: string }} */ verse) => verse.id);
-    const first = starts.get(ids[0]);
-    const known = ids.map((id) => starts.get(id)).filter(Boolean);
+    // The recordings the chapter's verses were heard in, and how many in
+    // each. A chapter is in two (Deuteronomy 25, Acts 10) only where each
+    // holds two of its verses or more; a stray verse matched in another
+    // (the last words of a recording, say) does not count.
+    /** @type {Map<number, number>} */
+    const counts = new Map();
+    for (const id of ids) {
+      const start = starts.get(id);
+      if (start) counts.set(start.section, (counts.get(start.section) ?? 0) + 1);
+    }
+    const held = [...counts].filter(([, count]) => count >= 2).map(([section]) => section).sort((a, b) => a - b);
+    const sections = held.length ? held.slice(0, 2) : [...counts.keys()].slice(0, 1);
+    /** @param {string} id */
+    const startIn = (id) => {
+      const start = starts.get(id);
+      return start && sections.includes(start.section) ? start : null;
+    };
+    /** @param {string} id */
+    const endIn = (id) => {
+      const end = ends.get(id);
+      return end && sections.includes(end.section) ? end : null;
+    };
+    const known = ids.map(startIn).filter((start) => start !== null);
+    // A first verse not heard (a name misheard, say): the chapter begins
+    // from the first verse that was, and the verses before it play from the
+    // start of its file. A chapter the recording leaves out (Exodus 22,
+    // 2 Chronicles 4 and 8 are not in it) has none, and stays out.
+    const first = startIn(ids[0]) ?? known[0];
     if (!first || known.length < ids.length / 2) {
       console.log(`${book.id} ${chapter.n}: too few verses heard (${known.length} of ${ids.length}), left out`);
       continue;
@@ -228,7 +254,8 @@ for (const book of books) {
     const previous = data.chapters.find((/** @type {{ n: number }} */ each) => each.n === chapter.n - 1);
     const before = previous ? ends.get(previous.verses[previous.verses.length - 1].id) : null;
     const from = before && before.section === first.section ? Math.max(before.ms + 1000, first.ms - 4000) : Math.max(0, first.ms - 1500);
-    const last = ends.get(ids[ids.length - 1]) ?? ends.get(ids.findLast((id) => ends.has(id)) ?? '');
+    const lastId = ids.findLast((id) => endIn(id));
+    const last = lastId ? endIn(lastId) : null;
     if (!last) continue;
     // A chapter in two recordings: from its start to the end of the first,
     // then the second from its first word.
@@ -236,9 +263,9 @@ for (const book of books) {
     const parts = [];
     if (last.section === first.section) parts.push({ section: first.section, from, to: last.ms + 2500 });
     else {
-      const tail = [...ends.entries()].filter(([id, end]) => ids.includes(id) && end.section === first.section).map(([, end]) => end.ms);
-      const head = ids.map((id) => starts.get(id)).find((start) => start && start.section === last.section);
-      parts.push({ section: first.section, from, to: Math.max(...tail) + 1500 });
+      const tail = ids.map(endIn).filter((end) => end && end.section === first.section).map((end) => /** @type {{ ms: number }} */ (end).ms);
+      const head = ids.map(startIn).find((start) => start && start.section === last.section);
+      parts.push({ section: first.section, from, to: Math.max(from + 1000, ...tail) + 1500 });
       parts.push({ section: last.section, from: head ? head.ms : 0, to: last.ms + 2500 });
     }
     // Each verse's time in the chapter's file; a verse not heard takes the
@@ -246,7 +273,7 @@ for (const book of books) {
     /** @type {number[]} */
     const times = [];
     for (const id of ids) {
-      const start = starts.get(id);
+      const start = startIn(id);
       let t = times.length ? times[times.length - 1] : 0;
       if (start) {
         const part = parts.findIndex((each) => each.section === start.section);
