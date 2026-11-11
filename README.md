@@ -38,7 +38,9 @@ there. Pressed again, the mode ends: the reading stops, and taps on the card
 do what they always do (a word's study, a verse's references). The card keeps
 its place, and the next time it goes on from that verse ("Listen from verse
 1:4"); a reading that ends leaves the mode and begins again next time. One
-card is in the mode at a time. The KJV plays
+card is in the mode at a time. Tools, Table sets the reading speed (Slower,
+Normal, 1.15×, 1.3×, 1.5×) for the recording, at the same pitch, and for the
+device's voice; each device keeps its own. The KJV plays
 LibriVox's recording of the whole KJV, read by Michael Armenta (public
 domain), from the card's first verse to its last (`app/data/audio.js`,
 `/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters).

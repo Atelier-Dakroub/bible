@@ -41,6 +41,7 @@
 <script element>
   import { isPhone } from '../lib/screen.js';
   import { choice as keysChoice, setChoice as setKeysChoice, wantKeys } from '../lib/keyboard.js';
+  import { setSpeed, speed } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
   import { listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
@@ -61,6 +62,8 @@
     size: 'm',
     /** when the app's on-screen keyboard shows: auto, always or never */
     keyboard: 'auto',
+    /** the reading speed (lib/speech.js) */
+    speed: 1,
   };
   const TABS = ['table', 'reading', 'marks', 'workspace'];
 
@@ -94,6 +97,7 @@
       }, { signal });
       this.addEventListener('keydown', (event) => this.roveTabs(event), { signal });
       this.keyboard = keysChoice();
+      this.speed = speed();
       const nameField = /** @type {HTMLInputElement} */ (this.querySelector('#workspace-name'));
       nameField.addEventListener('blur', () => {
         this.keys = false;
@@ -210,6 +214,10 @@
       if (action === 'tab') this.showTab(button.dataset.tab ?? 'table');
       if (action === 'edge') rail?.setEdge(button.dataset.edge);
       if (action === 'size') rail?.setSize(button.dataset.size);
+      if (action === 'speed') {
+        this.speed = Number(button.dataset.speed) || 1;
+        setSpeed(this.speed);
+      }
       if (action === 'keyboard') {
         const value = /** @type {any} */ (button.dataset.keyboard ?? 'auto');
         setKeysChoice(value);
@@ -634,6 +642,14 @@
       <button type="button" data-action="size" data-size="s" aria-pressed="${size === 's' ? 'true' : 'false'}">Small</button>
       <button type="button" data-action="size" data-size="m" aria-pressed="${size === 'm' ? 'true' : 'false'}">Medium</button>
       <button type="button" data-action="size" data-size="l" aria-pressed="${size === 'l' ? 'true' : 'false'}">Large</button>
+    </div>
+    <h2 class="menu__heading">Reading speed</h2>
+    <div class="tools__row" role="group" aria-label="Speed of reading aloud">
+      <button type="button" data-action="speed" data-speed="0.8" aria-pressed="${speed === 0.8 ? 'true' : 'false'}">Slower</button>
+      <button type="button" data-action="speed" data-speed="1" aria-pressed="${speed === 1 ? 'true' : 'false'}">Normal</button>
+      <button type="button" data-action="speed" data-speed="1.15" aria-pressed="${speed === 1.15 ? 'true' : 'false'}">1.15×</button>
+      <button type="button" data-action="speed" data-speed="1.3" aria-pressed="${speed === 1.3 ? 'true' : 'false'}">1.3×</button>
+      <button type="button" data-action="speed" data-speed="1.5" aria-pressed="${speed === 1.5 ? 'true' : 'false'}">1.5×</button>
     </div>
     <h2 class="menu__heading">On-screen keyboard</h2>
     <div class="tools__row" role="group" aria-label="When the app's on-screen keyboard shows">

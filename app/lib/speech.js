@@ -58,6 +58,37 @@ export async function voiceFor(lang) {
   return [...all].sort((a, b) => score(b) - score(a))[0];
 }
 
+// The reading speed, kept in this browser: 0.8 (slower) to 1.5 (faster),
+// for the recording and the device's voice alike.
+const SPEED_KEY = 'bible.speed';
+export const SPEEDS = [0.8, 1, 1.15, 1.3, 1.5];
+
+/** @returns {number} */
+export function speed() {
+  try {
+    const kept = Number(localStorage.getItem(SPEED_KEY));
+    return SPEEDS.includes(kept) ? kept : 1;
+  } catch {
+    return 1;
+  }
+}
+
+/**
+ * Sets the reading speed; a reading under way takes it at once (the
+ * recording's next frame; the device's voice from its next verse).
+ *
+ * @param {number} value
+ */
+export function setSpeed(value) {
+  try {
+    localStorage.setItem(SPEED_KEY, String(value));
+  } catch {
+    // No storage: the speed lasts until the page closes.
+  }
+  const current = /** @type {any} */ (Reader.current);
+  if (current?.audio) current.audio.playbackRate = value;
+}
+
 /** The name of a language, for "This device has no … voice". */
 export const LANGUAGE_NAMES = { en: 'English', he: 'Hebrew', el: 'Greek' };
 
@@ -92,7 +123,7 @@ export async function sayWord(text, lang) {
   const utterance = new SpeechSynthesisUtterance(lang === 'he' ? sayableHebrew(text) : text);
   utterance.voice = voice;
   utterance.lang = voice.lang;
-  utterance.rate = 0.75;
+  utterance.rate = 0.75 * speed();
   speech.speak(utterance);
   return true;
 }
@@ -148,7 +179,7 @@ export class Reader {
       utterance.voice = voice;
       utterance.lang = voice.lang;
     }
-    utterance.rate = item.lang === 'en' ? 0.95 : 0.85;
+    utterance.rate = (item.lang === 'en' ? 0.95 : 0.85) * speed();
     item.element.classList.add('is-read');
     // Hebrew loses its marks before it is read, so its places no longer
     // fit: its words are not marked one by one.
@@ -300,6 +331,9 @@ export class Recording {
       const begin = () => {
         audio.currentTime = first.at;
         audio.muted = false;
+        // Faster or slower, at the same pitch.
+        audio.playbackRate = speed();
+        audio.preservesPitch = true;
         audio.play().catch(done);
       };
       if (!audio.src.endsWith(chapter.file)) audio.src = chapter.file;
