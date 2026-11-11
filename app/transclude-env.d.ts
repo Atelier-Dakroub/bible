@@ -99,6 +99,11 @@ type Pull = {
   y: number;
   down: boolean;
 };
+type Tap = {
+  element: Element;
+  x?: number | undefined;
+  y?: number | undefined;
+};
 type MapView = HTMLElement & {
   view: View | null;
   setView(view: View): void;
@@ -152,6 +157,20 @@ type StoredCard = {
     w: number;
   } | undefined;
 };
+type RecordedChapter = {
+  file: string;
+  verses: {
+    id: string;
+    at: number;
+    until: number;
+  }[];
+};
+type Box = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
 type FetchOptions = {
   version?: string | undefined;
   replacing?: Element | null | undefined;
@@ -168,7 +187,7 @@ type Workspace = {
   rules: Rule[];
   trail: Trail;
 };
-type Box = {
+type Box_2 = {
   left: number;
   top: number;
   right: number;
@@ -212,10 +231,10 @@ type Point_3 = {
   y: number;
 };
 type Layout = {
-  rail: Box_2;
-  search: Box_2 | null;
-  timeline: Box_2 | null;
-  tools: Box_2 | null;
+  rail: Box_3;
+  search: Box_3 | null;
+  timeline: Box_3 | null;
+  tools: Box_3 | null;
   free: {
     left: number;
     top: number;
@@ -223,7 +242,7 @@ type Layout = {
     bottom: number;
   };
 };
-type Box_2 = {
+type Box_3 = {
   x: number;
   y: number;
   w: number;
@@ -527,91 +546,18 @@ export type BibleTableMembers = {
   obey(command: {
     [key: string]: any;
     action: string;
-  }): Promise<{
-    name: string;
-    cards: {
-      address: string;
-      title: string;
-      version: string;
-      kind: string;
-    }[];
-    rules: {
-      kind: string;
-      value: string;
-      label: string;
-    }[];
-    placed?: undefined;
-    shown?: undefined;
-    searched?: undefined;
-    cleared?: undefined;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed: {
-      address: string;
-      title: string;
-    }[];
-    shown?: undefined;
-    searched?: undefined;
-    rules?: undefined;
-    cleared?: undefined;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed?: undefined;
-    shown: any;
-    searched?: undefined;
-    rules?: undefined;
-    cleared?: undefined;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed?: undefined;
-    shown?: undefined;
-    searched: any;
-    rules?: undefined;
-    cleared?: undefined;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed?: undefined;
-    shown?: undefined;
-    searched?: undefined;
-    rules: {
-      kind: string;
-      value: string;
-      label: string;
-    }[];
-    cleared?: undefined;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed?: undefined;
-    shown?: undefined;
-    searched?: undefined;
-    rules?: undefined;
-    cleared: boolean;
-    undone?: undefined;
-  } | {
-    name?: undefined;
-    cards?: undefined;
-    placed?: undefined;
-    shown?: undefined;
-    searched?: undefined;
-    rules?: undefined;
-    cleared?: undefined;
-    undone: boolean;
-  }>;
+  }): Promise<unknown>;
+  commands(): Record<string, (command: any) => unknown>;
   placeRow(addresses: string[], version: string): Promise<{
     address: string;
     title: string;
   }[]>;
   remoteKey(event: KeyboardEvent): void;
+  remoteEscape(event: KeyboardEvent, target: HTMLElement | null): boolean;
+  remoteEnter(event: KeyboardEvent, target: HTMLElement | null): boolean;
+  remoteMove(target: HTMLElement | null, direction: 'down' | 'left' | 'right' | 'up'): void;
+  focusedBox(target: HTMLElement | null): DOMRect | null;
+  remoteTargets(fromSomething: boolean): HTMLElement[];
   navigable(): HTMLElement[];
   reveal(card: Element): void;
   panKey(event: KeyboardEvent): void;
@@ -680,6 +626,52 @@ export type BibleTableMembers = {
     x?: number | undefined;
     y?: number | undefined;
   }): void;
+  panel(): any;
+  tapLink({
+    element
+  }: Tap): boolean;
+  tapSaid({
+    element
+  }: Tap): boolean;
+  tapListening({
+    element
+  }: Tap): boolean;
+  listeningAt(element: Element): {
+    card: HTMLElement;
+    listen: HTMLButtonElement;
+    ref: string;
+  } | null;
+  verseBeingRead(card: HTMLElement): string | null;
+  tapMore({
+    element
+  }: Tap): boolean;
+  tapTitle({
+    element
+  }: Tap): boolean;
+  tapNote({
+    element, x, y
+  }: Tap): boolean;
+  tapForm({
+    element
+  }: Tap): boolean;
+  tapStudy({
+    element
+  }: Tap): boolean;
+  tapPlace({
+    element
+  }: Tap): boolean;
+  tapChapter({
+    element
+  }: Tap): boolean;
+  tapHeading({
+    element
+  }: Tap): boolean;
+  tapWord({
+    element
+  }: Tap): boolean;
+  tapVerse({
+    element
+  }: Tap): boolean;
   headingTapped(card: HTMLElement): void;
   notesAt(address: string): {
     id: string;
@@ -740,13 +732,31 @@ export type BibleTableMembers = {
   replaceCard(card: Card, address: string, version: string): Promise<Card | null>;
   step(card: Card, address: string): Promise<void>;
   clicked(event: MouseEvent): void;
+  clickLabel(target: Element | null): boolean;
+  cardButton(card: Card, button: HTMLButtonElement): void;
   setSync(card: HTMLElement, on: boolean): void;
   setCompare(card: HTMLElement, on: boolean): void;
   readAloud(card: HTMLElement, button: HTMLButtonElement, from?: string | undefined): Promise<void>;
+  stopListening(card: HTMLElement): void;
+  startListening(card: HTMLElement): void;
+  readingEnded(card: HTMLElement): (at: Element | null) => void;
+  playRecording(card: HTMLElement, button: HTMLButtonElement, {
+    reader, chapters
+  }: {
+    reader: string;
+    chapters: RecordedChapter[];
+  }, start: string, ended: (at: Element | null) => void): void;
+  readWithDevice(card: HTMLElement, start: string, ended: (at: Element | null) => void): Promise<void>;
   listenLook(card: HTMLElement, playing?: boolean | undefined): void;
   toast(message: string): void;
   toastTimer: number;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
+  noteForCopy(card: HTMLElement, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+    title?: string | undefined;
+  }): string;
   unquote(card: HTMLElement, address: string): Promise<void>;
   paintKind(card: HTMLElement, note: {
     kind?: string | undefined;
@@ -774,10 +784,29 @@ export type BibleTableMembers = {
     y: number;
   } | null): void;
   showCaret(): void;
+  writingArea(): Box;
   paintQuoted(root: Element): void;
   fetchCard(address: string, {
     version, replacing, id, sync, compare
   }: FetchOptions): Promise<Card | null>;
+  noteAt(address: string): false | Note | null;
+  putCard(card: HTMLElement, replacing: Element | null, id: string | undefined): boolean;
+  markCard(card: HTMLElement, {
+    sync, compare, note
+  }: {
+    sync: boolean;
+    compare: boolean;
+    note: any;
+  }): void;
+  fillNote(card: HTMLElement, note: {
+    doc?: any;
+    text: string;
+    quotes: Highlight[];
+    kind?: string | undefined;
+    answered?: boolean | undefined;
+    title?: string | undefined;
+  }): void;
+  paintCard(card: HTMLElement): void;
   openSpot(): Point;
   free(): {
     left: number;
@@ -885,7 +914,7 @@ export type GestureCardMembers = {
   } | null;
   settleTimer: number;
   raw: Matrix | null;
-  others: Box[] | null;
+  others: Box_2[] | null;
   guiding: boolean;
   connected({
     signal
@@ -925,7 +954,7 @@ export type GestureCardMembers = {
   letGo(): void;
   snaps(event: PointerEvent): boolean;
   snapped(raw: Matrix, about: Point): Matrix;
-  otherBoxes(): Box[];
+  otherBoxes(): Box_2[];
   showGuides(guides: Guide[]): void;
   act(event: MouseEvent): void;
   local(at: Point): {

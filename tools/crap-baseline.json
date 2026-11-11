@@ -1,11 +1,8 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 172,
+ "count": 166,
  "allowed": {
-  "app/elements/bible-table.html tapped": [
-   1260
-  ],
   "app/elements/passage-search.html addEventListener callback": [
    1260,
    90
@@ -13,38 +10,17 @@
   "app/routes/card/[address].html (anonymous)": [
    1056
   ],
-  "app/elements/bible-table.html readAloud": [
-   930
-  ],
   "app/elements/table-rail.html arrange": [
    600
   ],
-  "app/elements/bible-table.html remoteKey": [
-   552
-  ],
   "app/elements/touch-keys.html press": [
    552
-  ],
-  "app/elements/bible-table.html clicked": [
-   506
   ],
   "app/elements/video-player.html heard": [
    420
   ],
   "app/lib/note-format.js draw": [
    420
-  ],
-  "app/elements/bible-table.html obey": [
-   342
-  ],
-  "app/elements/bible-table.html copyCard": [
-   342
-  ],
-  "app/elements/bible-table.html showCaret": [
-   342
-  ],
-  "app/elements/bible-table.html fetchCard": [
-   342
   ],
   "app/elements/table-menu.html choose": [
    342
@@ -405,6 +381,9 @@
   "app/elements/bible-table.html placeRow": [
    42
   ],
+  "app/elements/bible-table.html remoteKey": [
+   42
+  ],
   "app/elements/bible-table.html placeBeside": [
    42
   ],
@@ -412,6 +391,9 @@
    42
   ],
   "app/elements/bible-table.html unquote": [
+   42
+  ],
+  "app/elements/bible-table.html fetchCard": [
    42
   ],
   "app/elements/gesture-card.html moveMarking": [

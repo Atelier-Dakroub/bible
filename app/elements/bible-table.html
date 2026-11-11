@@ -121,8 +121,9 @@
        detail.pointer  { id, x, y, down } when a finger is pulling it out, else null -->
 
 <script element>
-  import { ARROWS, nearestIn, nearestTo } from '../lib/spatial.js';
+  import { ARROWS, inset, nearestIn, nearestTo, shiftInto, viewportBox } from '../lib/spatial.js';
   import { isPhone } from '../lib/screen.js';
+  import { typing } from '../lib/keyboard.js';
   import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
   import { WIDTH } from '../lib/map.js';
@@ -146,6 +147,166 @@
   /** @typedef {HTMLElement & { view: import('../lib/map.js').View | null, setView(view: import('../lib/map.js').View): void, fit(ids: string[], more?: { x: number, y: number }[]): Promise<void>, shows(id: string): boolean, relabel(): void }} MapView */
   /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void, zoomAt(at: Point, factor: number): void, turnAt(at: Point, radians: number): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
+  /** @typedef {{ element: Element, x?: number, y?: number }} Tap a tap on a card: what it touched, and where on the screen */
+
+  /**
+   * A point, if both its numbers are known.
+   *
+   * @param {number | undefined} x
+   * @param {number | undefined} y
+   */
+  const pointOf = (x, y) => (x === undefined || y === undefined ? null : { x, y });
+
+  /**
+   * The recording a card's speaker lists (data/audio.js), of the reader
+   * chosen in Tools: the app's voice first, then LibriVox's; none when the
+   * device's voice is chosen, or none is listed.
+   *
+   * @param {HTMLElement} button the card's speaker button, whose data-listen lists them
+   * @returns {{ kind: string, reader: string, chapters: import('../lib/speech.js').RecordedChapter[] } | null}
+   */
+  function recordingOf(button) {
+    const choice = readerChoice();
+    const recordings = choice === 'device' ? [] : listedRecordings(button);
+    return recordings.find((each) => each.kind === choice) ?? recordings[0] ?? null;
+  }
+
+  /**
+   * The recordings a card's speaker lists, or none if its list is not JSON.
+   *
+   * @param {HTMLElement} button
+   * @returns {{ kind: string, reader: string, chapters: import('../lib/speech.js').RecordedChapter[] }[]}
+   */
+  function listedRecordings(button) {
+    try {
+      return JSON.parse(button.dataset.listen || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * A card as the table's state tells an assistant: its address, title,
+   * version and kind.
+   *
+   * @param {HTMLElement} card
+   */
+  function cardState(card) {
+    const title = card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? '';
+    return { address: card.dataset.address ?? '', title, version: card.dataset.version ?? 'kjv', kind: card.dataset.kind ?? '' };
+  }
+
+  /**
+   * The way a remote's arrow key moves, unless a modifier is held, or the
+   * key is the map's (it pans) or a field's.
+   *
+   * @param {KeyboardEvent} event
+   * @param {HTMLElement | null} target
+   * @returns {'left' | 'right' | 'up' | 'down' | null}
+   */
+  function remoteDirection(event, target) {
+    const direction = /** @type {any} */ (ARROWS)[event.key];
+    if (!direction || modified(event) || target?.closest('map-view') || typing(target)) return null;
+    return direction;
+  }
+
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /** @param {EventTarget | null} target the target, if it is an HTML element */
+  const htmlOf = (target) => (target instanceof HTMLElement ? target : null);
+
+  /**
+   * Where a card's reading begins: the verse asked for, else where it last
+   * stopped, else its start ('').
+   *
+   * @param {HTMLElement} card
+   * @param {string} from
+   */
+  const startOf = (card, from) => from || card.dataset.readAt || '';
+
+  /** For each version: the verses to copy, and the words in each ('' = the verse's own words). */
+  const COPY_AS = /** @type {Record<string, [string, string]>} */ ({
+    original: ['.original__verse, .inter__verse', '.orig, .inter__text'],
+    interlinear: ['.original__verse, .inter__verse', '.orig, .inter__text'],
+    syntax: ['.syntax__row', '.syntax__text'],
+    reverse: ['.rev__verse', '.rev__en'],
+    bsb: ['.bsb-verse', ''],
+    kjv: ['kjv-verse', ''],
+  });
+
+  /**
+   * A passage as it is copied: its words in the card's version, and its
+   * reference and version under them. The Hebrew and the Greek copy the words
+   * of each verse as they read; the reverse interlinear its KJV, in order;
+   * the syntax its clauses.
+   *
+   * @param {HTMLElement} card
+   */
+  function passageForCopy(card) {
+    const version = card.dataset.version ?? 'kjv';
+    const [verses, words] = COPY_AS[version] ?? COPY_AS.kjv;
+    const parts = [...card.querySelectorAll(verses)].map((verse) => (words ? [...verse.querySelectorAll(words)].map((word) => word.textContent?.trim()).join(' ') : wordsOf(verse)));
+    const title = wordsOf(card.querySelector('.passage__heading') ?? card);
+    return `${parts.join(' ')}\n— ${title} (${versionName(card, version)})`;
+  }
+
+  /**
+   * The name a copy gives its version: Hebrew or Greek for the original.
+   *
+   * @param {HTMLElement} card
+   * @param {string} version
+   */
+  function versionName(card, version) {
+    if (version === 'bsb') return 'BSB';
+    if (!['original', 'interlinear', 'syntax'].includes(version)) return 'KJV';
+    return card.querySelector('[lang="hbo"], [lang="grc"]')?.getAttribute('lang') === 'hbo' ? 'Hebrew' : 'Greek';
+  }
+
+  /**
+   * A card from the server, as an element not yet on the table: a note's
+   * card with the words of its quotes. Null if it does not load.
+   *
+   * @param {string} address
+   * @param {string} version
+   * @param {{ from: string, to: string }[]} quotes
+   * @returns {Promise<HTMLElement | null>}
+   */
+  async function loadCard(address, version, quotes) {
+    const query = new URLSearchParams({ version, fragment: 'card' });
+    if (quotes.length) query.set('quotes', quotes.map(spanAddress).join(','));
+    const response = await fetch(`/card/${encodeURIComponent(address)}?${query}`).catch(() => null);
+    if (!response?.ok) return null;
+    const holder = document.createElement('template');
+    holder.setHTMLUnsafe(await response.text());
+    return /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
+  }
+
+  /** @param {KeyboardEvent} event whether a modifier key is held */
+  const modified = (event) => event.metaKey || event.ctrlKey || event.altKey || event.shiftKey;
+
+  /** For each version of a card: its verses, the words in each, and their language ('' = the original's own). */
+  const READ_AS = /** @type {Record<string, [string, string, string]>} */ ({
+    original: ['.original__verse', '.orig', ''],
+    interlinear: ['.inter__verse', '.inter__word', ''],
+    syntax: ['.syntax__row', '.syntax__text', ''],
+    reverse: ['.rev__verse', '.rev__en', 'en'],
+    bsb: ['.bsb-verse', '.bsb__w', 'en'],
+    kjv: ['kjv-verse', '.w', 'en'],
+  });
+
+  /**
+   * A card's verses as items to read aloud, in its version.
+   *
+   * @param {HTMLElement} card
+   * @returns {import('../lib/speech.js').Item[]}
+   */
+  function itemsOf(card) {
+    const [verses, words, lang] = READ_AS[card.dataset.version ?? 'kjv'] ?? READ_AS.kjv;
+    const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]')?.getAttribute('lang');
+    const original = source === 'hbo' || source === 'he' ? 'he' : 'el';
+    return [...card.querySelectorAll(verses)].map((verse) => readable(verse, words, /** @type {any} */ (lang || original)));
+  }
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
   /** @typedef {import('../lib/workspace.js').Note} Note */
   /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean, compare?: boolean }} FetchOptions */
@@ -830,51 +991,58 @@
      * @param {{ action: string, [key: string]: any }} command
      */
     async obey(command) {
-      const panel = /** @type {any} */ (this.querySelector('passage-search'));
-      switch (command.action) {
-        case 'state': {
-          const cards = [...this.world().querySelectorAll('gesture-card')].map((each) => {
-            const card = /** @type {HTMLElement} */ (each);
-            const title = card.querySelector('.passage__heading, .rr-card__title, h2')?.textContent?.trim() ?? '';
-            return { address: card.dataset.address ?? '', title, version: card.dataset.version ?? 'kjv', kind: card.dataset.kind ?? '' };
-          });
-          return { name: this.name ?? '', cards, rules: this.rules.map(({ kind, value, label }) => ({ kind, value, label })) };
-        }
-        case 'place': {
-          const addresses = /** @type {string[]} */ (command.addresses ?? []).filter((each) => typeof each === 'string').slice(0, 12);
-          const placed = await this.placeRow(addresses, String(command.version ?? ''));
-          return { placed };
-        }
-        case 'guide':
+      const run = this.commands()[command.action];
+      if (!run) throw new Error(`The table does not know the command ${command.action}.`);
+      return run(command);
+    },
+
+    /**
+     * What the table does for each command of an assistant (tools/mcp-server.js),
+     * and what it answers.
+     *
+     * @returns {Record<string, (command: any) => unknown>}
+     */
+    commands() {
+      const panel = this.panel();
+      const rules = () => this.rules.map(({ kind, value, label }) => ({ kind, value, label }));
+      return {
+        state: () => ({ name: this.name ?? '', cards: [...this.world().querySelectorAll('gesture-card')].map((card) => cardState(/** @type {HTMLElement} */ (card))), rules: rules() }),
+        place: async (command) => ({ placed: await this.placeRow(/** @type {string[]} */ (command.addresses ?? []).filter((each) => typeof each === 'string').slice(0, 12), String(command.version ?? '')) }),
+        guide: async (command) => {
           await panel?.showGuide(String(command.address), []);
           return { shown: command.address };
-        case 'search':
+        },
+        search: (command) => {
           panel?.searchFor(String(command.query));
           return { searched: command.query };
-        case 'show_entity':
+        },
+        show_entity: (command) => {
           panel?.showEntity(String(command.id));
           return { shown: command.id };
-        case 'show_places':
+        },
+        show_places: async (command) => {
           await this.showOnMap(/** @type {string[]} */ (command.places ?? []).join(','));
           return { shown: command.places };
-        case 'show_journey':
+        },
+        show_journey: async (command) => {
           await this.showJourney(command.journey);
           return { shown: command.journey?.title ?? '' };
-        case 'mark': {
+        },
+        mark: (command) => {
           const rule = { kind: String(command.kind), value: String(command.value), label: String(command.label || command.value) };
           const on = this.rules.some((each) => sameRule(each, rule));
           if (Boolean(command.off) === on) this.setRules(toggleRule(this.rules, rule));
-          return { rules: this.rules.map(({ kind, value, label }) => ({ kind, value, label })) };
-        }
-        case 'clear':
+          return { rules: rules() };
+        },
+        clear: async () => {
           await this.openWorkspace(empty(), '', 'A new, empty table. Undo brings the old one back.');
           return { cleared: true };
-        case 'undo':
+        },
+        undo: () => {
           this.undo();
           return { undone: true };
-        default:
-          throw new Error(`The table does not know the command ${command.action}.`);
-      }
+        },
+      };
     },
 
     /**
@@ -925,35 +1093,74 @@
      */
     remoteKey(event) {
       if (document.documentElement.dataset.ui !== 'far') return;
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const frame = target?.closest('map-view');
-      if (event.key === 'Escape' && frame) {
-        /** @type {HTMLElement | null} */ (frame.closest('gesture-card'))?.focus();
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      if (event.key === 'Enter' && target?.matches('gesture-card') && target.dataset.address === MAP) {
-        /** @type {HTMLElement | null} */ (target.querySelector('map-view'))?.focus();
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      const direction = ARROWS[event.key];
-      if (!direction || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      if (frame || target?.matches('input, textarea, select, [contenteditable]')) return;
-      const from = target && target !== document.body && target !== this ? target.getBoundingClientRect() : null;
-      // With nothing in focus, the card nearest the middle comes first.
-      const cards = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
-      const targets = from || !cards.length ? this.navigable() : cards;
-      const boxes = targets.map((each) => each.getBoundingClientRect());
-      const index = from ? nearestIn(from, boxes, direction) : nearestTo({ x: innerWidth / 2, y: innerHeight / 2 }, boxes);
+      const target = htmlOf(event.target);
+      const direction = remoteDirection(event, target);
+      if (!this.remoteEscape(event, target) && !this.remoteEnter(event, target) && !direction) return;
       event.preventDefault();
       event.stopPropagation();
-      const next = targets[index];
-      if (!next) return;
-      next.focus({ preventScroll: true });
-      if (next.matches('gesture-card')) this.reveal(next);
+      if (direction) this.remoteMove(target, direction);
+    },
+
+    /**
+     * Escape in the map: back to its card.
+     *
+     * @param {KeyboardEvent} event
+     * @param {HTMLElement | null} target
+     */
+    remoteEscape(event, target) {
+      const frame = target?.closest('map-view');
+      if (event.key !== 'Escape' || !frame) return false;
+      /** @type {HTMLElement | null} */ (frame.closest('gesture-card'))?.focus();
+      return true;
+    },
+
+    /**
+     * Enter on the map's card: into the map, where the arrows move it.
+     *
+     * @param {KeyboardEvent} event
+     * @param {HTMLElement | null} target
+     */
+    remoteEnter(event, target) {
+      if (event.key !== 'Enter' || !target?.matches('gesture-card') || target.dataset.address !== MAP) return false;
+      /** @type {HTMLElement | null} */ (target.querySelector('map-view'))?.focus();
+      return true;
+    },
+
+    /**
+     * Moves the focus to the next card or control that way; with nothing in
+     * focus, to the card nearest the middle.
+     *
+     * @param {HTMLElement | null} target
+     * @param {'left' | 'right' | 'up' | 'down'} direction
+     */
+    remoteMove(target, direction) {
+      const from = this.focusedBox(target);
+      const targets = this.remoteTargets(Boolean(from));
+      const boxes = targets.map((each) => each.getBoundingClientRect());
+      const next = targets[from ? nearestIn(from, boxes, direction) : nearestTo({ x: innerWidth / 2, y: innerHeight / 2 }, boxes)];
+      next?.focus({ preventScroll: true });
+      if (next?.matches('gesture-card')) this.reveal(next);
+    },
+
+    /**
+     * Where the focus is, if on a card or a control (not the page or the table).
+     *
+     * @param {HTMLElement | null} target
+     */
+    focusedBox(target) {
+      return target && target !== document.body && target !== this ? target.getBoundingClientRect() : null;
+    },
+
+    /**
+     * What an arrow key can go to: from a card or a control, every card and
+     * control; from nothing, the cards (or the controls, with no card).
+     *
+     * @param {boolean} fromSomething
+     * @returns {HTMLElement[]}
+     */
+    remoteTargets(fromSomething) {
+      const cards = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]);
+      return fromSomething || !cards.length ? this.navigable() : cards;
     },
 
     /**
@@ -1300,98 +1507,200 @@
 
     /** @param {{ target: EventTarget | null, x?: number, y?: number }} detail */
     tapped({ target, x, y }) {
-      const element = target instanceof Element ? target : null;
-      // A link on a card (Watch on The Chosen): the card holds the finger, so
-      // the link never hears its click; open it here, in a new tab.
-      const link = element?.closest('a[href]');
-      if (link instanceof HTMLAnchorElement && link.closest('gesture-card')) {
-        window.open(link.href, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      const panel = /** @type {any} */ (this.querySelector('passage-search'));
-      // The transliteration of a word of the Hebrew or the Greek: say it.
-      const said = element?.closest('.inter__translit');
-      if (said) {
-        const word = said.closest('.inter__word')?.querySelector('.inter__text')?.textContent ?? '';
-        const lang = said.closest('[lang="hbo"]') ? 'he' : 'el';
-        sayWord(word, lang).then((ok) => {
-          if (!ok) this.toast(`This device has no ${LANGUAGE_NAMES[lang]} voice.`);
-        });
-        return;
-      }
-      // In the listening mode (the speaker button pressed), a tap on a verse
-      // plays from it, and a tap on the verse being read pauses. Out of the
-      // mode, a tap does what it always does.
-      const tappedVerse = element?.closest('[data-ref]');
-      const reader = element?.closest('gesture-card');
-      const listen = reader?.querySelector('[data-action="listen"]');
-      if (tappedVerse && reader instanceof HTMLElement && reader.dataset.listening !== undefined && listen instanceof HTMLButtonElement) {
-        const reading = Reader.current?.items.some((item) => reader.contains(item.element));
-        const now = reading ? reader.querySelector('.is-read')?.closest('[data-ref]') : null;
-        if (now && now.getAttribute('data-ref') === tappedVerse.getAttribute('data-ref')) Reader.current?.stop();
-        else this.readAloud(reader, listen, tappedVerse.getAttribute('data-ref') ?? '');
-        return;
-      }
-      // Read more on an entry's card: the card holds the press, so the
-      // details do not open by themselves.
-      const more = element?.closest('.entity__more > summary')?.parentElement;
-      if (more instanceof HTMLDetailsElement) {
-        more.open = !more.open;
-        return;
-      }
-      // A tap on a note's title writes its title, in place.
-      const titled = element?.closest('.passage__heading')?.closest('gesture-card[data-kind="note"]');
-      if (titled instanceof HTMLElement) {
-        this.writeTitle(titled);
-        return;
-      }
-      // A tap on a note, anywhere but on the words it quotes, writes in it,
-      // with the caret where it touched.
-      const note = element?.closest('gesture-card[data-kind="note"]');
-      if (note instanceof HTMLElement && !wordAt(element) && !element?.closest('button')) {
-        this.writeNote(note, x === undefined || y === undefined || !element?.closest('.note__text') ? null : { x, y });
-        return;
-      }
-      // The grammar of a word of the Hebrew or the Greek: find every word in
-      // the same form (lib/grammar.js).
-      const form = element?.closest('[data-grammar]');
-      if (form instanceof HTMLElement && form.dataset.grammar) {
-        panel?.searchFor(form.dataset.grammar);
-        return;
-      }
-      // A word of the Hebrew or the Greek: study its Strong's number. The
-      // study underlines the KJV words that render it on every card.
-      const orig = element?.closest('[data-orig-s]');
-      if (orig instanceof HTMLElement && orig.dataset.origS) {
-        panel?.searchFor(orig.dataset.origS);
-        return;
-      }
-      const place = element?.closest('[data-place]');
-      if (place instanceof Element) {
-        panel?.showEntity(place.getAttribute('data-place'));
-        return;
-      }
-      // A chapter on a landscape: the chapter goes down beside it.
-      const chapter = element?.closest('[data-chapter]');
-      if (chapter instanceof Element) {
-        const box = chapter.getBoundingClientRect();
-        const address = chapter.getAttribute('data-chapter') ?? '';
-        this.place({ address, pointer: { id: -1, x: box.right + ROW_GAP, y: box.top, down: false } });
-        return;
-      }
-      const heading = element?.closest('.passage__heading');
-      const card = heading?.closest('gesture-card');
-      if (heading && card instanceof HTMLElement) {
-        this.headingTapped(card);
-        return;
-      }
+      if (!(target instanceof Element)) return;
+      /** @type {Tap} */
+      const tap = { element: target, x, y };
+      // The first that knows the tap takes it, in this order.
+      const handlers = [
+        this.tapLink, this.tapSaid, this.tapListening, this.tapMore, this.tapTitle, this.tapNote,
+        this.tapForm, this.tapStudy, this.tapPlace, this.tapChapter, this.tapHeading, this.tapWord, this.tapVerse,
+      ];
+      for (const handle of handlers) if (handle.call(this, tap)) return;
+    },
+
+    /** The search panel. @returns {any} */
+    panel() {
+      return this.querySelector('passage-search');
+    },
+
+    /**
+     * A link on a card (Watch on The Chosen): the card holds the finger, so
+     * the link never hears its click; open it here, in a new tab.
+     *
+     * @param {Tap} tap
+     */
+    tapLink({ element }) {
+      const link = element.closest('a[href]');
+      if (!(link instanceof HTMLAnchorElement) || !link.closest('gesture-card')) return false;
+      window.open(link.href, '_blank', 'noopener,noreferrer');
+      return true;
+    },
+
+    /**
+     * The transliteration of a word of the Hebrew or the Greek: say it.
+     *
+     * @param {Tap} tap
+     */
+    tapSaid({ element }) {
+      const said = element.closest('.inter__translit');
+      if (!said) return false;
+      const word = said.closest('.inter__word')?.querySelector('.inter__text')?.textContent ?? '';
+      const lang = said.closest('[lang="hbo"]') ? 'he' : 'el';
+      sayWord(word, lang).then((ok) => {
+        if (!ok) this.toast(`This device has no ${LANGUAGE_NAMES[lang]} voice.`);
+      });
+      return true;
+    },
+
+    /**
+     * In the listening mode (the speaker button pressed), a tap on a verse
+     * plays from it, and a tap on the verse being read pauses. Out of the
+     * mode, a tap does what it always does.
+     *
+     * @param {Tap} tap
+     */
+    tapListening({ element }) {
+      const target = this.listeningAt(element);
+      if (!target) return false;
+      const { card, listen, ref } = target;
+      if (this.verseBeingRead(card) === ref) Reader.current?.stop();
+      else this.readAloud(card, listen, ref);
+      return true;
+    },
+
+    /**
+     * The verse tapped on a card in the listening mode, with the card and its
+     * speaker button; null out of the mode.
+     *
+     * @param {Element} element
+     */
+    listeningAt(element) {
+      const verse = element.closest('[data-ref]');
+      const card = element.closest('gesture-card[data-listening]');
+      const listen = card?.querySelector('button[data-action="listen"]');
+      if (!verse || !(card instanceof HTMLElement) || !(listen instanceof HTMLButtonElement)) return null;
+      return { card, listen, ref: verse.getAttribute('data-ref') ?? '' };
+    },
+
+    /**
+     * The verse a card is reading aloud now, if any.
+     *
+     * @param {HTMLElement} card
+     * @returns {string | null}
+     */
+    verseBeingRead(card) {
+      const reading = Reader.current?.items.some((item) => card.contains(item.element));
+      return reading ? card.querySelector('.is-read')?.closest('[data-ref]')?.getAttribute('data-ref') ?? null : null;
+    },
+
+    /**
+     * Read more on an entry's card: the card holds the press, so the
+     * details do not open by themselves.
+     *
+     * @param {Tap} tap
+     */
+    tapMore({ element }) {
+      const more = element.closest('.entity__more > summary')?.parentElement;
+      if (!(more instanceof HTMLDetailsElement)) return false;
+      more.open = !more.open;
+      return true;
+    },
+
+    /**
+     * A note's title: write it, in place.
+     *
+     * @param {Tap} tap
+     */
+    tapTitle({ element }) {
+      const titled = element.closest('.passage__heading')?.closest('gesture-card[data-kind="note"]');
+      if (!(titled instanceof HTMLElement)) return false;
+      this.writeTitle(titled);
+      return true;
+    },
+
+    /**
+     * A note, anywhere but on the words it quotes or a button: write in it,
+     * with the caret where it touched.
+     *
+     * @param {Tap} tap
+     */
+    tapNote({ element, x, y }) {
+      const note = element.closest('gesture-card[data-kind="note"]');
+      if (!(note instanceof HTMLElement) || wordAt(element) || element.closest('button')) return false;
+      this.writeNote(note, element.closest('.note__text') ? pointOf(x, y) : null);
+      return true;
+    },
+
+    /**
+     * The grammar of a word of the Hebrew or the Greek: find every word in
+     * the same form (lib/grammar.js).
+     *
+     * @param {Tap} tap
+     */
+    tapForm({ element }) {
+      const form = element.closest('[data-grammar]');
+      if (!(form instanceof HTMLElement) || !form.dataset.grammar) return false;
+      this.panel()?.searchFor(form.dataset.grammar);
+      return true;
+    },
+
+    /**
+     * A word of the Hebrew or the Greek: study its Strong's number. The
+     * study underlines the KJV words that render it on every card.
+     *
+     * @param {Tap} tap
+     */
+    tapStudy({ element }) {
+      const orig = element.closest('[data-orig-s]');
+      if (!(orig instanceof HTMLElement) || !orig.dataset.origS) return false;
+      this.panel()?.searchFor(orig.dataset.origS);
+      return true;
+    },
+
+    /** @param {Tap} tap */
+    tapPlace({ element }) {
+      const place = element.closest('[data-place]');
+      if (!place) return false;
+      this.panel()?.showEntity(place.getAttribute('data-place'));
+      return true;
+    },
+
+    /**
+     * A chapter on a landscape: the chapter goes down beside it.
+     *
+     * @param {Tap} tap
+     */
+    tapChapter({ element }) {
+      const chapter = element.closest('[data-chapter]');
+      if (!chapter) return false;
+      const box = chapter.getBoundingClientRect();
+      const address = chapter.getAttribute('data-chapter') ?? '';
+      this.place({ address, pointer: { id: -1, x: box.right + ROW_GAP, y: box.top, down: false } });
+      return true;
+    },
+
+    /** @param {Tap} tap */
+    tapHeading({ element }) {
+      const card = element.closest('.passage__heading')?.closest('gesture-card');
+      if (!(card instanceof HTMLElement)) return false;
+      this.headingTapped(card);
+      return true;
+    },
+
+    /** @param {Tap} tap */
+    tapWord({ element }) {
       const word = wordAt(element);
-      if (word) {
-        panel?.showWord(word);
-        return;
-      }
-      const verse = element?.closest('kjv-verse[data-ref]');
-      if (verse instanceof HTMLElement && verse.dataset.ref) panel?.showReferences(verse.dataset.ref);
+      if (!word) return false;
+      this.panel()?.showWord(word);
+      return true;
+    },
+
+    /** @param {Tap} tap */
+    tapVerse({ element }) {
+      const verse = element.closest('kjv-verse[data-ref]');
+      if (!(verse instanceof HTMLElement) || !verse.dataset.ref) return false;
+      this.panel()?.showReferences(verse.dataset.ref);
+      return true;
     },
 
     /**
@@ -2110,64 +2419,81 @@
      * @param {MouseEvent} event
      */
     clicked(event) {
-      const target = event.target instanceof Element ? event.target : null;
-      const label = target?.closest('.table__label');
-      if (label instanceof HTMLElement) {
-        const i = Number(label.dataset.link);
-        const link = this.links[i];
-        if (!link) return;
-        const type = nextType(link.type);
-        const changed = { a: link.a, b: link.b, ...(type ? { type } : {}) };
-        this.links = this.links.map((each, at) => (at === i ? changed : each));
-        this.keep();
-        this.drawSoon();
-        return;
-      }
-
+      const target = elementOf(event.target);
+      if (this.clickLabel(target)) return;
       const button = target?.closest('button');
       const card = button?.closest('gesture-card');
       if (!(button instanceof HTMLButtonElement) || !(card instanceof HTMLElement) || !this.world().contains(card)) return;
-      const cardElement = /** @type {Card} */ (card);
+      this.cardButton(/** @type {Card} */ (/** @type {unknown} */ (card)), button);
+    },
 
-      // A word of the original named in a note (@H430): its study, in the
-      // search panel.
-      if (button.dataset.study) {
-        /** @type {any} */ (this.querySelector('passage-search'))?.searchFor(button.dataset.study);
-        return;
-      }
+    /**
+     * A link's label: a click gives the link its next type.
+     *
+     * @param {Element | null} target
+     */
+    clickLabel(target) {
+      const label = target?.closest('.table__label');
+      if (!(label instanceof HTMLElement)) return false;
+      const at = Number(label.dataset.link);
+      const link = this.links[at];
+      if (!link) return true;
+      const type = nextType(link.type);
+      const changed = { a: link.a, b: link.b, ...(type ? { type } : {}) };
+      this.links = this.links.map((each, index) => (index === at ? changed : each));
+      this.keep();
+      this.drawSoon();
+      return true;
+    },
 
-      // A verse's quotation mark: what it quotes, or where it is quoted.
-      if (button.dataset.quotes) {
-        const verse = /** @type {HTMLElement | null} */ (button.closest('[data-ref]'))?.dataset.ref;
-        if (verse) /** @type {any} */ (this.querySelector('passage-search'))?.showQuotes(verse);
-        return;
-      }
-      // A reference in an entity's text, such as "John 3:16": the passage
-      // goes down beside its card.
-      if (button.dataset.cite) {
-        const box = card.getBoundingClientRect();
-        this.place({ address: button.dataset.cite, pointer: { id: -1, x: box.right + ROW_GAP, y: button.getBoundingClientRect().top, down: false } });
-        return;
-      }
-      // A person, place or event named on a card, such as on a picture.
-      if (button.dataset.entity) {
-        /** @type {any} */ (this.querySelector('passage-search'))?.showEntity(button.dataset.entity);
-        return;
-      }
-      if (button.dataset.version) this.switchVersion(cardElement, button.dataset.version);
-      else if (button.dataset.stepTo) this.step(cardElement, button.dataset.stepTo);
-      else if (button.dataset.action === 'sync') {
-        const on = card.dataset.sync === undefined;
-        this.setSync(card, on);
-        this.keep();
-      } else if (button.dataset.action === 'compare') {
-        this.setCompare(card, card.dataset.compare === undefined);
-        this.keep();
-      } else if (button.dataset.action === 'copy') this.copyCard(card, button);
-      else if (button.dataset.action === 'listen') this.readAloud(card, button);
-      else if (button.dataset.unquote) this.unquote(card, button.dataset.unquote);
-      else if (button.dataset.fold) this.fold(card, button.dataset.fold);
-      else if (button.dataset.action === 'note-kind') this.changeKind(card);
+    /**
+     * A button on a card: what its data says it does. A button names what it
+     * acts on (data-cite="JHN.3.16"), or its action (data-action="copy").
+     *
+     * @param {Card} card
+     * @param {HTMLButtonElement} button
+     */
+    cardButton(card, button) {
+      const panel = this.panel();
+      /** @type {Record<string, (value: string) => void>} by what the button names, in this order */
+      const named = {
+        // A word of the original named in a note (@H430): its study.
+        study: (code) => panel?.searchFor(code),
+        // A verse's quotation mark: what it quotes, or where it is quoted.
+        quotes: () => {
+          const verse = /** @type {HTMLElement | null} */ (button.closest('[data-ref]'))?.dataset.ref;
+          if (verse) panel?.showQuotes(verse);
+        },
+        // A reference in a card's text, such as "John 3:16": the passage goes
+        // down beside the card.
+        cite: (address) => {
+          const box = card.getBoundingClientRect();
+          this.place({ address, pointer: { id: -1, x: box.right + ROW_GAP, y: button.getBoundingClientRect().top, down: false } });
+        },
+        // A person, place or event named on a card, such as on a picture.
+        entity: (id) => panel?.showEntity(id),
+        version: (version) => this.switchVersion(card, version),
+        stepTo: (address) => this.step(card, address),
+        unquote: (span) => this.unquote(card, span),
+        fold: (span) => this.fold(card, span),
+      };
+      /** @type {Record<string, () => void>} by its action */
+      const actions = {
+        sync: () => {
+          this.setSync(card, card.dataset.sync === undefined);
+          this.keep();
+        },
+        compare: () => {
+          this.setCompare(card, card.dataset.compare === undefined);
+          this.keep();
+        },
+        copy: () => this.copyCard(card, button),
+        listen: () => this.readAloud(card, button),
+        'note-kind': () => this.changeKind(card),
+      };
+      const name = Object.keys(named).find((each) => button.dataset[each]);
+      if (name) named[name](button.dataset[name] ?? '');
+      else actions[button.dataset.action ?? '']?.();
     },
 
     /**
@@ -2204,93 +2530,109 @@
      *   a verse while the card reads)
      */
     async readAloud(card, button, from = '') {
-      const reading = Reader.current;
-      const mine = Boolean(reading && reading.items.some((item) => card.contains(item.element)));
       // The button turns the mode off: the reading stops, and its place is
       // kept for the next time.
       if (!from && card.dataset.listening !== undefined) {
-        delete card.dataset.listening;
-        if (mine) reading?.stop();
-        this.listenLook(card);
+        this.stopListening(card);
         return;
       }
-      // One card in the mode at a time.
+      this.startListening(card);
+      const start = startOf(card, from);
+      const ended = this.readingEnded(card);
+      const recording = recordingOf(button);
+      if (recording?.chapters.length) this.playRecording(card, button, recording, start, ended);
+      else await this.readWithDevice(card, start, ended);
+    },
+
+    /**
+     * Ends a card's listening mode, and the reading on it.
+     *
+     * @param {HTMLElement} card
+     */
+    stopListening(card) {
+      delete card.dataset.listening;
+      if (Reader.current?.items.some((item) => card.contains(item.element))) Reader.current.stop();
+      this.listenLook(card);
+    },
+
+    /**
+     * Puts a card in the listening mode: one card at a time, so any other
+     * leaves it, and a reading on this card stops to begin again.
+     *
+     * @param {HTMLElement} card
+     */
+    startListening(card) {
       for (const other of this.world().querySelectorAll('gesture-card[data-listening]')) {
-        if (other === card) continue;
-        delete /** @type {HTMLElement} */ (other).dataset.listening;
-        this.listenLook(/** @type {HTMLElement} */ (other));
+        if (other !== card) this.stopListening(/** @type {HTMLElement} */ (other));
       }
       card.dataset.listening = '';
-      if (mine) reading?.stop();
-      const version = card.dataset.version ?? 'kjv';
-      const start = from || card.dataset.readAt || '';
-      const set = (/** @type {boolean} */ playing) => this.listenLook(card, playing);
-      // Where it stopped, for the next time. A reading that ends leaves the
-      // mode, and begins again next time.
-      const ended = (/** @type {Element | null} */ at) => {
+      if (Reader.current?.items.some((item) => card.contains(item.element))) Reader.current.stop();
+    },
+
+    /**
+     * What happens when a card's reading ends or stops: it keeps the verse it
+     * stopped in, for the next time; a reading that ends leaves the mode, and
+     * begins again next time.
+     *
+     * @param {HTMLElement} card
+     * @returns {(at: Element | null) => void}
+     */
+    readingEnded(card) {
+      return (at) => {
         const id = at?.closest('[data-ref]')?.getAttribute('data-ref') ?? '';
         if (id) card.dataset.readAt = id;
         else {
           delete card.dataset.readAt;
           delete card.dataset.listening;
         }
-        set(false);
+        this.listenLook(card, false);
       };
-      // A recording of the passage (data/audio.js), listed on the card: the
-      // one of the reader chosen in Tools (the app's voice first, then
-      // LibriVox's), unless the device's voice is chosen. Its file begins now,
-      // muted, in the tap (a phone plays sound only from one).
-      /** @type {import('../lib/speech.js').RecordedChapter[] | null} */
-      let chapters = null;
-      let reader = '';
-      try {
-        /** @type {{ kind: string, reader: string, chapters: import('../lib/speech.js').RecordedChapter[] }[]} */
-        const recordings = JSON.parse(button.dataset.listen || '[]');
-        const choice = readerChoice();
-        const recording = choice === 'device' ? null : (recordings.find((each) => each.kind === choice) ?? recordings[0]);
-        if (recording) {
-          chapters = recording.chapters;
-          reader = recording.reader;
-        }
-      } catch {
-        chapters = null;
-      }
-      if (chapters?.length) {
-        const opening = chapters.find((chapter) => chapter.verses.some((verse) => verse.id === start)) ?? chapters[0];
-        const audio = new Audio(opening.file);
-        audio.muted = true;
-        audio.play().catch(() => null);
-        set(true);
-        if (reader) this.toast(reader === "The app's voice" ? "Read in the app's own voice." : `Read by ${reader}.`);
-        const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
-        // The lock screen's Play goes on from where the reading paused.
-        const resume = () => {
-          if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
-        };
-        const failed = () => this.toast('The recording could not be played. Check the connection and try again.');
-        new Recording(audio, { title, resume, failed }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
-        return;
-      }
-      const source = card.querySelector('[lang="hbo"], [lang="grc"], .syntax__text[lang]');
-      const lang = source?.getAttribute('lang') === 'hbo' || source?.getAttribute('lang') === 'he' ? 'he' : 'el';
-      /** @type {import('../lib/speech.js').Item[]} */
-      let items = [];
-      if (version === 'original') items = [...card.querySelectorAll('.original__verse')].map((verse) => readable(verse, '.orig', lang));
-      else if (version === 'interlinear') items = [...card.querySelectorAll('.inter__verse')].map((verse) => readable(verse, '.inter__word', lang));
-      else if (version === 'syntax') items = [...card.querySelectorAll('.syntax__row')].map((row) => readable(row, '.syntax__text', lang));
-      else if (version === 'reverse') items = [...card.querySelectorAll('.rev__verse')].map((verse) => readable(verse, '.rev__en', 'en'));
-      else if (version === 'bsb') items = [...card.querySelectorAll('.bsb-verse')].map((verse) => readable(verse, '.bsb__w', 'en'));
-      else items = [...card.querySelectorAll('kjv-verse')].map((verse) => readable(verse, '.w', 'en'));
-      items = items.filter((item) => item.text.trim());
+    },
+
+    /**
+     * Plays a card's recording (data/audio.js). Its file begins now, muted,
+     * in the tap: a phone plays sound only from one.
+     *
+     * @param {HTMLElement} card
+     * @param {HTMLButtonElement} button
+     * @param {{ reader: string, chapters: import('../lib/speech.js').RecordedChapter[] }} recording
+     * @param {string} start the verse to begin with
+     * @param {(at: Element | null) => void} ended
+     */
+    playRecording(card, button, { reader, chapters }, start, ended) {
+      const opening = chapters.find((chapter) => chapter.verses.some((verse) => verse.id === start)) ?? chapters[0];
+      const audio = new Audio(opening.file);
+      audio.muted = true;
+      audio.play().catch(() => null);
+      this.listenLook(card, true);
+      if (reader) this.toast(reader === "The app's voice" ? "Read in the app's own voice." : `Read by ${reader}.`);
+      const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
+      // The lock screen's Play goes on from where the reading paused.
+      const resume = () => {
+        if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
+      };
+      const failed = () => this.toast('The recording could not be played. Check the connection and try again.');
+      new Recording(audio, { title, resume, failed }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
+    },
+
+    /**
+     * Reads a card in the device's voice: the BSB, the Hebrew and the Greek,
+     * and the KJV where no recording is listed.
+     *
+     * @param {HTMLElement} card
+     * @param {string} start the verse to begin with
+     * @param {(at: Element | null) => void} ended
+     */
+    async readWithDevice(card, start, ended) {
+      const items = itemsOf(card).filter((item) => item.text.trim());
       if (!items.length) return;
-      set(true);
+      this.listenLook(card, true);
       const first = Math.max(0, items.findIndex((item) => item.element.closest('[data-ref]')?.getAttribute('data-ref') === start));
       const missing = await new Reader().read(items, ended, first);
-      if (missing) {
-        delete card.dataset.listening;
-        set(false);
-        this.toast(`This device has no ${LANGUAGE_NAMES[missing]} voice.`);
-      }
+      if (!missing) return;
+      delete card.dataset.listening;
+      this.listenLook(card, false);
+      this.toast(`This device has no ${LANGUAGE_NAMES[missing]} voice.`);
     },
 
     /**
@@ -2345,40 +2687,24 @@
      */
     async copyCard(card, button) {
       const note = card.dataset.kind === 'note' ? this.notes.find((each) => each.id === card.dataset.note) : null;
-      if (note) {
-        this.writing?.end();
-        const done = await copyText(`${note.title ? `## ${note.title}\n\n` : ''}${this.markdownOf(card, note, note.title ? 3 : 2)}`);
-        button.dataset.done = done ? 'Copied' : 'Copy failed';
-        setTimeout(() => {
-          delete button.dataset.done;
-        }, 1500);
-        return;
-      }
-      const title = wordsOf(card.querySelector('.passage__heading') ?? card);
-      const version = card.dataset.version ?? 'kjv';
-      const kjv = [...card.querySelectorAll('kjv-verse')];
-      const bsb = [...card.querySelectorAll('.bsb-verse')];
-      // The Hebrew or the Greek: the words of each verse, as they read.
-      const source = card.querySelector('[lang="hbo"], [lang="grc"]');
-      const originals = [...card.querySelectorAll('.original__verse, .inter__verse')].map((verse) =>
-        [...verse.querySelectorAll('.orig, .inter__text')].map((word) => word.textContent?.trim()).join(' '),
-      );
-      // The reverse interlinear copies its KJV, in order.
-      const reversed = [...card.querySelectorAll('.rev__verse')].map((verse) =>
-        [...verse.querySelectorAll('.rev__en')].map((words) => words.textContent?.trim()).join(' '),
-      );
-      // The syntax copies its clauses, one to a line.
-      const clauses = [...card.querySelectorAll('.syntax__row')].map((row) => [...row.querySelectorAll('.syntax__text')].map((words) => words.textContent?.trim()).join(' '));
-      const original = version === 'original' || version === 'interlinear' || version === 'syntax';
-      const parts = version === 'syntax' ? clauses : original ? originals : version === 'reverse' ? reversed : version === 'bsb' ? bsb.map(wordsOf) : kjv.map(wordsOf);
-      const name = original ? (source?.getAttribute('lang') === 'hbo' ? 'Hebrew' : 'Greek') : version === 'bsb' ? 'BSB' : 'KJV';
-      const text = `${parts.join(' ')}\n— ${title} (${name})`;
-      const done = await copyText(text);
+      this.writing?.end();
+      const done = await copyText(note ? this.noteForCopy(card, note) : passageForCopy(card));
       // The button is an icon: a small label beside it says what happened.
       button.dataset.done = done ? 'Copied' : 'Copy failed';
       setTimeout(() => {
         delete button.dataset.done;
       }, 1500);
+    },
+
+    /**
+     * A note as it is copied: Markdown, its own title on top.
+     *
+     * @param {HTMLElement} card
+     * @param {{ doc?: any, text: string, quotes: Span[], title?: string }} note
+     */
+    noteForCopy(card, note) {
+      if (!note.title) return this.markdownOf(card, note, 2);
+      return `## ${note.title}\n\n${this.markdownOf(card, note, 3)}`;
     },
 
     /**
@@ -2646,19 +2972,23 @@
       } catch {
         return;
       }
-      const port = visualViewport;
-      const top = (port?.offsetTop ?? 0) + 16;
-      const dock = this.querySelector('note-editor');
-      const dockTop = dock && dock.getClientRects().length ? dock.getBoundingClientRect().top : Infinity;
-      const bottom = Math.min((port?.offsetTop ?? 0) + (port?.height ?? innerHeight), dockTop) - 24;
-      const left = (port?.offsetLeft ?? 0) + 16;
-      const right = (port?.offsetLeft ?? 0) + (port?.width ?? innerWidth) - 16;
-      const dy = caret.bottom > bottom ? bottom - caret.bottom : caret.top < top ? top - caret.top : 0;
-      const dx = caret.right > right ? right - caret.right : caret.left < left ? left - caret.left : 0;
-      if (!dx && !dy) return;
+      const { dx, dy } = shiftInto(caret, this.writingArea());
+      if (Math.abs(dx) + Math.abs(dy) === 0) return;
       this.offset = { x: this.offset.x + dx, y: this.offset.y + dy };
       this.paint();
       this.keepSoon();
+    },
+
+    /**
+     * The part of the screen a caret must stay in while a note is written:
+     * inside the visual viewport (above a phone's keyboard) and above the
+     * app's keyboard dock, with a margin.
+     */
+    writingArea() {
+      const port = visualViewport;
+      const dock = this.querySelector('note-editor');
+      const dockTop = dock?.getClientRects().length ? dock.getBoundingClientRect().top : Infinity;
+      return inset(viewportBox(port), { top: 16, left: 16, right: 16, bottom: 24 }, dockTop);
     },
 
     /**
@@ -2683,45 +3013,90 @@
      * @returns {Promise<Card | null>}
      */
     async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false, compare = false }) {
-      const query = new URLSearchParams({ version, fragment: 'card' });
-      const note = address.startsWith('note:') ? this.notes.find((each) => `note:${each.id}` === address) : null;
-      if (address.startsWith('note:') && !note) return null;
-      if (note?.quotes.length) query.set('quotes', note.quotes.map(spanAddress).join(','));
-      const response = await fetch(`/card/${encodeURIComponent(address)}?${query}`).catch(() => null);
-      if (!response?.ok) return null;
-      const holder = document.createElement('template');
-      holder.setHTMLUnsafe(await response.text());
-      const card = /** @type {HTMLElement | null} */ (holder.content.querySelector('gesture-card'));
-      if (!card) return null;
+      const note = this.noteAt(address);
+      // A note's card whose note is gone has nothing to show.
+      if (note === false) return null;
+      const card = await loadCard(address, version, note ? note.quotes : []);
+      if (!card || !this.putCard(card, replacing, id)) return null;
+      this.markCard(card, { sync, compare: compare && version === 'both', note });
+      await customElements.whenDefined('gesture-card');
+      this.drawSoon();
+      this.loadReferences(card);
+      return /** @type {Card} */ (/** @type {unknown} */ (card));
+    },
+
+    /**
+     * The note a note card's address names: null for any other card, false
+     * when the note is gone.
+     *
+     * @param {string} address
+     */
+    noteAt(address) {
+      if (!address.startsWith('note:')) return null;
+      return this.notes.find((each) => `note:${each.id}` === address) ?? false;
+    },
+
+    /**
+     * Puts a card that loaded on the table, in the place of the one it
+     * replaces. Not if that one went while it loaded (removed, or replaced by
+     * another change): it must not come back as a second card.
+     *
+     * @param {HTMLElement} card
+     * @param {Element | null} replacing
+     * @param {string | undefined} id
+     */
+    putCard(card, replacing, id) {
+      if (replacing && !replacing.isConnected) return false;
       card.dataset.id = id ?? newId('c');
-      // The card it was to replace went while it loaded (removed, or replaced
-      // by another change): it must not come back as a second card.
-      if (replacing && !replacing.isConnected) return null;
       if (replacing) replacing.replaceWith(card);
       else this.world().append(card);
+      return true;
+    },
+
+    /**
+     * A new card's state and marks: synced, compared, a note's words, and the
+     * marks every card has.
+     *
+     * @param {HTMLElement} card
+     * @param {{ sync: boolean, compare: boolean, note: any }} state
+     */
+    markCard(card, { sync, compare, note }) {
       if (sync) this.setSync(card, true);
-      if (compare && version === 'both') this.setCompare(card, true);
-      if (note) {
-        // Each quote's words, as the server drew them, go to their places
-        // among the note's words.
-        const quotes = this.quotesOf(card);
-        for (const section of card.querySelectorAll('.note > .note__quote[data-quote]')) {
-          quotes.set(/** @type {HTMLElement} */ (section).dataset.quote ?? '', /** @type {HTMLElement} */ (section));
-          section.remove();
-        }
-        const text = card.querySelector('.note__text');
-        if (text instanceof HTMLElement) showNoteText(text, docOf(note), quotes);
-        this.paintKind(card, note);
+      if (compare) this.setCompare(card, true);
+      if (note) this.fillNote(card, note);
+      this.paintCard(card);
+    },
+
+    /**
+     * A note's words on its card, with each quote's words (as the server drew
+     * them) in its place among them, and its kind.
+     *
+     * @param {HTMLElement} card
+     * @param {{ doc?: any, text: string, quotes: Span[], kind?: string, answered?: boolean, title?: string }} note
+     */
+    fillNote(card, note) {
+      const quotes = this.quotesOf(card);
+      for (const section of card.querySelectorAll('.note > .note__quote[data-quote]')) {
+        quotes.set(/** @type {HTMLElement} */ (section).dataset.quote ?? '', /** @type {HTMLElement} */ (section));
+        section.remove();
       }
+      const text = card.querySelector('.note__text');
+      if (text instanceof HTMLElement) showNoteText(text, docOf(note), quotes);
+      this.paintKind(card, note);
+    },
+
+    /**
+     * Marks a new card as the table marks every card: highlights, the word
+     * studied, quoted verses, rules, and its events on the timeline.
+     *
+     * @param {HTMLElement} card
+     */
+    paintCard(card) {
       paintHighlights(card, this.highlights);
       this.paintStudy(card);
       this.paintQuoted(card);
       this.paintRules(card);
       this.loadEvents(card);
-      await customElements.whenDefined('gesture-card');
-      this.drawSoon();
-      this.loadReferences(card);
-      return /** @type {Card} */ (/** @type {unknown} */ (card));
     },
 
     /**
