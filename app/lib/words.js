@@ -175,22 +175,56 @@ export function paintWords(root, ranges, name) {
 export function paintHighlights(root, highlights) {
   const ranges = highlights.map((each) => ({ from: wordKey(each.from), to: wordKey(each.to), each }));
   for (const word of root.querySelectorAll('[data-w]')) {
-    const element = /** @type {HTMLElement} */ (word);
     const address = wordAt(word);
     const key = address ? wordKey(address) : NaN;
-    let found = null;
-    for (const range of ranges) if (key >= range.from && key <= range.to) found = range;
-    if (!found) {
-      if (element.dataset.mark) {
-        delete element.dataset.mark;
-        delete element.dataset.edge;
-      }
-      continue;
-    }
-    element.dataset.mark = found.each.style ?? STYLES[0];
-    const start = key === found.from;
-    const end = key === found.to;
-    if (start || end) element.dataset.edge = start && end ? 'both' : start ? 'start' : 'end';
-    else delete element.dataset.edge;
+    paintMark(/** @type {HTMLElement} */ (word), latestCover(ranges, key), key);
   }
+}
+
+/** @typedef {{ from: number, to: number, each: Highlight }} Range a highlight, by its words' keys */
+
+/**
+ * The latest highlight that covers a word, or null.
+ *
+ * @param {Range[]} ranges
+ * @param {number} key the word's
+ */
+function latestCover(ranges, key) {
+  /** @type {Range | null} */
+  let found = null;
+  for (const range of ranges) if (key >= range.from && key <= range.to) found = range;
+  return found;
+}
+
+/**
+ * Whether a word starts or ends a highlight: start, end, both, or ''.
+ *
+ * @param {number} key the word's
+ * @param {{ from: number, to: number }} range
+ */
+export function edgeOf(key, range) {
+  const start = key === range.from;
+  const end = key === range.to;
+  if (start && end) return 'both';
+  return start ? 'start' : end ? 'end' : '';
+}
+
+/**
+ * A word's highlight: its style, and its edge, for the box style; none if
+ * no highlight covers it.
+ *
+ * @param {HTMLElement} element
+ * @param {Range | null} found
+ * @param {number} key
+ */
+function paintMark(element, found, key) {
+  if (!found) {
+    delete element.dataset.mark;
+    delete element.dataset.edge;
+    return;
+  }
+  element.dataset.mark = found.each.style ?? STYLES[0];
+  const edge = edgeOf(key, found);
+  if (edge) element.dataset.edge = edge;
+  else delete element.dataset.edge;
 }

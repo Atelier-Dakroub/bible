@@ -28,14 +28,45 @@ if (typeof document !== 'undefined') {
     lastPointer = event.pointerType;
   }, { capture: true });
   document.addEventListener('keydown', (event) => {
-    // A key that types, from a keyboard: not a shortcut, and not a key the
-    // page made.
-    if (!event.isTrusted || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.key.length !== 1 && event.key !== 'Backspace' && event.key !== 'Enter') return;
-    if (hardware) return;
+    if (hardware || !typesFromKeyboard(event)) return;
     hardware = true;
     document.documentElement.dataset.realKeys = '';
   }, { capture: true });
+}
+
+/**
+ * Whether a key event is from a keyboard and types: not a shortcut, and not
+ * a key the page made.
+ *
+ * @param {{ isTrusted: boolean, ctrlKey: boolean, metaKey: boolean, altKey: boolean, key: string }} event
+ */
+export function typesFromKeyboard(event) {
+  if (!event.isTrusted || event.ctrlKey || event.metaKey || event.altKey) return false;
+  return event.key.length === 1 || event.key === 'Backspace' || event.key === 'Enter';
+}
+
+/**
+ * What a key of the app's keyboard (touch-keys) types: a letter in capitals
+ * with Shift.
+ *
+ * @param {string} name the key's data-key
+ * @param {boolean} shift
+ */
+export const keyText = (name, shift) => (shift && name.length === 1 ? name.toUpperCase() : name);
+
+/**
+ * A field's value after a key of the app's keyboard: Delete takes the last
+ * character, Clear empties it, Space and Enter add their own; any other key
+ * adds its text.
+ *
+ * @param {string} value
+ * @param {string} name the key's data-key
+ * @param {boolean} shift
+ */
+export function typeInto(value, name, shift) {
+  /** @type {Record<string, () => string>} */
+  const edits = { back: () => value.slice(0, -1), clear: () => '', space: () => `${value} `, enter: () => `${value}\n` };
+  return Object.hasOwn(edits, name) ? edits[name]() : value + keyText(name, shift);
 }
 
 /** @returns {Choice} */

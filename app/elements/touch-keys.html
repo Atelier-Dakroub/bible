@@ -17,7 +17,7 @@
      keyboard of its own. -->
 
 <script element>
-  import { keysFor } from '../lib/keyboard.js';
+  import { keyText, keysFor, typeInto } from '../lib/keyboard.js';
 
   export const properties = {
     /** The id of the input or textarea to type into. */
@@ -55,31 +55,58 @@
       event.preventDefault();
       const input = document.getElementById(String(this.for));
       if (!input) return;
+      this.keyAction(key.dataset.key ?? '', input)();
+    },
 
-      const name = key.dataset.key ?? '';
-      if (name === 'shift') {
-        this.shift = !this.shift;
+    /**
+     * What a key does: Shift and Hide their own; any other key types on the
+     * field.
+     *
+     * @param {string} name
+     * @param {HTMLElement} input
+     * @returns {() => void}
+     */
+    keyAction(name, input) {
+      /** @type {Record<string, () => void>} */
+      const keys = {
+        shift: () => {
+          this.shift = !this.shift;
+        },
+        done: () => this.dispatchEvent(new Event('keys-done', { bubbles: true })),
+      };
+      return Object.hasOwn(keys, name) ? keys[name] : () => this.typeOn(input, name);
+    },
+
+    /**
+     * Types a key on the field: into its value, or, for a note being
+     * written, as a keys-type event. Shift lasts for one letter.
+     *
+     * @param {HTMLElement} input
+     * @param {string} name
+     */
+    typeOn(input, name) {
+      if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+        this.typeInField(input, name);
         return;
       }
-      if (name === 'done') {
-        this.dispatchEvent(new Event('keys-done', { bubbles: true }));
-        return;
-      }
-      if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
-        if (input.isContentEditable) input.dispatchEvent(new CustomEvent('keys-type', { detail: { key: this.shift && name.length === 1 ? name.toUpperCase() : name } }));
-        if (this.shift && name.length === 1) this.shift = false;
-        return;
-      }
+      if (input.isContentEditable) input.dispatchEvent(new CustomEvent('keys-type', { detail: { key: keyText(name, this.shift) } }));
+      if (name.length === 1) this.shift = false;
+    },
+
+    /**
+     * Types a key into a field's value. Enter in a one-line field sends its
+     * form.
+     *
+     * @param {HTMLInputElement | HTMLTextAreaElement} input
+     * @param {string} name
+     */
+    typeInField(input, name) {
       if (name === 'enter' && !(input instanceof HTMLTextAreaElement)) {
         input.form?.requestSubmit();
         return;
       }
-      if (name === 'back') input.value = input.value.slice(0, -1);
-      else if (name === 'clear') input.value = '';
-      else if (name === 'space') input.value += ' ';
-      else if (name === 'enter') input.value += '\n';
-      else input.value += this.shift ? name.toUpperCase() : name;
-      if (this.shift && name.length === 1) this.shift = false;
+      input.value = typeInto(input.value, name, this.shift);
+      if (name.length === 1) this.shift = false;
       input.dispatchEvent(new Event('input', { bubbles: true }));
     },
   };

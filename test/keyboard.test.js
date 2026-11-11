@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { hasSystemKeys, wantKeys } from '../app/lib/keyboard.js';
+import { hasSystemKeys, keyText, typeInto, typesFromKeyboard, wantKeys } from '../app/lib/keyboard.js';
 
 test('phones and tablets have a keyboard of their own; a laptop or the panel does not', () => {
   assert.equal(hasSystemKeys({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' }), true);
@@ -29,4 +29,31 @@ test('the app keyboard shows for a finger on a screen with no keyboard, until a 
 test('nothing is typing outside a page', async () => {
   const { typing } = await import('../app/lib/keyboard.js');
   assert.equal(typing(null), false);
+});
+
+test('a key from a keyboard types; a shortcut or a key the page made does not', () => {
+  const key = { isTrusted: true, ctrlKey: false, metaKey: false, altKey: false };
+  assert.equal(typesFromKeyboard({ ...key, key: 'a' }), true);
+  assert.equal(typesFromKeyboard({ ...key, key: 'Backspace' }), true);
+  assert.equal(typesFromKeyboard({ ...key, key: 'Enter' }), true);
+  assert.equal(typesFromKeyboard({ ...key, key: 'ArrowLeft' }), false);
+  assert.equal(typesFromKeyboard({ ...key, key: 'Shift' }), false);
+  assert.equal(typesFromKeyboard({ ...key, key: 'z', metaKey: true }), false);
+  assert.equal(typesFromKeyboard({ ...key, key: 'z', ctrlKey: true }), false);
+  assert.equal(typesFromKeyboard({ ...key, key: 'z', altKey: true }), false);
+  assert.equal(typesFromKeyboard({ ...key, key: 'a', isTrusted: false }), false);
+});
+
+test('the app keyboard types into a field', () => {
+  assert.equal(typeInto('joh', 'n', false), 'john');
+  assert.equal(typeInto('', 'j', true), 'J');
+  assert.equal(typeInto('john', 'back', false), 'joh');
+  assert.equal(typeInto('', 'back', false), '');
+  assert.equal(typeInto('john', 'clear', true), '');
+  assert.equal(typeInto('john', 'space', false), 'john ');
+  assert.equal(typeInto('a', 'enter', false), 'a\n');
+  assert.equal(typeInto('3', ':', true), '3:');
+  assert.equal(keyText('a', true), 'A');
+  assert.equal(keyText('a', false), 'a');
+  assert.equal(keyText('space', true), 'space');
 });

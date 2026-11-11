@@ -47,15 +47,37 @@ const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jes
  * @returns {Promise<SpeechSynthesisVoice | null>}
  */
 export async function voiceFor(lang) {
-  const all = (await voices()).filter((voice) => voice.lang.toLowerCase().replace('_', '-').startsWith(lang === 'he' ? 'he' : lang === 'el' ? 'el' : 'en') || (lang === 'he' && voice.lang.startsWith('iw')));
+  const all = (await voices()).filter((voice) => speaks(voice, lang));
   if (!all.length) return null;
-  const score = (/** @type {SpeechSynthesisVoice} */ voice) =>
+  return [...all].sort((a, b) => voiceScore(b, lang) - voiceScore(a, lang))[0];
+}
+
+/**
+ * Whether a voice speaks a language (Hebrew is also "iw", its old code).
+ *
+ * @param {{ lang: string }} voice
+ * @param {Lang} lang
+ */
+export function speaks(voice, lang) {
+  return voice.lang.toLowerCase().replace('_', '-').startsWith(lang) || (lang === 'he' && voice.lang.startsWith('iw'));
+}
+
+/**
+ * How good a voice is for reading: not one for fun, of the better quality
+ * where it says so, on the device itself, and for English a British one,
+ * as the KJV is.
+ *
+ * @param {{ name: string, lang: string, localService: boolean, default: boolean }} voice
+ * @param {Lang} lang
+ */
+export function voiceScore(voice, lang) {
+  return (
     (NOVELTY.test(voice.name) ? -10 : 0) +
     (/premium|enhanced|natural|neural/i.test(voice.name) ? 4 : 0) +
     (voice.localService ? 2 : 0) +
     (lang === 'en' && /en-GB/i.test(voice.lang) ? 1 : 0) +
-    (voice.default ? 0.5 : 0);
-  return [...all].sort((a, b) => score(b) - score(a))[0];
+    (voice.default ? 0.5 : 0)
+  );
 }
 
 // The reading speed, kept in this browser: 0.8 (slower) to 1.5 (faster),
@@ -177,19 +199,22 @@ export class Reader {
   async read(items, onEnd, start = 0) {
     Reader.current?.stop();
     Reader.current = this;
-    const speech = synth();
-    for (const lang of new Set(items.map((item) => item.lang))) {
-      if (!speech || !(await voiceFor(lang))) return lang;
-    }
+    const missing = await missingVoice(items);
+    if (missing) return missing;
     // Another reading began while the voices loaded: it wins.
     if (Reader.current !== this) return null;
     this.items = items;
     this.at = Math.min(Math.max(0, start), items.length - 1) - 1;
     this.onEnd = onEnd ?? null;
     this.stopped = false;
-    speech?.cancel();
+    synth()?.cancel();
     await this.next();
     return null;
+  }
+
+  /** Whether this reading goes on: it is not stopped, and no other began. */
+  live() {
+    return !this.stopped && Reader.current === this;
   }
 
   async next() {
@@ -197,22 +222,41 @@ export class Reader {
     this.at += 1;
     const item = this.items[this.at];
     const speech = synth();
-    if (this.stopped || !item || !speech) {
-      this.finish();
-      return;
-    }
+    if (this.stopped || !item || !speech) return this.finish();
     const voice = await voiceFor(item.lang);
-    if (this.stopped || Reader.current !== this) return;
-    const utterance = new SpeechSynthesisUtterance(item.lang === 'he' ? sayableHebrew(item.text) : item.text);
+    if (this.live()) speech.speak(this.utter(item, voice));
+  }
+
+  /**
+   * An item as an utterance, in its voice, at the reading speed. Hebrew is
+   * read without its marks, so its places no longer fit: its words are not
+   * marked one by one.
+   *
+   * @param {Item} item
+   * @param {SpeechSynthesisVoice | null} voice
+   */
+  utter(item, voice) {
+    const utterance = new SpeechSynthesisUtterance(sayable(item));
     if (voice) {
       utterance.voice = voice;
       utterance.lang = voice.lang;
     }
     utterance.rate = (item.lang === 'en' ? 0.95 : 0.85) * speed();
     item.element.classList.add('is-read');
-    // Hebrew loses its marks before it is read, so its places no longer
-    // fit: its words are not marked one by one.
-    const words = item.lang === 'he' ? [] : (item.words ?? []);
+    this.follow(utterance, item, item.lang === 'he' ? [] : (item.words ?? []));
+    return utterance;
+  }
+
+  /**
+   * Marks each word as the voice says it, and goes on to the next item at
+   * the end. An utterance cut off (another word said, the voice failed)
+   * ends the reading, so its card shows Listen again, not Pause.
+   *
+   * @param {SpeechSynthesisUtterance} utterance
+   * @param {Item} item
+   * @param {NonNullable<Item['words']>} words
+   */
+  follow(utterance, item, words) {
     utterance.addEventListener('boundary', (event) => {
       if (event.name !== 'word') return;
       const word = words.find((each) => event.charIndex >= each.start && event.charIndex < each.end);
@@ -220,15 +264,12 @@ export class Reader {
     });
     utterance.addEventListener('end', () => {
       item.element.classList.remove('is-read');
-      if (!this.stopped && Reader.current === this) this.next();
+      if (this.live()) this.next();
     });
-    // An utterance cut off (another word said, the voice failed) ends the
-    // reading, so its card shows Listen again, not Pause.
     utterance.addEventListener('error', () => {
       item.element.classList.remove('is-read');
-      if (!this.stopped && Reader.current === this) this.finish(item.element);
+      if (this.live()) this.finish(item.element);
     });
-    speech.speak(utterance);
   }
 
   /** @param {Element | null} word */
@@ -258,6 +299,59 @@ export class Reader {
 
   /** @type {Reader | null} */
   static current = null;
+}
+
+/**
+ * The languages of the items that the device has no voice for: the first of
+ * them, or null.
+ *
+ * @param {Item[]} items
+ * @returns {Promise<Lang | null>}
+ */
+async function missingVoice(items) {
+  const speech = synth();
+  for (const lang of new Set(items.map((item) => item.lang))) {
+    if (!speech || !(await voiceFor(lang))) return lang;
+  }
+  return null;
+}
+
+/** @param {Item} item its text as a voice can read it */
+const sayable = (item) => (item.lang === 'he' ? sayableHebrew(item.text) : item.text);
+
+/** The phone's lock screen and the media keys (Media Session), where the browser has them. */
+const mediaSession = () => (typeof navigator !== 'undefined' ? navigator.mediaSession : undefined);
+
+/** @param {MediaSession} media the lock screen cleared */
+function release(media) {
+  media.metadata = null;
+  for (const action of /** @type {MediaSessionAction[]} */ (['pause', 'stop', 'play'])) media.setActionHandler(action, null);
+}
+
+/**
+ * The chapters to play from a verse: the chapters before it go, and its
+ * chapter begins there. From no verse, or one not in them: all of them.
+ *
+ * @param {RecordedChapter[]} chapters
+ * @param {string} from
+ */
+export function chaptersFrom(chapters, from) {
+  const at = chapters.findIndex((chapter) => chapter.verses.some((verse) => verse.id === from));
+  if (at < 0) return chapters;
+  const [first, ...rest] = chapters.slice(at);
+  return [{ ...first, verses: first.verses.slice(first.verses.findIndex((verse) => verse.id === from)) }, ...rest];
+}
+
+/**
+ * The verse being read at a time in its chapter's file, on the card.
+ *
+ * @param {RecordedChapter} chapter
+ * @param {number} t
+ * @param {(id: string) => Element | null} elementOf
+ */
+function verseAt(chapter, t, elementOf) {
+  const verse = chapter.verses.findLast((each) => each.at <= t + 0.05);
+  return verse ? elementOf(verse.id) : null;
 }
 
 /**
@@ -304,19 +398,24 @@ export class Recording {
    * @param {'playing' | 'paused' | 'none'} state
    */
   session(state) {
-    const media = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    const media = mediaSession();
     if (!media) return;
-    if (state === 'playing') {
-      media.metadata = new MediaMetadata({ title: this.options.title ?? 'The KJV', artist: 'Michael Armenta', album: 'King James Version, read for LibriVox' });
-      media.setActionHandler('pause', () => this.stop());
-      media.setActionHandler('stop', () => this.stop());
-      media.setActionHandler('play', () => this.options.resume?.());
-    }
-    if (state === 'none') {
-      media.metadata = null;
-      for (const action of /** @type {MediaSessionAction[]} */ (['pause', 'stop', 'play'])) media.setActionHandler(action, null);
-    }
+    if (state === 'playing') this.claim(media);
+    if (state === 'none') release(media);
     media.playbackState = state;
+  }
+
+  /**
+   * The lock screen shows the passage and its reader, and its keys pause
+   * and go on.
+   *
+   * @param {MediaSession} media
+   */
+  claim(media) {
+    media.metadata = new MediaMetadata({ title: this.options.title ?? 'The KJV', artist: 'Michael Armenta', album: 'King James Version, read for LibriVox' });
+    media.setActionHandler('pause', () => this.stop());
+    media.setActionHandler('stop', () => this.stop());
+    media.setActionHandler('play', () => this.options.resume?.());
   }
 
   /**
@@ -334,22 +433,22 @@ export class Recording {
     this.stopped = false;
     this.items = chapters.flatMap((chapter) => chapter.verses.map((verse) => ({ element: elementOf(verse.id) }))).filter((item) => item.element);
     this.session('playing');
-    // From a verse: the chapters before it go, and its chapter begins there.
-    const at = chapters.findIndex((chapter) => chapter.verses.some((verse) => verse.id === from));
-    const left = at < 0 ? chapters : chapters.slice(at).map((chapter, i) => (i ? chapter : { ...chapter, verses: chapter.verses.slice(chapter.verses.findIndex((verse) => verse.id === from)) }));
-    for (const chapter of left) {
+    for (const chapter of chaptersFrom(chapters, from)) {
       if (this.stopped) return;
       await this.chapter(chapter, elementOf);
-      // The file would not play: say so, and stop where it was.
-      if (this.failed && !this.stopped) {
-        this.session('none');
-        this.options.failed?.();
-        this.finish(this.marked);
-        return;
-      }
+      if (this.failedOut()) return;
     }
     this.session('none');
     this.finish();
+  }
+
+  /** The file would not play: say so, and stop where it was. False if it played. */
+  failedOut() {
+    if (!this.failed || this.stopped) return false;
+    this.session('none');
+    this.options.failed?.();
+    this.finish(this.marked);
+    return true;
   }
 
   /**
@@ -397,19 +496,20 @@ export class Recording {
         this.mark(null);
         done();
       };
+      /** @param {number} left seconds to the end, at the speed: under 0.6, a timer stops it */
+      const endSoon = (left) => {
+        if (left >= 0.6) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (!audio.paused && !this.stopped && audio.currentTime >= last.until - 0.1) end();
+        }, Math.max(0, left * 1000 - 20));
+      };
       audio.addEventListener('timeupdate', () => {
         if (this.stopped) return done();
         const t = audio.currentTime;
         if (t >= last.until - 0.05) return end();
-        const left = (last.until - t) / (audio.playbackRate || 1);
-        if (left < 0.6) {
-          clearTimeout(timer);
-          timer = setTimeout(() => {
-            if (!audio.paused && !this.stopped && audio.currentTime >= last.until - 0.1) end();
-          }, Math.max(0, left * 1000 - 20));
-        }
-        const verse = [...chapter.verses].reverse().find((each) => each.at <= t + 0.05);
-        this.mark(verse ? elementOf(verse.id) : null);
+        endSoon((last.until - t) / (audio.playbackRate || 1));
+        this.mark(verseAt(chapter, t, elementOf));
       }, { signal: listening.signal });
       audio.addEventListener('ended', done, { signal: listening.signal });
       audio.addEventListener('error', () => fail(), { signal: listening.signal });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EditorState, TextSelection } from 'prosemirror-state';
 import { docOf } from '../app/lib/note-doc.js';
-import { FORMATS } from '../app/lib/note-format.js';
+import { FORMATS, barPosition } from '../app/lib/note-format.js';
 
 /** A note of one line with "grace" (positions 1 to 6) selected. */
 const selected = () => {
@@ -65,4 +65,18 @@ test('a reference takes no bold or highlight, and a marked one loses its marks',
   const after = press(press(state, 'bold'), 'lapis');
   assert.equal(after.doc.firstChild?.lastChild?.marks.length, 0);
   assert.equal(after.doc.firstChild?.firstChild?.marks.length, 2);
+});
+
+test('the bar goes over the words, or under them for a finger, and stays on the screen', () => {
+  const screen = { top: 8, bottom: 792, right: 1192 };
+  const bar = { width: 200, height: 40 };
+  const words = { left: 400, right: 500, top: 300, bottom: 320 };
+  assert.deepEqual(barPosition(words, bar, screen, false), { left: 350, top: 250 });
+  assert.deepEqual(barPosition(words, bar, screen, true), { left: 350, top: 332 });
+  // No room over the words: under them. No room under them: over.
+  assert.deepEqual(barPosition({ ...words, top: 20, bottom: 40 }, bar, screen, false), { left: 350, top: 52 });
+  assert.deepEqual(barPosition({ ...words, top: 760, bottom: 780 }, bar, screen, true), { left: 350, top: 710 });
+  // At an edge of the screen: inside it.
+  assert.deepEqual(barPosition({ ...words, left: 0, right: 20 }, bar, screen, false), { left: 8, top: 250 });
+  assert.deepEqual(barPosition({ ...words, left: 1180, right: 1200 }, bar, screen, false), { left: 992, top: 250 });
 });

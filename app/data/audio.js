@@ -105,32 +105,61 @@ export async function recordingsOf(ref, version = 'kjv') {
   /** @type {RecordingOf[]} */
   const found = [];
   for (const recording of RECORDINGS.filter((each) => each.version === version)) {
-    const known = await timesOf(recording);
-    /** @type {RecordedChapter[]} */
-    const chapters = [];
-    let whole = true;
-    for (const [chapter, verse] of versesIn(ref, index)) {
-      const key = `${ref.book}.${chapter}`;
-      const entry = known[key];
-      if (!entry || !(await hasFile(`${recording.dir}/${key}.m4a`))) {
-        whole = false;
-        break;
-      }
-      const [seconds, starts] = entry;
-      let last = chapters[chapters.length - 1];
-      if (!last || last.file !== `${recording.url}/${key}.m4a`) {
-        last = { file: `${recording.url}/${key}.m4a`, verses: [] };
-        chapters.push(last);
-      }
-      // A verse ends where the next begins; in the app's own voice, in the
-      // middle of the pause before it (generate.py's PAUSE), so that a stop
-      // a little late is still silent.
-      const next = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds;
-      last.verses.push({ id: `${key}.${verse}`, at: starts[verse - 1] / 10, until: next });
-    }
-    if (whole && chapters.length) found.push({ id: recording.id, kind: recording.kind, reader: recording.reader, chapters });
+    const chapters = await chaptersOf(recording, ref);
+    if (chapters?.length) found.push({ id: recording.id, kind: recording.kind, reader: recording.reader, chapters });
   }
   return found;
+}
+
+/**
+ * The chapters of a recording that a passage touches, each with the times
+ * of its verses; null if the recording lacks one of them.
+ *
+ * @param {Recording} recording
+ * @param {import('../lib/reference.js').Reference} ref
+ * @returns {Promise<RecordedChapter[] | null>}
+ */
+async function chaptersOf(recording, ref) {
+  const known = await timesOf(recording);
+  /** @type {RecordedChapter[]} */
+  const chapters = [];
+  for (const [chapter, verse] of versesIn(ref, index)) {
+    const key = `${ref.book}.${chapter}`;
+    const entry = known[key];
+    if (!entry || !(await hasFile(`${recording.dir}/${key}.m4a`))) return null;
+    chapterIn(chapters, `${recording.url}/${key}.m4a`).verses.push(verseTime(recording, key, verse, entry));
+  }
+  return chapters;
+}
+
+/**
+ * The chapter of a file in the list: the last one, or a new one.
+ *
+ * @param {RecordedChapter[]} chapters
+ * @param {string} file
+ */
+function chapterIn(chapters, file) {
+  let last = chapters.at(-1);
+  if (!last || last.file !== file) {
+    last = { file, verses: [] };
+    chapters.push(last);
+  }
+  return last;
+}
+
+/**
+ * Where a verse begins in its chapter's file, and where it ends: where the
+ * next begins; in the app's own voice, in the middle of the pause before it
+ * (generate.py's PAUSE), so that a stop a little late is still silent.
+ *
+ * @param {Recording} recording
+ * @param {string} key the chapter, such as JHN.3
+ * @param {number} verse
+ * @param {[number, number[]]} entry the chapter's length, and its verses' starts in tenths of a second
+ */
+function verseTime(recording, key, verse, [seconds, starts]) {
+  const until = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds;
+  return { id: `${key}.${verse}`, at: starts[verse - 1] / 10, until };
 }
 
 /**
@@ -143,34 +172,70 @@ export async function recordingsOf(ref, version = 'kjv') {
  * @returns {Promise<Response>}
  */
 export async function chapterFile(folder, name, range) {
-  const recording = RECORDINGS.find((each) => each.url === (folder ? `/audio/${folder}` : '/audio'));
-  if (!files || !recording || !/^[1-3A-Z]{3}\.\d{1,3}\.m4a$/.test(name)) return new Response('No such recording.', { status: 404 });
-  const file = `${recording.dir}/${name}`;
-  const info = await files.stat(file).catch(() => null);
-  if (!info) return new Response('No such recording.', { status: 404 });
+  const file = recordingFile(folder, name);
+  const info = file ? await files.stat(file).catch(() => null) : null;
+  if (!file || !info) return new Response('No such recording.', { status: 404 });
   const size = Number(info.size);
+  const part = byteRange(range, size);
+  if (part === 'none') return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+  return sendBytes(file, part, size);
+}
+
+/**
+ * The path of a chapter's file of a recording; null if there is no such
+ * recording, or no files here.
+ *
+ * @param {string} folder
+ * @param {string} name
+ */
+function recordingFile(folder, name) {
+  const url = folder ? `/audio/${folder}` : '/audio';
+  const recording = RECORDINGS.find((each) => each.url === url);
+  if (!files || !recording || !/^[1-3A-Z]{3}\.\d{1,3}\.m4a$/.test(name)) return null;
+  return `${recording.dir}/${name}`;
+}
+
+/**
+ * The bytes a Range header asks for, of a file of a size: the first and
+ * the last (inclusive); null for the whole file (no range, or one not
+ * understood); 'none' when it asks for bytes the file does not have.
+ *
+ * @param {string | undefined} range
+ * @param {number} size
+ * @returns {{ start: number, end: number } | null | 'none'}
+ */
+export function byteRange(range, size) {
   const asked = /^bytes=(\d*)-(\d*)$/.exec(range ?? '');
-  let start = 0;
-  let end = size - 1;
-  if (asked) {
-    if (asked[1]) start = Number(asked[1]);
-    if (asked[2]) end = asked[1] ? Math.min(size - 1, Number(asked[2])) : end;
-    if (!asked[1] && asked[2]) start = Math.max(0, size - Number(asked[2]));
-    if (start > end || start >= size) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
-  }
+  if (!asked) return null;
+  const [, first, last] = asked;
+  // "-500" is the last 500 bytes.
+  const start = first ? Number(first) : last ? Math.max(0, size - Number(last)) : 0;
+  const end = first && last ? Math.min(size - 1, Number(last)) : size - 1;
+  return start > end || start >= size ? 'none' : { start, end };
+}
+
+/**
+ * A file, or part of it, as the response.
+ *
+ * @param {string} file
+ * @param {{ start: number, end: number } | null} part null for the whole file
+ * @param {number} size
+ */
+async function sendBytes(file, part, size) {
+  const { start, end } = part ?? { start: 0, end: size - 1 };
   const length = end - start + 1;
   const handle = await files.open(file);
   const bytes = new Uint8Array(length);
   await handle.read(bytes, 0, length, start);
   await handle.close();
   return new Response(bytes, {
-    status: asked ? 206 : 200,
+    status: part ? 206 : 200,
     headers: {
       'Content-Type': 'audio/mp4',
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=86400',
       'Content-Length': String(length),
-      ...(asked ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
+      ...(part ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
     },
   });
 }

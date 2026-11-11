@@ -43,6 +43,71 @@ export function triggerOf(state) {
 
 let lists = 0;
 
+/**
+ * Where the list goes: under the words, or over them where the screen
+ * ends, and always on the screen.
+ *
+ * @param {{ left: number, top: number, bottom: number }} at the words' start
+ * @param {{ width: number, height: number }} list
+ * @param {{ bottom: number, right: number }} screen
+ */
+export function listPosition(at, list, screen) {
+  const below = at.bottom + 6;
+  return {
+    left: Math.max(8, Math.min(at.left, screen.right - list.width - 8)),
+    top: below + list.height > screen.bottom ? Math.max(8, at.top - 6 - list.height) : below,
+  };
+}
+
+/** The part of the screen that shows: its bottom and its right edge. */
+function screenEdge() {
+  const port = visualViewport ?? { offsetTop: 0, offsetLeft: 0, height: innerHeight, width: innerWidth };
+  return { bottom: port.offsetTop + port.height, right: port.offsetLeft + port.width };
+}
+
+/**
+ * Where a position is on the screen; null if the editor cannot say (it is
+ * being drawn again).
+ *
+ * @param {import('prosemirror-view').EditorView} view
+ * @param {number} pos
+ */
+function coordsOf(view, pos) {
+  try {
+    return view.coordsAtPos(pos);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A suggestion in the list.
+ *
+ * @param {Suggestion} item
+ * @param {number} index
+ * @param {boolean} active
+ * @param {string} id the list's
+ */
+function optionOf(item, index, active, id) {
+  const option = document.createElement('div');
+  option.className = `note-suggest__item note-suggest__item--${item.kind}`;
+  option.id = `${id}-${index}`;
+  option.dataset.index = String(index);
+  option.setAttribute('role', 'option');
+  option.setAttribute('aria-selected', String(active));
+  const label = Object.assign(document.createElement('span'), { className: 'note-suggest__label', textContent: item.label });
+  const detail = Object.assign(document.createElement('span'), { className: 'note-suggest__detail', textContent: item.detail });
+  option.append(label, detail);
+  return option;
+}
+
+/** @param {Trigger['kind']} kind the hint under the list: what the keys do */
+const hintOf = (kind) =>
+  Object.assign(document.createElement('p'), {
+    className: 'note-suggest__hint',
+    textContent: kind === 'at' ? 'Enter or Tab to link' : 'Tab to link · Enter for a new line',
+  });
+
 export function suggestions() {
   /** @type {Map<string, Promise<Suggestion[]>>} */
   const cache = new Map();
@@ -72,60 +137,33 @@ export function suggestions() {
   /** @param {import('prosemirror-view').EditorView} view */
   function draw(view) {
     if (!open) return;
-    if (!list) {
-      list = document.createElement('div');
-      list.className = 'note-suggest';
-      list.id = id;
-      list.setAttribute('role', 'listbox');
-      list.setAttribute('aria-label', 'Suggestions');
-      // A press keeps the caret in the note, and picks.
-      list.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        const item = event.target instanceof Element ? event.target.closest('[data-index]') : null;
-        if (item instanceof HTMLElement && editor) accept(editor, Number(item.dataset.index));
-      });
-      document.body.append(list);
-    }
+    list ??= makeList();
     const { items, active, trigger } = open;
-    list.replaceChildren(
-      ...items.map((item, index) => {
-        const option = document.createElement('div');
-        option.className = `note-suggest__item note-suggest__item--${item.kind}`;
-        option.id = `${id}-${index}`;
-        option.dataset.index = String(index);
-        option.setAttribute('role', 'option');
-        option.setAttribute('aria-selected', String(index === active));
-        const label = document.createElement('span');
-        label.className = 'note-suggest__label';
-        label.textContent = item.label;
-        const detail = document.createElement('span');
-        detail.className = 'note-suggest__detail';
-        detail.textContent = item.detail;
-        option.append(label, detail);
-        return option;
-      }),
-      Object.assign(document.createElement('p'), {
-        className: 'note-suggest__hint',
-        textContent: trigger.kind === 'at' ? 'Enter or Tab to link' : 'Tab to link · Enter for a new line',
-      }),
-    );
+    list.replaceChildren(...items.map((item, index) => optionOf(item, index, index === active, id)), hintOf(trigger.kind));
     view.dom.setAttribute('aria-controls', id);
     view.dom.setAttribute('aria-expanded', 'true');
     view.dom.setAttribute('aria-activedescendant', `${id}-${active}`);
-    // Under the words, or over them where the screen ends.
-    let at;
-    try {
-      at = view.coordsAtPos(trigger.from);
-    } catch {
-      return close();
-    }
-    const port = visualViewport;
-    const bottom = (port?.offsetTop ?? 0) + (port?.height ?? innerHeight);
-    const right = (port?.offsetLeft ?? 0) + (port?.width ?? innerWidth);
-    const height = list.offsetHeight;
-    const width = list.offsetWidth;
-    list.style.left = `${Math.max(8, Math.min(at.left, right - width - 8))}px`;
-    list.style.top = `${at.bottom + 6 + height > bottom ? Math.max(8, at.top - 6 - height) : at.bottom + 6}px`;
+    const at = coordsOf(view, trigger.from);
+    if (!at) return close();
+    const spot = listPosition(at, { width: list.offsetWidth, height: list.offsetHeight }, screenEdge());
+    list.style.left = `${spot.left}px`;
+    list.style.top = `${spot.top}px`;
+  }
+
+  /** The list, made and put on the page. A press keeps the caret in the note, and picks. */
+  function makeList() {
+    const made = document.createElement('div');
+    made.className = 'note-suggest';
+    made.id = id;
+    made.setAttribute('role', 'listbox');
+    made.setAttribute('aria-label', 'Suggestions');
+    made.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      const item = event.target instanceof Element ? event.target.closest('[data-index]') : null;
+      if (item instanceof HTMLElement && editor) accept(editor, Number(item.dataset.index));
+    });
+    document.body.append(made);
+    return made;
   }
 
   /**
@@ -151,6 +189,21 @@ export function suggestions() {
   async function look(view, trigger) {
     const key = `${trigger.kind}:${trigger.text.toLowerCase()}`;
     asked = key;
+    const items = await suggestionsFor(trigger, key);
+    const now = current(view, trigger, key);
+    if (!now) return;
+    if (!items.length) return close();
+    open = { trigger: now, items, active: 0 };
+    draw(view);
+  }
+
+  /**
+   * The suggestions for the words, asked of the server once.
+   *
+   * @param {Trigger} trigger
+   * @param {string} key
+   */
+  function suggestionsFor(trigger, key) {
     let found = cache.get(key);
     if (!found) {
       found = fetch(`/suggest/${encodeURIComponent(trigger.text)}?kind=${trigger.kind}`)
@@ -158,13 +211,88 @@ export function suggestions() {
         .catch(() => []);
       cache.set(key, found);
     }
-    const items = await found;
-    if (asked !== key || view.isDestroyed) return;
-    const now = triggerOf(view.state);
-    if (!now || now.from !== trigger.from || now.from === dismissed) return;
-    if (!items.length) return close();
-    open = { trigger: now, items, active: 0 };
-    draw(view);
+    return found;
+  }
+
+  /**
+   * The words before the caret, if the answer is still for them: no other
+   * words were asked about since, and Escape did not put them away.
+   *
+   * @param {import('prosemirror-view').EditorView} view
+   * @param {Trigger} trigger
+   * @param {string} key
+   */
+  function current(view, trigger, key) {
+    if (asked !== key || view.isDestroyed) return null;
+    return sameWords(triggerOf(view.state), trigger.from);
+  }
+
+  /**
+   * The words before the caret, if they start where the asked words did and
+   * Escape did not put them away.
+   *
+   * @param {Trigger | null} now
+   * @param {number} from
+   */
+  function sameWords(now, from) {
+    return now && now.from === from && from !== dismissed ? now : null;
+  }
+
+  /** No words to suggest for: nothing more is asked, and the list goes. */
+  function stop() {
+    clearTimeout(timer);
+    asked = '';
+    close();
+  }
+
+  /**
+   * The words change: the list follows them, and the server is asked again
+   * a moment after the last change.
+   *
+   * @param {import('prosemirror-view').EditorView} view
+   * @param {Trigger} trigger
+   */
+  function follow(view, trigger) {
+    if (open && open.trigger.from !== trigger.from) close();
+    if (open) {
+      open.trigger = trigger;
+      draw(view);
+    }
+    clearTimeout(timer);
+    timer = setTimeout(() => look(view, trigger), WAIT_MS);
+  }
+
+  /**
+   * What the keys do while the list shows: Up and Down choose, Tab picks
+   * (and Enter, for @), and Escape puts the list away until the words
+   * change. Each says whether it took the key.
+   *
+   * @param {import('prosemirror-view').EditorView} view
+   * @param {{ trigger: Trigger, items: Suggestion[], active: number }} shown
+   * @returns {Record<string, () => boolean>}
+   */
+  function keyActions(view, shown) {
+    const count = shown.items.length;
+    const move = (/** @type {number} */ step) => () => {
+      shown.active = (shown.active + step + count) % count;
+      draw(view);
+      return true;
+    };
+    const pick = () => {
+      accept(view, shown.active);
+      return true;
+    };
+    return {
+      ArrowDown: move(1),
+      ArrowUp: move(-1),
+      Tab: pick,
+      Enter: () => shown.trigger.kind === 'at' && pick(),
+      Escape: () => {
+        dismissed = shown.trigger.from;
+        close();
+        return true;
+      },
+    };
   }
 
   return new Plugin({
@@ -176,18 +304,8 @@ export function suggestions() {
           editor = view;
           const trigger = triggerOf(view.state);
           if (!trigger) dismissed = -1;
-          if (!trigger || trigger.from === dismissed) {
-            clearTimeout(timer);
-            asked = '';
-            return close();
-          }
-          if (open && open.trigger.from !== trigger.from) close();
-          if (open) {
-            open.trigger = trigger;
-            draw(view);
-          }
-          clearTimeout(timer);
-          timer = setTimeout(() => look(view, trigger), WAIT_MS);
+          if (!trigger || trigger.from === dismissed) return stop();
+          follow(view, trigger);
         },
         destroy() {
           clearTimeout(timer);
@@ -199,22 +317,8 @@ export function suggestions() {
     props: {
       handleKeyDown(view, event) {
         if (!open) return false;
-        const count = open.items.length;
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-          open.active = (open.active + (event.key === 'ArrowDown' ? 1 : count - 1)) % count;
-          draw(view);
-          return true;
-        }
-        if (event.key === 'Tab' || (event.key === 'Enter' && open.trigger.kind === 'at')) {
-          accept(view, open.active);
-          return true;
-        }
-        if (event.key === 'Escape') {
-          dismissed = open.trigger.from;
-          close();
-          return true;
-        }
-        return false;
+        const actions = keyActions(view, open);
+        return Object.hasOwn(actions, event.key) ? actions[event.key]() : false;
       },
     },
   });

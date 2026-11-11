@@ -15,70 +15,102 @@
   // Each answer also says what it is, for the search panel's research trail
   // (lib/trail.js): a label and a kind, on the results as data-trail-label
   // and data-trail-kind. An empty search has no kind, and makes no step.
+  /** @typedef {Awaited<ReturnType<typeof search>>} Results */
+  /** @typedef {{ label: string, kind: string }} Step a step of the trail */
+  /** @typedef {{ refs: string | null, quotes: string | null, q: string }} Asked */
+
+  /**
+   * What each kind of question asks, in order: the first one the request
+   * has is answered. With none, the text is searched.
+   *
+   * @type {[string, (value: string) => Promise<Results>][]}
+   */
+  const ASKS = [
+    ['guide', guideResults],
+    ['entity', (id) => (id.startsWith('world:') ? worldResults(id) : entityResults(id))],
+    ['word', wordResults],
+    ['refs', referenceResults],
+    // The quotations of a verse: the Old Testament passages a New Testament
+    // verse quotes, or the New Testament passages that quote an Old
+    // Testament verse (data/quotations.js).
+    ['quotes', quotationResults],
+    // A topic of Nave's Topical Bible, such as PRAYER.
+    ['topic', topicResults],
+  ];
+
   export default async ({ url }) => {
     const params = new URL(url).searchParams;
-    const refs = params.get('refs');
-    const word = params.get('word');
-    const entity = params.get('entity');
-    const guide = params.get('guide');
-    // `quotes` lists the quotations of a verse: the Old Testament passages
-    // a New Testament verse quotes, or the New Testament passages that
-    // quote an Old Testament verse (data/quotations.js).
-    const quotes = params.get('quotes');
-    // `topic` shows a topic of Nave's Topical Bible, such as PRAYER.
-    const topicKey = params.get('topic');
-    const q = (params.get('q') ?? '').trim();
     // `discover` shows a "Did you know?" (data/facts.js): that number, or a
     // random one. It is not a step on the trail.
-    if (params.has('discover')) {
-      const { fact, next } = await didYouKnow(Number.parseInt(params.get('discover') ?? '', 10));
-      return { ...answer({}), trail: { label: '', kind: '' }, fact, next };
-    }
-    const results = guide
-      ? await guideResults(guide)
-      : entity?.startsWith('world:')
-        ? await worldResults(entity)
-        : entity
-          ? await entityResults(entity)
-          : word
-            ? await wordResults(word)
-            : refs
-              ? await referenceResults(refs)
-              : quotes
-                ? await quotationResults(quotes)
-                : topicKey
-                  ? await topicResults(topicKey)
-                  : await search(q);
-    return { ...results, trail: trailOf(results, { refs, quotes, q }), fact: null, next: 0 };
+    if (params.has('discover')) return discover(params.get('discover'));
+    const q = (params.get('q') ?? '').trim();
+    const asked = ASKS.find(([name]) => params.get(name));
+    const results = await (asked ? asked[1](params.get(asked[0]) ?? '') : search(q));
+    return { ...results, trail: trailOf(results, { refs: params.get('refs'), quotes: params.get('quotes'), q }), fact: null, next: 0 };
   };
+
+  /** @param {string | null} number a "Did you know?", by its number or at random */
+  async function discover(number) {
+    const { fact, next } = await didYouKnow(Number.parseInt(number ?? '', 10));
+    return { ...answer({}), trail: { label: '', kind: '' }, fact, next };
+  }
+
+  /** @param {string} address a passage's name, or the address if it is not one */
+  function named(address) {
+    const ref = parseAddress(address, books);
+    return ref ? formatReference(ref, books) : address;
+  }
+
+  /** @param {Results} results the label of a word, with the sense on show */
+  function wordStep(results) {
+    if (!results.entry) return null;
+    const sense = results.senses[results.sense - 1];
+    return { label: `${results.entry.code} ${results.entry.xlit}${sense ? `, ${sense.gloss.split(',')[0]}` : ''}`, kind: 'word' };
+  }
+
+  /**
+   * How each kind of answer names its step, in order; null when the answer
+   * is not of that kind.
+   *
+   * @type {((results: Results, asked: Asked) => Step | null)[]}
+   */
+  const STEPS = [
+    (results) => (results.guide ? { label: results.guide.title, kind: 'passage' } : null),
+    (results) => (results.entity ? { label: results.entity.title, kind: results.entity.kind } : null),
+    wordStep,
+    (results) => (results.dictionary ? { label: results.dictionary.term, kind: 'word' } : null),
+    (results, { q }) => (results.topic && !q ? { label: results.topic.name, kind: 'topic' } : null),
+    (results, { q }) => (results.landscape.startsWith('landscape:grammar:') ? { label: q, kind: 'grammar' } : null),
+    (_, { refs }) => (refs ? { label: `${named(refs)}, cross-references`, kind: 'refs' } : null),
+    (_, { quotes }) => (quotes ? { label: `${named(quotes)}, quotations`, kind: 'refs' } : null),
+    // An empty search has no kind, and makes no step.
+    (_, { q }) => (q ? null : { label: '', kind: '' }),
+  ];
 
   /**
    * The label and kind of an answer, for its chip in the trail.
    *
-   * @param {Awaited<ReturnType<typeof search>>} results
-   * @param {{ refs: string | null, quotes?: string | null, q: string }} asked
+   * @param {Results} results
+   * @param {Asked} asked
+   * @returns {Step}
    */
-  function trailOf(results, { refs, quotes, q }) {
-    if (results.guide) return { label: results.guide.title, kind: 'passage' };
-    if (results.entity) return { label: results.entity.title, kind: results.entity.kind };
-    if (results.entry) {
-      const sense = results.senses[results.sense - 1];
-      return { label: `${results.entry.code} ${results.entry.xlit}${sense ? `, ${sense.gloss.split(',')[0]}` : ''}`, kind: 'word' };
+  function trailOf(results, asked) {
+    for (const step of STEPS) {
+      const found = step(results, asked);
+      if (found) return found;
     }
-    if (results.dictionary) return { label: results.dictionary.term, kind: 'word' };
-    if (results.topic && !q) return { label: results.topic.name, kind: 'topic' };
-    if (results.landscape.startsWith('landscape:grammar:')) return { label: q, kind: 'grammar' };
-    if (refs) {
-      const ref = parseAddress(refs, books);
-      return { label: `${ref ? formatReference(ref, books) : refs}, cross-references`, kind: 'refs' };
-    }
-    if (quotes) {
-      const ref = parseAddress(quotes, books);
-      return { label: `${ref ? formatReference(ref, books) : quotes}, quotations`, kind: 'refs' };
-    }
-    if (!q) return { label: '', kind: '' };
-    // A reference typed in the field, such as John 3:16, is a passage.
-    if (/^Passage/.test(results.summary)) return { label: q, kind: 'passage' };
+    return searchStep(results.summary, asked.q);
+  }
+
+  /**
+   * A search's step: a reference typed in the field, such as John 3:16, is
+   * a passage; other words are quoted, cut at 40 characters.
+   *
+   * @param {string} summary
+   * @param {string} q
+   */
+  function searchStep(summary, q) {
+    if (/^Passage/.test(summary)) return { label: q, kind: 'passage' };
     return { label: `“${q.length > 40 ? `${q.slice(0, 40)}…` : q}”`, kind: 'search' };
   }
 </script>

@@ -135,6 +135,99 @@ function icon(/** @type {string} */ name) {
   return svg;
 }
 
+/** @param {EventTarget | null} target the format of the button it is on, if any */
+function formatAt(target) {
+  const element = target instanceof Element ? target.closest('[data-format]') : null;
+  const name = element instanceof HTMLElement ? element.dataset.format : '';
+  return FORMATS.find((each) => each.name === name);
+}
+
+/** @param {typeof FORMATS[number]} button its button in the bar */
+function formatButton(button) {
+  const element = document.createElement('button');
+  element.type = 'button';
+  element.tabIndex = -1;
+  element.className = `note-format__button${button.pigment ? ` note-format__swatch note-format__swatch--${button.pigment}` : ''}`;
+  element.dataset.format = button.name;
+  element.setAttribute('aria-label', button.label);
+  element.title = button.label;
+  if (button.icon) element.append(icon(button.icon));
+  return element;
+}
+
+/** The bar's buttons, with a gap before the lists and the highlights. */
+function barButtons() {
+  /** @type {HTMLElement[]} */
+  const parts = [];
+  for (const button of FORMATS) {
+    if (button.name === 'list' || button.pigment === PIGMENTS[0]) parts.push(Object.assign(document.createElement('span'), { className: 'note-format__gap' }));
+    parts.push(formatButton(button));
+  }
+  return parts;
+}
+
+/**
+ * Each button pressed or not, as the words are. A reference selected: only
+ * Quote. Words selected: all but Quote.
+ *
+ * @param {HTMLElement} bar
+ * @param {State} state
+ */
+function paintButtons(bar, state) {
+  const ref = refSelected(state);
+  for (const button of FORMATS) {
+    const element = bar.querySelector(`[data-format="${button.name}"]`);
+    if (!(element instanceof HTMLElement)) continue;
+    element.hidden = button.name === 'quote' ? !ref : ref;
+    element.setAttribute('aria-pressed', String(button.on(state)));
+  }
+  for (const gap of bar.querySelectorAll('.note-format__gap')) /** @type {HTMLElement} */ (gap).hidden = ref;
+}
+
+/**
+ * The box of the selected words on the screen; null if the editor cannot
+ * say (it is being drawn again).
+ *
+ * @param {View} view
+ */
+function wordsBox(view) {
+  const { from, to } = view.state.selection;
+  try {
+    const start = view.coordsAtPos(from);
+    const end = view.coordsAtPos(to);
+    return { left: Math.min(start.left, end.left), right: Math.max(start.right, end.right), top: Math.min(start.top, end.top), bottom: Math.max(start.bottom, end.bottom) };
+  } catch {
+    return null;
+  }
+}
+
+/** The part of the screen the bar stays in: what shows, less a margin. */
+function screenBox() {
+  const port = visualViewport ?? { offsetTop: 0, offsetLeft: 0, height: innerHeight, width: innerWidth };
+  return { top: port.offsetTop + 8, bottom: port.offsetTop + port.height - 8, right: port.offsetLeft + port.width - 8 };
+}
+
+/**
+ * Where the bar goes: over the words, or under them for a finger (clear of
+ * the phone's own menu over them), on the other side when there is no
+ * room, and always on the screen.
+ *
+ * @param {{ left: number, right: number, top: number, bottom: number }} words
+ * @param {{ width: number, height: number }} bar
+ * @param {{ top: number, bottom: number, right: number }} screen
+ * @param {boolean} finger
+ */
+export function barPosition(words, bar, screen, finger) {
+  const middle = (words.left + words.right) / 2;
+  const over = words.top - 10 - bar.height;
+  const under = words.bottom + 12;
+  const y = (finger ? under + bar.height <= screen.bottom : over < screen.top) ? under : over;
+  return {
+    left: Math.max(8, Math.min(middle - bar.width / 2, screen.right - bar.width)),
+    top: Math.max(screen.top, Math.min(y, screen.bottom - bar.height)),
+  };
+}
+
 export function formatBar() {
   /** @type {HTMLElement | null} */
   let bar = null;
@@ -153,73 +246,46 @@ export function formatBar() {
 
   /** @param {View} view */
   function draw(view) {
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.className = 'note-format';
-      bar.setAttribute('role', 'toolbar');
-      bar.setAttribute('aria-label', 'Formatting');
-      for (const button of FORMATS) {
-        const element = document.createElement('button');
-        element.type = 'button';
-        element.tabIndex = -1;
-        element.className = `note-format__button${button.pigment ? ` note-format__swatch note-format__swatch--${button.pigment}` : ''}`;
-        element.dataset.format = button.name;
-        element.setAttribute('aria-label', button.label);
-        element.title = button.label;
-        if (button.icon) element.append(icon(button.icon));
-        if (button.name === 'list' || button.pigment === PIGMENTS[0]) bar.append(Object.assign(document.createElement('span'), { className: 'note-format__gap' }));
-        bar.append(element);
-      }
-      // A press keeps the words selected, and formats them.
-      bar.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        const target = event.target instanceof Element ? event.target.closest('[data-format]') : null;
-        const button = FORMATS.find((each) => each.name === (target instanceof HTMLElement ? target.dataset.format : ''));
-        if (button && editor) {
-          button.run(editor.state, editor.dispatch);
-          editor.focus();
-        }
-      });
-      // A keyboard's or a switch's click, with no pointer.
-      bar.addEventListener('click', (event) => {
-        if (/** @type {MouseEvent} */ (event).detail !== 0) return;
-        const target = event.target instanceof Element ? event.target.closest('[data-format]') : null;
-        const button = FORMATS.find((each) => each.name === (target instanceof HTMLElement ? target.dataset.format : ''));
-        if (button && editor) button.run(editor.state, editor.dispatch);
-      });
-      document.body.append(bar);
-    }
-    // A reference selected: only Quote. Words selected: all but Quote.
-    const ref = refSelected(view.state);
-    for (const button of FORMATS) {
-      const element = bar.querySelector(`[data-format="${button.name}"]`);
-      if (!(element instanceof HTMLElement)) continue;
-      element.hidden = button.name === 'quote' ? !ref : ref;
-      element.setAttribute('aria-pressed', String(button.on(view.state)));
-    }
-    for (const gap of bar.querySelectorAll('.note-format__gap')) /** @type {HTMLElement} */ (gap).hidden = ref;
-    // Over the words, or under them for a finger, and on the screen.
-    const { from, to } = view.state.selection;
-    let start;
-    let end;
-    try {
-      start = view.coordsAtPos(from);
-      end = view.coordsAtPos(to);
-    } catch {
-      return hide();
-    }
-    const port = visualViewport;
-    const top = (port?.offsetTop ?? 0) + 8;
-    const bottom = (port?.offsetTop ?? 0) + (port?.height ?? innerHeight) - 8;
-    const right = (port?.offsetLeft ?? 0) + (port?.width ?? innerWidth) - 8;
-    const height = bar.offsetHeight;
-    const width = bar.offsetWidth;
-    const middle = (Math.min(start.left, end.left) + Math.max(start.right, end.right)) / 2;
-    const over = Math.min(start.top, end.top) - 10 - height;
-    const under = Math.max(start.bottom, end.bottom) + 12;
-    const y = finger ? (under + height <= bottom ? under : over) : over >= top ? over : under;
-    bar.style.left = `${Math.max(8, Math.min(middle - width / 2, right - width))}px`;
-    bar.style.top = `${Math.max(top, Math.min(y, bottom - height))}px`;
+    bar ??= makeBar();
+    paintButtons(bar, view.state);
+    const words = wordsBox(view);
+    if (!words) return hide();
+    const spot = barPosition(words, { width: bar.offsetWidth, height: bar.offsetHeight }, screenBox(), finger);
+    bar.style.left = `${spot.left}px`;
+    bar.style.top = `${spot.top}px`;
+  }
+
+  /** The bar, made and put on the page. */
+  function makeBar() {
+    const made = document.createElement('div');
+    made.className = 'note-format';
+    made.setAttribute('role', 'toolbar');
+    made.setAttribute('aria-label', 'Formatting');
+    made.append(...barButtons());
+    // A press keeps the words selected, and formats them.
+    made.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      press(event.target, true);
+    });
+    // A keyboard's or a switch's click, with no pointer.
+    made.addEventListener('click', (event) => {
+      if (/** @type {MouseEvent} */ (event).detail === 0) press(event.target, false);
+    });
+    document.body.append(made);
+    return made;
+  }
+
+  /**
+   * Formats the words with the button pressed.
+   *
+   * @param {EventTarget | null} target
+   * @param {boolean} focus whether the note takes the focus back
+   */
+  function press(target, focus) {
+    const button = formatAt(target);
+    if (!button || !editor) return;
+    button.run(editor.state, editor.dispatch);
+    if (focus) editor.focus();
   }
 
   return new Plugin({

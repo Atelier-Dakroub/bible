@@ -38,44 +38,92 @@ async function reference(text) {
 async function named(text) {
   const wanted = text.toLowerCase().replace(/\s+/g, ' ').trim();
   if (!wanted) return [];
-  /** @type {Suggestion[]} */
-  const found = [];
+  const words = await wordsFor(wanted);
+  return [...words, ...(await entitiesFor(wanted, LIMIT - words.length))];
+}
 
-  // A Strong's number, or a word of the original as it is said.
+/**
+ * The Strong's numbers the words may mean: one typed (H430), or the words
+ * of the original as they are said (agape).
+ *
+ * @param {string} wanted
+ * @returns {Promise<string[]>}
+ */
+async function codesFor(wanted) {
+  const strongs = /^([hg])0*(\d{1,5})$/.exec(wanted);
+  if (strongs) return [`${strongs[1].toUpperCase()}${strongs[2]}`];
+  return /^[\p{L}ʼʻ'’-]{3,}$/u.test(wanted) ? lemmaCodes(wanted) : [];
+}
+
+/**
+ * A word of the original the words may mean: two at most.
+ *
+ * @param {string} wanted
+ * @returns {Promise<Suggestion[]>}
+ */
+async function wordsFor(wanted) {
   lexicon ??= import('../../data/strongs/lexicon.json', { with: { type: 'json' } }).then((module) => /** @type {any} */ (module.default));
   const words = await lexicon;
-  const strongs = /^([hg])0*(\d{1,5})$/.exec(wanted);
-  const codes = strongs ? [`${strongs[1].toUpperCase()}${strongs[2]}`] : /^[\p{L}ʼʻ'’-]{3,}$/u.test(wanted) ? await lemmaCodes(wanted) : [];
-  for (const code of codes.slice(0, 2)) {
+  return (await codesFor(wanted)).slice(0, 2).flatMap((code) => {
     const entry = words[code];
-    if (entry) found.push({ kind: 'word', address: code, label: `${code} ${entry.xlit}`, detail: short(entry.def, 60) });
-  }
+    return entry ? [{ kind: 'word', address: code, label: `${code} ${entry.xlit}`, detail: short(entry.def, 60) }] : [];
+  });
+}
 
-  // People, places, groups and events whose name (or other name) begins so:
-  // a whole name first, people and places before events, then the most
-  // told of (in the most verses). Two of one name with one summary (the two
-  // Beth-horons) show once.
+const ORDER = ['person', 'place', 'group', 'event'];
+
+/** @param {any} entity its names, in small letters: its title, its name, and its other names */
+const namesOf = (entity) => [entity.title, entity.name, ...String(entity.alsoCalled ?? '').split(/,\s*/)].filter(Boolean).map((each) => each.toLowerCase());
+
+/**
+ * How well names match the words: 0 for a whole name, 1 for a name that
+ * begins so, -1 for none.
+ *
+ * @param {string[]} names
+ * @param {string} wanted
+ */
+function rankOf(names, wanted) {
+  if (names.includes(wanted)) return 0;
+  return names.some((each) => each.startsWith(wanted)) ? 1 : -1;
+}
+
+/**
+ * An entity whose name matches, with what orders it; null if none does.
+ *
+ * @param {string} id
+ * @param {any} entity
+ * @param {string} wanted
+ */
+function matchOf(id, entity, wanted) {
+  const rank = rankOf(namesOf(entity), wanted);
+  if (rank < 0) return null;
+  return { id, rank, kind: ORDER.indexOf(entity.kind), verses: Array.isArray(entity.verses) ? entity.verses.length : 0 };
+}
+
+/**
+ * People, places, groups and events whose name (or other name) begins so:
+ * a whole name first, people and places before events, then the most told
+ * of (in the most verses). Two of one name with one summary (the two
+ * Beth-horons) show once.
+ *
+ * @param {string} wanted
+ * @param {number} room how many may be suggested
+ * @returns {Promise<Suggestion[]>}
+ */
+async function entitiesFor(wanted, room) {
   const all = await entities();
-  const ORDER = ['person', 'place', 'group', 'event'];
-  /** @type {{ id: string, rank: number, kind: number, verses: number }[]} */
-  const matches = [];
-  for (const [id, entity] of Object.entries(all)) {
-    const names = [entity.title, entity.name, ...String(entity.alsoCalled ?? '').split(/,\s*/)].filter(Boolean).map((each) => each.toLowerCase());
-    const rank = names.some((each) => each === wanted) ? 0 : names.some((each) => each.startsWith(wanted)) ? 1 : -1;
-    if (rank >= 0) matches.push({ id, rank, kind: ORDER.indexOf(entity.kind), verses: Array.isArray(entity.verses) ? entity.verses.length : 0 });
-  }
+  const matches = Object.entries(all).flatMap(([id, entity]) => matchOf(id, entity, wanted) ?? []);
   matches.sort((a, b) => a.rank - b.rank || a.kind - b.kind || b.verses - a.verses);
-  const seen = new Set();
+  /** @type {Map<string, Suggestion>} */
+  const found = new Map();
   for (const { id } of matches) {
-    if (found.length >= LIMIT) break;
     const entity = all[id];
     const detail = short(String(entity.summary ?? ''));
     const key = `${entity.title}|${detail}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    found.push({ kind: entity.kind, address: id, label: entity.title, detail });
+    if (!found.has(key)) found.set(key, { kind: entity.kind, address: id, label: entity.title, detail });
+    if (found.size >= room) break;
   }
-  return found;
+  return [...found.values()];
 }
 
 /** @param {{ params: Record<string, string>, request: Request }} ctx */

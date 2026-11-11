@@ -5,7 +5,7 @@ import { passage, phrase } from '../app/data/bible.js';
 import { createHistory } from '../app/lib/history.js';
 import { nextType, TYPES } from '../app/lib/links.js';
 import { formatReference, parseAddress, parseReference, stepAddress, toAddress, versesIn } from '../app/lib/reference.js';
-import { parseSpanAddress, spanAddress, toggle } from '../app/lib/words.js';
+import { edgeOf, parseSpanAddress, spanAddress, toggle } from '../app/lib/words.js';
 import { diffCards, empty, fromFile, parse, snapshot, toFile } from '../app/lib/workspace.js';
 
 const books = JSON.parse(readFileSync(new URL('../app/data/kjv/books.json', import.meta.url), 'utf8'));
@@ -161,4 +161,11 @@ test('a phrase across two verses keeps the second verse number', async () => {
   assert.equal(found?.title, 'John 3:16–17');
   assert.equal(found.verses.length, 2);
   assert.equal(found.verses[1].blocks[0].numbered, true);
+});
+
+test('a word starts a highlight, ends it, or both', () => {
+  assert.equal(edgeOf(5, { from: 5, to: 9 }), 'start');
+  assert.equal(edgeOf(9, { from: 5, to: 9 }), 'end');
+  assert.equal(edgeOf(7, { from: 5, to: 9 }), '');
+  assert.equal(edgeOf(5, { from: 5, to: 5 }), 'both');
 });

@@ -456,6 +456,10 @@ type Play = {
 } | {
   kind: 'link';
 };
+type Step_2 = {
+  label: string;
+  kind: string;
+};
 type Fact = {
   text: string;
   source: string;
@@ -1617,6 +1621,9 @@ export type TouchKeysMembers = {
     signal: any;
   }): () => void;
   press(event: PointerEvent): void;
+  keyAction(name: string, input: HTMLElement): () => void;
+  typeOn(input: HTMLElement, name: string): void;
+  typeInField(input: HTMLInputElement | HTMLTextAreaElement, name: string): void;
 };
 
 /** Properties of `<touch-probe>`, from its <script element> block. */
@@ -2061,11 +2068,8 @@ export type SearchData = __Shape<{
     code: string;
     label: string;
   }[];
-  trail: {
-    label: string;
-    kind: string;
-  };
-  fact: Fact;
+  trail: Step_2;
+  fact: null;
   next: number;
 }> | __Shape<{
   query: string;
@@ -2105,7 +2109,7 @@ export type SearchData = __Shape<{
     label: string;
     kind: string;
   };
-  fact: null;
+  fact: Fact;
   next: number;
 }>;
 
