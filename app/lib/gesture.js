@@ -73,3 +73,28 @@ export function pan(before, after) {
   }
   return count ? { x: x / count, y: y / count } : { x: 0, y: 0 };
 }
+
+/**
+ * Drops the pointers that are no longer held, in place, and says whether any
+ * was dropped. A pointer whose lift never came is the danger: the palm guard
+ * stops a palm's events before they reach the card, and an element that
+ * loses a pointer hears no more of it. Kept, such a pointer stays where it
+ * was, and the next finger to land makes a pinch about that point: the card
+ * turns and grows under one finger. `held` asks the element, which knows
+ * (Element.hasPointerCapture): every pointer of a gesture is captured, and a
+ * pointer that lifted is released by the browser.
+ *
+ * @param {Map<number, Point>} points
+ * @param {(id: number) => boolean} held
+ * @param {number} [keep] a pointer to keep whatever `held` says
+ * @returns {boolean}
+ */
+export function dropLost(points, held, keep) {
+  let dropped = false;
+  for (const id of [...points.keys()]) {
+    if (id === keep || held(id)) continue;
+    points.delete(id);
+    dropped = true;
+  }
+  return dropped;
+}

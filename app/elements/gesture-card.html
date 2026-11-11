@@ -148,6 +148,9 @@
       this.addEventListener('pointermove', (event) => this.drag(event), { signal });
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
       this.addEventListener('pointercancel', (event) => this.release(event), { signal });
+      // A pointer the card lost (the browser took it, or the card moved in
+      // the page) ends as if cancelled; one that lifted has gone already.
+      this.addEventListener('lostpointercapture', (event) => this.release(event), { signal });
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('keydown', (event) => this.key(event), { signal });
       if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
@@ -288,6 +291,32 @@
         ? { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, target: event.target }
         : null;
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * Forgets the pointers whose lift never reached the card (lib/gesture.js
+     * dropLost), and a marking whose pointer is gone. If the card was held by
+     * those alone, it is let go.
+     *
+     * @param {number} [keep] the pointer of the event being handled
+     */
+    forgetLost(keep) {
+      const held = (/** @type {number} */ id) => {
+        try {
+          return this.hasPointerCapture(id);
+        } catch {
+          return false;
+        }
+      };
+      if (this.marking && this.marking.id !== keep && !held(this.marking.id)) {
+        this.marking = null;
+        this.paintMarking();
+      }
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      if (!dropLost(points, held, keep)) return;
+      this.still = null;
+      if (this.tap && !points.has(this.tap.id)) this.tap = null;
+      if (points.size === 0) this.letGo();
     },
 
     /**
@@ -437,6 +466,13 @@
       }
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
+      // A mouse or a pen that moves with no button down is not holding the
+      // card, whatever the card missed.
+      if (event.pointerType !== 'touch' && event.buttons === 0) {
+        this.release(event);
+        return;
+      }
+      this.forgetLost(event.pointerId);
 
       const tap = this.tap;
       if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
@@ -473,9 +509,14 @@
       const tap = this.tap;
       this.tap = null;
       if (tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS) {
-        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
+        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target, x: tap.x, y: tap.y } }));
       }
       if (points.size > 0) return;
+      this.letGo();
+    },
+
+    /** No pointer holds the card: it comes down, and the table keeps it. */
+    letGo() {
       this.classList.remove('is-held');
       this.raw = null;
       this.others = null;

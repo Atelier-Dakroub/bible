@@ -61,6 +61,7 @@
        map-change   a change of the view is done, so the table keeps it -->
 
 <script element>
+  import { dropLost } from '../lib/gesture.js';
   import { HEIGHT, KM_PER_UNIT, LEVELS, MAX_ZOOM, WIDTH, fitView, levelOf, moveView, nameLevels, scaleBar, wholeMap, zoomOf } from '../lib/map.js';
 
   /** @typedef {import('../lib/map.js').View} View */
@@ -161,6 +162,8 @@
       this.addEventListener('pointermove', (event) => this.drag(event), { signal });
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
       this.addEventListener('pointercancel', (event) => this.release(event), { signal });
+      // A pointer the map lost ends as if cancelled (see gesture-card).
+      this.addEventListener('lostpointercapture', (event) => this.release(event), { signal });
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
       this.addEventListener('keydown', (event) => this.key(event), { signal });
       this.addEventListener('click', (event) => this.act(event), { signal });
@@ -550,6 +553,9 @@
       if (event.target instanceof Element && event.target.closest('button, select')) return;
       // The frame's gestures are the map's, not the card's.
       event.stopPropagation();
+      // The main button of a mouse moves the map; the others do not.
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      this.forgetLost();
       try {
         this.setPointerCapture(event.pointerId);
       } catch {
@@ -570,6 +576,12 @@
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
       event.stopPropagation();
+      // A mouse or a pen that moves with no button down is not holding it.
+      if (event.pointerType !== 'touch' && event.buttons === 0) {
+        this.release(event);
+        return;
+      }
+      this.forgetLost(event.pointerId);
       const tap = this.tap;
       if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
 
@@ -582,6 +594,31 @@
       this.view = moveView(/** @type {View} */ (this.view), this.fraction(before.middle), this.fraction(now.middle), factor);
       this.points = after;
       this.paint();
+    },
+
+    /**
+     * Forgets the pointers whose lift never reached the map (lib/gesture.js
+     * dropLost): kept, one would make the next finger a pinch about a point
+     * no finger holds.
+     *
+     * @param {number} [keep] the pointer of the event being handled
+     */
+    forgetLost(keep) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      const held = (/** @type {number} */ id) => {
+        try {
+          return this.hasPointerCapture(id);
+        } catch {
+          return false;
+        }
+      };
+      if (!dropLost(points, held, keep)) return;
+      if (this.tap && !points.has(this.tap.id)) this.tap = null;
+      if (points.size === 0) {
+        this.classList.remove('is-moving');
+        this.end();
+        this.settle(0);
+      }
     },
 
     /** @param {PointerEvent} event */

@@ -458,6 +458,10 @@
       this.addEventListener('pointermove', (event) => this.drag(event), options);
       this.addEventListener('pointerup', (event) => this.release(event), options);
       this.addEventListener('pointercancel', (event) => this.release(event), options);
+      // A finger the table lost ends its pan (see gesture-card).
+      this.addEventListener('lostpointercapture', (event) => {
+        if (event.target === this) this.release(event);
+      }, options);
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
       // Not passive: a pinch must not zoom the whole page.
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
