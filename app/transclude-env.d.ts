@@ -254,6 +254,23 @@ type Insets = {
   bottom: number;
   left: number;
 };
+type Panels = {
+  search: any;
+  strip: any;
+  tools: any;
+};
+type Frame = {
+  width: number;
+  height: number;
+  gap: number;
+  phone: boolean;
+  edge: 'bottom' | 'left' | 'right' | 'top';
+  rail: {
+    w: number;
+    h: number;
+  };
+  safe: Insets;
+};
 type LogEntry = {
   t: number;
   type: string;
@@ -1351,7 +1368,13 @@ export type TableMenuMembers = {
   }: {
     signal: any;
   }): void;
+  outsidePress(event: PointerEvent): void;
+  pressedIn(target: EventTarget | null): boolean;
+  escape(event: KeyboardEvent): void;
+  ownsEscape(): boolean;
+  undoKey(event: KeyboardEvent): void;
   setShown(shown: boolean): void;
+  opened(): void;
   showTab(tab: string): void;
   roveTabs(event: KeyboardEvent): void;
   setChrome({
@@ -1362,7 +1385,12 @@ export type TableMenuMembers = {
   }): void;
   paintChoices(): void;
   choose(event: Event): void;
+  choices(): Record<string, (input: HTMLInputElement) => void>;
+  setSnap(on: boolean): void;
+  setPen(style: string): void;
   act(event: MouseEvent): void;
+  actions(button: HTMLButtonElement): Record<string, () => void>;
+  deleteNamed(name: string): void;
   focusKeeper(): () => void;
   send(type: string, detail?: object | undefined): void;
   setName(name: string): void;
@@ -1410,6 +1438,8 @@ export type TableRailMembers = {
   applyLook(): void;
   act(event: MouseEvent): void;
   dragged: boolean;
+  railActions(): Record<string, () => void>;
+  chromeClick(event: MouseEvent): void;
   toggle(panel: 'search' | 'timeline' | 'tools'): void;
   close(panel: 'search' | 'timeline' | 'tools'): void;
   send(type: string): void;
@@ -1423,8 +1453,14 @@ export type TableRailMembers = {
     y: number;
   } | null, quiet?: boolean): void;
   rove(event: KeyboardEvent): void;
+  visibleButtons(): HTMLElement[];
   roveTo(target: Element | null): void;
   gripKey(event: KeyboardEvent): void;
+  gripTarget(event: KeyboardEvent): {
+    grip: HTMLElement;
+    move: [number, number];
+  } | null;
+  nudge(grip: HTMLElement, move: [number, number], step: number, settings: Settings): void;
   floatSpot(panel: 'search' | 'timeline' | 'tools'): {
     x: number;
     y: number;
@@ -1439,8 +1475,66 @@ export type TableRailMembers = {
   insets(): Insets;
   arrangeSoon(): void;
   arrange(): void;
+  openPanels(): Panels;
+  frameOf(table: HTMLElement, settings: Settings, rem: number): Frame;
+  request(frame: Frame, settings: Settings, panels: Panels, rem: number, height: (element: HTMLElement | null) => number, anchor: {
+    x: number;
+    y: number;
+  }): {
+    width: number;
+    height: number;
+    gap: number;
+    phone: boolean;
+    edge: 'bottom' | 'left' | 'right' | 'top';
+    rail: {
+      w: number;
+      h: number;
+    };
+    safe: Insets;
+    search: {
+      open: boolean;
+      float: Point_3 | null;
+      expanded: boolean;
+      w: number;
+      h: number;
+    };
+    timeline: {
+      open: boolean;
+      float: Point_3 | null;
+      w: number;
+      h: number;
+    };
+    tools: {
+      open: boolean;
+      float: Point_3 | null;
+      w: number;
+      h: number;
+      anchor: {
+        x: number;
+        y: number;
+      };
+    };
+  };
+  toolsAnchor(): {
+    x: number;
+    y: number;
+  };
+  placeRail(table: HTMLElement, frame: Frame, placed: Layout, zoom: number): void;
+  placePanels(panels: Panels, placed: Layout, settings: Settings, zoom: number): void;
   railDown(event: PointerEvent): void;
   gripDown(event: PointerEvent): void;
+  pressedGrip(event: PointerEvent): {
+    grip: HTMLElement;
+    panel: 'search' | 'timeline' | 'tools';
+    element: HTMLElement;
+  } | null;
+  dragPanel({
+    grip, panel, element
+  }: {
+    grip: HTMLElement;
+    panel: 'search' | 'timeline' | 'tools';
+    element: HTMLElement;
+  }, event: PointerEvent, zoom: number): void;
 };
 
 /** Properties of `<time-line>`, from its <script element> block. */

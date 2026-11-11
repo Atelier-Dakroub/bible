@@ -1,13 +1,10 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 109,
+ "count": 95,
  "allowed": {
   "app/routes/card/[address].html (anonymous)": [
    1056
-  ],
-  "app/elements/table-rail.html arrange": [
-   600
   ],
   "app/elements/touch-keys.html press": [
    552
@@ -17,15 +14,6 @@
   ],
   "app/lib/note-format.js draw": [
    420
-  ],
-  "app/elements/table-menu.html choose": [
-   342
-  ],
-  "app/elements/table-menu.html act": [
-   342
-  ],
-  "app/elements/table-rail.html act": [
-   306
   ],
   "tools/crap.js visit": [
    306
@@ -105,9 +93,6 @@
   "tools/mcp-server.js answer": [
    132
   ],
-  "app/elements/table-rail.html rove": [
-   110
-  ],
   "app/elements/touch-probe.html act": [
    110
   ],
@@ -124,9 +109,6 @@
    110
   ],
   "app/elements/reading-settings.html act": [
-   90
-  ],
-  "app/elements/table-rail.html gripKey": [
    90
   ],
   "app/elements/time-line.html setCollapsed": [
@@ -162,12 +144,6 @@
   "app/elements/gesture-card.html forgetLost": [
    72
   ],
-  "app/elements/table-menu.html roveTabs": [
-   72
-  ],
-  "app/elements/table-rail.html gripDown": [
-   72
-  ],
   "app/elements/time-line.html addEventListener callback": [
    72
   ],
@@ -199,14 +175,6 @@
    72
   ],
   "app/elements/gesture-card.html release": [
-   56
-  ],
-  "app/elements/table-menu.html addEventListener callback": [
-   56,
-   56,
-   42
-  ],
-  "app/elements/table-rail.html addEventListener callback": [
    56
   ],
   "app/elements/time-line.html connected": [
@@ -267,12 +235,6 @@
    42
   ],
   "app/elements/reading-settings.html connected": [
-   42
-  ],
-  "app/elements/table-menu.html setShown": [
-   42
-  ],
-  "app/elements/table-rail.html insets": [
    42
   ],
   "app/elements/touch-probe.html down": [

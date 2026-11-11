@@ -85,6 +85,41 @@
 
   const PEN_KEY = 'bible.pen';
   const SNAP_KEY = 'bible.snap';
+  const TAB_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /** @param {KeyboardEvent} event whether it is Command (or Control) and Z */
+  const isUndo = (event) => (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z';
+
+  /**
+   * The tab a key moves to from the one at `at`: the next or the one before,
+   * around the ends; Home and End to the ends.
+   *
+   * @param {string} key
+   * @param {number} at
+   */
+  function tabAfter(key, at) {
+    /** @type {Record<string, number>} */
+    const ends = { Home: 0, End: TABS.length - 1 };
+    return ends[key] ?? (at + (key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length;
+  }
+
+  /**
+   * Keeps a choice on this device; with no storage, it lasts until the page
+   * closes.
+   *
+   * @param {string} key
+   * @param {string} value
+   */
+  function keep(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // No storage.
+    }
+  }
 
   export const prototype = {
     /** the name whose Delete was pressed once, waiting for the second press */
@@ -93,24 +128,8 @@
     rules: [],
 
     connected({ signal }) {
-      document.addEventListener('pointerdown', (event) => {
-        if (!this.shown || this.dataset.dock === 'floating') return;
-        if (event.target instanceof Node && this.contains(event.target)) return;
-        // The rail's Tools button closes the panel itself.
-        if (event.target instanceof Element && event.target.closest('table-rail [data-action="tools"]')) return;
-        // After the event has gone through: the palm guard runs later in the
-        // same dispatch, and a palm's touch arrives with its default
-        // prevented.
-        setTimeout(() => {
-          if (!event.defaultPrevented) this.setShown(false);
-        });
-      }, { signal, capture: true });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && this.shown && (this.dataset.dock !== 'floating' || this.contains(document.activeElement))) {
-          if (this.keys) this.keys = false;
-          else this.setShown(false);
-        }
-      }, { signal });
+      document.addEventListener('pointerdown', (event) => this.outsidePress(event), { signal, capture: true });
+      document.addEventListener('keydown', (event) => this.escape(event), { signal });
       this.addEventListener('keydown', (event) => this.roveTabs(event), { signal });
       this.keyboard = keysChoice();
       this.speed = speed();
@@ -166,12 +185,56 @@
         const text = await chosen.text();
         this.send('workspace-import', { name: chosen.name.replace(/\.json$/i, ''), text });
       }, { signal });
-      document.addEventListener('keydown', (event) => {
-        // Typing in a field, a note or its title has its own undo.
-        if (event.defaultPrevented || typing(event.target) || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
-        event.preventDefault();
-        this.send(event.shiftKey ? 'table-redo' : 'table-undo');
-      }, { signal });
+      document.addEventListener('keydown', (event) => this.undoKey(event), { signal });
+    },
+
+    /**
+     * A press outside the docked panel closes it. The rail's Tools button
+     * closes the panel itself.
+     *
+     * @param {PointerEvent} event
+     */
+    outsidePress(event) {
+      if (!this.shown || this.dataset.dock === 'floating' || this.pressedIn(event.target)) return;
+      // After the event has gone through: the palm guard runs later in the
+      // same dispatch, and a palm's touch arrives with its default prevented.
+      setTimeout(() => {
+        if (!event.defaultPrevented) this.setShown(false);
+      });
+    },
+
+    /** @param {EventTarget | null} target whether it is in the panel, or the rail's Tools button */
+    pressedIn(target) {
+      return (target instanceof Node && this.contains(target)) || Boolean(elementOf(target)?.closest('table-rail [data-action="tools"]'));
+    },
+
+    /**
+     * Escape closes the app's keyboard, else the panel: a docked one, or a
+     * floating one with the focus in it.
+     *
+     * @param {KeyboardEvent} event
+     */
+    escape(event) {
+      if (event.key !== 'Escape' || !this.shown || !this.ownsEscape()) return;
+      if (this.keys) this.keys = false;
+      else this.setShown(false);
+    },
+
+    /** Whether Escape is the panel's: it is docked, or has the focus. */
+    ownsEscape() {
+      return this.dataset.dock !== 'floating' || this.contains(document.activeElement);
+    },
+
+    /**
+     * Command (or Control) and Z undo on the table; with Shift, redo. Typing
+     * in a field, a note or its title has its own undo.
+     *
+     * @param {KeyboardEvent} event
+     */
+    undoKey(event) {
+      if (event.defaultPrevented || typing(event.target) || !isUndo(event)) return;
+      event.preventDefault();
+      this.send(event.shiftKey ? 'table-redo' : 'table-undo');
     },
 
     /**
@@ -185,18 +248,21 @@
       const inside = !shown && this.contains(document.activeElement);
       this.shown = shown;
       this.keys = false;
-      if (shown) {
-        this.showTab(this.tab);
-        requestAnimationFrame(() => slideIn(this, { y: -8 }));
-        // The focus goes into the panel, to its tab: the panel is far from
-        // the rail in the page's order.
-        requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('[role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true }));
-        // On a phone, one panel is open at a time (bible-table closes the
-        // others).
-        if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
-      }
+      if (shown) this.opened();
       if (inside) requestAnimationFrame(() => /** @type {HTMLElement | null} */ (document.querySelector('table-rail [data-action="tools"]'))?.focus());
       this.dispatchEvent(new Event('panel-change', { bubbles: true }));
+    },
+
+    /**
+     * The panel opens: its tab, its slide, and the focus on its tab (the
+     * panel is far from the rail in the page's order). On a phone, one panel
+     * is open at a time (bible-table closes the others).
+     */
+    opened() {
+      this.showTab(this.tab);
+      requestAnimationFrame(() => slideIn(this, { y: -8 }));
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector('[role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true }));
+      if (isPhone()) this.dispatchEvent(new CustomEvent('panel-open', { bubbles: true, detail: { panel: 'menu' } }));
     },
 
     /** @param {string} tab */
@@ -215,13 +281,12 @@
      * @param {KeyboardEvent} event
      */
     roveTabs(event) {
-      const tab = event.target instanceof HTMLElement ? event.target.closest('[role="tab"]') : null;
-      if (!(tab instanceof HTMLElement) || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      const tab = elementOf(event.target)?.closest('[role="tab"]');
+      if (!(tab instanceof HTMLElement) || !TAB_KEYS.has(event.key)) return;
       event.preventDefault();
-      const at = TABS.indexOf(tab.dataset.tab ?? '');
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : (at + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length;
-      this.showTab(TABS[next]);
-      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`[role="tab"][data-tab="${TABS[next]}"]`))?.focus());
+      const next = TABS[tabAfter(event.key, TABS.indexOf(tab.dataset.tab ?? ''))];
+      this.showTab(next);
+      requestAnimationFrame(() => /** @type {HTMLElement | null} */ (this.querySelector(`[role="tab"][data-tab="${next}"]`))?.focus());
     },
 
     /** @param {{ edge: string, size: string }} settings */
@@ -251,72 +316,107 @@
     choose(event) {
       const input = event.target;
       if (!(input instanceof HTMLInputElement) || input.closest('reading-settings')) return;
-      const choice = input.dataset.choice ?? '';
+      this.choices()[input.dataset.choice ?? '']?.(input);
+    },
+
+    /**
+     * What each choice does when it changes.
+     *
+     * @returns {Record<string, (input: HTMLInputElement) => void>}
+     */
+    choices() {
       const rail = /** @type {any} */ (document.querySelector('table-rail'));
-      if (choice === 'edge') rail?.setEdge(input.value);
-      if (choice === 'size') rail?.setSize(input.value);
-      if (choice === 'reader') {
-        this.reader = input.value || 'own';
-        setReaderChoice(/** @type {any} */ (this.reader));
-      }
-      if (choice === 'speed') {
-        this.speed = Number(input.value) || 1;
-        setSpeed(this.speed);
-      }
-      if (choice === 'keyboard') {
-        const value = /** @type {any} */ (input.value || 'auto');
-        setKeysChoice(value);
-        this.keyboard = value;
-      }
-      if (choice === 'snap') {
-        this.snap = input.checked;
-        try {
-          localStorage.setItem(SNAP_KEY, String(this.snap));
-        } catch {
-          // No storage: the choice lasts until the page closes.
-        }
-        this.send('snap-change', { on: this.snap });
-      }
-      if (choice === 'pen') {
-        this.pen = input.value || 'inverse';
-        try {
-          localStorage.setItem(PEN_KEY, this.pen);
-        } catch {
-          // No storage: the style lasts until the page closes.
-        }
-        this.send('pen-change', { style: this.pen });
-      }
-      if (choice === 'rule-preset') {
-        const { kind, value, label } = input.dataset;
-        this.send('rule-add', { kind, value, label });
-      }
+      return {
+        edge: (input) => rail?.setEdge(input.value),
+        size: (input) => rail?.setSize(input.value),
+        reader: (input) => {
+          this.reader = input.value || 'own';
+          setReaderChoice(/** @type {any} */ (this.reader));
+        },
+        speed: (input) => {
+          this.speed = Number(input.value) || 1;
+          setSpeed(this.speed);
+        },
+        keyboard: (input) => {
+          const value = /** @type {any} */ (input.value || 'auto');
+          setKeysChoice(value);
+          this.keyboard = value;
+        },
+        snap: (input) => this.setSnap(input.checked),
+        pen: (input) => this.setPen(input.value || 'inverse'),
+        'rule-preset': (input) => {
+          const { kind, value, label } = input.dataset;
+          this.send('rule-add', { kind, value, label });
+        },
+      };
+    },
+
+    /**
+     * Snapping on or off, kept on this device.
+     *
+     * @param {boolean} on
+     */
+    setSnap(on) {
+      this.snap = on;
+      keep(SNAP_KEY, String(on));
+      this.send('snap-change', { on });
+    },
+
+    /**
+     * The pen's style, kept on this device.
+     *
+     * @param {string} style
+     */
+    setPen(style) {
+      this.pen = style;
+      keep(PEN_KEY, style);
+      this.send('pen-change', { style });
     },
 
     /** @param {MouseEvent} event */
     act(event) {
-      const button = event.target instanceof Element ? event.target.closest('button') : null;
+      const button = elementOf(event.target)?.closest('button');
       if (!(button instanceof HTMLButtonElement)) return;
-      const action = button.dataset.action ?? '';
-      if (action === 'tab') this.showTab(button.dataset.tab ?? TABS[0]);
-      if (action === 'rule-style') this.send('rule-style', { index: Number(button.dataset.index) });
-      if (action === 'rule-remove') this.send('rule-remove', { index: Number(button.dataset.index) });
-      if (action === 'new') this.send('workspace-new');
-      if (action === 'export') this.send('workspace-export', { name: this.name });
-      if (action === 'notes-export') this.send('notes-export', { name: this.name });
-      if (action === 'import') /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click();
-      if (action === 'open-named') this.send('workspace-open', { name: button.dataset.name ?? '' });
-      if (action === 'delete-named') {
-        const name = button.dataset.name ?? '';
-        if (this.deleting !== name) {
-          this.deleting = name;
-          this.refresh(`Press Delete again to delete “${name}”. This cannot be undone.`);
-          return;
-        }
-        removeNamed(name);
-        if (name === this.name) this.setName('');
-        this.deleting = '';
-        this.refresh(`Deleted “${name}”.`);
+      this.actions(button)[button.dataset.action ?? '']?.();
+    },
+
+    /**
+     * What each of the panel's buttons does.
+     *
+     * @param {HTMLButtonElement} button
+     * @returns {Record<string, () => void>}
+     */
+    actions(button) {
+      const { name = '', index, tab } = button.dataset;
+      return {
+        tab: () => this.showTab(tab ?? TABS[0]),
+        'rule-style': () => this.send('rule-style', { index: Number(index) }),
+        'rule-remove': () => this.send('rule-remove', { index: Number(index) }),
+        new: () => this.send('workspace-new'),
+        export: () => this.send('workspace-export', { name: this.name }),
+        'notes-export': () => this.send('notes-export', { name: this.name }),
+        import: () => /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click(),
+        'open-named': () => this.send('workspace-open', { name }),
+        'delete-named': () => this.deleteNamed(name),
+      };
+    },
+
+    /**
+     * Deletes a saved table on the second press of its Delete; the first
+     * asks.
+     *
+     * @param {string} name
+     */
+    deleteNamed(name) {
+      if (this.deleting !== name) {
+        this.deleting = name;
+        this.refresh(`Press Delete again to delete “${name}”. This cannot be undone.`);
+        return;
       }
+      removeNamed(name);
+      if (name === this.name) this.setName('');
+      this.deleting = '';
+      this.refresh(`Deleted “${name}”.`);
     },
 
     /**
