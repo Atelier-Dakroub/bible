@@ -111,6 +111,218 @@
     return { middle, apart };
   }
 
+  /** @param {EventTarget | null} target the target, if it is an element */
+  const elementOf = (target) => (target instanceof Element ? target : null);
+
+  /** @param {KeyboardEvent} event whether Command, Control or Option is held */
+  const modified = (event) => event.metaKey || event.ctrlKey || event.altKey;
+
+  /** @param {PointerEvent} event a mouse's other buttons do not move the map */
+  const otherButton = (event) => event.pointerType === 'mouse' && event.button !== 0;
+
+  /** @param {PointerEvent} event a mouse or a pen that moves with no button down is not holding the map */
+  const heldUp = (event) => event.pointerType !== 'touch' && event.buttons === 0;
+
+  /**
+   * Whether a lift ends a tap: the same pointer, short and still.
+   *
+   * @param {{ id: number, t: number } | null} tap
+   * @param {PointerEvent} event
+   */
+  const isTap = (tap, event) => tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS;
+
+  /**
+   * How much two fingers zoom: the change in how far apart they are.
+   *
+   * @param {{ apart: number }} before
+   * @param {{ apart: number }} now
+   */
+  const pinchFactor = (before, now) => (before.apart > 0 && now.apart > 0 ? now.apart / before.apart : 1);
+
+  /**
+   * Whether a point, in map units, is in the view.
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {View} view
+   */
+  const within = (x, y, view) => x >= view.x && x <= view.x + view.w && y >= view.y && y <= view.y + (view.w * HEIGHT) / WIDTH;
+
+  /** The ancient world on show, as kept on this device. */
+  function storedAncient() {
+    try {
+      return localStorage.getItem(ANCIENT_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** @param {string} id the ancient world on show, kept for the next visit */
+  function keepAncient(id) {
+    try {
+      localStorage.setItem(ANCIENT_KEY, id);
+    } catch {
+      // No storage: the choice lasts until the page closes.
+    }
+  }
+
+  /**
+   * The size of a name, from the first place's: 18 pixels if there is none.
+   *
+   * @param {SVGGElement[]} places
+   */
+  function fontOf(places) {
+    const sample = places[0]?.querySelector('text');
+    return (sample && parseFloat(getComputedStyle(sample).fontSize)) || 18;
+  }
+
+  /**
+   * Puts each group of the detail into the .map__detail group of its slot.
+   *
+   * @param {SVGSVGElement} svg
+   * @param {Element} detail
+   */
+  function placeDetail(svg, detail) {
+    for (const part of detail.querySelectorAll('[data-slot]')) {
+      const slot = part.getAttribute('data-slot');
+      svg.querySelector(`.map__detail[data-slot="${slot}"]`)?.append(...part.childNodes);
+    }
+  }
+
+  /**
+   * The view, and MARGIN of it on each side, as a viewBox.
+   *
+   * @param {View} view
+   */
+  function viewBoxOf(view) {
+    const h = (view.w * HEIGHT) / WIDTH;
+    return `${view.x - MARGIN * view.w} ${view.y - MARGIN * h} ${view.w * (1 + 2 * MARGIN)} ${h * (1 + 2 * MARGIN)}`;
+  }
+
+  /** @typedef {{ left: number, right: number, top: number, bottom: number }} Box */
+
+  /**
+   * The room a place's dot and name take, in map units, at a size of a map
+   * unit in pixels. A name on show is bold, and wider.
+   *
+   * @param {SVGGElement} place
+   * @param {number} unit
+   * @param {number} font
+   * @returns {Box}
+   */
+  function nameBox(place, unit, font) {
+    const x = Number(place.dataset.x);
+    const y = Number(place.dataset.y);
+    const chars = (place.textContent ?? '').trim().length;
+    return {
+      left: x - GAP / unit,
+      right: x + (GAP + chars * font * 0.62 + GAP) / unit,
+      top: y - (font * 0.8) / unit,
+      bottom: y + (font * 0.5) / unit,
+    };
+  }
+
+  /** @param {Box} a @param {Box} b whether the two do not overlap */
+  const apart = (a, b) => a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
+
+  /** @param {SVGGElement} place whether it always has its name: a card names it, or it is on show */
+  const alwaysNamed = (place) => place.classList.contains('is-on-table') || place.classList.contains('is-shown');
+
+  /**
+   * Shows a place's dot and name, or not, at a level. The dot shows from one
+   * level before the name, and at the closest level every dot shows; a name
+   * that one always named would cover waits for a closer level.
+   *
+   * @param {SVGGElement} place
+   * @param {{ level: number, closest: boolean, always: SVGGElement[], taken: Box[], box: (place: SVGGElement) => Box }} at
+   */
+  function labelPlace(place, at) {
+    const level = Number(place.dataset.level);
+    const kept = at.always.includes(place);
+    place.classList.toggle('is-far', !at.closest && level > at.level + 1 && !kept);
+    const named = level <= at.level && !kept && at.taken.every((other) => apart(at.box(place), other));
+    place.classList.toggle('is-named', named);
+  }
+
+  /**
+   * An SVG element with its attributes.
+   *
+   * @param {string} name
+   * @param {Record<string, string | number>} attributes
+   */
+  function svgNode(name, attributes) {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+    return element;
+  }
+
+  /**
+   * A mark at a point: a group in pixels (the map scales it back), holding
+   * the shapes.
+   *
+   * @param {string} transform
+   * @param {Element[]} shapes
+   * @param {string} [className]
+   */
+  function markAt(transform, shapes, className) {
+    const at = svgNode('g', className ? { transform, class: className } : { transform });
+    const mark = svgNode('g', { class: 'map__mark' });
+    mark.append(...shapes);
+    at.append(mark);
+    return at;
+  }
+
+  /**
+   * A journey's legs: a line from stop to stop, and an arrow at the middle
+   * of each, pointing the way.
+   *
+   * @param {import('../data/journeys.js').JourneyView['stops']} stops
+   */
+  function legsOf(stops) {
+    const legs = [];
+    for (let i = 1; i < stops.length; i += 1) {
+      const a = stops[i - 1];
+      const b = stops[i];
+      if (a.x === b.x && a.y === b.y) continue;
+      legs.push(svgNode('path', { d: `M${a.x} ${a.y}L${b.x} ${b.y}`, class: `map__leg map__leg--${b.by || 'land'}`, 'data-length': Math.hypot(b.x - a.x, b.y - a.y) }));
+      const turn = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+      legs.push(markAt(`translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2}) rotate(${turn})`, [svgNode('path', { d: 'M-5 -4.5L5 0L-5 4.5z', class: 'map__arrow' })]));
+    }
+    return legs;
+  }
+
+  /**
+   * A journey's proposed sites, which are not the map's places: each its own
+   * dot and name, in italics, as the legend says it is placed roughly.
+   *
+   * @param {import('../data/journeys.js').JourneyView['stops']} stops
+   */
+  function proposedSites(stops) {
+    return stops.filter((stop) => stop.proposed).map((stop) => {
+      const name = svgNode('text', { x: 9, y: 5 });
+      name.textContent = stop.name;
+      return markAt(`translate(${stop.x} ${stop.y})`, [svgNode('circle', { r: 5 }), name], 'map__proposed');
+    });
+  }
+
+  /**
+   * The label in the corner that names a journey, with a × that takes it
+   * off the map.
+   *
+   * @param {import('../data/journeys.js').JourneyView} journey
+   */
+  function journeyLegend(journey) {
+    const legend = Object.assign(document.createElement('p'), { className: 'map__legend' });
+    const proposed = journey.stops.some((stop) => stop.proposed) ? '; names in italics are proposed sites, placed roughly' : '';
+    const route = journey.route ? ` · ${journey.route}` : '';
+    const name = Object.assign(document.createElement('span'), { textContent: `${journey.title}${route} · about ${journey.km.toLocaleString('en')} km, in straight legs${proposed}` });
+    const close = Object.assign(document.createElement('button'), { type: 'button', textContent: '×' });
+    close.dataset.map = 'journey-off';
+    close.setAttribute('aria-label', `Take ${journey.title} off the map`);
+    legend.append(name, close);
+    return legend;
+  }
+
   export const prototype = {
     /** @type {View | null} */
     view: null,
@@ -142,24 +354,8 @@
     connected({ signal }) {
       this.view ??= wholeMap();
       this.points = new Map();
-      if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
-      // For a screen reader: a map, and the keys it takes (the page's
-      // #map-keys, where it has one).
-      this.setAttribute('role', 'group');
-      this.setAttribute('aria-roledescription', 'map');
-      this.setAttribute('aria-label', 'Map of the biblical world');
-      if (document.getElementById('map-keys')) this.setAttribute('aria-describedby', 'map-keys');
-      // A frame of the frame's own: an empty SVG over it whose units are
-      // fractions of its width, so a point on the screen converts to the
-      // frame however the card is turned or scaled, and whatever the map's
-      // transform is.
-      if (!this.querySelector('.map__probe')) {
-        const probe = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        probe.setAttribute('class', 'map__probe');
-        probe.setAttribute('viewBox', `0 0 1 ${HEIGHT / WIDTH}`);
-        probe.setAttribute('aria-hidden', 'true');
-        this.prepend(probe);
-      }
+      this.describe();
+      this.addProbe();
       this.addEventListener('pointerdown', (event) => this.press(event), { signal });
       this.addEventListener('pointermove', (event) => this.drag(event), { signal });
       this.addEventListener('pointerup', (event) => this.release(event), { signal });
@@ -171,20 +367,12 @@
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.trackpad(signal);
       // The ancient world on show (the Show choice), kept on this device.
-      try {
-        this.showAncient(localStorage.getItem(ANCIENT_KEY) ?? '');
-      } catch {
-        this.showAncient('');
-      }
+      this.showAncient(storedAncient());
       this.addEventListener('change', (event) => {
         const select = event.target instanceof HTMLSelectElement ? event.target : null;
         if (select?.dataset.map !== 'ancient') return;
         this.showAncient(select.value);
-        try {
-          localStorage.setItem(ANCIENT_KEY, select.value);
-        } catch {
-          // No storage: the choice lasts until the page closes.
-        }
+        keepAncient(select.value);
       }, { signal });
       const observer = new ResizeObserver(() => this.measure());
       observer.observe(this);
@@ -193,6 +381,31 @@
         observer.disconnect();
         clearTimeout(wait);
       });
+    },
+
+    /**
+     * For the keyboard and a screen reader: the frame takes the focus, is a
+     * map, and names the keys it takes (the page's #map-keys, where it has
+     * one).
+     */
+    describe() {
+      if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
+      this.setAttribute('role', 'group');
+      this.setAttribute('aria-roledescription', 'map');
+      this.setAttribute('aria-label', 'Map of the biblical world');
+      if (document.getElementById('map-keys')) this.setAttribute('aria-describedby', 'map-keys');
+    },
+
+    /**
+     * A frame of the frame's own: an empty SVG over it whose units are
+     * fractions of its width, so a point on the screen converts to the frame
+     * however the card is turned or scaled, and whatever the map's transform
+     * is.
+     */
+    addProbe() {
+      if (this.querySelector('.map__probe')) return;
+      const probe = svgNode('svg', { class: 'map__probe', viewBox: `0 0 1 ${HEIGHT / WIDTH}`, 'aria-hidden': 'true' });
+      this.prepend(probe);
     },
 
     /**
@@ -232,10 +445,7 @@
       const svg = this.svg();
       if (!detail || !svg || this.detailIn) return;
       this.detailIn = true;
-      for (const part of detail.querySelectorAll('[data-slot]')) {
-        const slot = part.getAttribute('data-slot');
-        svg.querySelector(`.map__detail[data-slot="${slot}"]`)?.append(...part.childNodes);
-      }
+      placeDetail(svg, detail);
       this.paint();
     },
 
@@ -302,8 +512,7 @@
       if (pixels === this.pixels) return;
       this.pixels = pixels;
       const places = this.places();
-      const sample = places[0]?.querySelector('text');
-      const font = sample ? parseFloat(getComputedStyle(sample).fontSize) || 18 : 18;
+      const font = fontOf(places);
       this.font = font;
       const levels = nameLevels(
         places.map((place) => ({
@@ -328,39 +537,19 @@
      */
     relabel() {
       const unit = (this.pixels || 1) * LEVELS[Math.max(0, this.level)];
-      const font = this.font;
       /** @param {SVGGElement} place */
-      const box = (place) => {
-        const x = Number(place.dataset.x);
-        const y = Number(place.dataset.y);
-        const chars = (place.textContent ?? '').trim().length;
-        return {
-          left: x - GAP / unit,
-          // A name on show is bold, and wider.
-          right: x + (GAP + chars * font * 0.62 + GAP) / unit,
-          top: y - (font * 0.8) / unit,
-          bottom: y + (font * 0.5) / unit,
-        };
-      };
-      // The waters named at this level (data/map/waters.js).
+      const box = (place) => nameBox(place, unit, this.font);
+      this.nameWaters();
+      const places = this.places();
+      const always = places.filter(alwaysNamed);
+      const at = { level: this.level, closest: this.level >= LEVELS.length - 1, always, taken: always.map(box), box };
+      for (const place of places) labelPlace(place, at);
+    },
+
+    /** Names the waters of this level (data/map/waters.js). */
+    nameWaters() {
       for (const water of /** @type {NodeListOf<SVGGElement>} */ (this.querySelectorAll('.map__water'))) {
         water.classList.toggle('is-named', this.level >= Number(water.dataset.from) && this.level <= Number(water.dataset.to));
-      }
-      const places = this.places();
-      const always = places.filter((place) => place.classList.contains('is-on-table') || place.classList.contains('is-shown'));
-      const taken = always.map(box);
-      const closest = this.level >= LEVELS.length - 1;
-      for (const place of places) {
-        const level = Number(place.dataset.level);
-        // The dot shows from one level before the name, and at the closest
-        // level every dot shows.
-        place.classList.toggle('is-far', !closest && level > this.level + 1 && !always.includes(place));
-        let named = level <= this.level && !always.includes(place);
-        if (named && taken.length) {
-          const b = box(place);
-          named = taken.every((o) => b.right <= o.left || b.left >= o.right || b.bottom <= o.top || b.top >= o.bottom);
-        }
-        place.classList.toggle('is-named', named);
       }
     },
 
@@ -453,9 +642,7 @@
       const place = this.querySelector(`[data-place="${CSS.escape(id)}"]`);
       const view = this.view;
       if (!(place instanceof SVGElement) || !view) return false;
-      const x = Number(place.dataset.x);
-      const y = Number(place.dataset.y);
-      return x >= view.x && x <= view.x + view.w && y >= view.y && y <= view.y + (view.w * HEIGHT) / WIDTH;
+      return within(Number(place.dataset.x), Number(place.dataset.y), view);
     },
 
     /**
@@ -479,59 +666,88 @@
      */
     paint() {
       const svg = this.svg();
-      const view = /** @type {View} */ (this.view);
       if (!svg) return;
-      const drawn = this.drawn;
-      if (this.quick && drawn) {
-        // The transform that takes the map as drawn to the view: a map point
-        // p is at (p - drawn) * W / drawn.w in the frame, and should be at
-        // (p - view) * W / view.w. The drawing's corner is MARGIN of the
-        // frame outside it, and the transform turns about that corner.
-        const width = this.clientWidth;
-        const height = this.clientHeight;
-        const scale = drawn.w / view.w;
-        const dx = ((drawn.x - view.x) * width) / view.w + MARGIN * width * (1 - scale);
-        const dy = ((drawn.y - view.y) * width) / view.w + MARGIN * height * (1 - scale);
-        svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale * this.shrink()})`;
-        const over = this.over();
-        if (over) over.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-        this.paintControls((this.pixels || width / WIDTH || 1) * zoomOf(view));
-        this.dispatchEvent(new Event('card-paint', { bubbles: true }));
-        return;
-      }
+      const view = /** @type {View} */ (this.view);
+      if (this.quick && this.drawn) this.paintQuick(svg, view, this.drawn);
+      else this.paintDrawn(svg, view);
+      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+    },
+
+    /** How many pixels a map unit is at a zoom of 1, measured or not yet. */
+    unitNow() {
+      return this.pixels || this.clientWidth / WIDTH || 1;
+    },
+
+    /**
+     * While the map moves: the map as last drawn, moved and scaled to the
+     * view. A map point p is at (p - drawn) * W / drawn.w in the frame, and
+     * should be at (p - view) * W / view.w. The drawing's corner is MARGIN of
+     * the frame outside it, and the transform turns about that corner.
+     *
+     * @param {SVGSVGElement} svg
+     * @param {View} view
+     * @param {View} drawn
+     */
+    paintQuick(svg, view, drawn) {
+      const width = this.clientWidth;
+      const height = this.clientHeight;
+      const scale = drawn.w / view.w;
+      const dx = ((drawn.x - view.x) * width) / view.w + MARGIN * width * (1 - scale);
+      const dy = ((drawn.y - view.y) * width) / view.w + MARGIN * height * (1 - scale);
+      svg.style.transform = `translate(${dx}px, ${dy}px) scale(${scale * this.shrink()})`;
+      this.over()?.style.setProperty('transform', `translate(${dx}px, ${dy}px) scale(${scale})`);
+      this.paintControls(this.unitNow() * zoomOf(view));
+    },
+
+    /**
+     * When the map stops: drawn again at the view, sharp, with its names.
+     *
+     * @param {SVGSVGElement} svg
+     * @param {View} view
+     */
+    paintDrawn(svg, view) {
       this.drawn = { ...view };
-      const over = this.over();
       const shrink = this.shrink();
       svg.style.width = svg.style.height = `${(100 * (1 + 2 * MARGIN)) / shrink}%`;
       svg.style.transform = shrink === 1 ? '' : `scale(${shrink})`;
-      if (over) over.style.transform = '';
-      const zoom = zoomOf(view);
-      // The view, and MARGIN of it on each side.
-      const h = (view.w * HEIGHT) / WIDTH;
-      const box = `${view.x - MARGIN * view.w} ${view.y - MARGIN * h} ${view.w * (1 + 2 * MARGIN)} ${h * (1 + 2 * MARGIN)}`;
+      const over = this.over();
+      over?.style.removeProperty('transform');
+      const box = viewBoxOf(view);
       svg.setAttribute('viewBox', box);
       over?.setAttribute('viewBox', box);
       // The dots and names are drawn in pixels, inside a group scaled back by
       // the size of a map unit.
-      const unit = (this.pixels || this.clientWidth / WIDTH || 1) * zoom;
+      const zoom = zoomOf(view);
+      const unit = this.unitNow() * zoom;
       this.style.setProperty('--map-unit', String(unit));
       this.dashLegs(unit);
+      this.showDetail(zoom);
+      this.setLevel(levelOf(zoom));
+      this.paintControls(unit);
+    },
 
-      // The detail, closer in: once it is in the map; until then the light
-      // map holds, and the detail is asked for.
+    /**
+     * The detail, closer in: once it is in the map; until then the light map
+     * holds, and the detail is asked for.
+     *
+     * @param {number} zoom
+     */
+    showDetail(zoom) {
       const close = zoom >= DETAIL_ZOOM;
       if (close && !this.detailIn) this.loadDetail();
       this.toggleAttribute('data-detail', close && this.detailIn);
+    },
 
-      const level = levelOf(zoom);
-      if (level !== this.level) {
-        this.level = level;
-        this.dataset.level = String(level);
-        this.relabel();
-      }
-
-      this.paintControls(unit);
-      this.dispatchEvent(new Event('card-paint', { bubbles: true }));
+    /**
+     * The level of names, and the names of it, when it changes.
+     *
+     * @param {number} level
+     */
+    setLevel(level) {
+      if (level === this.level) return;
+      this.level = level;
+      this.dataset.level = String(level);
+      this.relabel();
     },
 
     /**
@@ -565,17 +781,12 @@
     /** @param {PointerEvent} event */
     press(event) {
       // A button in the frame is pressed, not dragged; the card leaves it too.
-      if (event.target instanceof Element && event.target.closest('button, select')) return;
+      if (elementOf(event.target)?.closest('button, select')) return;
       // The frame's gestures are the map's, not the card's.
       event.stopPropagation();
-      // The main button of a mouse moves the map; the others do not.
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (otherButton(event)) return;
       this.forgetLost();
-      try {
-        this.setPointerCapture(event.pointerId);
-      } catch {
-        return;
-      }
+      if (!this.capture(event.pointerId)) return;
       this.stopGlide();
       const points = /** @type {Map<number, Point>} */ (this.points);
       this.tap = points.size === 0
@@ -586,29 +797,49 @@
       this.begin();
     },
 
+    /**
+     * Holds a pointer; false if it cannot be held (it is gone).
+     *
+     * @param {number} id
+     */
+    capture(id) {
+      try {
+        this.setPointerCapture(id);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
     /** @param {PointerEvent} event */
     drag(event) {
       const points = /** @type {Map<number, Point>} */ (this.points);
       if (!points.has(event.pointerId)) return;
       event.stopPropagation();
-      // A mouse or a pen that moves with no button down is not holding it.
-      if (event.pointerType !== 'touch' && event.buttons === 0) {
+      if (heldUp(event)) {
         this.release(event);
         return;
       }
       this.forgetLost(event.pointerId);
-      const tap = this.tap;
-      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
-
+      this.dropMovedTap(event);
       const after = new Map(points);
       after.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const ids = [...after.keys()].slice(0, 2);
       const before = spanOf(points, ids);
       const now = spanOf(after, ids);
-      const factor = before.apart > 0 && now.apart > 0 ? now.apart / before.apart : 1;
-      this.view = moveView(/** @type {View} */ (this.view), this.fraction(before.middle), this.fraction(now.middle), factor);
+      this.view = moveView(/** @type {View} */ (this.view), this.fraction(before.middle), this.fraction(now.middle), pinchFactor(before, now));
       this.points = after;
       this.paint();
+    },
+
+    /**
+     * A tap that moves is not a tap.
+     *
+     * @param {PointerEvent} event
+     */
+    dropMovedTap(event) {
+      const tap = this.tap;
+      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > STILL_PX) this.tap = null;
     },
 
     /**
@@ -643,9 +874,7 @@
       event.stopPropagation();
       const tap = this.tap;
       this.tap = null;
-      if (tap?.id === event.pointerId && event.type === 'pointerup' && event.timeStamp - tap.t < TAP_MS) {
-        this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target } }));
-      }
+      if (isTap(tap, event)) this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap?.target } }));
       if (points.size > 0) return;
       this.classList.remove('is-moving');
       this.end();
@@ -723,24 +952,39 @@
 
     /** @param {KeyboardEvent} event */
     key(event) {
-      if (event.target !== this || event.metaKey || event.ctrlKey || event.altKey) return;
-      const middle = { x: 0.5, y: HEIGHT / WIDTH / 2 };
-      const step = KEY_MOVE * (HEIGHT / WIDTH);
-      const moves = /** @type {Record<string, [number, number]>} */ ({
-        ArrowLeft: [step, 0],
-        ArrowRight: [-step, 0],
-        ArrowUp: [0, step],
-        ArrowDown: [0, -step],
-      });
-      const move = moves[event.key];
-      if (move) {
-        this.glideTo(moveView(/** @type {View} */ (this.view), middle, { x: middle.x + move[0], y: middle.y + move[1] }, 1));
-      } else if (event.key === '+' || event.key === '=') this.zoomBy(KEY_ZOOM);
-      else if (event.key === '-' || event.key === '_') this.zoomBy(1 / KEY_ZOOM);
-      else if (event.key === '0') this.glideTo(wholeMap());
-      else return;
+      if (event.target !== this || modified(event)) return;
+      const act = this.keyActions()[event.key];
+      if (!act) return;
+      act();
       event.preventDefault();
       event.stopPropagation();
+    },
+
+    /**
+     * What each key does: the arrows move the map, + and - zoom it, and 0
+     * shows the whole map.
+     *
+     * @returns {Record<string, () => void>}
+     */
+    keyActions() {
+      const middle = { x: 0.5, y: HEIGHT / WIDTH / 2 };
+      const step = KEY_MOVE * (HEIGHT / WIDTH);
+      const pan = (/** @type {number} */ dx, /** @type {number} */ dy) => () => {
+        this.glideTo(moveView(/** @type {View} */ (this.view), middle, { x: middle.x + dx, y: middle.y + dy }, 1));
+      };
+      const zoomIn = () => this.zoomBy(KEY_ZOOM);
+      const zoomOut = () => this.zoomBy(1 / KEY_ZOOM);
+      return {
+        ArrowLeft: pan(step, 0),
+        ArrowRight: pan(-step, 0),
+        ArrowUp: pan(0, step),
+        ArrowDown: pan(0, -step),
+        '+': zoomIn,
+        '=': zoomIn,
+        '-': zoomOut,
+        _: zoomOut,
+        0: () => this.glideTo(wholeMap()),
+      };
     },
 
     /**
@@ -753,62 +997,14 @@
       const svg = this.over();
       if (!svg) return;
       this.journey = journey;
-      const NS = 'http://www.w3.org/2000/svg';
-      /** @param {string} name @param {Record<string, string | number>} attributes */
-      const make = (name, attributes) => {
-        const element = document.createElementNS(NS, name);
-        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
-        return element;
-      };
-      const layer = make('g', { class: 'map__journey', 'aria-hidden': 'true' });
+      const layer = svgNode('g', { class: 'map__journey', 'aria-hidden': 'true' });
       const { stops } = journey;
-      for (let i = 1; i < stops.length; i += 1) {
-        const a = stops[i - 1];
-        const b = stops[i];
-        if (a.x === b.x && a.y === b.y) continue;
-        layer.append(make('path', { d: `M${a.x} ${a.y}L${b.x} ${b.y}`, class: `map__leg map__leg--${b.by || 'land'}`, 'data-length': Math.hypot(b.x - a.x, b.y - a.y) }));
-        // An arrow at the middle of the leg, in pixels, pointing the way.
-        const turn = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-        const arrow = make('g', { transform: `translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2}) rotate(${turn})` });
-        const mark = make('g', { class: 'map__mark' });
-        mark.append(make('path', { d: 'M-5 -4.5L5 0L-5 4.5z', class: 'map__arrow' }));
-        arrow.append(mark);
-        layer.append(arrow);
-      }
-      // A proposed site, which is not one of the map's places: its own dot
-      // and name, in italics, as the legend says it is placed roughly.
-      for (const stop of stops) {
-        if (!stop.proposed) continue;
-        const at = make('g', { transform: `translate(${stop.x} ${stop.y})`, class: 'map__proposed' });
-        const mark = make('g', { class: 'map__mark' });
-        mark.append(make('circle', { r: 5 }));
-        const name = make('text', { x: 9, y: 5 });
-        name.textContent = stop.name;
-        mark.append(name);
-        at.append(mark);
-        layer.append(at);
-      }
-      if (stops[0]) {
-        const start = make('g', { transform: `translate(${stops[0].x} ${stops[0].y})` });
-        const mark = make('g', { class: 'map__mark' });
-        mark.append(make('circle', { r: 9, class: 'map__start' }));
-        start.append(mark);
-        layer.append(start);
-      }
+      layer.append(...legsOf(stops), ...proposedSites(stops));
+      // A ring at the start.
+      if (stops[0]) layer.append(markAt(`translate(${stops[0].x} ${stops[0].y})`, [svgNode('circle', { r: 9, class: 'map__start' })]));
       svg.querySelector('.map__place')?.before(layer);
       this.dashLegs(Number(this.style.getPropertyValue('--map-unit')) || 1);
-      const legend = document.createElement('p');
-      legend.className = 'map__legend';
-      const name = document.createElement('span');
-      const proposed = journey.stops.some((stop) => stop.proposed) ? '; names in italics are proposed sites, placed roughly' : '';
-      name.textContent = `${journey.title}${journey.route ? ` · ${journey.route}` : ''} · about ${journey.km.toLocaleString('en')} km, in straight legs${proposed}`;
-      const close = document.createElement('button');
-      close.type = 'button';
-      close.dataset.map = 'journey-off';
-      close.setAttribute('aria-label', `Take ${journey.title} off the map`);
-      close.textContent = '×';
-      legend.append(name, close);
-      this.append(legend);
+      this.append(journeyLegend(journey));
     },
 
     /**
@@ -847,17 +1043,19 @@
 
     /** @param {MouseEvent} event */
     act(event) {
-      const button = event.target instanceof Element ? event.target.closest('[data-map]') : null;
+      const button = elementOf(event.target)?.closest('[data-map]');
       if (!(button instanceof HTMLElement)) return;
-      const what = button.dataset.map;
-      if (what === 'journey-off') {
-        this.clearJourney();
-        this.dispatchEvent(new CustomEvent('journey-off', { bubbles: true }));
-        return;
-      }
-      if (what === 'in') this.zoomBy(BUTTON_ZOOM);
-      else if (what === 'out') this.zoomBy(1 / BUTTON_ZOOM);
-      else if (what === 'all') this.glideTo(wholeMap());
+      /** @type {Record<string, () => void>} */
+      const actions = {
+        'journey-off': () => {
+          this.clearJourney();
+          this.dispatchEvent(new CustomEvent('journey-off', { bubbles: true }));
+        },
+        in: () => this.zoomBy(BUTTON_ZOOM),
+        out: () => this.zoomBy(1 / BUTTON_ZOOM),
+        all: () => this.glideTo(wholeMap()),
+      };
+      actions[button.dataset.map ?? '']?.();
     },
   };
 </script>

@@ -1078,6 +1078,8 @@ export type MapViewMembers = {
   }: {
     signal: any;
   }): void;
+  describe(): void;
+  addProbe(): void;
   showAncient(id: string): void;
   fetchDetail(): Promise<Element | null>;
   loadDetail(): Promise<void>;
@@ -1090,6 +1092,7 @@ export type MapViewMembers = {
   places(): SVGGElement[];
   measure(): void;
   relabel(): void;
+  nameWaters(): void;
   setView(view: View): void;
   stopGlide(): void;
   glideTo(target: View): Promise<void>;
@@ -1103,16 +1106,24 @@ export type MapViewMembers = {
     y: number;
   };
   paint(): void;
+  unitNow(): number;
+  paintQuick(svg: SVGSVGElement, view: View, drawn: View): void;
+  paintDrawn(svg: SVGSVGElement, view: View): void;
+  showDetail(zoom: number): void;
+  setLevel(level: number): void;
   paintControls(unit: number): void;
   settle(wait?: number | undefined): void;
   press(event: PointerEvent): void;
+  capture(id: number): boolean;
   drag(event: PointerEvent): void;
+  dropMovedTap(event: PointerEvent): void;
   forgetLost(keep?: number | undefined): void;
   release(event: PointerEvent): void;
   wheel(event: WheelEvent): void;
   trackpad(signal: AbortSignal): void;
   zoomBy(factor: number): Promise<void>;
   key(event: KeyboardEvent): void;
+  keyActions(): Record<string, () => void>;
   showJourney(journey: JourneyView): void;
   dashLegs(unit: number): void;
   clearJourney(): void;

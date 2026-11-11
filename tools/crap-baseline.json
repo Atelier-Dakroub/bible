@@ -1,7 +1,7 @@
 {
  "limit": 30,
  "written": "2026-11-11",
- "count": 121,
+ "count": 109,
  "allowed": {
   "app/routes/card/[address].html (anonymous)": [
    1056
@@ -45,9 +45,6 @@
   "app/routes/suggest/[text].js named": [
    272
   ],
-  "app/elements/map-view.html paint": [
-   240
-  ],
   "tools/import-quotations.js addresses": [
    240
   ],
@@ -71,9 +68,6 @@
   ],
   "tools/crap.js nameFor": [
    182
-  ],
-  "app/elements/map-view.html showJourney": [
-   156
   ],
   "app/elements/time-line.html rove": [
    156
@@ -99,9 +93,6 @@
   "app/data/audio.js recordingsOf": [
    132
   ],
-  "app/elements/map-view.html key": [
-   132
-  ],
   "app/lib/speech.js next": [
    132
   ],
@@ -113,9 +104,6 @@
   ],
   "tools/mcp-server.js answer": [
    132
-  ],
-  "app/elements/map-view.html relabel": [
-   110
   ],
   "app/elements/table-rail.html rove": [
    110
@@ -174,9 +162,6 @@
   "app/elements/gesture-card.html forgetLost": [
    72
   ],
-  "app/elements/map-view.html drag": [
-   72
-  ],
   "app/elements/table-menu.html roveTabs": [
    72
   ],
@@ -214,12 +199,6 @@
    72
   ],
   "app/elements/gesture-card.html release": [
-   56
-  ],
-  "app/elements/map-view.html press": [
-   56
-  ],
-  "app/elements/map-view.html act": [
    56
   ],
   "app/elements/table-menu.html addEventListener callback": [
@@ -285,21 +264,6 @@
    56
   ],
   "app/elements/gesture-card.html moveMarking": [
-   42
-  ],
-  "app/elements/map-view.html connected": [
-   42
-  ],
-  "app/elements/map-view.html loadDetail": [
-   42
-  ],
-  "app/elements/map-view.html measure": [
-   42
-  ],
-  "app/elements/map-view.html shows": [
-   42
-  ],
-  "app/elements/map-view.html release": [
    42
   ],
   "app/elements/reading-settings.html connected": [
