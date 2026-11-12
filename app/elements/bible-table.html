@@ -91,6 +91,18 @@
        turn two fingers on the trackpad      turn the card (Safari only)
        arrow keys, with no card in focus     pan the table
 
+     The overview (lib/overview.js): the whole table, small, to see where
+     everything is on a large table and to go to any part of it at once. The
+     rail's Overview, O, a pinch in with two fingers on the empty table, or a
+     trackpad pinch over it, shows it: the table scales down until every card
+     is on the screen, and each card is a tile of its kind's pigment with its
+     title. The lines stay. A tap on a tile comes back to that card at full
+     size, in the middle; a tap on the table comes back to that place. A
+     spread of two fingers, Escape, O or Overview again comes back to the
+     middle. In the overview a finger pans, and the cards take no touches;
+     whatever changes the cards or brings one (FULL_SIZE) comes back to full
+     size first. The overview is not kept: the table is kept as at full size.
+
      Far (the Interface setting, for a wall seen from across the room): the
      arrow keys move the focus from card to card and to the panels' controls
      instead, as a remote's do (remoteKey).
@@ -129,6 +141,8 @@
   import { WIDTH } from '../lib/map.js';
   import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
+  import { lessMotion } from '../lib/motion.js';
+  import { around, centre, centring, fit, keeping, keyAsks, middle as middleOf, onTable, pinchAsks, spread, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
   import { covers, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
@@ -978,6 +992,22 @@
   // The space between cards that are put down in a row.
   const ROW_GAP = 24;
 
+  // The overview (lib/overview.js). A finger that moves less than TAP_SLOP
+  // pixels taps; the zoom in and out takes ZOOM_MS.
+  const TAP_SLOP = 8;
+  const ZOOM_MS = 320;
+  const ZOOM_EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+  // The events that change the cards or bring one: the overview gives way
+  // to full size first, so that each works on the table as it is.
+  const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'show-on-map', 'show-journey'];
+
+  /**
+   * A card's name on its tile in the overview: its title, else its kind.
+   *
+   * @param {HTMLElement} card
+   */
+  const tileName = (card) => cardState(card).title || (card.dataset.kind === 'note' ? 'Note' : (card.dataset.address ?? ''));
+
   // A card's verses by id. A card's text never changes, so this is built once.
   /** @type {WeakMap<Element, Map<string, Element>>} */
   const verseIndexes = new WeakMap();
@@ -1101,6 +1131,17 @@
     offset: { x: 0, y: 0 },
     /** @type {Map<number, Point> | null} */
     fingers: null,
+    /** the table's scale: 1, or less while the overview shows */
+    zoom: 1,
+    /** whether the overview shows (lib/overview.js) */
+    overview: false,
+    /** @type {{ x: number, y: number, moved: boolean } | null} where one finger on the empty table came down: a tap, unless it moves */
+    tapFrom: null,
+    /** the spread of two fingers on the empty table as the second came down; 0 for none */
+    pinchFrom: 0,
+    /** how far a trackpad pinch over the empty table has gone */
+    wheelPinch: 0,
+    wheelPinchTimer: 0,
     /** @type {import('../lib/words.js').Highlight[]} */
     highlights: [],
     /** @type {Link[]} */
@@ -1197,6 +1238,9 @@
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
       // Not passive: a pinch must not zoom the whole page.
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
+      document.addEventListener('keydown', (event) => this.overviewKey(event), options);
+      this.addEventListener('toggle-overview', () => this.toggleOverview(), options);
+      for (const type of FULL_SIZE) this.addEventListener(type, () => this.leaveOverview(null, null, false), { ...options, capture: true });
       this.trackpad(signal);
       document.addEventListener('keydown', (event) => this.panKey(event), options);
       document.addEventListener('keydown', (event) => this.remoteKey(event), { ...options, capture: true });
@@ -1436,8 +1480,41 @@
      */
     wheelZoom(event, unit) {
       if (!event.ctrlKey && !event.metaKey) return false;
-      this.cardAt(event.target)?.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp((-event.deltaY * unit) / 200));
+      const card = this.overview ? null : this.cardAt(event.target);
+      if (card) card.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp((-event.deltaY * unit) / 200));
+      else this.wheelOverview(event, unit);
       return true;
+    },
+
+    /**
+     * A trackpad pinch over the empty table, or anywhere in the overview:
+     * in, to the overview; out, back to full size there.
+     *
+     * @param {WheelEvent} event
+     * @param {number} unit
+     */
+    wheelOverview(event, unit) {
+      // It counts only the way that can change the view: in, at full size;
+      // out, in the overview.
+      const pinch = this.wheelPinch - event.deltaY * unit;
+      this.wheelPinch = this.overview ? Math.max(0, pinch) : Math.min(0, pinch);
+      clearTimeout(this.wheelPinchTimer);
+      this.wheelPinchTimer = setTimeout(() => {
+        this.wheelPinch = 0;
+      }, 300);
+      const asks = pinchAsks(1, Math.exp(this.wheelPinch / 200), this.overview);
+      if (!asks) return;
+      this.wheelPinch = 0;
+      this.zoomAsked(asks, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * @param {'in' | 'out'} asks in, to the overview; out, to full size
+     * @param {Point} point where, on the way out
+     */
+    zoomAsked(asks, point) {
+      if (asks === 'in') this.enterOverview();
+      else this.leaveOverview(point, null);
     },
 
     /**
@@ -1452,13 +1529,15 @@
       /** @param {any} event */
       const start = (event) => {
         event.preventDefault();
-        const card = this.cardAt(event.target);
+        const card = this.overview ? null : this.cardAt(event.target);
         gesture = card ? { card, at: { x: event.clientX, y: event.clientY }, scale: 1, rotation: 0 } : null;
+        this.pinchFrom = card ? 0 : 1;
       };
       /** @param {any} event */
       const change = (event) => {
         event.preventDefault();
-        if (!gesture) return;
+        // Over the empty table, or in the overview: the overview's pinch.
+        if (!gesture) return this.pinchTo(event.scale, { x: event.clientX, y: event.clientY });
         gesture.card.zoomAt(gesture.at, event.scale / gesture.scale);
         gesture.card.turnAt(gesture.at, ((event.rotation - gesture.rotation) * Math.PI) / 180);
         gesture.scale = event.scale;
@@ -1535,6 +1614,7 @@
     async obey(command) {
       const run = this.commands()[command.action];
       if (!run) throw new Error(`The table does not know the command ${command.action}.`);
+      if (command.action !== 'state') this.leaveOverview(null, null, false);
       return run(command);
     },
 
@@ -1776,8 +1856,12 @@
       if (event.target !== this && event.target !== this.world()) return;
       this.stopGlide();
       this.setPointerCapture(event.pointerId);
-      this.fingers?.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const fingers = /** @type {Map<number, Point>} */ (this.fingers);
+      fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       this.classList.add('is-panning');
+      // One finger may tap (in the overview); two may pinch.
+      this.tapFrom = fingers.size === 1 ? { x: event.clientX, y: event.clientY, moved: false } : null;
+      this.pinchFrom = fingers.size === 2 ? spread([...fingers.values()]) : 0;
     },
 
     /** @param {PointerEvent} event */
@@ -1789,6 +1873,8 @@
       const moved = pan(fingers, after);
       this.offset = { x: this.offset.x + moved.x, y: this.offset.y + moved.y };
       this.fingers = after;
+      this.untap(event);
+      if (after.size === 2) this.pinchTo(spread([...after.values()]), centre([...after.values()]));
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.paint());
     },
@@ -1798,8 +1884,167 @@
       const fingers = /** @type {Map<number, Point>} */ (this.fingers);
       if (fingers.delete(event.pointerId) && fingers.size === 0) {
         this.classList.remove('is-panning');
+        if (event.type === 'pointerup') this.tapUp(event);
         this.keep();
       }
+    },
+
+    /**
+     * A finger that moves from where it came down does not tap.
+     *
+     * @param {PointerEvent} event
+     */
+    untap(event) {
+      const tap = this.tapFrom;
+      if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > TAP_SLOP) tap.moved = true;
+    },
+
+    /**
+     * A tap on the table in the overview goes there.
+     *
+     * @param {PointerEvent} event
+     */
+    tapUp(event) {
+      const tap = this.tapFrom;
+      this.tapFrom = null;
+      if (this.overview && tap && !tap.moved) this.overviewTap({ x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * A pinch on the empty table, once it has gone far enough: in, to the
+     * overview; out, back to full size about its middle. Once a gesture.
+     *
+     * @param {number} now the fingers' spread now (or a trackpad's scale)
+     * @param {Point} point their middle
+     */
+    pinchTo(now, point) {
+      const asks = pinchAsks(this.pinchFrom, now, this.overview);
+      if (!asks) return;
+      this.pinchFrom = 0;
+      this.zoomAsked(asks, point);
+    },
+
+    /** @returns {Card[]} the cards on the table */
+    tableCards() {
+      return /** @type {Card[]} */ (/** @type {unknown} */ ([...this.world().querySelectorAll('gesture-card')]));
+    },
+
+    toggleOverview() {
+      if (this.overview) this.leaveOverview(null, null);
+      else this.enterOverview();
+    },
+
+    /**
+     * O shows the overview or leaves it; Escape leaves it. Only when nothing
+     * has the focus, as for the arrow keys.
+     *
+     * @param {KeyboardEvent} event
+     */
+    overviewKey(event) {
+      const asks = keyAsks(event.key, this.overview);
+      if (!asks || !freeKey(event, this)) return;
+      event.preventDefault();
+      if (asks === 'toggle') this.toggleOverview();
+      else this.leaveOverview(null, null);
+    },
+
+    /** Shows the whole table, small: every card a tile (lib/overview.js). */
+    enterOverview() {
+      if (this.overview) return;
+      const cards = this.tableCards();
+      const whole = around(cards.map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom)));
+      if (!whole) {
+        this.toast('The table is empty: there is nothing to see in an overview.');
+        return;
+      }
+      this.writing?.end();
+      this.overview = true;
+      this.tiles(cards, true);
+      const view = fit(whole, this.free());
+      this.style.setProperty('--overview-scale', String(view.scale));
+      this.classList.add('is-overview');
+      this.zoomTo(view.offset, view.scale);
+      this.showOverview();
+      this.toast('The whole table. Tap a card or a place to go there.');
+    },
+
+    /**
+     * Back to full size: with a card in the middle, or the place under a
+     * point where it is, or else the middle where it is.
+     *
+     * @param {Point | null} point
+     * @param {Element | null} card
+     * @param {boolean} [animate] false at once, as before a change to the cards
+     */
+    leaveOverview(point, card, animate = true) {
+      if (!this.overview) return;
+      const free = this.free();
+      const offset = card ? centring(onTable(card.getBoundingClientRect(), this.offset, this.zoom), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, 1);
+      this.overview = false;
+      this.classList.remove('is-overview');
+      this.tiles(this.tableCards(), false);
+      this.zoomTo(offset, 1, animate);
+      this.showOverview();
+      this.keepSoon();
+    },
+
+    /**
+     * A tap in the overview: back to the card it is on, or to the place.
+     *
+     * @param {Point} point
+     */
+    overviewTap(point) {
+      const cards = this.tableCards();
+      const at = tappedIn(cards.map((card) => ({ box: card.getBoundingClientRect(), z: Number(card.style.zIndex) || 0 })), point);
+      this.leaveOverview(point, cards[at] ?? null);
+    },
+
+    /**
+     * Names each card's tile in the overview, or takes the names away.
+     *
+     * @param {Card[]} cards
+     * @param {boolean} on
+     */
+    tiles(cards, on) {
+      for (const card of cards) {
+        const sheet = card.querySelector(':scope > article');
+        if (!(sheet instanceof HTMLElement)) continue;
+        if (on) sheet.dataset.tile = tileName(card);
+        else delete sheet.dataset.tile;
+      }
+    },
+
+    /**
+     * Moves and scales the table, in a short zoom (none for a reader who asks
+     * for less motion). The lines hide while it moves, and are drawn again
+     * where it rests.
+     *
+     * @param {Point} offset
+     * @param {number} scale
+     * @param {boolean} [animate]
+     */
+    zoomTo(offset, scale, animate = true) {
+      const world = this.world();
+      const from = { x: this.offset.x - offset.x, y: this.offset.y - offset.y, scale: this.zoom };
+      this.offset = offset;
+      this.zoom = scale;
+      world.style.scale = scale === 1 ? '' : String(scale);
+      world.style.left = `${offset.x}px`;
+      world.style.top = `${offset.y}px`;
+      if (!animate || lessMotion()) return this.drawSoon();
+      this.classList.add('is-zooming');
+      const motion = world.animate([{ translate: `${from.x}px ${from.y}px`, scale: String(from.scale) }, { translate: '0px 0px', scale: String(scale) }], { duration: ZOOM_MS, easing: ZOOM_EASE });
+      motion.finished
+        .catch(() => {})
+        .finally(() => {
+          this.classList.remove('is-zooming');
+          this.drawSoon();
+        });
+    },
+
+    /** Tells the rail whether the overview shows. */
+    showOverview() {
+      /** @type {any} */ (this.querySelector('table-rail'))?.setOverview?.(this.overview);
     },
 
     paint() {
@@ -3649,7 +3894,9 @@
       const cards = [...this.world().querySelectorAll('gesture-card')].flatMap((card) => this.storedOf(/** @type {Card} */ (/** @type {unknown} */ (card))) ?? []);
       // The cards that did not load stay in the table that is kept.
       const kept = this.unloaded.filter((stored) => !cards.some((card) => card.id === stored.id));
-      return { offset: this.offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail: this.trailNow() };
+      // In the overview, the table is kept as it will be at full size.
+      const offset = this.overview ? keeping(middleOf(this.free()), this.offset, this.zoom, 1) : this.offset;
+      return { offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail: this.trailNow() };
     },
 
     /** The search panel's trail, or the one a table brought that the panel has not taken yet. */
@@ -3760,6 +4007,7 @@
      * @param {boolean} record
      */
     apply(target, record) {
+      this.leaveOverview(null, null, false);
       const run = () => this.applyNow(target, record);
       this.changing = this.changing.then(run, run);
       return this.changing;
@@ -4001,10 +4249,44 @@
     left: 0;
     width: 100%;
     height: 100%;
+    transform-origin: 0 0;
     pointer-events: none;
   }
   .table__world > * {
     pointer-events: auto;
+  }
+  /* The overview (lib/overview.js): the whole table, small. The world is
+     scaled, so it stacks as one layer, which is no loss here: no card is
+     held. The cards take no touches, so a finger pans and taps the table.
+     Each card is a tile: its kind's pigment, light, and its name at a size
+     to read whatever the scale (--overview-scale). */
+  :scope.is-overview {
+    cursor: zoom-in;
+  }
+  :scope.is-overview .table__world > * {
+    pointer-events: none;
+  }
+  :scope.is-overview gesture-card > article::after {
+    content: attr(data-tile);
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(0.75rem / var(--overview-scale, 1));
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--kind) 16%, var(--paper));
+    color: var(--ink);
+    font: 600 calc(0.85rem / var(--overview-scale, 1)) / 1.2 var(--sans);
+    text-align: center;
+    text-wrap: balance;
+    overflow: hidden;
+  }
+  /* While the table zooms in or out, the lines wait: they are drawn where
+     it rests. */
+  :scope.is-zooming :is(.table__lines, .table__labels) {
+    visibility: hidden;
   }
   /* A short message at the foot of the screen (toast), over everything. */
   .table__toast {

@@ -1,10 +1,11 @@
 <!-- The rail: one strip of tools on an edge of the screen, and the arranger
      of the panels it opens.
 
-     The rail has, in order: Search, Timeline, Map, Books, Note, Undo, Redo,
-     Tools, and Hide. Search, Timeline and Tools open and close their panels
-     (passage-search, time-line, table-menu); Map and Books put their cards on
-     the table or take them away; Note puts a new note down; Hide clears the
+     The rail has, in order: Search, Timeline, Map, Books, Overview, Note,
+     Undo, Redo, Tools, and Hide. Search, Timeline and Tools open and close
+     their panels (passage-search, time-line, table-menu); Map and Books put
+     their cards on the table or take them away; Overview shows the whole
+     table, small (lib/overview.js); Note puts a new note down; Hide clears the
      screen of the rail and every panel, and leaves one small Show button on
      the rail's edge.
 
@@ -28,8 +29,9 @@
      the results do not cover the table when they are not wanted.
 
      It sends, bubbling: table-undo, table-redo, note-new, toggle-map,
-     toggle-books, and chrome-arrange when the panels have moved (the table
-     draws its lines again). The table calls setHistory(canUndo, canRedo),
+     toggle-books, toggle-overview, and chrome-arrange when the panels have
+     moved (the table draws its lines again). The table calls
+     setHistory(canUndo, canRedo), setOverview(on),
      and freeBox() for the part of the screen free for cards. -->
 
 <script element>
@@ -178,6 +180,8 @@
     tools: false,
     map: false,
     books: false,
+    /** whether the table shows its overview */
+    overview: false,
     /** the edge a dragged rail would go to, or '' */
     preview: '',
     /** true while a dragged panel is over the rail, where it would dock */
@@ -306,6 +310,7 @@
         tools: () => this.toggle('tools'),
         map: () => this.send('toggle-map'),
         books: () => this.send('toggle-books'),
+        overview: () => this.send('toggle-overview'),
         note: () => this.send('note-new'),
         undo: () => this.send('table-undo'),
         redo: () => this.send('table-redo'),
@@ -367,6 +372,11 @@
     setHistory(canUndo, canRedo) {
       this.canUndo = canUndo;
       this.canRedo = canRedo;
+    },
+
+    /** @param {boolean} on whether the table shows its overview */
+    setOverview(on) {
+      this.overview = on;
     },
 
     save() {
@@ -915,6 +925,7 @@
 <button type="button" class="rail__button" data-action="timeline" aria-expanded="${timeline ? 'true' : 'false'}"><svg-icon library="ui" name="timeline"></svg-icon><span class="rail__label">Timeline</span></button>
 <button type="button" class="rail__button" data-action="map" aria-pressed="${map ? 'true' : 'false'}"><svg-icon library="ui" name="map"></svg-icon><span class="rail__label">Map</span></button>
 <button type="button" class="rail__button" data-action="books" aria-pressed="${books ? 'true' : 'false'}" title="The books compared"><svg-icon library="ui" name="books"></svg-icon><span class="rail__label">Books</span></button>
+<button type="button" class="rail__button" data-action="overview" aria-pressed="${overview ? 'true' : 'false'}" aria-keyshortcuts="O" title="The whole table, small"><svg-icon library="ui" name="overview"></svg-icon><span class="rail__label">Overview</span></button>
 <hr class="rail__rule" />
 <button type="button" class="rail__button" data-action="note"><svg-icon library="ui" name="note"></svg-icon><span class="rail__label">Note</span></button>
 <button type="button" class="rail__button" data-action="undo" aria-disabled="${canUndo ? 'false' : 'true'}" aria-keyshortcuts="Control+Z Meta+Z"><svg-icon library="ui" name="undo"></svg-icon><span class="rail__label">Undo</span></button>

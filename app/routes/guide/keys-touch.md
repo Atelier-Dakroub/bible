@@ -12,6 +12,8 @@ On a Mac, use <kbd>Command</kbd> where this page says <kbd>Command</kbd> or <kbd
 | --- | --- |
 | <kbd>/</kbd> | Opens the search panel and puts the cursor in the field |
 | Arrow keys, when nothing has the focus | Pan the table |
+| <kbd>O</kbd>, when nothing has the focus | Shows the whole table, small (the overview), or goes back to full size |
+| <kbd>Escape</kbd>, in the overview | Goes back to full size |
 | <kbd>Shift</kbd> and an arrow key | Pans the table further |
 | <kbd>Command</kbd> or <kbd>Control</kbd> and <kbd>Z</kbd> | Undo |
 | <kbd>Shift</kbd>, <kbd>Command</kbd> or <kbd>Control</kbd>, and <kbd>Z</kbd> | Redo |
@@ -107,6 +109,8 @@ See [Notes](/guide/notes#keys-for-formatting) for the keys that make headings an
 | To | Touch | Mouse or trackpad |
 | --- | --- | --- |
 | Pan the table | Drag the empty table | Drag the empty table, or scroll |
+| Show the whole table (the overview) | Pinch in with two fingers on the empty table | Pinch in on the trackpad over the empty table |
+| Go to a card or a place in the overview | Tap it | Click it |
 | Move a card | Drag it with one finger | Drag it |
 | Move a card freely, with no snap | Turn off **Snap** in **Tools**, **Table** | Hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag |
 | Scale a card | Pinch it with two fingers | Pinch on the trackpad, or <kbd>Control</kbd> or <kbd>Command</kbd> and the wheel |
@@ -128,7 +132,7 @@ The app chooses a size for the kind of screen. To make everything smaller or lar
 - Each panel is the width of the screen, and one panel opens at a time. A panel cannot float.
 - A card from the search panel goes on the table at the width of the screen. The search panel steps aside so that you can see the card.
 - The timeline is closed at first.
-- A pinch on the table scales a card, not the page.
+- A pinch on a card scales the card, not the page. A pinch on the empty table shows the overview.
 
 ### A tablet
 

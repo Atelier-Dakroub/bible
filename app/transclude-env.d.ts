@@ -706,6 +706,16 @@ export type BibleTableProps = {};
 export type BibleTableMembers = {
   offset: Point;
   fingers: Map<number, Point> | null;
+  zoom: number;
+  overview: boolean;
+  tapFrom: {
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null;
+  pinchFrom: number;
+  wheelPinch: number;
+  wheelPinchTimer: number;
   highlights: Highlight[];
   links: Link[];
   pending: {
@@ -751,6 +761,8 @@ export type BibleTableMembers = {
   overPanel(target: EventTarget | null): boolean;
   wheel(event: WheelEvent): void;
   wheelZoom(event: WheelEvent, unit: number): boolean;
+  wheelOverview(event: WheelEvent, unit: number): void;
+  zoomAsked(asks: 'in' | 'out', point: Point): void;
   trackpad(signal: AbortSignal): void;
   listen(signal: AbortSignal): void;
   obey(command: {
@@ -776,6 +788,18 @@ export type BibleTableMembers = {
   press(event: PointerEvent): void;
   drag(event: PointerEvent): void;
   release(event: PointerEvent): void;
+  untap(event: PointerEvent): void;
+  tapUp(event: PointerEvent): void;
+  pinchTo(now: number, point: Point): void;
+  tableCards(): Card[];
+  toggleOverview(): void;
+  overviewKey(event: KeyboardEvent): void;
+  enterOverview(): void;
+  leaveOverview(point: Point | null, card: Element | null, animate?: boolean | undefined): void;
+  overviewTap(point: Point): void;
+  tiles(cards: Card[], on: boolean): void;
+  zoomTo(offset: Point, scale: number, animate?: boolean | undefined): void;
+  showOverview(): void;
   paint(): void;
   restTimer: any;
   drawnAt: {
@@ -1634,6 +1658,7 @@ export type TableRailState = {
   tools: boolean;
   map: boolean;
   books: boolean;
+  overview: boolean;
   preview: string;
   docking: boolean;
 };
@@ -1665,6 +1690,7 @@ export type TableRailMembers = {
   close(panel: 'search' | 'timeline' | 'tools'): void;
   send(type: string): void;
   setHistory(canUndo: boolean, canRedo: boolean): void;
+  setOverview(on: boolean): void;
   save(): void;
   setEdge(edge: string): void;
   setSize(size: string): void;

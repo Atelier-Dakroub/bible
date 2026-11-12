@@ -18,13 +18,14 @@ The rail is the strip of tools on one edge of the screen. At first it is on the 
 | **Timeline** | Opens or closes the timeline. |
 | **Map** | Puts the map card on the table, or takes it away. |
 | **Books** | Puts the card of the 66 books on the table, or takes it away. |
+| **Overview** | Shows the whole table, small. See [The overview](#the-overview). |
 | **Note** | Puts a new note on the table and opens it for writing. |
 | **Undo** | Takes back the last change to the table. |
 | **Redo** | Does again the change that Undo took back. |
 | **Tools** | Opens or closes the Tools panel. |
 | **Hide** | Clears the screen of the rail and the panels. |
 
-A button is lapis blue while its panel is open, or while its card is on the table.
+A button is lapis blue while its panel is open, while its card is on the table, or while the overview shows.
 
 ### Move the rail
 
@@ -87,7 +88,22 @@ To move a card freely with a mouse, hold <kbd>Command</kbd> or <kbd>Control</kbd
 | --- | --- | --- |
 | Drag the empty table | Drag the empty table, or scroll | The arrow keys, when no card has the focus |
 
-Hold <kbd>Shift</kbd> with the arrow keys to pan further. The table does not scale. To see more, make the cards smaller.
+Hold <kbd>Shift</kbd> with the arrow keys to pan further. To see the whole table, use the overview.
+
+## The overview
+
+On a large table, or on a phone, the overview shows the whole table, small. Use it to see where everything is, and to go to any part of the table at once.
+
+| To | Touch | Mouse or trackpad | Keyboard |
+| --- | --- | --- | --- |
+| Show the overview | Tap **Overview** on the rail, or pinch in with two fingers on the empty table | Click **Overview**, or pinch in on the trackpad over the empty table | <kbd>O</kbd> |
+| Go to a card | Tap its tile | Click its tile | — |
+| Go to a place | Tap the table there | Click the table there | — |
+| Go back to full size | Spread two fingers, or tap **Overview** again | Spread two fingers on the trackpad, or click **Overview** again | <kbd>O</kbd> or <kbd>Escape</kbd> |
+
+In the overview, every card is a tile in the color of its kind, with its title. The lines between the cards stay. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
+
+If you put a card on the table, or use **Undo**, while the overview shows, the table goes back to full size first.
 
 A tap on the empty table also folds the search results away. Tap the search field to see them again.
 

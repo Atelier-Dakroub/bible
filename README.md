@@ -41,11 +41,13 @@ scale; a drag on the empty table pans everything, and the table has no edge.
 What is on the table is kept in the browser as addresses and positions.
 
 The tools are on one rail (`app/elements/table-rail.html`), on the left at
-first: Search, Timeline, Map, Books, Note, Undo, Redo, Tools and Hide. Search,
-Timeline and Tools open and close their panels beside the rail; Map and Books
-put their cards on the table or take them away, and are lapis while the card
-is there; Hide clears the screen of the rail and the panels, and leaves one
-Show button. The rail goes on any edge: drag its grip (⋮⋮) to an edge, tap
+first: Search, Timeline, Map, Books, Overview, Note, Undo, Redo, Tools and
+Hide. Search, Timeline and Tools open and close their panels beside the rail;
+Map and Books put their cards on the table or take them away, and are lapis
+while the card is there; Overview shows the whole table, small, each card a
+tile with its title, and a tap on a tile or a place goes there at full size
+(`app/lib/overview.js`; also O, or a pinch in on the empty table); Hide clears
+the screen of the rail and the panels, and leaves one Show button. The rail goes on any edge: drag its grip (⋮⋮) to an edge, tap
 the grip for the next edge, or choose in Tools, Table. A panel's grip drags
 it off the rail to float anywhere, and back onto the rail to dock; its float
 button does the same without a drag. Tools, Table also sets the size of the
@@ -243,6 +245,7 @@ Mouse, trackpad and keyboard: everything the hands do has another way.
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
 | Pan the table | Drag the empty table | Drag the empty table, or scroll | Arrow keys (Shift: further) |
+| See the whole table (the overview) | Overview, or pinch in on the empty table | Overview, or pinch in over the empty table | O |
 | Move a card | Drag it | Drag it | Tab to it, then the arrow keys |
 | Scale a card | Pinch it | Pinch on the trackpad, or Control (or Command) + wheel | `+` and `-` |
 | Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari) | `[` and `]` |
