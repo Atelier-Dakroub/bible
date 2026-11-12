@@ -6,6 +6,9 @@
 // pressed button shows what the words already have, and a press again takes
 // it off. With a finger, the bar sits under the words, clear of the phone's
 // own menu over them. The keys do the same: Mod-B, Mod-I, "# ", "- ", "1. ".
+// With the keyboard alone, Alt-F10 goes into the bar; the arrow keys, Home
+// and End move along it; Enter or Space formats the words; and Escape or Tab
+// goes back to them.
 // The bar is outside the card, so the table counts a press on it as part of
 // the writing (it has the class note-format).
 
@@ -184,6 +187,32 @@ function paintButtons(bar, state) {
   for (const gap of bar.querySelectorAll('.note-format__gap')) /** @type {HTMLElement} */ (gap).hidden = ref;
 }
 
+/** @type {Record<string, (at: number, count: number) => number>} where each key moves along the bar */
+const STEPS = {
+  ArrowRight: (at, count) => (at + 1) % count,
+  ArrowDown: (at, count) => (at + 1) % count,
+  ArrowLeft: (at, count) => (at - 1 + count) % count,
+  ArrowUp: (at, count) => (at - 1 + count) % count,
+  Home: () => 0,
+  End: (_, count) => count - 1,
+};
+
+/**
+ * The button a key moves to, along a bar of `count` buttons from the one at
+ * `at` (-1: none yet); null for a key that does not move.
+ *
+ * @param {string} key
+ * @param {number} at
+ * @param {number} count
+ */
+export function stepAlong(key, at, count) {
+  const step = Object.hasOwn(STEPS, key) ? STEPS[key] : null;
+  return step && count > 0 ? step(Math.max(at, 0), count) : null;
+}
+
+/** @param {HTMLElement} bar the buttons that show */
+const shown = (bar) => /** @type {HTMLElement[]} */ ([...bar.querySelectorAll('button:not([hidden])')]);
+
 /**
  * The box of the selected words on the screen; null if the editor cannot
  * say (it is being drawn again).
@@ -228,6 +257,23 @@ export function barPosition(words, bar, screen, finger) {
   };
 }
 
+/**
+ * Whether the note is being written: the focus is in it, or in its bar.
+ *
+ * @param {View} view
+ * @param {HTMLElement | null} bar
+ */
+const focusedIn = (view, bar) => view.hasFocus() || Boolean(bar?.contains(document.activeElement));
+
+/**
+ * Whether the selection takes a format. A reference alone takes none: the
+ * bar shows only to quote its verses, and not at all for a person, place or
+ * word.
+ *
+ * @param {State} state
+ */
+const formattable = (state) => !selectedRef(state) || refSelected(state);
+
 export function formatBar() {
   /** @type {HTMLElement | null} */
   let bar = null;
@@ -265,41 +311,62 @@ export function formatBar() {
     // A press keeps the words selected, and formats them.
     made.addEventListener('pointerdown', (event) => {
       event.preventDefault();
-      press(event.target, true);
+      press(event.target);
     });
     // A keyboard's or a switch's click, with no pointer.
     made.addEventListener('click', (event) => {
-      if (/** @type {MouseEvent} */ (event).detail === 0) press(event.target, false);
+      if (/** @type {MouseEvent} */ (event).detail === 0) press(event.target);
     });
+    made.addEventListener('keydown', (event) => key(made, event));
     document.body.append(made);
     return made;
   }
 
   /**
-   * Formats the words with the button pressed.
+   * A key in the bar: along it, or back to the words.
+   *
+   * @param {HTMLElement} made
+   * @param {KeyboardEvent} event
+   */
+  function key(made, event) {
+    const buttons = shown(made);
+    const to = stepAlong(event.key, buttons.indexOf(/** @type {HTMLElement} */ (document.activeElement)), buttons.length);
+    if (to !== null) buttons[to].focus();
+    else if (event.key === 'Escape' || event.key === 'Tab') editor?.focus();
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /**
+   * Formats the words with the button pressed. The note has the focus first,
+   * so the bar stays for the words.
    *
    * @param {EventTarget | null} target
-   * @param {boolean} focus whether the note takes the focus back
    */
-  function press(target, focus) {
+  function press(target) {
     const button = formatAt(target);
     if (!button || !editor) return;
+    editor.focus();
     button.run(editor.state, editor.dispatch);
-    if (focus) editor.focus();
   }
 
   return new Plugin({
+    props: {
+      // Alt-F10: into the bar, while it shows.
+      handleKeyDown(view, event) {
+        if (!(event.altKey && event.key === 'F10' && bar)) return false;
+        shown(bar)[0]?.focus();
+        return true;
+      },
+    },
     view(view) {
       editor = view;
       view.dom.addEventListener('pointerdown', watch);
       return {
         update(view) {
           editor = view;
-          const { selection } = view.state;
-          if (selection.empty || !view.hasFocus()) return hide();
-          // A reference alone takes no format: the bar shows only to quote
-          // its verses, and not at all for a person, place or word.
-          if (selectedRef(view.state) && !refSelected(view.state)) return hide();
+          if (view.state.selection.empty || !focusedIn(view, bar) || !formattable(view.state)) return hide();
           draw(view);
         },
         destroy() {

@@ -83,6 +83,7 @@ Select words in a note, with a finger or with the mouse. A bar shows near the wo
 | `-` and a space, at the start of a line | A list |
 | `1.` and a space, at the start of a line | A numbered list |
 | <kbd>Tab</kbd> and <kbd>Shift</kbd> <kbd>Tab</kbd>, in a list | Moves the item in and out |
+| <kbd>Alt</kbd> <kbd>F10</kbd> (<kbd>Option</kbd> <kbd>F10</kbd> on a Mac), with words selected | Goes into the format bar. <kbd>←</kbd> and <kbd>→</kbd> move along it, <kbd>Enter</kbd> formats the words, and <kbd>Escape</kbd> goes back to the words. |
 | <kbd>Command</kbd> <kbd>Z</kbd> or <kbd>Control</kbd> <kbd>Z</kbd> | Undoes your typing in the note |
 | <kbd>Shift</kbd> <kbd>Command</kbd> <kbd>Z</kbd> or <kbd>Shift</kbd> <kbd>Control</kbd> <kbd>Z</kbd> (also <kbd>Command</kbd> <kbd>Y</kbd> or <kbd>Control</kbd> <kbd>Y</kbd>) | Redoes your typing in the note |
 

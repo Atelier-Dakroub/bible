@@ -84,6 +84,7 @@ First give the frame of the map the focus with <kbd>Tab</kbd>.
 | <kbd>Command</kbd> or <kbd>Control</kbd> and <kbd>B</kbd> | Bold |
 | <kbd>Command</kbd> or <kbd>Control</kbd> and <kbd>I</kbd> | Italic |
 | <kbd>Tab</kbd> and <kbd>Shift</kbd> <kbd>Tab</kbd>, in a list | Move an item in and out |
+| <kbd>Alt</kbd> <kbd>F10</kbd> (<kbd>Option</kbd> <kbd>F10</kbd> on a Mac), with words selected | Go into the format bar; <kbd>Escape</kbd> goes back |
 | <kbd>Tab</kbd>, after a reference that you typed | Makes it a reference |
 | <kbd>↑</kbd> and <kbd>↓</kbd>, with suggestions | Choose a suggestion |
 | <kbd>Enter</kbd> or <kbd>Tab</kbd>, with @ suggestions | Makes the suggestion a reference |

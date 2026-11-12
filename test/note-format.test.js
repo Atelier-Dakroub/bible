@@ -80,3 +80,17 @@ test('the bar goes over the words, or under them for a finger, and stays on the 
   assert.deepEqual(barPosition({ ...words, left: 0, right: 20 }, bar, screen, false), { left: 8, top: 250 });
   assert.deepEqual(barPosition({ ...words, left: 1180, right: 1200 }, bar, screen, false), { left: 992, top: 250 });
 });
+
+test('the keys move along the format bar, and round its ends', async () => {
+  const { stepAlong } = await import('../app/lib/note-format.js');
+  assert.equal(stepAlong('ArrowRight', -1, 5), 1);
+  assert.equal(stepAlong('ArrowRight', 4, 5), 0);
+  assert.equal(stepAlong('ArrowLeft', 0, 5), 4);
+  assert.equal(stepAlong('ArrowDown', 2, 5), 3);
+  assert.equal(stepAlong('ArrowUp', 2, 5), 1);
+  assert.equal(stepAlong('Home', 3, 5), 0);
+  assert.equal(stepAlong('End', 0, 5), 4);
+  assert.equal(stepAlong('Enter', 0, 5), null);
+  assert.equal(stepAlong('constructor', 0, 5), null);
+  assert.equal(stepAlong('ArrowRight', 0, 0), null);
+});
