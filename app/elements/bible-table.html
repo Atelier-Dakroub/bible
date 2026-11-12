@@ -142,7 +142,7 @@
   import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { lessMotion } from '../lib/motion.js';
-  import { around, centre, centring, fit, keeping, keyAsks, middle as middleOf, onTable, pinchAsks, spread, tappedIn } from '../lib/overview.js';
+  import { around, centre, centring, keeping, keyAsks, middle as middleOf, onTable, overviewOf, pinchAsks, spread, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
   import { covers, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
@@ -1240,6 +1240,7 @@
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
       document.addEventListener('keydown', (event) => this.overviewKey(event), options);
       this.addEventListener('toggle-overview', () => this.toggleOverview(), options);
+      addEventListener('resize', () => this.refitOverview(), options);
       for (const type of FULL_SIZE) this.addEventListener(type, () => this.leaveOverview(null, null, false), { ...options, capture: true });
       this.trackpad(signal);
       document.addEventListener('keydown', (event) => this.panKey(event), options);
@@ -1952,20 +1953,57 @@
     enterOverview() {
       if (this.overview) return;
       const cards = this.tableCards();
-      const whole = around(cards.map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom)));
-      if (!whole) {
+      const view = this.overviewView(cards);
+      if (!view) {
         this.toast('The table is empty: there is nothing to see in an overview.');
         return;
       }
       this.writing?.end();
       this.overview = true;
       this.tiles(cards, true);
-      const view = fit(whole, this.free());
       this.style.setProperty('--overview-scale', String(view.scale));
       this.classList.add('is-overview');
       this.zoomTo(view.offset, view.scale);
       this.showOverview();
-      this.toast('The whole table. Tap a card or a place to go there.');
+      this.toast(view.whole ? 'The whole table. Tap a card or a place to go there.' : 'The table, small. Pan to see the rest; tap a card or a place to go there.');
+    },
+
+    /**
+     * Where the overview shows the table: whole, or the part about the middle
+     * of the screen now, at a scale where the tiles can be read.
+     *
+     * @param {Card[]} cards
+     */
+    overviewView(cards) {
+      const boxes = cards.map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom));
+      const table = around(boxes);
+      if (!table) return null;
+      const free = this.free();
+      const middle = middleOf(free);
+      const now = { x: (middle.x - this.offset.x) / this.zoom, y: (middle.y - this.offset.y) / this.zoom };
+      return overviewOf(table, free, boxes.map((box) => box.right - box.left), now);
+    },
+
+    /**
+     * The free part of the screen, less the search panel where it lies across
+     * the top of it (on a phone, a sheet over the table), so that a card
+     * brought to the top shows its heading.
+     *
+     * @param {{ left: number, top: number, right: number, bottom: number }} free
+     */
+    clearOfSearch(free) {
+      const panel = this.querySelector('passage-search');
+      const box = panel?.getClientRects().length ? panel.getBoundingClientRect() : null;
+      const across = box && box.top <= free.top + 1 && box.width >= 0.8 * (free.right - free.left);
+      return across ? { ...free, top: Math.min(box.bottom, free.bottom - 1) } : free;
+    },
+
+    /** The screen turned, or changed size: the overview fits it again. */
+    refitOverview() {
+      const view = this.overview ? this.overviewView(this.tableCards()) : null;
+      if (!view) return;
+      this.style.setProperty('--overview-scale', String(view.scale));
+      this.zoomTo(view.offset, view.scale, false);
     },
 
     /**
@@ -1978,7 +2016,7 @@
      */
     leaveOverview(point, card, animate = true) {
       if (!this.overview) return;
-      const free = this.free();
+      const free = this.clearOfSearch(this.free());
       const offset = card ? centring(onTable(card.getBoundingClientRect(), this.offset, this.zoom), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, 1);
       this.overview = false;
       this.classList.remove('is-overview');
@@ -4258,8 +4296,10 @@
   /* The overview (lib/overview.js): the whole table, small. The world is
      scaled, so it stacks as one layer, which is no loss here: no card is
      held. The cards take no touches, so a finger pans and taps the table.
-     Each card is a tile: its kind's pigment, light, and its name at a size
-     to read whatever the scale (--overview-scale). */
+     Each card is a tile: its kind's pigment, light, and its name at its
+     top, at a size to read whatever the scale (--overview-scale). The lines
+     between words (the same words, the cross-references) are too fine to
+     see at this size and hide; the links between cards stay. */
   :scope.is-overview {
     cursor: zoom-in;
   }
@@ -4272,9 +4312,9 @@
     inset: 0;
     z-index: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: calc(0.75rem / var(--overview-scale, 1));
+    padding: calc(0.6rem / var(--overview-scale, 1));
     border-radius: inherit;
     background: color-mix(in srgb, var(--kind) 16%, var(--paper));
     color: var(--ink);
@@ -4282,6 +4322,9 @@
     text-align: center;
     text-wrap: balance;
     overflow: hidden;
+  }
+  :scope.is-overview .table__lines :is(.same, .ref) {
+    display: none;
   }
   /* While the table zooms in or out, the lines wait: they are drawn where
      it rests. */

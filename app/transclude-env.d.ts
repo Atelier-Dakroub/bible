@@ -795,6 +795,26 @@ export type BibleTableMembers = {
   toggleOverview(): void;
   overviewKey(event: KeyboardEvent): void;
   enterOverview(): void;
+  overviewView(cards: Card[]): {
+    scale: number;
+    offset: {
+      x: number;
+      y: number;
+    };
+    whole: boolean;
+  } | null;
+  clearOfSearch(free: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }): {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+  refitOverview(): void;
   leaveOverview(point: Point | null, card: Element | null, animate?: boolean | undefined): void;
   overviewTap(point: Point): void;
   tiles(cards: Card[], on: boolean): void;

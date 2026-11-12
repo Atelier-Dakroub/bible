@@ -19,6 +19,9 @@ export const MARGIN = 24;
 /** The least scale: below it, a large table is only small tiles. */
 export const LEAST = 0.04;
 
+/** The least width of a typical card's tile, to read its name and tap it. */
+export const TILE = 72;
+
 /**
  * The box around all the boxes; null for none.
  *
@@ -73,6 +76,54 @@ export function fit(table, free, margin = MARGIN) {
   const to = middle(free);
   const from = middle(table);
   return { scale, offset: { x: to.x - scale * from.x, y: to.y - scale * from.y } };
+}
+
+/**
+ * The least scale at which a typical card (of the median width) is a tile
+ * TILE pixels wide.
+ *
+ * @param {number[]} widths the cards' widths on the table
+ */
+export function readable(widths) {
+  if (!widths.length) return LEAST;
+  const median = [...widths].sort((a, b) => a - b)[Math.floor(widths.length / 2)];
+  return Math.min(1, Math.max(LEAST, TILE / Math.max(1, median)));
+}
+
+/**
+ * The overview's view: the whole table, if it shows at a scale where its
+ * tiles can be read; else part of it at that scale, about `centre` (the
+ * point of the table in the middle of the screen now), kept on the table so
+ * that no more empty table shows than must. `whole` says which.
+ *
+ * @param {Box} table the box around the cards, on the table
+ * @param {Box} free
+ * @param {number[]} widths the cards' widths on the table
+ * @param {Point} centre
+ * @param {number} [margin]
+ */
+export function overviewOf(table, free, widths, centre, margin = MARGIN) {
+  const all = fit(table, free, margin);
+  const scale = readable(widths);
+  if (all.scale >= scale) return { ...all, whole: true };
+  const half = { x: (free.right - free.left) / 2 / scale, y: (free.bottom - free.top) / 2 / scale };
+  const at = { x: inside(centre.x, table.left, table.right, half.x), y: inside(centre.y, table.top, table.bottom, half.y) };
+  const to = middle(free);
+  return { scale, offset: { x: to.x - scale * at.x, y: to.y - scale * at.y }, whole: false };
+}
+
+/**
+ * On one axis: where a view of half-width `half` may centre on a span of
+ * the table, as near `c` as it can; the span's middle when it is narrower.
+ *
+ * @param {number} c
+ * @param {number} start
+ * @param {number} end
+ * @param {number} half
+ */
+function inside(c, start, end, half) {
+  if (end - start <= 2 * half) return (start + end) / 2;
+  return Math.min(Math.max(c, start + half), end - half);
 }
 
 /**

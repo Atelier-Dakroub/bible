@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LEAST, MARGIN, around, centre, centring, fit, keeping, keyAsks, middle, onTable, pinchAsks, spread, tappedIn } from '../app/lib/overview.js';
+import { LEAST, MARGIN, TILE, around, centre, centring, fit, keeping, keyAsks, middle, onTable, overviewOf, readable, pinchAsks, spread, tappedIn } from '../app/lib/overview.js';
 
 const box = (left, top, right, bottom) => ({ left, top, right, bottom });
 
@@ -77,4 +77,23 @@ test('O shows the overview or leaves it, and Escape leaves it', () => {
   assert.equal(keyAsks('Escape', true), 'leave');
   assert.equal(keyAsks('Escape', false), '');
   assert.equal(keyAsks('p', true), '');
+});
+
+test('the overview keeps its tiles large enough to read', () => {
+  assert.equal(readable([400, 400, 400]), TILE / 400);
+  assert.equal(readable([100]), Math.min(1, TILE / 100));
+  assert.equal(readable([]), LEAST);
+  // A phone's table: one column of cards 390 wide, one 30000 long.
+  const table = box(0, 0, 390, 30000);
+  const free = box(0, 0, 390, 700);
+  const view = overviewOf(table, free, [390, 390, 390], { x: 195, y: 10000 });
+  assert.equal(view.whole, false);
+  assert.equal(view.scale, TILE / 390);
+  // About where the screen was, on the table.
+  assert.equal((350 - view.offset.y) / view.scale, 10000);
+  // Near the end of the table, it keeps the table's end on the screen's.
+  const end = overviewOf(table, free, [390], { x: 195, y: 29990 });
+  assert.equal(end.offset.y + end.scale * 30000, 700);
+  // A table that fits at a readable scale shows whole.
+  assert.equal(overviewOf(box(0, 0, 3000, 2000), box(0, 0, 1400, 800), [400, 400], { x: 0, y: 0 }).whole, true);
 });
