@@ -4323,7 +4323,17 @@
     text-wrap: balance;
     overflow: hidden;
   }
-  :scope.is-overview .table__lines :is(.same, .ref) {
+  /* In the overview, only the links between cards stay, thin and faint: they
+     show which cards go together. Their labels are too small to read there,
+     and the other lines hide the tiles' names. */
+  :scope.is-overview .table__lines line:not(.link) {
+    display: none;
+  }
+  :scope.is-overview .table__lines :is(.link, .table__arrow) {
+    opacity: 0.35;
+    stroke-width: 1;
+  }
+  :scope.is-overview .table__labels {
     display: none;
   }
   /* While the table zooms in or out, the lines wait: they are drawn where

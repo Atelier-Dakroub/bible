@@ -101,7 +101,7 @@ On a large table, or on a phone, the overview shows the whole table, small. Use 
 | Go to a place | Tap the table there | Click the table there | — |
 | Go back to full size | Spread two fingers, or tap **Overview** again | Spread two fingers on the trackpad, or click **Overview** again | <kbd>O</kbd> or <kbd>Escape</kbd> |
 
-In the overview, every card is a tile in the color of its kind, with its title at the top. The links between the cards stay; the finer lines between words hide. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
+In the overview, every card is a tile in the color of its kind, with its title at the top. The links between the cards stay, thin and faint, without their labels. The other lines hide. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
 
 The tiles never get too small to read. If the whole table does not fit on the screen at that size, as often on a phone, the overview shows the part around where you were. Pan to see the rest.
 
