@@ -160,7 +160,9 @@ export function layout(input) {
   /** @template {Box | null} T @param {T} box @returns {T} */
   const out = (box) => (box ? { ...box, x: box.x + s.left, y: box.y + s.top } : box);
   return {
-    rail: out(inner.rail),
+    // A phone's rail runs the whole width, under the notch's side too: it
+    // pads itself clear of the notch and the home bar (table-rail).
+    rail: input.phone ? { ...out(inner.rail), x: 0, w: input.width } : out(inner.rail),
     search: out(inner.search),
     timeline: out(inner.timeline),
     tools: out(inner.tools),
@@ -193,7 +195,7 @@ function place(input) {
 
 /**
  * The rail: along its edge, at its own size; a phone's the width of the
- * screen.
+ * screen, on its bottom edge with no gap, as a phone's own tab bar.
  *
  * @param {LayoutInput} input
  * @param {Edge} edge
@@ -202,6 +204,7 @@ function place(input) {
 function railBox(input, edge) {
   const { width: W, height: H, gap: g } = input;
   if (upright(edge)) return { x: edge === 'left' ? g : W - g - input.rail.w, y: g, w: input.rail.w, h: null };
+  if (input.phone) return { x: 0, y: H - input.rail.h, w: W, h: null };
   return { x: g, y: edge === 'top' ? g : H - g - input.rail.h, w: input.phone ? W - 2 * g : input.rail.w, h: null };
 }
 
@@ -218,7 +221,7 @@ function areaBeside(input, edge) {
     left: edge === 'left' ? 2 * g + rail.w : g,
     top: edge === 'top' ? 2 * g + rail.h : g,
     right: edge === 'right' ? W - 2 * g - rail.w : W - g,
-    bottom: edge === 'bottom' ? H - 2 * g - rail.h : H - g,
+    bottom: edge === 'bottom' ? H - (input.phone ? 1 : 2) * g - rail.h : H - g,
   };
 }
 

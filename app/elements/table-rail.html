@@ -597,10 +597,13 @@
     frameOf(table, settings, rem) {
       const height = Math.max(innerHeight, Math.round(table.getBoundingClientRect().height));
       const safe = this.insets();
+      // A phone's rail pads itself over the home bar: its height without it.
+      const phone = isPhone();
+      const home = phone ? safe.bottom : 0;
       safe.bottom += height - innerHeight;
       if (this.cleared) this.style.width = '';
       const railBox = this.getBoundingClientRect();
-      return { width: innerWidth, height, gap: Math.round(0.5 * rem), phone: isPhone(), edge: settings.edge, rail: { w: railBox.width, h: railBox.height }, safe };
+      return { width: innerWidth, height, gap: Math.round(0.5 * rem), phone, edge: settings.edge, rail: { w: railBox.width, h: railBox.height - home }, safe };
     },
 
     /**
@@ -894,10 +897,19 @@
   /* On a phone: the rail is the width of the screen at the bottom, its
      buttons share it, and they show their icons only. */
   @media (max-width: 700px), (max-height: 500px) {
+    /* On the screen's bottom edge, its whole width, as a phone's own tab
+       bar (lib/chrome.js places it): its padding keeps the buttons clear of
+       the home bar and, in landscape, of the notch. */
     :scope {
       flex-direction: row;
       justify-content: space-between;
       box-sizing: border-box;
+      padding-bottom: calc(0.3rem + env(safe-area-inset-bottom, 0px) / var(--chrome-zoom, 1));
+      padding-left: calc(0.3rem + env(safe-area-inset-left, 0px) / var(--chrome-zoom, 1));
+      padding-right: calc(0.3rem + env(safe-area-inset-right, 0px) / var(--chrome-zoom, 1));
+      border-width: 1px 0 0;
+      border-radius: var(--radius) var(--radius) 0 0;
+      box-shadow: 0 -2px 12px var(--shade-far);
     }
     .rail__button {
       min-width: 0;
