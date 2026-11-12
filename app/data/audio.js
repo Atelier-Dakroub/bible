@@ -154,15 +154,17 @@ function chapterIn(chapters, file) {
 /**
  * Where a verse begins in its chapter's file, and where it ends: where the
  * next begins; in the app's own voice, in the middle of the pause before it
- * (generate.py's PAUSE), so that a stop a little late is still silent.
+ * (generate.py's PAUSE), so that a stop a little late is still silent. The
+ * last verse ends a second after the chapter's length, which is rounded to
+ * the second: the file's own end stops it, and its last words are heard.
  *
  * @param {Recording} recording
  * @param {string} key the chapter, such as JHN.3
  * @param {number} verse
  * @param {[number, number[]]} entry the chapter's length, and its verses' starts in tenths of a second
  */
-function verseTime(recording, key, verse, [seconds, starts]) {
-  const until = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds;
+export function verseTime(recording, key, verse, [seconds, starts]) {
+  const until = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds + 1;
   return { id: `${key}.${verse}`, at: starts[verse - 1] / 10, until };
 }
 

@@ -511,7 +511,7 @@ export class Recording {
         endSoon((last.until - t) / (audio.playbackRate || 1));
         this.mark(verseAt(chapter, t, elementOf));
       }, { signal: listening.signal });
-      audio.addEventListener('ended', done, { signal: listening.signal });
+      audio.addEventListener('ended', end, { signal: listening.signal });
       audio.addEventListener('error', () => fail(), { signal: listening.signal });
     });
   }
