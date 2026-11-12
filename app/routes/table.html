@@ -68,6 +68,19 @@
     body {
       background: var(--paper);
     }
+    /* Under the status bar, a fixed strip of the desk on the top edge, which
+       Safari tints its top from instead of the paper. */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 2000000;
+      height: env(safe-area-inset-top, 0px);
+      background: var(--desk);
+      pointer-events: none;
+    }
   }
 </style>
 
