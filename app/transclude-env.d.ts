@@ -1801,6 +1801,292 @@ export type RootLayoutContext = {
 /** Data returned by `root/_layout.html`. */
 export type RootLayoutData = {};
 
+/** The `ctx` argument of `guide-assistant`'s <script server> loader. */
+export type GuideAssistantContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-assistant`'s <script server> block. */
+export type GuideAssistantData = {};
+
+/** The `ctx` argument of `guide-cards`'s <script server> loader. */
+export type GuideCardsContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-cards`'s <script server> block. */
+export type GuideCardsData = {};
+
+/** The `ctx` argument of `guide-keys-touch`'s <script server> loader. */
+export type GuideKeysTouchContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-keys-touch`'s <script server> block. */
+export type GuideKeysTouchData = {};
+
+/** The `ctx` argument of `guide-listen-watch`'s <script server> loader. */
+export type GuideListenWatchContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-listen-watch`'s <script server> block. */
+export type GuideListenWatchData = {};
+
+/** The `ctx` argument of `guide-map`'s <script server> loader. */
+export type GuideMapContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-map`'s <script server> block. */
+export type GuideMapData = {};
+
+/** The `ctx` argument of `guide-notes`'s <script server> loader. */
+export type GuideNotesContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-notes`'s <script server> block. */
+export type GuideNotesData = {};
+
+/** The `ctx` argument of `guide-search`'s <script server> loader. */
+export type GuideSearchContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-search`'s <script server> block. */
+export type GuideSearchData = {};
+
+/** The `ctx` argument of `guide-start`'s <script server> loader. */
+export type GuideStartContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-start`'s <script server> block. */
+export type GuideStartData = {};
+
+/** The `ctx` argument of `guide-study`'s <script server> loader. */
+export type GuideStudyContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-study`'s <script server> block. */
+export type GuideStudyData = {};
+
+/** The `ctx` argument of `guide-timeline`'s <script server> loader. */
+export type GuideTimelineContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-timeline`'s <script server> block. */
+export type GuideTimelineData = {};
+
+/** The `ctx` argument of `guide-tools`'s <script server> loader. */
+export type GuideToolsContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-tools`'s <script server> block. */
+export type GuideToolsData = {};
+
 /** The `ctx` argument of `credits`'s <script server> loader. */
 export type CreditsContext = {
   url: string;
@@ -2006,6 +2292,32 @@ export type DesignData = {
     label: string;
   }[];
 };
+
+/** The `ctx` argument of `guide-index`'s <script server> loader. */
+export type GuideIndexContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `guide-index`'s <script server> block. */
+export type GuideIndexData = {};
 
 /** The `ctx` argument of `search`'s <script server> loader. */
 export type SearchContext = {
