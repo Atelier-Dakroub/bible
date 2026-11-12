@@ -906,6 +906,10 @@
        bar, so no table shows around that bar; its padding keeps the buttons
        clear of the bar, of the home bar and, in landscape, of the notch. */
     :scope {
+      /* Fixed, as the page does not scroll, the same place as absolute:
+         Safari tints the strip under its bottom bar from a fixed element on
+         the screen's bottom edge, so the paper runs on there. */
+      position: fixed;
       flex-direction: row;
       justify-content: space-between;
       box-sizing: border-box;
