@@ -177,13 +177,73 @@ export function render(source) {
 }
 
 /**
- * A guide page: its title from its first heading, its text, and the way
- * back to the guide and to the table.
+ * The guide's pages in the order to read them, as its first page lists
+ * them, and the Credits page last.
+ *
+ * @type {{ href: string, title: string }[]}
+ */
+export const GUIDE = [
+  { href: '/guide', title: 'The guide' },
+  { href: '/guide/start', title: 'Start here' },
+  { href: '/guide/cards', title: 'Cards' },
+  { href: '/guide/search', title: 'Search' },
+  { href: '/guide/study', title: 'Study' },
+  { href: '/guide/notes', title: 'Notes' },
+  { href: '/guide/map', title: 'The map' },
+  { href: '/guide/timeline', title: 'The timeline' },
+  { href: '/guide/listen-watch', title: 'Listen and watch' },
+  { href: '/guide/tools', title: 'Tools' },
+  { href: '/guide/keys-touch', title: 'Keys and touch' },
+  { href: '/guide/assistant', title: 'An AI assistant' },
+  { href: '/credits', title: 'Credits' },
+];
+
+/**
+ * A page's address, from its file: app/routes/guide/notes.md is
+ * /guide/notes, and index.md is /guide.
+ *
+ * @param {string} file
+ */
+export function hrefOf(file) {
+  const name = file.replace(/\\/g, '/').split('/').pop()?.replace(/\.md$/, '') ?? '';
+  return name === 'index' ? '/guide' : `/guide/${name}`;
+}
+
+/**
+ * The pages before and after a page of the guide; null where there is none,
+ * and for a page that is not in the guide.
+ *
+ * @param {string} href the page's address
+ */
+export function neighbours(href) {
+  const at = GUIDE.findIndex((page) => page.href === href);
+  return { back: at > 0 ? GUIDE[at - 1] : null, next: at >= 0 ? (GUIDE[at + 1] ?? null) : null };
+}
+
+/**
+ * The links to the page before and the page after, at the foot of a page;
+ * none for a page that is not in the guide. routes/credits.html draws the
+ * same.
+ *
+ * @param {string} href the page's address
+ */
+export function pager(href) {
+  const { back, next } = neighbours(href);
+  if (!back && !next) return '';
+  const link = (/** @type {{ href: string, title: string } | null} */ page, /** @type {string} */ rel, /** @type {string} */ word) =>
+    page ? `<a class="guide__step guide__step--${rel}" rel="${rel}" href="${page.href}"><span class="guide__step-word">${word}</span> ${escape(page.title)}</a>` : '';
+  return `<nav class="guide__pager" aria-label="Pages of the guide">${link(back, 'prev', 'Back')}${link(next, 'next', 'Next')}</nav>`;
+}
+
+/**
+ * A guide page: its title from its first heading, its text, the way back to
+ * the guide and to the table, and the pages before and after it.
  *
  * @param {string} source
+ * @param {string} [file] its file, which gives its place in the guide
  */
-export function guidePage(source) {
+export function guidePage(source, file = '') {
   const title = /^# (.+)$/m.exec(source)?.[1] ?? 'Guide';
   const nav = '<nav class="guide__nav" aria-label="Guide"><a href="/guide">The guide</a> <a href="/table">Back to the table</a></nav>';
-  return `<title>${escape(title.replace(/[`*]/g, ''))}</title>\n<main class="page guide">\n${nav}\n${render(source)}\n</main>\n`;
+  return `<title>${escape(title.replace(/[`*]/g, ''))}</title>\n<main class="page guide">\n${nav}\n${render(source)}\n${file ? pager(hrefOf(file)) : ''}\n</main>\n`;
 }

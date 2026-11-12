@@ -2287,6 +2287,10 @@ export type CreditsContext = {
 /** Data returned by `credits`'s <script server> block. */
 export type CreditsData = {
   groups: CreditGroup[];
+  back: {
+    href: string;
+    title: string;
+  } | null;
 };
 
 /** The `ctx` argument of `design`'s <script server> loader. */

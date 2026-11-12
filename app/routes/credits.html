@@ -1,10 +1,11 @@
 <script server>
   import { CREDITS } from '../data/credits.js';
+  import { neighbours } from '../lib/markdown.js';
 
   // The sources of the app's data, each with its creator, its license and
   // what the app changed (data/credits.js). DATA-LICENSES.md gives the same
   // by file.
-  export default () => ({ groups: CREDITS });
+  export default () => ({ groups: CREDITS, back: neighbours('/credits').back });
 </script>
 
 <title>Credits</title>
@@ -60,4 +61,8 @@
       </li>
     </ul>
   </section>
+
+  <nav if="back" class="guide__pager" aria-label="Pages of the guide">
+    <a class="guide__step guide__step--prev" rel="prev" href="${back?.href}"><span class="guide__step-word">Back</span> ${back?.title}</a>
+  </nav>
 </main>

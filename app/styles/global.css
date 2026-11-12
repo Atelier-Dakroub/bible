@@ -138,6 +138,54 @@ body {
 .guide li + li {
   margin-top: 0.3rem;
 }
+/* The pages before and after, at the foot of a guide page: Back on the
+   left, Next on the right, each a large target with the page's name. */
+.guide__pager {
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font: var(--control-font);
+}
+.guide__step {
+  flex: 1 1 14rem;
+  max-width: calc(50% - 0.375rem);
+  display: grid;
+  gap: 0.15rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  text-decoration: none;
+}
+.guide__step--next {
+  margin-inline-start: auto;
+  text-align: end;
+}
+/* Narrow, each takes the whole width, Back over Next. */
+@container (max-width: 30rem) {
+  .guide__step {
+    max-width: none;
+  }
+}
+.guide__step-word {
+  color: var(--ink-soft);
+  font-size: 0.85em;
+}
+.guide__step--prev .guide__step-word::before {
+  content: '← ' / '';
+}
+.guide__step--next .guide__step-word::after {
+  content: ' →' / '';
+}
+@media (hover: hover) {
+  .guide__step:hover {
+    background: var(--tint);
+  }
+}
 
 .visually-hidden {
   position: absolute;

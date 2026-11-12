@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { guidePage, inline, render, slug } from '../app/lib/markdown.js';
+import { GUIDE, guidePage, hrefOf, inline, neighbours, pager, render, slug } from '../app/lib/markdown.js';
 
 test('headings get ids, and paragraphs join their lines', () => {
   assert.equal(render('# The table\n\nCards go\non it.'), '<h1 id="the-table">The table</h1>\n<p>Cards go on it.</p>');
@@ -40,4 +40,24 @@ test('a guide page has its title and the way back', () => {
   assert.match(page, /^<title>Notes<\/title>/);
   assert.match(page, /<a href="\/guide">The guide<\/a>/);
   assert.match(page, /<p>Write\.<\/p>/);
+});
+
+test('a guide page links to the pages before and after it', () => {
+  assert.equal(hrefOf('/x/app/routes/guide/notes.md'), '/guide/notes');
+  assert.equal(hrefOf('C:\\x\\routes\\guide\\index.md'), '/guide');
+  const page = guidePage('# Notes\n\nWrite.', '/x/app/routes/guide/notes.md');
+  assert.match(page, /rel="prev" href="\/guide\/study"><span class="guide__step-word">Back<\/span> Study<\/a>/);
+  assert.match(page, /rel="next" href="\/guide\/map"><span class="guide__step-word">Next<\/span> The map<\/a>/);
+  assert.doesNotMatch(pager('/guide'), /rel="prev"/, 'the first page has no page before it');
+  assert.doesNotMatch(pager('/credits'), /rel="next"/, 'the last page has no page after it');
+  assert.equal(pager('/elsewhere'), '');
+  assert.deepEqual(neighbours('/credits'), { back: { href: '/guide/assistant', title: 'An AI assistant' }, next: null });
+});
+
+test('the guide lists every page in app/routes/guide once', async () => {
+  const { readdirSync } = await import('node:fs');
+  const files = readdirSync(new URL('../app/routes/guide/', import.meta.url)).filter((name) => name.endsWith('.md'));
+  const hrefs = GUIDE.map((page) => page.href);
+  assert.deepEqual(files.map((name) => hrefOf(name)).sort(), hrefs.filter((href) => href.startsWith('/guide')).sort());
+  assert.equal(new Set(hrefs).size, hrefs.length);
 });
