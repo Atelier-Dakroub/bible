@@ -61,6 +61,12 @@
     :root {
       --ui-text: 1rem;
     }
+    /* Below the table, Safari still draws the page, under its bottom bar
+       and the home bar: there it is the rail's paper, so the rail runs on
+       to the screen's edge (table-rail). */
+    html {
+      background: var(--paper);
+    }
   }
 </style>
 
