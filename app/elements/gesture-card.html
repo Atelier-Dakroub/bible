@@ -113,7 +113,7 @@
    *
    * @param {Element | null} target
    */
-  const ownPress = (target) => Boolean(target?.closest('button, label, input, [contenteditable]:not([contenteditable="false"])'));
+  const ownPress = (target) => Boolean(target?.closest('button, label, input, select, textarea, [contenteditable]:not([contenteditable="false"])'));
 
   /** @param {PointerEvent} event a mouse's other buttons do not move the card */
   const otherButton = (event) => event.pointerType === 'mouse' && event.button !== 0;
