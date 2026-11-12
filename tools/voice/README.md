@@ -1,8 +1,8 @@
 # The app's own reading voice
 
 A Bible version read aloud in a voice of our own, a file to a chapter, with the
-time each verse begins. The app plays it on a card's speaker (Tools, Table: Read
-by "The app's voice"); `app/data/audio.js` lists the recordings.
+time each verse begins. The app plays it on a card's speaker (Tools, Reading,
+Read aloud: Voice, "The app's voice"); `app/data/audio.js` lists the recordings.
 
 ## The voices
 

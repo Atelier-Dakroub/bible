@@ -61,12 +61,12 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
-Reading aloud: who reads is chosen in Tools, Table (Read by): the app's own
-voice (`tools/voice`: a plain male voice designed for the app and made with
-Qwen3-TTS, for the KJV and the BSB where its recording is made), LibriVox's
-reader of the KJV, or this device's own voice, which also reads whatever has
-no recording. The recordings a passage has are listed on its card, so a tap
-starts one at once.
+Reading aloud: who reads is chosen in Tools, Reading, Read aloud (Voice):
+The app's voice (`tools/voice`: a plain male voice designed for the app and
+made with Qwen3-TTS, for the KJV and the BSB where its recording is made),
+LibriVox (the KJV only), or This device, the device's own voice, which also
+reads whatever has no recording. The recordings a passage has are listed on
+its card, so a tap starts one at once.
 
 The speaker on a passage card is a mode. Pressed (lapis), the
 card reads aloud, verse by verse, marking the verse being read, and a tap on
@@ -76,12 +76,13 @@ there. Pressed again, the mode ends: the reading stops, and taps on the card
 do what they always do (a word's study, a verse's references). The card keeps
 its place, and the next time it goes on from that verse ("Listen from verse
 1:4"); a reading that ends leaves the mode and begins again next time. One
-card is in the mode at a time. Tools, Table sets the reading speed (Slower,
-Normal, 1.15×, 1.3×, 1.5×) for the recording, at the same pitch, and for the
-device's voice; each device keeps its own. The KJV plays
-LibriVox's recording of the whole KJV, read by Michael Armenta (public
-domain), from the card's first verse to its last (`app/data/audio.js`,
-`/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters).
+card is in the mode at a time. Tools, Reading, Read aloud (Speed) sets the
+reading speed (0.8×, 1×, 1.15×, 1.3×, 1.5×) for the recording, at the same
+pitch, and for the device's voice; each device keeps its own. LibriVox is
+the recording of the whole KJV, read by Michael Armenta (public domain); it
+plays from the card's first verse to its last (`app/data/audio.js`,
+`/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters, and
+`/audio/<voice>/<version>/GEN.1.m4a` for the app's voice).
 Where there is no recording, and for the other versions, the device's own
 voice reads (`app/lib/speech.js`): the KJV or the
 BSB in English, the Hebrew or the Greek in Original, Word by word and Syntax,
@@ -103,8 +104,8 @@ Highlights take two hands: hold a card still with one finger, then run a
 finger of the other hand over the words. A highlight is stored as a span of
 word addresses (`JHN.3.16.w2` to `JHN.3.16.w6`), apart from the text, so
 every card that holds those words shows it. A highlight has one of three
-styles: inverse, a double underline, or a box. The three buttons in Tools,
-Table pick the style of the next one. Marking the same span again
+styles: Filled, Underlined (a double line) or Boxed. Style, in Tools, Marks,
+New highlights, picks the style of the next one. Marking the same span again
 in the same style, or a tap on a highlighted word while you hold the card,
 removes it. Marking it in another style changes its style.
 
@@ -121,9 +122,12 @@ marked to the words you dropped them on.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked
 words become a card of their own, a phrase card. Note, on the rail, puts a
-note card on the table and opens the note editor; a tap on a note opens it
-again. Lift the marking finger on a note,
-and the note quotes the words. A quote is the text itself, by address: its
+note card on the table, and you write on the card itself; a tap on a note's
+text writes in it again, and a tap off the note or Escape stops the writing
+(`app/lib/note-editing.js`). A note has a title, a kind (Observation,
+Question, Interpretation, Application, Prayer), formatting, and references
+typed or found with @; the guide's Notes page (`/guide/notes`) tells all of it. Lift the
+marking finger on a note, and the note quotes the words. A quote is the text itself, by address: its
 words keep their addresses, so a dashed line joins the quote to the
 highlight it came from. A verse that a note quotes has a gray line down its
 left side on the other cards.
@@ -136,10 +140,11 @@ reference on the clipboard. A reference can cross a chapter, such as
 `Gen 1:1-2:3`.
 
 Workspaces and undo: Undo and Redo on the rail (or Command-Z and
-Shift-Command-Z) step through every change to the table but a pan. Tools,
-Workspace saves the table under a name, opens or deletes
-a saved table, start a new table, save the table to a JSON file, or open a
-file. Opening a table, or a new one, is one step that Undo takes back.
+Shift-Command-Z; Control on other computers) step through every change to
+the table but a pan. Tools, Saved saves the table under a name, opens or
+deletes a saved table, saves the table to a JSON file or its notes to a
+Markdown file, opens a file, or starts a new table. Opening a table, or a
+new one, is one step that Undo takes back.
 
 Word studies: tap a word on a card. The search panel shows its Hebrew or
 Greek word from Strong's dictionary, with the verses that use it, and every
@@ -175,7 +180,7 @@ history is Wikidata's conventional scholarly dating (the Kingdom of Israel
 930–720 BC, where Jones puts the division of the kingdom in 975 BC). They can
 disagree, and the strip shows where.
 
-The map: the Map button on the strip puts a map of the biblical world on the
+The map: the Map button on the rail puts a map of the biblical world on the
 table as a card, from Italy to Persia. Every place with coordinates is a dot
 (1,257 of them). The places that the cards on the table name are labelled,
 with a dashed line to each card that names them. A place's entry in the
@@ -239,11 +244,13 @@ Mouse, trackpad and keyboard: everything the hands do has another way.
 | --- | --- | --- | --- |
 | Pan the table | Drag the empty table | Drag the empty table, or scroll | Arrow keys (Shift: further) |
 | Move a card | Drag it | Drag it | Tab to it, then the arrow keys |
-| Scale a card | Pinch it | Pinch on the trackpad, or Control + wheel | `+` and `-` |
+| Scale a card | Pinch it | Pinch on the trackpad, or Control (or Command) + wheel | `+` and `-` |
 | Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari) | `[` and `]` |
 | Mark words | Hold the card, run a finger over them | Option + drag over them | — |
-| Remove a card | × | × | Delete |
-| Undo, Redo | Undo, Redo | Undo, Redo | Command-Z, Shift-Command-Z |
+| Remove a card | × | × | Delete or Backspace |
+| Undo, Redo | Undo, Redo | Undo, Redo | Command-Z, Shift-Command-Z (Control on other computers) |
+
+The guide's Keys and touch page (`/guide/keys-touch`) lists every key.
 
 Marking with the keyboard alone is not there yet.
 
@@ -295,24 +302,26 @@ Study tools:
 ```sh
 npm install
 npm run dev      # http://localhost:1960
-npm test         # the gesture math, the import parser and the KJV data
+npm test         # every test in test/
 npm run check    # types
-npm run verify   # the tests, the types and a build: the build compiles every template
+npm run verify   # the tests (with the CRAP check), the types and a build: the build compiles every template
 ```
 
 ## Layout
 
 | Path | What it holds |
 | --- | --- |
-| `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `touch.html` the touch test. |
-| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `table-rail`, `time-line`, `table-menu`, `note-editor`, `touch-keys`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `gesture.js`, `palm.js`, `reference.js`, `words.js`, `links.js`, `timeline.js`, `map.js`, `grammar.js`, `citations.js`, `workspace.js`, `history.js`, `snap.js`, `rules.js`, `compare.js`, `apca.js`, `pointer-log.js`. |
+| `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `guide/` the guide's Markdown pages, `credits.html` the sources, `design.html` the design system, `touch.html` the touch test. |
+| `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `table-rail`, `time-line`, `table-menu`, `note-editor` (the dock of the on-screen keyboard while a note is written), `touch-keys`, `video-player`, `svg-icon`, and for the touch test `touch-probe` and `calibration-target`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `apca.js`, `chrome.js`, `citations.js`, `compare.js`, `gesture.js`, `grammar.js`, `history.js`, `keyboard.js`, `lemma.js`, `links.js`, `map.js`, `markdown.js`, `motion.js`, the notes' `note-*.js`, `palm.js`, `pointer-log.js`, `reference.js`, `rules.js`, `screen.js`, `snap.js`, `spatial.js`, `speech.js`, `syllables.js`, `timeline.js`, `trail.js`, `words.js`, `workspace.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-map.js`, `import-coast.js` and `import-relief.js`. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js`, `import-videos.js` and `import-audio.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`) and the app's voice (`voice/`). |
+| `app/data/audio/` | The time each verse begins in each recording. |
+| `app/data/videos.json` | The videos and the passages each one shows. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |
 | `app/data/bsb/` | The Berean Standard Bible, one JSON file per book, for the parallel view. |
@@ -323,10 +332,10 @@ npm run verify   # the tests, the types and a build: the build compiles every te
 
 ## Colors
 
-A wireframe for now: black boxes with thin gray lines, white text, and red only
-for the words of Christ. No rounded corners, shadows, fills or texture. Each
-text color is checked with APCA on black: white Lc 108, gray Lc 76, red Lc 76.
-`app/styles/global.css` lists the values and the rule for changing them.
+The colors are the reading room's: warm paper, ink, and one manuscript
+pigment for each kind of thing (see "The reading room" below).
+`app/styles/reading-room.css` holds the values, and `test/design.test.js`
+checks each one with APCA.
 
 ## The kings' chronologies
 
@@ -425,9 +434,26 @@ and writes `app/data/images.json`. It stops at a bot check rather than try
 to get past one: both sources put one up after many quick requests while
 the picks were chosen, so more can be added later, a few at a time.
 
+## Videos
+
+Three series: JESUS (1979), scene by scene, from the Jesus Film Project;
+BibleProject's overview of each book; and The Chosen, seasons 1 to 5,
+episode by episode. A passage's guide, and a search for a reference, list
+the videos of that passage; a tap puts one on the table as a card. JESUS
+and BibleProject play on the card in the app's own player
+(`app/elements/video-player.html`), which fetches nothing from the source
+until Play. The Chosen cannot play inside another site, so its card opens
+the episode on The Chosen's own site. The guide's Listen and watch page (`/guide/listen-watch`)
+tells how to use them.
+
+Nothing is downloaded. The picks, chosen by hand with the passages of each,
+are in `tools/videos.json`; `node tools/import-videos.js` finds each video
+and writes `app/data/videos.json`.
+
 ## The original languages
 
-A passage card has two more versions beside KJV, BSB and Both:
+A passage card has more versions beside KJV, BSB and Both (Syntax is under
+"Syntax" below):
 
 - **Original:** the Hebrew (with the Aramaic of Daniel and Ezra), right to
   left, or the Greek, as running text.
@@ -623,9 +649,9 @@ Tools, Reading has the reader's settings
 (`reading-settings`), as `/design` does. They are tiles that show what they
 do: each theme and paper in its own colors, five letters for the text sizes,
 drawn lines for the spacing and the layout, and a sample of each thing the
-text shows. A tap outside the docked Tools panel, or outside the note editor,
-closes it (a resting palm does not), and so does Escape. The settings are: Day, Night, or as
-the computer is,
+text shows. A tap outside the docked Tools panel closes it (a resting palm
+does not), and so does Escape. The settings are: Day, Night, or as the
+computer is,
 Bright, Soft or Lamp paper for a dim room, five text sizes, line spacing,
 and red letters, verse numbers, initials and paragraphs on or off. The
 browser keeps them.
@@ -662,7 +688,6 @@ color, form-factor-adaptation, navigation-drawer, html):
 - On a touch screen a timeline tick takes the axis's height, a tap between
   ticks takes the nearest, and a world span is at least 24px wide.
 - Heights use the small viewport (`svh`), clear of a phone's toolbars.
-- The note editor gives the focus back to its note's card when it closes.
 - The recording shows on a phone's lock screen, whose Play and Pause pause
   and go on (Media Session).
 
@@ -698,11 +723,11 @@ knows a screen's size in CSS pixels, not in inches, so the kind is a guess:
 
 | Screen | The rem |
 | --- | --- |
-| a phone: narrower than 600 CSS pixels | 16px |
+| a phone: its shorter side under 600 CSS pixels | 16px |
 | 2560 or more across: a 4K panel or wall at one device pixel to the CSS pixel | 24px, for arm's length |
 | a laptop, a desktop or a tablet | 18px |
 
-Interface, in the Reading sheet, makes the whole interface smaller or larger
+Interface, in Tools, Table, makes the whole interface smaller or larger
 on this device: S, M (the guess), L, XL, and Far, twice M, for a wall seen
 from across the room (not offered on a phone). However large the setting, a
 rem is at most a 22nd of the window's shorter side, so the panels and the
@@ -718,16 +743,16 @@ the middle. Enter on a card opens its guide, as a tap on its heading does;
 on the map, Enter steps into it, the arrow keys and + and − move it, and
 Escape steps back out. In the other sizes the arrow keys move a card.
 
-The panels slide a little way as they open and close, and a menu sheet as
-it opens (`app/lib/motion.js`): only translate and opacity, which the
+The panels slide a little way as they open, and the search panel and the
+timeline as they close (`app/lib/motion.js`): only translate and opacity, which the
 browser moves as a picture, and none for a reader who asks for less
 motion.
 
 On a phone (narrower than 700 pixels, or shorter than 500 on its side) the
-panels are sheets the width of the screen, and one is open at a time:
-Search at the top, and Timeline and Menu in a row at the bottom, where a
-thumb reaches. Menu opens the bar's buttons, and a sheet opens above them.
-The timeline starts closed; open, its strip moves sideways under a finger.
+rail is along the bottom, where a thumb reaches, with icons only. The
+panels are sheets the width of the screen above it, and one is open at a
+time; the search panel, with its results, fills the screen above the rail.
+A panel cannot float. The timeline starts closed; open, its strip moves sideways under a finger.
 A card from the search panel goes on the table at the width of the screen,
 and the panel steps aside so the card shows. A field's text is 16px, so the
 phone does not zoom in on it. The table takes every touch (`touch-action:
@@ -939,6 +964,7 @@ the table shows.
 | `cross_references` | a verse's cross-references, best first |
 | `quotations` | the Old Testament a New Testament verse quotes, or where an Old Testament verse is quoted |
 | `journeys` | a person's journeys, with every proposed route and the verse of each stop |
+| `topic` | a topic of Nave's Topical Bible, or the topics that cite a passage |
 | `passage_guide` | a passage's parallels, quotations, cross-references, and what it names |
 
 Its table tools act on the tables that are open in a browser, through a
