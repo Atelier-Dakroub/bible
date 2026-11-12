@@ -1674,10 +1674,10 @@ gesture-card[data-zoom='far'] .note__text {
   background: color-mix(in srgb, var(--paper) 92%, transparent);
   box-shadow: 0 1px 3px var(--shade-near);
 }
-/* A finger needs more, as the zoom buttons do. */
+/* A finger needs more: the height of the zoom buttons. */
 @media (pointer: coarse) {
   .map__show {
-    --select-height: 2.75rem;
+    --select-height: 2rem;
   }
 }
 
@@ -1939,16 +1939,24 @@ gesture-card[data-zoom='far'] .note__text {
   gap: 0.25rem;
 }
 .map__zoom button {
+  position: relative;
   min-width: 2rem;
   /* At least 24 px each way, the least a finger or a pointer needs. */
   min-height: 24px;
+  padding: 0 0.5rem;
   box-shadow: 0 1px 3px var(--shade-near);
 }
-/* A finger needs more: 44 px, as the video's and the timeline's controls. */
+/* A finger needs more, but the map needs its room: the buttons are a
+   little larger, and each one's target reaches past its box above and
+   below, to about 44 px. */
 @media (pointer: coarse) {
   .map__zoom button {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-height: 2rem;
+  }
+  .map__zoom button::before {
+    content: '';
+    position: absolute;
+    inset: -0.375rem 0;
   }
 }
 /* A disabled button on the map stays opaque, so the map does not show
