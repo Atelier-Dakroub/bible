@@ -1946,17 +1946,20 @@ gesture-card[data-zoom='far'] .note__text {
   padding: 0 0.5rem;
   box-shadow: 0 1px 3px var(--shade-near);
 }
-/* A finger needs more, but the map needs its room: the buttons are a
-   little larger, and each one's target reaches past its box above and
-   below, to about 44 px. */
+/* A finger needs 44 px, but the map needs its room: the buttons are a
+   little larger, and each one's target reaches 0.375rem past its box on
+   every side. The gap is twice that, so no two targets meet. */
 @media (pointer: coarse) {
+  .map__zoom {
+    gap: 0.75rem;
+  }
   .map__zoom button {
     min-height: 2rem;
   }
   .map__zoom button::before {
     content: '';
     position: absolute;
-    inset: -0.375rem 0;
+    inset: -0.375rem;
   }
 }
 /* A disabled button on the map stays opaque, so the map does not show

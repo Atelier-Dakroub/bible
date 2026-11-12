@@ -439,9 +439,14 @@
     padding: 0 0.75rem;
     font: var(--control-font);
   }
-  /* The same height as the World button beside it. */
+  /* The same height as the World button beside it, and the width of the
+     longest choice ("Kings: Albright"), so the bar does not move when the
+     choice changes. */
   .timeline__kings {
     --select-height: 2.2rem;
+  }
+  .timeline__kings > select {
+    min-inline-size: 10em;
   }
   /* A reign at a modern chronology's date: lapis, so it shows which moved. */
   .timeline__tick.is-alt::before {
