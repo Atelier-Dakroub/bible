@@ -8,7 +8,7 @@ test('every video has a source to play and passages that parse', () => {
     const playable =
       play.kind === 'stream' ? /^https:\/\/stream\.mux\.com\/\w+\.m3u8$/.test(play.url)
       : play.kind === 'youtube' ? /^[\w-]{11}$/.test(play.id)
-      : /^https:\/\/watch\.thechosen\.tv\/episode\/season-[1-5]-episode-\d-[\w-]+$/.test(video.link);
+      : /^https:\/\/watch\.thechosen\.tv\/video\/\d+$/.test(video.link);
     assert.ok(playable, video.id);
     assert.ok(videoById(video.id)?.shows.length, `${video.id} shows no passage`);
   }
