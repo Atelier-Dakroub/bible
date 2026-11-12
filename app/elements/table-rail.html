@@ -831,14 +831,15 @@
     border-top: 0;
     border-left: 1px solid var(--line);
   }
+  /* At least 24px after the S size's zoom (0.8). */
   .rail__grip {
-    min-height: 1.6rem;
+    min-height: max(1.6rem, calc(1.5rem / var(--chrome-zoom, 1)));
     color: var(--muted);
     cursor: grab;
     touch-action: none;
   }
   :scope:is([data-edge='top'], [data-edge='bottom']) .rail__grip {
-    min-width: 1.6rem;
+    min-width: max(1.6rem, calc(1.5rem / var(--chrome-zoom, 1)));
   }
   /* A panel dragged over the rail would dock: the rail says so. */
   :scope:state(docking) {

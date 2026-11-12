@@ -2404,7 +2404,8 @@ gesture-card[data-zoom='far'] .landscape__summary {
   font-size: 1.1rem;
 }
 .panel__grip {
-  min-width: 1.6rem;
+  /* At least 24px wide after the S size's zoom (0.8). */
+  min-width: max(1.6rem, calc(1.5rem / var(--chrome-zoom, 1)));
   color: var(--muted);
   cursor: grab;
   touch-action: none;
