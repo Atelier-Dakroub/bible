@@ -36,6 +36,21 @@ test('the history keeps only so many steps', () => {
   assert.equal(history.undo(), null);
 });
 
+test('the history keeps fewer steps of a large table, but always one', () => {
+  const history = createHistory(100, 10);
+  history.reset('aaaa');
+  for (const step of ['bbbb', 'cccc', 'dddd', 'eeee']) history.record(step);
+  assert.equal(history.undo(), 'dddd');
+  assert.equal(history.undo(), 'cccc');
+  assert.equal(history.undo(), null, 'two steps of 4 fit in 10 characters, not three');
+  const big = createHistory(100, 10);
+  big.reset('x'.repeat(50));
+  big.record('y'.repeat(50));
+  big.record('z'.repeat(50));
+  assert.equal(big.undo(), 'y'.repeat(50), 'one step back stays, larger than the budget');
+  assert.equal(big.undo(), null);
+});
+
 test('a snapshot leaves out the pan and the order the cards arrived in', () => {
   const one = { ...empty(), offset: { x: 5, y: 5 }, cards: [{ id: 'b', address: 'JHN.3', matrix }, { id: 'a', address: 'GEN.1', matrix }] };
   const two = { ...empty(), cards: [{ id: 'a', address: 'GEN.1', matrix }, { id: 'b', address: 'JHN.3', matrix }] };
