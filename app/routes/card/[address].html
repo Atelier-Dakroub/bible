@@ -52,17 +52,18 @@
    *   shade: Box, levant: Box, levantClip: Box,
    *   source: Awaited<ReturnType<typeof original>> | null,
    *   reversed: import('../../data/bible.js').ReverseVerse[],
+   *   syntax: Awaited<ReturnType<typeof syntaxOf>> | null,
    *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[], listen: string,
    *   video: import('../../data/videos.js').VideoView | null
    * }} Card
    */
 
+  /** A box on the map, for the cards that have no map. */
+  const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
   /**
    * @param {Partial<Card> & { kind: string, address: string, version: string, title: string }} fields
    * @returns {Card}
    */
-  /** A box on the map, for the cards that have no map. */
-  const NO_BOX = { x: 0, y: 0, w: 0, h: 0 };
   const card = (fields) => ({ verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', video: null, ...fields });
 
   const IMAGE = /^image:([\w-]{1,60})$/;
@@ -491,7 +492,7 @@
         <ol class="inter__words">
           <li each="word of verse.words" class="inter__word ${word.tr ? 'orig--tr' : ''}" data-orig-s="${word.s}">
             <span class="inter__text">${word.text}</span>
-            <span class="inter__translit" lang="en" dir="ltr" title="Say it"><span each="syl of word.sylls" class="syl ${syl.stress ? 'syl--stress' : ''}">${syl.text}</span></span>
+            <span class="inter__translit" lang="en" dir="ltr" title="Say it"><span each="syl of word.sylls ?? []" class="syl ${syl.stress ? 'syl--stress' : ''}">${syl.text}</span></span>
             <span class="inter__gloss" lang="en" dir="ltr">${word.gloss}</span>
             <span class="inter__grammar" lang="en" dir="ltr" data-grammar="${word.search}" title="Find every word in this form">${word.grammar}</span>
             <span class="inter__code" lang="en" dir="ltr">${word.s}${word.tr ? ' · TR only' : ''}</span>

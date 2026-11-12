@@ -64,6 +64,9 @@ export function multiply(m, n) {
 }
 
 /**
+ * Where `m` sends a point. The app gives its matrices to CSS; the tests use
+ * this to check where a matrix sends a point.
+ *
  * @param {Matrix} m
  * @param {Point} p
  * @returns {Point}
@@ -108,7 +111,8 @@ export function similarity(p1, p2, q1, q2) {
 }
 
 /**
- * The matrix that undoes `m`: a point on the screen back to the card.
+ * The matrix that undoes `m`: a point on the screen back to the card. The
+ * tests use it, to check that a gesture keeps a point under its finger.
  *
  * @param {Matrix} m
  * @returns {Matrix}

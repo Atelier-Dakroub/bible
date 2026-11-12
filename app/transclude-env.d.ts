@@ -524,6 +524,180 @@ type EventMark = {
   title: string;
   label: string;
 };
+type PlainBlock = {
+  style: string;
+  text: string;
+  numbered: boolean;
+  parts: {
+    text: string;
+    d: boolean;
+  }[];
+};
+type BaseMap = {
+  width: number;
+  height: number;
+  land: string[];
+  lakes: string[];
+  rivers: string[];
+  coast: {
+    land: string;
+    lakes: string;
+    sea: string;
+  };
+  relief: {
+    far: {
+      n: number;
+      d: string;
+    }[];
+    shades: Record<string, {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }>;
+  };
+  places: {
+    id: string;
+    name: string;
+    x: string;
+    y: string;
+    verses: number;
+    peak: boolean;
+    water: boolean;
+  }[];
+  ranges: {
+    name: string;
+    scale: string;
+    angle: number;
+    x: string;
+    y: string;
+  }[];
+  waters: {
+    name: string;
+    bible: string;
+    place: string | null;
+    angle: number;
+    from: number;
+    to: number;
+    small: boolean;
+    x: string;
+    y: string;
+  }[];
+  ancient: {
+    layers: {
+      id: string;
+      name: string;
+      when: string;
+      kind: string;
+      d: string;
+    }[];
+    shores: {
+      id: string;
+      name: string;
+      when: string;
+      d: string;
+    }[];
+  };
+};
+type MapDetail = {
+  coast: {
+    land: string;
+    lakes: string;
+    sea: string;
+  };
+  bands: {
+    n: number;
+    d: string;
+  }[];
+  levant: {
+    n: number;
+    d: string;
+  }[];
+  rivers: {
+    kind: string;
+    d: string;
+  }[];
+};
+type Landscape = {
+  title: string;
+  summary: string;
+  subject: string;
+  mode: string;
+  width: number;
+  height: number;
+  groups: Group[];
+  credit: string;
+};
+type Group = {
+  label: string;
+  y: number;
+  rows: Row[];
+};
+type Row = {
+  name: string;
+  y: number;
+  cells: Cell[];
+  marks: Mark[];
+  end: number;
+  total: string;
+};
+type Cell = {
+  address: string;
+  title: string;
+  x: number;
+  w: number;
+};
+type Mark = {
+  x: number;
+  y: number;
+  size: number;
+};
+type Box_4 = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+type OriginalVerse = {
+  id: string;
+  label: string;
+  words: OriginalWord[];
+};
+type OriginalWord = {
+  text: string;
+  translit: string;
+  gloss: string;
+  s: string;
+  code: string;
+  grammar: string;
+  search: string;
+  tr: boolean;
+  sylls?: Syllable[] | undefined;
+};
+type Syllable = {
+  text: string;
+  stress: boolean;
+};
+type ReverseVerse = {
+  id: string;
+  label: string;
+  groups: ReverseGroup[];
+};
+type ReverseGroup = {
+  en: string;
+  orig: OriginalWord | null;
+};
+type Row_2 = {
+  depth: number;
+  label: string;
+  parts: RowPart[];
+};
+type RowPart = {
+  role: string;
+  label: string;
+  text: string;
+  gloss: string;
+};
 
 /** Properties of `<bible-table>`, from its <script element> block. */
 export type BibleTableProps = {};
@@ -2607,7 +2781,54 @@ export type CardAddressContext = {
 
 /** Data returned by `card-_address`'s <script server> block. */
 export type CardAddressData = {
-  [x: string]: any;
+  kind: string;
+  address: string;
+  version: string;
+  title: string;
+  verses: WordVerse[];
+  rows: {
+    verse: WordVerse;
+    bsb: PlainBlock[];
+  }[];
+  opening: string;
+  count: string;
+  entity: EntityView | null;
+  map: BaseMap | null;
+  detail: MapDetail | null;
+  note: string;
+  back: string;
+  next: string;
+  quotes: {
+    title: string;
+    address: string;
+    verses: WordVerse[];
+  }[];
+  landscape: Landscape | null;
+  shade: Box_4;
+  levant: Box_4;
+  levantClip: Box_4;
+  source: {
+    title: string;
+    language: 'greek' | 'hebrew';
+    verses: OriginalVerse[];
+  } | null;
+  reversed: ReverseVerse[];
+  syntax: {
+    language: string;
+    lang: string;
+    dir: string;
+    sentences: {
+      label: string;
+      rows: Row_2[];
+    }[];
+  } | null;
+  image: Image | null;
+  shows: {
+    id: string;
+    name: string;
+  }[];
+  listen: string;
+  video: VideoView | null;
 };
 
 /** The `ctx` argument of `404`'s <script server> loader. */
