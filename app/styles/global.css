@@ -187,6 +187,109 @@ body {
   }
 }
 
+/* A choice from a list: a select in a .select, with the app's up and down
+   arrows (svg-icon "updown") over its end. It has a field's edge and a
+   button's height, padding and type; a part sets --select-height,
+   --select-padding and --select-font to match the controls beside it.
+
+     <span class="select"><select …>…</select><svg-icon library="ui"
+     name="updown" class="select__icon"></svg-icon></span>
+
+   Where the browser can style the open list (appearance: base-select), it
+   is paper with a thin edge, as the panels are; elsewhere the list is the
+   system's. */
+.select {
+  --select-padding-now: var(--select-padding, 0.75rem);
+  position: relative;
+  display: inline-grid;
+  align-items: center;
+  min-width: 0;
+  font: var(--select-font, var(--control-font));
+}
+.select > select {
+  grid-area: 1 / 1;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--select-height, var(--control-height));
+  margin: 0;
+  padding-block: 0;
+  padding-inline: var(--select-padding-now) calc(var(--select-padding-now) + 1.35em);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.select__icon {
+  grid-area: 1 / 1;
+  justify-self: end;
+  margin-inline-end: calc(var(--select-padding-now) - 0.15em);
+  color: var(--ink-soft);
+  font-size: 1.1em;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .select > select:hover {
+    background: var(--tint);
+  }
+}
+.select > select:disabled {
+  color: color-mix(in srgb, var(--ink-soft) 55%, var(--paper));
+  cursor: default;
+}
+@supports (appearance: base-select) {
+  .select > select,
+  .select > select::picker(select) {
+    appearance: base-select;
+  }
+  /* The words in the middle of the height, as a button's are. */
+  .select > select {
+    align-items: center;
+  }
+  /* The app's arrows show, not the browser's. */
+  .select > select::picker-icon {
+    display: none;
+  }
+  .select > select::picker(select) {
+    margin-block: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-small);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 6px 24px var(--shade-far);
+    font: inherit;
+  }
+  .select option {
+    gap: 0.5rem;
+    min-height: max(var(--select-height, var(--control-height)), 24px);
+    padding: 0 0.6rem;
+    border-radius: var(--radius-small);
+  }
+  .select option:is(:hover, :focus-visible) {
+    background: var(--tint);
+  }
+  .select option:checked {
+    font-weight: 600;
+  }
+  .select option::checkmark {
+    color: var(--lapis);
+  }
+  .select optgroup {
+    padding-block-start: 0.35rem;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .select optgroup option {
+    color: var(--ink);
+    font-weight: 500;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1558,18 +1661,24 @@ gesture-card[data-zoom='far'] .note__text {
 /* The Show choice, in the frame's end corner, across from the scale bar
    at its start. Narrow enough that the two do not meet. */
 .map__show {
+  --select-height: 24px;
+  --select-padding: 0.45rem;
+  --select-font: 500 max(0.6rem, 11px) / 1.3 var(--sans);
   position: absolute;
   inset-block-end: 0.5rem;
   inset-inline-end: 0.5rem;
   max-width: min(14rem, calc(100% - 10rem));
-  min-height: 24px;
-  padding: 0.15rem 0.4rem;
-  border: 1px solid var(--edge);
-  border-radius: var(--radius-small);
+}
+.map__show > select {
+  border-color: var(--edge);
   background: color-mix(in srgb, var(--paper) 92%, transparent);
-  color: var(--ink);
-  font: max(0.6rem, 11px) var(--sans);
   box-shadow: 0 1px 3px var(--shade-near);
+}
+/* A finger needs more, as the zoom buttons do. */
+@media (pointer: coarse) {
+  .map__show {
+    --select-height: 2.75rem;
+  }
 }
 
 /* A place far from being named: no dot (map-view). */

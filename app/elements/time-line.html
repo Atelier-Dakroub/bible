@@ -434,17 +434,14 @@
   .timeline__bar [data-action='about'] {
     margin-left: auto;
   }
-  .timeline__toggle,
-  .timeline__kings {
+  .timeline__toggle {
     min-height: 2.2rem;
     padding: 0 0.75rem;
     font: var(--control-font);
   }
+  /* The same height as the World button beside it. */
   .timeline__kings {
-    border: 1px solid var(--field-edge);
-    border-radius: var(--radius-small);
-    background: var(--paper);
-    color: var(--ink);
+    --select-height: 2.2rem;
   }
   /* A reign at a modern chronology's date: lapis, so it shows which moved. */
   .timeline__tick.is-alt::before {
@@ -636,13 +633,13 @@
     aria-pressed="${world ? 'true' : 'false'}"
     title="World history under the events"
   >World</button>
-  <select class="timeline__kings" data-action="kings" aria-label="Whose dates the kings' reigns have">
+  <span class="select timeline__kings"><select data-action="kings" aria-label="Whose dates the kings' reigns have">
     <option value="jones" selected="${kings === 'jones'}">Kings: Jones</option>
     <option value="thiele" selected="${kings === 'thiele'}">Kings: Thiele</option>
     <option value="galil" selected="${kings === 'galil'}">Kings: Galil</option>
     <option value="albright" selected="${kings === 'albright'}">Kings: Albright</option>
     <option value="kitchen" selected="${kings === 'kitchen'}">Kings: Kitchen</option>
-  </select>
+  </select><svg-icon library="ui" name="updown" class="select__icon"></svg-icon></span>
   <button type="button" class="panel__button" data-action="about" aria-expanded="${about ? 'true' : 'false'}" aria-label="About the dates" title="About the dates"><svg-icon library="ui" name="info"></svg-icon></button>
   <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="timeline" aria-pressed="false" aria-label="Float the timeline" title="Float: off the rail, where it stays"><svg-icon library="ui" name="float"></svg-icon></button>
   <button type="button" class="panel__button" data-chrome="close" data-panel="timeline" aria-label="Close the timeline" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>

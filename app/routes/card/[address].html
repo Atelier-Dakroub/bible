@@ -319,7 +319,7 @@
             </g>
           </g>
         </svg>
-        <select class="map__show" data-map="ancient" aria-label="Show on the map">
+        <span class="select map__show"><select data-map="ancient" aria-label="Show on the map">
           <option value="">Today's map</option>
           <optgroup label="Empires and kingdoms">
             <option each="layer of map ? map.ancient.layers : []" value="${layer.id}">${layer.name}, ${layer.when}</option>
@@ -327,7 +327,7 @@
           <optgroup label="Shores of an age">
             <option each="shore of map ? map.ancient.shores : []" value="${shore.id}">${shore.name}, ${shore.when}</option>
           </optgroup>
-        </select>
+        </select><svg-icon library="ui" name="updown" class="select__icon"></svg-icon></span>
         <div class="map__zoom" role="group" aria-label="Zoom the map">
           <button type="button" data-map="in" aria-label="Zoom in">+</button>
           <button type="button" data-map="out" aria-label="Zoom out" disabled>−</button>

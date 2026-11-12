@@ -1089,11 +1089,12 @@
      MARGIN of the frame on each side (the script), and moves as a picture
      about its corner. It is always a layer of its own, so the browser draws
      the margin while nothing moves, and moves the picture without drawing
-     it again. */
+     it again. Only the map's two layers: an icon in the frame keeps its
+     own size. */
   :scope {
     aspect-ratio: 1600 / 978;
   }
-  svg:not(.map__probe) {
+  .map__svg {
     position: absolute;
     top: -50%;
     left: -50%;
