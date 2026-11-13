@@ -669,6 +669,8 @@
   }
   .tools__section {
     display: grid;
+    /* Rows at their own height: no row stretches when the box is taller. */
+    align-content: start;
     gap: 1.1rem;
     padding: 0.9rem var(--bar-padding) 1.2rem;
   }
@@ -678,6 +680,7 @@
   /* A part of a tab: a heading over its controls, set off by a rule. */
   .tools__part {
     display: grid;
+    align-content: start;
     gap: 0.75rem;
     margin: 0;
     padding: 1rem 0 0;
@@ -798,6 +801,7 @@
   .tools__switch {
     display: grid;
     grid-template-columns: 1fr auto;
+    align-content: start;
     align-items: center;
     gap: 0.2rem 1rem;
     min-height: var(--control-height);
