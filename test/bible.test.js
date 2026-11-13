@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { entityResults, parallel, passage, worldResults, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
+import { bsbPreview, entityResults, parallel, passage, phrase, worldResults, plainText, preview, referenceResults, referencesIn, search, wordResults } from '../app/data/bible.js';
 import { eastonFor, formatYear, mapOf, timeline } from '../app/data/entities.js';
 import { HEIGHT, WIDTH, project } from '../app/lib/map.js';
 import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
@@ -357,11 +357,26 @@ test('the BSB words have addresses of their own, and a span stays in one transla
   assert.deepEqual(list, []);
   // A drag from one translation into the other changes nothing.
   assert.deepEqual(toggle([], 'JHN.3.16.w2', 'JHN.3.16.b4'), []);
-  // A card of words, a quote and a word study read the KJV: a BSB span is not one.
-  assert.equal(parseSpanAddress('JHN.3.16.b1-JHN.3.16.b4'), null);
+  // A span address stays in one translation.
+  assert.deepEqual(parseSpanAddress('JHN.3.16.b1-JHN.3.16.b4'), { from: 'JHN.3.16.b1', to: 'JHN.3.16.b4' });
+  assert.equal(parseSpanAddress('JHN.3.16.w1-JHN.3.16.b4'), null);
   assert.deepEqual(parseSpanAddress('JHN.3.16.w1-JHN.3.16.w4'), { from: 'JHN.3.16.w1', to: 'JHN.3.16.w4' });
   // A word's data-w is its number in the KJV, b and its number in the BSB.
   assert.equal(wordAddress({ ref: 'JHN.3.16' }, { w: '3' }), 'JHN.3.16.w3');
   assert.equal(wordAddress({ ref: 'JHN.3.16' }, { w: 'b3' }), 'JHN.3.16.b3');
   assert.equal(wordAddress({ bsbRef: 'JHN.3.16' }, { w: 'b3' }), 'JHN.3.16.b3');
+});
+
+test('a span of the BSB gives its own words, as the BSB card draws them', async () => {
+  const found = await phrase({ from: 'JHN.3.16.b2', to: 'JHN.3.16.b6' });
+  assert.equal(found?.title, 'John 3:16, BSB');
+  assert.deepEqual(found?.verses, []);
+  const words = found?.rows[0].bsb.flatMap((block) => block.tokens).filter((token) => token.w).map((token) => token.text.trim());
+  assert.deepEqual(words, ['God', 'so', 'loved', 'the', 'world']);
+  assert.equal(found?.rows[0].bsb[0].numbered, false, 'a verse cut at its start loses its number');
+  assert.equal(bsbPreview(found?.rows ?? []), 'God so loved the world');
+  // Across two verses: the first from its word, the second to its word.
+  const two = await phrase({ from: 'JHN.3.16.b30', to: 'JHN.3.17.b3' });
+  assert.equal(two?.rows.length, 2);
+  assert.equal(two?.rows[1].bsb[0].numbered, true);
 });

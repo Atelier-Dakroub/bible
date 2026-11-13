@@ -39,7 +39,7 @@ Some notes on the versions:
 - In **Reverse**, English in a softer ink has no word of the original of its own. It is part of a word (such as "in the"), or the translators supplied it.
 - In **Syntax**, each clause is on a row of its own, and each part is a box with its role. A clause inside another clause is indented under it. The Greek of this version is a different edition (Nestle 1904), and the card says so.
 
-Highlights and links work on the words of the KJV and of the BSB. The marks on every card, word studies, quotes in a note and cards of words work on the KJV only.
+Highlights, links, quotes in a note and cards of words work on the words of the KJV and of the BSB. The marks on every card and word studies work on the KJV only.
 
 ### Step through the text
 

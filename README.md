@@ -232,9 +232,9 @@ the Arabian Sea is inside its frame.
 
 Two translations: each passage card has KJV, BSB and Both buttons. Both puts
 the Berean Standard Bible beside the KJV, verse by verse, and marks the 16
-verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights and
-links work on the words of both (a BSB word is addressed apart, as
-`JHN.3.16.b3`); word studies, quotes in notes and cards of words read the KJV.
+verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
+links, quotes in notes and cards of words work on the words of both (a BSB
+word is addressed apart, as `JHN.3.16.b3`); word studies read the KJV.
 
 Cards zoom semantically: below about half size, a card shows its short form
 (heading, opening words, verse count), and a passage longer than 24 verses

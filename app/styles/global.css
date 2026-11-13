@@ -694,13 +694,13 @@ gesture-card[data-zoom='far'] .passage__versions {
 }
 
 /* A verse that a note quotes: a line down its left side. */
-kjv-verse.is-quoted {
+:is(kjv-verse, .bsb-verse).is-quoted {
   margin-left: -0.75rem;
   padding-left: calc(0.75rem - 2px);
   border-left: 2px solid var(--ochre);
 }
 /* In running paragraphs, a quoted verse has a faint ochre ground instead. */
-:root:not([data-layout='verses']) .passage__text kjv-verse.is-quoted {
+:root:not([data-layout='verses']) .passage__text :is(kjv-verse, .bsb-verse).is-quoted {
   margin: 0;
   padding: 0;
   border: 0;

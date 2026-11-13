@@ -1,5 +1,5 @@
 <script server>
-  import { books, entityView, original, parallel, phrase, preview, reverse, verseCount } from '../../data/bible.js';
+  import { books, bsbPreview, entityView, original, parallel, phrase, preview, reverse, verseCount } from '../../data/bible.js';
   import { syntaxOf } from '../../data/syntax.js';
   import { entities, eventMarks, mapDetail, mapOf } from '../../data/entities.js';
   import { imageById } from '../../data/images.js';
@@ -47,7 +47,7 @@
    *   map: Awaited<ReturnType<typeof mapOf>> | null,
    *   detail: Awaited<ReturnType<typeof mapDetail>> | null,
    *   note: string, back: string, next: string,
-   *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[] }[],
+   *   quotes: { title: string, address: string, verses: import('../../data/bible.js').WordVerse[], rows: import('../../data/bible.js').Row[] }[],
    *   landscape: import('../../data/study.js').Landscape | null,
    *   shade: Box, levant: Box, levantClip: Box,
    *   source: Awaited<ReturnType<typeof original>> | null,
@@ -149,7 +149,9 @@
     const range = parseSpanAddress(address);
     const found = range ? await phrase(range) : null;
     if (!found) return missing('No words have that address.');
-    return card({ kind: 'phrase', address, version, title: found.title, verses: found.verses, opening: preview(found.verses) });
+    // A phrase of the BSB reads and copies as the BSB does.
+    const bsb = found.rows.length > 0;
+    return card({ kind: 'phrase', address, version: bsb ? 'bsb' : version, title: found.title, verses: found.verses, rows: found.rows, opening: bsb ? bsbPreview(found.rows) : preview(found.verses) });
   }
 
   /**
@@ -454,6 +456,9 @@
         </p>
         <div class="note__words">
           <kjv-verse each="verse of quote.verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+          <div each="row of quote.rows" class="bsb-verse" data-ref="${row.verse.id}">
+            <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
+          </div>
         </div>
       </section>
       <p if="!quotes.length" class="note__hint">To quote words here, mark them on a card with two hands and drag them onto this note.</p>
@@ -461,6 +466,9 @@
     <!-- A phrase: only the words of the span, which keep their addresses. -->
     <div if="kind === 'phrase'" class="passage__text">
       <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
+      <div each="row of rows" class="bsb-verse" data-ref="${row.verse.id}">
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
+      </div>
     </div>
     <!-- The KJV alone: its words have addresses, so highlights and links show. -->
     <div if="kind === 'passage' && version === 'kjv'" class="passage__text">

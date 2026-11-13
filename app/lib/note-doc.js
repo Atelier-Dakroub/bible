@@ -230,7 +230,8 @@ export function quotesIn(doc) {
 }
 
 const PASSAGE = /^([1-3A-Z]{3})\.(\d{1,3})\.(\d{1,3})(?:-(?:(\d{1,3})\.)?(\d{1,3}))?$/;
-const WORDS = /^([1-3A-Z]{3})\.(\d{1,3})\.(\d{1,3})\.w\d+-[1-3A-Z]{3}\.(\d{1,3})\.(\d{1,3})\.w\d+$/;
+// A span of words, of the KJV (w) or the BSB (b).
+const WORDS = /^([1-3A-Z]{3})\.(\d{1,3})\.(\d{1,3})\.[wb]\d+-[1-3A-Z]{3}\.(\d{1,3})\.(\d{1,3})\.[wb]\d+$/;
 
 /**
  * The span of a reference to verses, whole verses (JHN.3.16-18 to

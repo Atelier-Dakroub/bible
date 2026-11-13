@@ -96,16 +96,15 @@ export function spanAddress(range) {
 
 /**
  * The span a span address names, in reading order, or null. Both ends must be
- * in the same book, and in the KJV: a card of words, a quote in a note and a
- * word study read the KJV's words.
+ * in the same book, and in the same translation.
  *
  * @param {string} address
  * @returns {Highlight | null}
  */
 export function parseSpanAddress(address) {
   const [a, b, rest] = address.split('-');
-  if (rest !== undefined || !isWordAddress(a ?? '') || !isWordAddress(b ?? '') || inBsb(a) || inBsb(b)) return null;
-  if (a.split('.')[0] !== b.split('.')[0]) return null;
+  if (rest !== undefined || !isWordAddress(a ?? '') || !isWordAddress(b ?? '')) return null;
+  if (a.split('.')[0] !== b.split('.')[0] || inBsb(a) !== inBsb(b)) return null;
   return span(a, b);
 }
 

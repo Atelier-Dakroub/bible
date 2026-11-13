@@ -17,7 +17,7 @@ import { codeTest, describe, parseGrammar, vocabularyOf } from '../lib/grammar.j
 import { SAID, lemmaIndex, plain } from '../lib/lemma.js';
 import { GROUPS } from './canon.js';
 import { onMap } from '../lib/map.js';
-import { tokenize } from '../lib/words.js';
+import { inBsb, tokenize } from '../lib/words.js';
 import { differences } from '../lib/compare.js';
 import { citations } from '../lib/citations.js';
 import { syllablesOf } from '../lib/syllables.js';
@@ -168,19 +168,19 @@ export async function passage(ref) {
  * Only the words of a span, as verses: a phrase card, or a quote in a note.
  * Each verse keeps the words from the span's first word to its last, and
  * the punctuation between them. A verse that starts inside the span keeps
- * its number.
+ * its number. A span of the KJV gives `verses`; one of the BSB gives `rows`,
+ * as the BSB card draws them.
  *
  * @param {Span} range
- * @returns {Promise<{ title: string, address: string, verses: WordVerse[] } | null>}
+ * @returns {Promise<{ title: string, address: string, verses: WordVerse[], rows: Row[] } | null>}
  */
 export async function phrase(range) {
-  const [book, c1, v1, w1] = range.from.split('.');
-  const [, c2, v2, w2] = range.to.split('.');
-  const ref = parseAddress(`${book}.${c1}.${v1}-${c2}.${v2}`, books) ?? parseAddress(`${book}.${c1}.${v1}`, books);
+  const ref = referenceOfSpan(range);
   if (!ref) return null;
+  if (inBsb(range.from)) return bsbPhrase(range, ref);
   const { title, verses } = await passage(ref);
-  const firstWord = Number(w1.slice(1));
-  const lastWord = Number(w2.slice(1));
+  const firstWord = Number(range.from.split('.')[3].slice(1));
+  const lastWord = Number(range.to.split('.')[3].slice(1));
   const trimmed = verses.map((verse, i) => {
     const low = i === 0 ? firstWord : 1;
     const high = i === verses.length - 1 ? lastWord : Infinity;
@@ -209,7 +209,61 @@ export async function phrase(range) {
       .filter((block) => block.runs.length);
     return { ...verse, blocks };
   });
-  return { title, address: `${range.from}-${range.to}`, verses: trimmed };
+  return { title, address: `${range.from}-${range.to}`, verses: trimmed, rows: [] };
+}
+
+/**
+ * The verses a span is in.
+ *
+ * @param {Span} range
+ */
+function referenceOfSpan(range) {
+  const [book, c1, v1] = range.from.split('.');
+  const [, c2, v2] = range.to.split('.');
+  return parseAddress(`${book}.${c1}.${v1}-${c2}.${v2}`, books) ?? parseAddress(`${book}.${c1}.${v1}`, books);
+}
+
+/**
+ * Only the words of a span of the BSB, as the BSB card's rows.
+ *
+ * @param {Span} range
+ * @param {Reference} ref
+ */
+async function bsbPhrase(range, ref) {
+  const { title, rows } = await parallel(ref);
+  const low = Number(range.from.split('.')[3].slice(1));
+  const high = Number(range.to.split('.')[3].slice(1));
+  const kept = rows.map((row, i) => ({
+    verse: row.verse,
+    bsb: bsbWithin(row.bsb, i === 0 ? low : 1, i === rows.length - 1 ? high : Infinity),
+  }));
+  return { title: `${title}, BSB`, address: `${range.from}-${range.to}`, verses: [], rows: kept };
+}
+
+/**
+ * A verse's BSB blocks cut to its words from `low` to `high`, and the marks
+ * between them; a block left with no words goes. A block keeps its verse
+ * number only if the verse is whole from its start.
+ *
+ * @param {PlainBlock[]} blocks
+ * @param {number} low
+ * @param {number} high
+ * @returns {PlainBlock[]}
+ */
+export function bsbWithin(blocks, low, high) {
+  const all = blocks.flatMap((block) => block.tokens);
+  const start = all.findIndex((token) => token.w >= low);
+  const end = all.findLastIndex((token) => token.w > 0 && token.w <= high);
+  let at = 0;
+  return blocks
+    .map((block) => {
+      const tokens = block.tokens.filter(() => {
+        const here = at++;
+        return start >= 0 && here >= start && here <= end;
+      });
+      return { ...block, numbered: block.numbered && low === 1, tokens, text: tokens.map((token) => token.text).join('') };
+    })
+    .filter((block) => block.tokens.some((token) => token.w));
 }
 
 /** @typedef {{ style: string, text: string, numbered: boolean, tokens: { text: string, w: number, d: boolean }[] }} PlainBlock a block of the BSB; `tokens` are its words, numbered through the verse (w, 0 for none), with the words the KJV does not share marked (d) */
@@ -1251,6 +1305,19 @@ export function plainText(verse) {
  */
 export function preview(verses, limit = 90) {
   const text = verses.map(plainText).join(' ').replace(/¶\s*/g, '');
+  if (text.length <= limit) return text;
+  const cut = text.lastIndexOf(' ', limit);
+  return `${text.slice(0, cut > 0 ? cut : limit).replace(/[,;:]$/, '')} …`;
+}
+
+/**
+ * The opening words of BSB rows, as preview gives them for verses.
+ *
+ * @param {Row[]} rows
+ * @param {number} [limit]
+ */
+export function bsbPreview(rows, limit = 90) {
+  const text = rows.map((row) => row.bsb.map((block) => block.text).join(' ')).join(' ').replace(/\s+/g, ' ').trim();
   if (text.length <= limit) return text;
   const cut = text.lastIndexOf(' ', limit);
   return `${text.slice(0, cut > 0 ? cut : limit).replace(/[,;:]$/, '')} …`;

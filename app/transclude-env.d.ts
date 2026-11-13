@@ -629,6 +629,10 @@ type MapDetail = {
     d: string;
   }[];
 };
+type Row = {
+  verse: WordVerse;
+  bsb: PlainBlock[];
+};
 type Landscape = {
   title: string;
   summary: string;
@@ -642,9 +646,9 @@ type Landscape = {
 type Group = {
   label: string;
   y: number;
-  rows: Row[];
+  rows: Row_2[];
 };
-type Row = {
+type Row_2 = {
   name: string;
   y: number;
   cells: Cell[];
@@ -698,7 +702,7 @@ type ReverseGroup = {
   en: string;
   orig: OriginalWord | null;
 };
-type Row_2 = {
+type Row_3 = {
   depth: number;
   label: string;
   parts: RowPart[];
@@ -2894,6 +2898,7 @@ export type CardAddressData = {
     title: string;
     address: string;
     verses: WordVerse[];
+    rows: Row[];
   }[];
   landscape: Landscape | null;
   shade: Box_5;
@@ -2911,7 +2916,7 @@ export type CardAddressData = {
     dir: string;
     sentences: {
       label: string;
-      rows: Row_2[];
+      rows: Row_3[];
     }[];
   } | null;
   image: Image | null;

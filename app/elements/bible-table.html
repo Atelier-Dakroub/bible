@@ -446,6 +446,20 @@
   }
 
   /**
+   * A verse's words in the order of word keys: its KJV words and its BSB
+   * words, so a quote of it in either translation is found.
+   *
+   * @param {string} verse such as JHN.3.16
+   * @returns {[number, number][]}
+   */
+  function verseRanges(verse) {
+    return [`${verse}.w1`, `${verse}.b1`].map((address) => {
+      const first = wordKey(address);
+      return [first, first + 999];
+    });
+  }
+
+  /**
    * All the words of a card, as a span: a link's end when it was not let go
    * on a highlight.
    *
@@ -2279,8 +2293,7 @@
     },
 
     /**
-     * Words let go on a note: highlighted, and quoted in it. A note quotes
-     * the KJV's words only.
+     * Words let go on a note: highlighted, and quoted in it.
      *
      * @param {HTMLElement} card
      * @param {Span} source
@@ -2289,8 +2302,7 @@
      */
     dropOnNote(card, source, x, y) {
       this.highlight(source);
-      if (inBsb(source.from)) this.toast('The words are highlighted. A note quotes the KJV only, for now.');
-      else this.quote(card, source, { x, y });
+      this.quote(card, source, { x, y });
     },
 
     /**
@@ -2331,8 +2343,7 @@
     dropOnTable(source, under, x, y) {
       if (under !== this && under !== this.world()) return;
       this.highlight(source);
-      if (inBsb(source.from)) this.toast('The words are highlighted. A card of its own words is for the KJV only, for now.');
-      else this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
+      this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
     },
 
     /**
@@ -2727,10 +2738,7 @@
      * @returns {{ id: string, title: string, text: string, kind?: string, answered: boolean }[]}
      */
     notesOn(card) {
-      const ranges = [...card.querySelectorAll('kjv-verse[data-ref], .bsb-verse[data-ref]')].map((verse) => {
-        const first = wordKey(`${/** @type {HTMLElement} */ (verse).dataset.ref}.w1`);
-        return [first, first + 999];
-      });
+      const ranges = [...card.querySelectorAll('kjv-verse[data-ref], .bsb-verse[data-ref]')].flatMap((verse) => verseRanges(/** @type {HTMLElement} */ (verse).dataset.ref ?? ''));
       return this.notes
         .filter((note) => note.quotes.some((quote) => {
           const from = wordKey(quote.from);
@@ -3901,12 +3909,11 @@
      */
     paintQuoted(root) {
       const ranges = this.notes.flatMap((note) => note.quotes).map((each) => [wordKey(each.from), wordKey(each.to)]);
-      for (const verse of root.querySelectorAll('kjv-verse[data-ref]')) {
+      for (const verse of root.querySelectorAll('kjv-verse[data-ref], .bsb-verse[data-ref]')) {
         const element = /** @type {HTMLElement} */ (verse);
         if (element.closest('gesture-card[data-kind="note"]')) continue;
-        const first = wordKey(`${element.dataset.ref}.w1`);
-        const last = first + 999;
-        element.classList.toggle('is-quoted', ranges.some(([from, to]) => from <= last && to >= first));
+        const quoted = verseRanges(element.dataset.ref ?? '').some(([first, last]) => ranges.some(([from, to]) => from <= last && to >= first));
+        element.classList.toggle('is-quoted', quoted);
       }
     },
 
