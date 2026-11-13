@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LEAST, MARGIN, TILE, around, centre, centring, fit, keeping, keyAsks, middle, onTable, overviewOf, readable, pinchAsks, spread, tappedIn } from '../app/lib/overview.js';
+import { LEAST, MARGIN, TILE, around, centre, centring, fit, keeping, keyAsks, middle, onTable, overviewOf, readable, pinchAsks, spread, spreadOut, labelled, tappedIn } from '../app/lib/overview.js';
 
 const box = (left, top, right, bottom) => ({ left, top, right, bottom });
 
@@ -96,4 +96,27 @@ test('the overview keeps its tiles large enough to read', () => {
   assert.equal(end.offset.y + end.scale * 30000, 700);
   // A table that fits at a readable scale shows whole.
   assert.equal(overviewOf(box(0, 0, 3000, 2000), box(0, 0, 1400, 800), [400, 400], { x: 0, y: 0 }).whole, true);
+});
+
+test('the overview spreads the cards out so that none overlaps', () => {
+  const overlap = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+  const moved = (boxes, shifts) => boxes.map((each, i) => box(each.left + shifts[i].x, each.top + shifts[i].y, each.right + shifts[i].x, each.bottom + shifts[i].y));
+  const none = (boxes) => boxes.every((a, i) => boxes.every((b, j) => i >= j || !overlap(a, b)));
+
+  // Apart already: nothing moves.
+  assert.deepEqual(spreadOut([box(0, 0, 100, 100), box(200, 0, 300, 100)], 10), [{ x: 0, y: 0 }, { x: 0, y: 0 }]);
+  // Two tall cards that overlap a little part sideways, half each, with the gap.
+  const two = spreadOut([box(0, 0, 100, 400), box(80, 0, 180, 400)], 10);
+  assert.deepEqual(two, [{ x: -15, y: 0 }, { x: 15, y: 0 }]);
+  // Ten cards on one spot, and a pile of mixed sizes, end with none on another.
+  const pile = Array.from({ length: 10 }, () => box(0, 0, 400, 600));
+  assert.ok(none(moved(pile, spreadOut(pile, 20))));
+  const mixed = [box(0, 0, 400, 2000), box(50, 40, 450, 300), box(100, 80, 300, 200), box(380, 100, 780, 900), box(0, 1900, 400, 2100), box(10, 10, 210, 160)];
+  assert.ok(none(moved(mixed, spreadOut(mixed, 20))));
+  assert.deepEqual(spreadOut([], 10), []);
+});
+
+test('a card with a label wider or taller than it takes the label\'s room', () => {
+  assert.deepEqual(labelled(box(100, 100, 140, 110), 100, 30), box(70, 100, 170, 130));
+  assert.deepEqual(labelled(box(0, 0, 400, 600), 100, 30), box(0, 0, 400, 600));
 });

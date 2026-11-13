@@ -142,7 +142,7 @@
   import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
   import { createHistory } from '../lib/history.js';
   import { lessMotion } from '../lib/motion.js';
-  import { around, centre, centring, keeping, keyAsks, middle as middleOf, onTable, overviewOf, pinchAsks, spread, tappedIn } from '../lib/overview.js';
+  import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
   import { covers, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
@@ -997,6 +997,32 @@
   const TAP_SLOP = 8;
   const ZOOM_MS = 320;
   const ZOOM_EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+  /** The space the overview keeps between cards, on the screen. */
+  const SPREAD_GAP = 16;
+  /**
+   * The size of a card's label in the overview, on the screen, near enough:
+   * its letters (0.85rem, semibold) and its padding and edge. The label is
+   * drawn in CSS (gesture-card::after), so it cannot be measured.
+   *
+   * @param {string} title
+   */
+  const labelSize = (title) => ({ width: title.length * 8 + 26, height: 34 });
+  /** @type {WeakMap<Element, { x: number, y: number }>} how far the overview moved each card */
+  const spreadOf = new WeakMap();
+
+  /**
+   * Moves a card by its shift for the overview, or back to its place (null).
+   *
+   * @param {HTMLElement} card
+   * @param {{ x: number, y: number } | null} shift
+   */
+  function spreadCard(card, shift) {
+    const at = shift ?? { x: 0, y: 0 };
+    const moved = at.x !== 0 || at.y !== 0;
+    if (moved) spreadOf.set(card, at);
+    else spreadOf.delete(card);
+    card.style.translate = moved ? `${at.x}px ${at.y}px` : '';
+  }
   // The events that change the cards or bring one: the overview gives way
   // to full size first, so that each works on the table as it is.
   const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'show-on-map', 'show-journey'];
@@ -1949,39 +1975,66 @@
       else this.leaveOverview(null, null);
     },
 
-    /** Shows the whole table, small: every card a tile (lib/overview.js). */
+    /**
+     * Shows the whole table, small, each card as it is with a label, spread
+     * out so that none overlaps (lib/overview.js).
+     */
     enterOverview() {
       if (this.overview) return;
       const cards = this.tableCards();
-      const view = this.overviewView(cards);
-      if (!view) {
+      const boxes = cards.map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom));
+      const first = this.overviewView(boxes);
+      if (!first) {
         this.toast('The table is empty: there is nothing to see in an overview.');
         return;
       }
+      // Spread for the scale of the table as it is; spread out, it may show
+      // smaller, so spread once more for that scale.
+      const once = this.spreadFor(cards, boxes, first);
+      const { shifts, view } = once.view.scale < first.scale ? this.spreadFor(cards, boxes, once.view) : once;
       this.writing?.end();
       this.overview = true;
       this.tiles(cards, true);
       this.style.setProperty('--overview-scale', String(view.scale));
       this.classList.add('is-overview');
       this.zoomTo(view.offset, view.scale);
+      this.spreadCards(cards, shifts);
       this.showOverview();
       this.toast(view.whole ? 'The whole table. Tap a card or a place to go there.' : 'The table, small. Pan to see the rest; tap a card or a place to go there.');
     },
 
     /**
-     * Where the overview shows the table: whole, or the part about the middle
-     * of the screen now, at a scale where the tiles can be read.
+     * How far each card moves so that no two cards or labels overlap at a
+     * scale, and the overview's view of the cards so moved.
      *
      * @param {Card[]} cards
+     * @param {{ left: number, top: number, right: number, bottom: number }[]} boxes the cards, on the table
+     * @param {{ scale: number, offset: Point, whole: boolean }} at the view to spread for
      */
-    overviewView(cards) {
-      const boxes = cards.map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom));
+    spreadFor(cards, boxes, at) {
+      const room = boxes.map((box, i) => {
+        const label = labelSize(tileName(cards[i]));
+        return labelled(box, label.width / at.scale, label.height / at.scale);
+      });
+      const shifts = spreadOut(room, SPREAD_GAP / at.scale);
+      const view = this.overviewView(room.map((box, i) => shifted(box, shifts[i])), boxes.map((box) => box.right - box.left)) ?? at;
+      return { shifts, view };
+    },
+
+    /**
+     * Where the overview shows the table: whole, or the part about the middle
+     * of the screen now, at a scale where the cards can be found.
+     *
+     * @param {{ left: number, top: number, right: number, bottom: number }[]} boxes the cards, on the table
+     * @param {number[]} [widths] the cards' own widths, when the boxes have room for labels too
+     */
+    overviewView(boxes, widths = boxes.map((box) => box.right - box.left)) {
       const table = around(boxes);
       if (!table) return null;
       const free = this.free();
       const middle = middleOf(free);
       const now = { x: (middle.x - this.offset.x) / this.zoom, y: (middle.y - this.offset.y) / this.zoom };
-      return overviewOf(table, free, boxes.map((box) => box.right - box.left), now);
+      return overviewOf(table, free, widths, now);
     },
 
     /**
@@ -2000,7 +2053,7 @@
 
     /** The screen turned, or changed size: the overview fits it again. */
     refitOverview() {
-      const view = this.overview ? this.overviewView(this.tableCards()) : null;
+      const view = this.overview ? this.overviewView(this.tableCards().map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom))) : null;
       if (!view) return;
       this.style.setProperty('--overview-scale', String(view.scale));
       this.zoomTo(view.offset, view.scale, false);
@@ -2017,13 +2070,37 @@
     leaveOverview(point, card, animate = true) {
       if (!this.overview) return;
       const free = this.clearOfSearch(this.free());
-      const offset = card ? centring(onTable(card.getBoundingClientRect(), this.offset, this.zoom), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, 1);
+      const offset = card ? centring(this.placeOf(card), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, 1);
+      const cards = this.tableCards();
       this.overview = false;
       this.classList.remove('is-overview');
-      this.tiles(this.tableCards(), false);
+      this.tiles(cards, false);
       this.zoomTo(offset, 1, animate);
+      this.spreadCards(cards, null);
       this.showOverview();
       this.keepSoon();
+    },
+
+    /**
+     * Moves each card by its shift for the overview, or back to its place
+     * (null). While the table zooms, the cards glide (CSS, .is-zooming).
+     *
+     * @param {Card[]} cards
+     * @param {{ x: number, y: number }[] | null} shifts
+     */
+    spreadCards(cards, shifts) {
+      cards.forEach((card, i) => spreadCard(card, shifts?.[i] ?? null));
+    },
+
+    /**
+     * A card's box on the table where it really is, not where the overview
+     * moved it.
+     *
+     * @param {Element} card
+     */
+    placeOf(card) {
+      const shift = spreadOf.get(card) ?? { x: 0, y: 0 };
+      return shifted(onTable(card.getBoundingClientRect(), this.offset, this.zoom), { x: -shift.x, y: -shift.y });
     },
 
     /**
@@ -4315,6 +4392,12 @@
   }
   :scope.is-overview .table__world > * {
     pointer-events: none;
+  }
+  /* As the table zooms in or out, the cards glide apart or back together. */
+  @media (prefers-reduced-motion: no-preference) {
+    :scope.is-zooming gesture-card {
+      transition: translate 320ms cubic-bezier(0.2, 0, 0, 1);
+    }
   }
   :scope.is-overview gesture-card::after {
     --tile-unit: calc(1rem / (var(--overview-scale, 1) * var(--card-scale, 1)));

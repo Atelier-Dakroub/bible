@@ -240,3 +240,94 @@ export function keyAsks(key, overview) {
   if (key === 'o' || key === 'O') return 'toggle';
   return key === 'Escape' && overview ? 'leave' : '';
 }
+
+/**
+ * How far each box moves so that no two overlap, with `gap` between them,
+ * each staying as near its place as it can: the overview spreads the cards
+ * out as the Mac's Exposé spreads windows. Each pair that overlaps is
+ * pushed apart, half each, along the axis that needs the shorter push,
+ * again and again until none overlaps (or `rounds` runs out). Two boxes in
+ * the same place part along that axis too, the later to the right or down.
+ *
+ * @param {Box[]} boxes on the table
+ * @param {number} [gap] on the table
+ * @param {number} [rounds]
+ * @returns {Point[]} each box's shift, in order
+ */
+export function spreadOut(boxes, gap = 0, rounds = 400) {
+  const shifts = boxes.map(() => ({ x: 0, y: 0 }));
+  for (let round = 0; round < rounds; round++) {
+    if (!pushApart(boxes, shifts, gap)) break;
+  }
+  return shifts;
+}
+
+/**
+ * One round: every overlapping pair pushed apart. False if none overlapped.
+ *
+ * @param {Box[]} boxes
+ * @param {Point[]} shifts changed in place
+ * @param {number} gap
+ */
+function pushApart(boxes, shifts, gap) {
+  let moved = false;
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      moved = push(shifted(boxes[i], shifts[i]), shifted(boxes[j], shifts[j]), shifts[i], shifts[j], gap) || moved;
+    }
+  }
+  return moved;
+}
+
+/**
+ * Pushes two boxes apart if they overlap (closer than `gap`): along the
+ * axis that needs the shorter push, half each. False if they do not.
+ *
+ * @param {Box} a
+ * @param {Box} b
+ * @param {Point} first a's shift, changed in place
+ * @param {Point} second b's shift, changed in place
+ * @param {number} gap
+ */
+function push(a, b, first, second, gap) {
+  const across = Math.min(a.right, b.right) - Math.max(a.left, b.left) + gap;
+  const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) + gap;
+  if (across <= 0 || down <= 0) return false;
+  const axis = across <= down ? 'x' : 'y';
+  const way = middle(b)[axis] < middle(a)[axis] ? -1 : 1;
+  const half = (Math.min(across, down) / 2) * way;
+  first[axis] -= half;
+  second[axis] += half;
+  return true;
+}
+
+/**
+ * A box moved by a shift.
+ *
+ * @param {Box} box
+ * @param {Point} shift
+ * @returns {Box}
+ */
+export function shifted(box, shift) {
+  return { left: box.left + shift.x, top: box.top + shift.y, right: box.right + shift.x, bottom: box.bottom + shift.y };
+}
+
+/**
+ * A card's box with room for its label: at least `width` wide about its
+ * middle, and `height` tall from its top, so that spreading the cards out
+ * keeps their labels apart too.
+ *
+ * @param {Box} box
+ * @param {number} width
+ * @param {number} height
+ * @returns {Box}
+ */
+export function labelled(box, width, height) {
+  const middle = (box.left + box.right) / 2;
+  return {
+    left: Math.min(box.left, middle - width / 2),
+    top: box.top,
+    right: Math.max(box.right, middle + width / 2),
+    bottom: Math.max(box.bottom, box.top + height),
+  };
+}

@@ -45,7 +45,7 @@ first: Search, Timeline, Map, Books, Overview, Note, Undo, Redo, Tools and
 Hide. Search, Timeline and Tools open and close their panels beside the rail;
 Map and Books put their cards on the table or take them away, and are lapis
 while the card is there; Overview shows the whole table, small, each card as it is with a label of
-its title, and a tap on a card or a place goes there at full size
+its title, spread apart so that none overlaps, and a tap on a card or a place goes there at full size
 (`app/lib/overview.js`; also O, or a pinch in on the empty table); Hide clears
 the screen of the rail and the panels, and leaves one Show button. The rail goes on any edge: drag its grip (⋮⋮) to an edge, tap
 the grip for the next edge, or choose in Tools, Table. A panel's grip drags
