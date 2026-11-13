@@ -93,6 +93,16 @@ type Matrix = {
   e: number;
   f: number;
 };
+type Point_2 = {
+  x: number;
+  y: number;
+};
+type Box = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
 type Pull = {
   id: number;
   x: number;
@@ -165,7 +175,7 @@ type RecordedChapter = {
     until: number;
   }[];
 };
-type Box = {
+type Box_2 = {
   left: number;
   top: number;
   right: number;
@@ -187,7 +197,7 @@ type Workspace = {
   rules: Rule[];
   trail: Trail;
 };
-type Box_2 = {
+type Box_3 = {
   left: number;
   top: number;
   right: number;
@@ -209,7 +219,7 @@ type Run = {
     d: boolean;
   }[];
 };
-type Point_2 = {
+type Point_3 = {
   x: number;
   y: number;
 };
@@ -224,17 +234,17 @@ type Settings = {
   edge: 'bottom' | 'left' | 'right' | 'top';
   size: 'l' | 'm' | 's';
   hidden: boolean;
-  float: Record<'search' | 'timeline' | 'tools', Point_3 | null>;
+  float: Record<'search' | 'timeline' | 'tools', Point_4 | null>;
 };
-type Point_3 = {
+type Point_4 = {
   x: number;
   y: number;
 };
 type Layout = {
-  rail: Box_3;
-  search: Box_3 | null;
-  timeline: Box_3 | null;
-  tools: Box_3 | null;
+  rail: Box_4;
+  search: Box_4 | null;
+  timeline: Box_4 | null;
+  tools: Box_4 | null;
   free: {
     left: number;
     top: number;
@@ -242,7 +252,7 @@ type Layout = {
     bottom: number;
   };
 };
-type Box_3 = {
+type Box_4 = {
   x: number;
   y: number;
   w: number;
@@ -652,7 +662,7 @@ type Mark = {
   y: number;
   size: number;
 };
-type Box_4 = {
+type Box_5 = {
   x: number;
   y: number;
   w: number;
@@ -795,7 +805,32 @@ export type BibleTableMembers = {
   toggleOverview(): void;
   overviewKey(event: KeyboardEvent): void;
   enterOverview(): void;
-  overviewView(cards: Card[]): {
+  spreadFor(cards: Card[], boxes: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }[], at: {
+    scale: number;
+    offset: Point;
+    whole: boolean;
+  }): {
+    shifts: Point_2[];
+    view: {
+      scale: number;
+      offset: {
+        x: number;
+        y: number;
+      };
+      whole: boolean;
+    };
+  };
+  overviewView(boxes: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }[], widths?: number[] | undefined): {
     scale: number;
     offset: {
       x: number;
@@ -816,6 +851,11 @@ export type BibleTableMembers = {
   };
   refitOverview(): void;
   leaveOverview(point: Point | null, card: Element | null, animate?: boolean | undefined): void;
+  spreadCards(cards: Card[], shifts: {
+    x: number;
+    y: number;
+  }[] | null): void;
+  placeOf(card: Element): Box;
   overviewTap(point: Point): void;
   tiles(cards: Card[], on: boolean): void;
   zoomTo(offset: Point, scale: number, animate?: boolean | undefined): void;
@@ -1094,7 +1134,7 @@ export type BibleTableMembers = {
     text: string;
   }, dock: any, before: string): void;
   showCaret(): void;
-  writingArea(): Box;
+  writingArea(): Box_2;
   paintQuoted(root: Element): void;
   fetchCard(address: string, {
     version, replacing, id, sync, compare
@@ -1241,7 +1281,7 @@ export type GestureCardMembers = {
   } | null;
   settleTimer: number;
   raw: Matrix | null;
-  others: Box_2[] | null;
+  others: Box_3[] | null;
   guiding: boolean;
   connected({
     signal
@@ -1303,7 +1343,7 @@ export type GestureCardMembers = {
   letGo(): void;
   snaps(event: PointerEvent): boolean;
   snapped(raw: Matrix, about: Point): Matrix;
-  otherBoxes(): Box_2[];
+  otherBoxes(): Box_3[];
   showGuides(guides: Guide[]): void;
   act(event: MouseEvent): void;
   local(at: Point): {
@@ -1331,7 +1371,7 @@ export type MapViewProps = {};
 /** Members of `<map-view>`, from its `export const prototype`. */
 export type MapViewMembers = {
   view: View | null;
-  points: Map<number, Point_2> | null;
+  points: Map<number, Point_3> | null;
   tap: {
     id: number;
     x: number;
@@ -1380,7 +1420,7 @@ export type MapViewMembers = {
     y: number;
   }[] | undefined): Promise<void>;
   shows(id: string): boolean;
-  fraction(at: Point_2): {
+  fraction(at: Point_3): {
     x: number;
     y: number;
   };
@@ -1760,20 +1800,20 @@ export type TableRailMembers = {
     safe: Insets;
     search: {
       open: boolean;
-      float: Point_3 | null;
+      float: Point_4 | null;
       expanded: boolean;
       w: number;
       h: number;
     };
     timeline: {
       open: boolean;
-      float: Point_3 | null;
+      float: Point_4 | null;
       w: number;
       h: number;
     };
     tools: {
       open: boolean;
-      float: Point_3 | null;
+      float: Point_4 | null;
       w: number;
       h: number;
       anchor: {
@@ -2854,9 +2894,9 @@ export type CardAddressData = {
     verses: WordVerse[];
   }[];
   landscape: Landscape | null;
-  shade: Box_4;
-  levant: Box_4;
-  levantClip: Box_4;
+  shade: Box_5;
+  levant: Box_5;
+  levantClip: Box_5;
   source: {
     title: string;
     language: 'greek' | 'hebrew';
