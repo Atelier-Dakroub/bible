@@ -97,13 +97,13 @@ On a large table, or on a phone, the overview shows the whole table, small. Use 
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
 | Show the overview | Tap **Overview** on the rail, or pinch in with two fingers on the empty table | Click **Overview**, or pinch in on the trackpad over the empty table | <kbd>O</kbd> |
-| Go to a card | Tap its tile | Click its tile | — |
+| Go to a card | Tap it | Click it | — |
 | Go to a place | Tap the table there | Click the table there | — |
 | Go back to full size | Spread two fingers, or tap **Overview** again | Spread two fingers on the trackpad, or click **Overview** again | <kbd>O</kbd> or <kbd>Escape</kbd> |
 
-In the overview, every card is a tile in the color of its kind, with its title at the top. The links between the cards stay, thin and faint, without their labels. The other lines hide. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
+In the overview, every card shows as it is, small, as windows do in the Mac's Exposé. A label in the color of its kind gives its title, at one size on every card. The links between the cards stay, thin and faint, without their labels. The other lines hide. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
 
-The tiles never get too small to read. If the whole table does not fit on the screen at that size, as often on a phone, the overview shows the part around where you were. Pan to see the rest.
+The cards never get too small to find. If the whole table does not fit on the screen at that size, as often on a phone, the overview shows the part around where you were. Pan to see the rest.
 
 If you put a card on the table, or use **Undo**, while the overview shows, the table goes back to full size first.
 
