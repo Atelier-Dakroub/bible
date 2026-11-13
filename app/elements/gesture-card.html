@@ -710,6 +710,8 @@
       const matrix = /** @type {Matrix} */ (this.matrix);
       this.style.transform = toCSS(matrix);
       const scale = scaleOf(matrix);
+      // For a size that must not follow the card's (the overview's tiles).
+      this.style.setProperty('--card-scale', String(scale));
       const far = this.dataset.zoom === 'far';
       if (!far && scale < FAR_BELOW) this.dataset.zoom = 'far';
       if (far && scale > NEAR_ABOVE) this.dataset.zoom = 'near';
