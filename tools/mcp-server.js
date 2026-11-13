@@ -272,7 +272,7 @@ const TOOLS = {
       const ref = refOf(reference);
       if (version === 'bsb') {
         const { rows } = await parallel(ref);
-        const text = rows.map((row) => `${row.verse.label ?? row.verse.n} ${row.bsb.map((block) => block.parts.map((part) => part.text).join('')).join(' ') || '(not in the BSB)'}`);
+        const text = rows.map((row) => `${row.verse.label ?? row.verse.n} ${row.bsb.map((block) => block.text).join(' ') || '(not in the BSB)'}`);
         return `${named(ref)}, BSB\n\n${text.join('\n')}\n\nBerean Standard Bible: public domain.`;
       }
       if (version === 'original' || version === 'interlinear') {

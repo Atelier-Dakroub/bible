@@ -39,7 +39,7 @@ Some notes on the versions:
 - In **Reverse**, English in a softer ink has no word of the original of its own. It is part of a word (such as "in the"), or the translators supplied it.
 - In **Syntax**, each clause is on a row of its own, and each part is a box with its role. A clause inside another clause is indented under it. The Greek of this version is a different edition (Nestle 1904), and the card says so.
 
-Highlights, links and the marks on every card work on the words of the KJV. The BSB is plain text.
+Highlights and links work on the words of the KJV and of the BSB. The marks on every card, word studies, quotes in a note and cards of words work on the KJV only.
 
 ### Step through the text
 
@@ -89,7 +89,7 @@ A highlight takes two hands:
 
 With a mouse, hold <kbd>Option</kbd> (or <kbd>Alt</kbd>) and drag over the words.
 
-A highlight belongs to the words, not to the card. Every card that shows those words shows the highlight.
+A highlight belongs to the words, not to the card. Every card that shows those words shows the highlight. The KJV and the BSB have different words, so a highlight in one does not show in the other. A highlight stays in the translation where it starts: beside the KJV, a drag from the KJV into the BSB stops at the end of the KJV.
 
 A highlight has one of three styles: **Filled**, **Underlined** or **Boxed**. Choose the style of the next highlight in **Tools**, **Marks**, **New highlights**.
 

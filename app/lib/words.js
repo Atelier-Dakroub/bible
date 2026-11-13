@@ -1,7 +1,9 @@
 // Word addresses and highlights.
 //
 // A word's address is its verse's address and its number in the verse:
-// `JHN.3.16.w3` is the third word of John 3:16. A highlight is a span from one
+// `JHN.3.16.w3` is the third word of John 3:16 in the KJV, and `JHN.3.16.b3`
+// the third in the BSB. The two translations' words are numbered apart, and
+// a span stays in one of them. A highlight is a span from one
 // word address to another, stored apart from the text. Every card that holds
 // any of those words shows the highlight, so the same words highlighted on one
 // card are highlighted on all of them.
@@ -25,7 +27,9 @@ const BOOKS = [
   'PHM', 'HEB', 'JAS', '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
 ];
 
-const WORD_ADDRESS = /^([1-3]?[A-Z]{2,3})\.(\d+)\.(\d+)\.w(\d+)$/;
+const WORD_ADDRESS = /^([1-3]?[A-Z]{2,3})\.(\d+)\.(\d+)\.([wb])(\d+)$/;
+/** Where the BSB's words begin in the order of word keys: after every KJV word. */
+const BSB_KEYS = 1e12;
 const TOKEN = /\s+|\S+\s*/g;
 const HAS_LETTER = /[\p{L}\p{N}]/u;
 
@@ -52,7 +56,8 @@ export function tokenize(text, next) {
 /**
  * A number that sorts word addresses in canon order, or NaN for an address
  * that is not one. Chapters stop at 150, verses at 176, and no verse has a
- * thousand words, so each part fits its place.
+ * thousand words, so each part fits its place. The BSB's words come after
+ * all the KJV's, so a span of one never covers a word of the other.
  *
  * @param {string} address
  */
@@ -61,7 +66,17 @@ export function wordKey(address) {
   if (!match) return NaN;
   const book = BOOKS.indexOf(match[1]);
   if (book < 0) return NaN;
-  return ((book * 1000 + Number(match[2])) * 1000 + Number(match[3])) * 1000 + Number(match[4]);
+  const key = ((book * 1000 + Number(match[2])) * 1000 + Number(match[3])) * 1000 + Number(match[5]);
+  return match[4] === 'b' ? BSB_KEYS + key : key;
+}
+
+/**
+ * Whether a word address is a word of the BSB (`JHN.3.16.b3`).
+ *
+ * @param {string} address
+ */
+export function inBsb(address) {
+  return WORD_ADDRESS.exec(address)?.[4] === 'b';
 }
 
 /** @param {string} address */
@@ -81,14 +96,15 @@ export function spanAddress(range) {
 
 /**
  * The span a span address names, in reading order, or null. Both ends must be
- * in the same book.
+ * in the same book, and in the KJV: a card of words, a quote in a note and a
+ * word study read the KJV's words.
  *
  * @param {string} address
  * @returns {Highlight | null}
  */
 export function parseSpanAddress(address) {
   const [a, b, rest] = address.split('-');
-  if (rest !== undefined || !isWordAddress(a ?? '') || !isWordAddress(b ?? '')) return null;
+  if (rest !== undefined || !isWordAddress(a ?? '') || !isWordAddress(b ?? '') || inBsb(a) || inBsb(b)) return null;
   if (a.split('.')[0] !== b.split('.')[0]) return null;
   return span(a, b);
 }
@@ -117,7 +133,8 @@ export function covers(range, address) {
  * What one marking gesture does to the highlights. A tap on a highlighted word
  * removes every highlight under it. Marking a span that is already exactly a
  * highlight removes it when the style is the same, and gives it the new style
- * when it is not. Anything else adds the span.
+ * when it is not. Anything else adds the span. A span from one translation
+ * into the other changes nothing.
  *
  * @param {Highlight[]} list
  * @param {string} a where the finger went down
@@ -126,6 +143,7 @@ export function covers(range, address) {
  * @returns {Highlight[]}
  */
 export function toggle(list, a, b, style = STYLES[0]) {
+  if (inBsb(a) !== inBsb(b)) return list;
   const range = span(a, b);
   if (range.from === range.to) {
     const under = list.filter((each) => covers(each, range.from));
@@ -139,15 +157,30 @@ export function toggle(list, a, b, style = STYLES[0]) {
 }
 
 /**
- * The address of the word an element is in, or null.
+ * The address of the word an element is in, or null. A KJV word's data-w is
+ * its number (3); a BSB word's is b and its number (b3). Its verse is the
+ * nearest data-ref, or data-bsb-ref beside the KJV, where the verse's
+ * data-ref is the KJV's.
  *
  * @param {Element | null} element
  */
 export function wordAt(element) {
   const word = element?.closest('[data-w]');
-  const verse = word?.closest('[data-ref]');
+  const verse = word?.closest('[data-ref], [data-bsb-ref]');
   if (!(word instanceof HTMLElement) || !(verse instanceof HTMLElement)) return null;
-  return `${verse.dataset.ref}.w${word.dataset.w}`;
+  return wordAddress(verse.dataset, word.dataset);
+}
+
+/**
+ * A word's address from its verse's data (ref, or bsbRef beside the KJV) and
+ * its own (w: 3 in the KJV, b3 in the BSB).
+ *
+ * @param {{ ref?: string, bsbRef?: string }} verse
+ * @param {{ w?: string }} word
+ */
+export function wordAddress(verse, word) {
+  const number = word.w ?? '';
+  return `${verse.ref ?? verse.bsbRef}.${number.startsWith('b') ? number : `w${number}`}`;
 }
 
 /**

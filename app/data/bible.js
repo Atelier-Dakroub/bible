@@ -212,7 +212,7 @@ export async function phrase(range) {
   return { title, address: `${range.from}-${range.to}`, verses: trimmed };
 }
 
-/** @typedef {{ style: string, text: string, numbered: boolean, parts: { text: string, d: boolean }[] }} PlainBlock a block of the BSB; `parts` mark the words the KJV does not share */
+/** @typedef {{ style: string, text: string, numbered: boolean, tokens: { text: string, w: number, d: boolean }[] }} PlainBlock a block of the BSB; `tokens` are its words, numbered through the verse (w, 0 for none), with the words the KJV does not share marked (d) */
 /** @typedef {{ verse: WordVerse, bsb: PlainBlock[] }} Row */
 
 /** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
@@ -551,7 +551,7 @@ export async function parallel(ref) {
   const rows = verses.map((verse) => {
     const blocks = bsb[verse.id] ?? [];
     const first = blocks.findIndex((block) => block.style !== 'd');
-    const split = blocks.map((block) => tokenize(block.text, 1).tokens);
+    const split = numbered(blocks);
     const kjvWords = verse.blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens.filter((token) => token.w)));
     const bsbWords = split.flat().filter((token) => token.w);
     const diff = blocks.length ? differences(kjvWords.map((token) => token.text), bsbWords.map((token) => token.text)) : null;
@@ -568,30 +568,41 @@ export async function parallel(ref) {
     };
     return {
       verse: marked,
-      bsb: blocks.map((block, i) => ({ ...block, numbered: i === first, parts: partsOf(split[i], bsbDiff) })),
+      bsb: blocks.map((block, i) => ({ ...block, numbered: i === first, tokens: withDiff(split[i], bsbDiff) })),
     };
   });
   return { title, rows };
 }
 
 /**
- * A block's tokens as runs of text that differ or do not. A space or a mark
- * between two words goes with the word before it.
+ * The tokens of a verse's blocks, its words numbered through the whole
+ * verse, as a highlight addresses them (JHN.3.16.b3).
+ *
+ * @param {{ text: string }[]} blocks
+ */
+function numbered(blocks) {
+  let next = 1;
+  return blocks.map((block) => {
+    const split = tokenize(block.text, next);
+    next = split.next;
+    return split.tokens;
+  });
+}
+
+/**
+ * A block's tokens, each marked if the KJV does not share it. A space or a
+ * mark between two words goes with the word before it.
  *
  * @param {{ text: string, w: number }[]} tokens
  * @param {Map<object, boolean>} diff
- * @returns {{ text: string, d: boolean }[]}
+ * @returns {{ text: string, w: number, d: boolean }[]}
  */
-function partsOf(tokens, diff) {
-  /** @type {{ text: string, d: boolean }[]} */
-  const parts = [];
-  for (const token of tokens) {
-    const last = parts.at(-1);
-    const d = token.w ? (diff.get(token) ?? false) : (last?.d ?? false);
-    if (last && last.d === d) last.text += token.text;
-    else parts.push({ text: token.text, d });
-  }
-  return parts;
+function withDiff(tokens, diff) {
+  let d = false;
+  return tokens.map((token) => {
+    d = token.w ? (diff.get(token) ?? false) : d;
+    return { ...token, d };
+  });
 }
 
 /** @type {Map<string, Promise<Record<string, string>>>} */

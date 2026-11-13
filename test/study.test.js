@@ -112,9 +112,16 @@ test('the parallel view marks the words each translation has alone', async () =>
   const { rows } = await parallel(/** @type {any} */ (parseAddress('JHN.3.16', books)));
   const kjv = rows[0].verse.blocks.flatMap((block) => block.runs.flatMap((run) => run.tokens)).filter((token) => token.d);
   assert.deepEqual(kjv.map((token) => token.text.trim()), ['begotten', 'whosoever', 'should', 'everlasting']);
-  const bsb = rows[0].bsb.flatMap((block) => block.parts).filter((part) => part.d).map((part) => part.text.trim());
-  assert.deepEqual(bsb, ['one and', 'everyone who', 'shall', 'eternal']);
-  assert.equal(rows[0].bsb.map((block) => block.parts.map((part) => part.text).join('')).join(''), rows[0].bsb.map((block) => block.text).join(''));
+  const bsb = rows[0].bsb.flatMap((block) => block.tokens).filter((token) => token.d && token.w).map((token) => token.text.trim());
+  assert.deepEqual(bsb, ['one', 'and', 'everyone', 'who', 'shall', 'eternal']);
+  assert.equal(rows[0].bsb.map((block) => block.tokens.map((token) => token.text).join('')).join(''), rows[0].bsb.map((block) => block.text).join(''));
+});
+
+test('the BSB words are numbered through the verse, across its blocks', async () => {
+  const { rows } = await parallel({ book: 'PSA', chapter: 23, from: 1 });
+  const numbers = rows[0].bsb.flatMap((block) => block.tokens).filter((token) => token.w).map((token) => token.w);
+  assert.deepEqual(numbers, numbers.map((_, i) => i + 1));
+  assert.ok(rows[0].bsb.length > 1, 'the verse has more than one block');
 });
 
 test('a rule marks words by number, entity, kind of name or mark', () => {

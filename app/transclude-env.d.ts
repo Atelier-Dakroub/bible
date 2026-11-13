@@ -538,8 +538,9 @@ type PlainBlock = {
   style: string;
   text: string;
   numbered: boolean;
-  parts: {
+  tokens: {
     text: string;
+    w: number;
     d: boolean;
   }[];
 };
@@ -899,6 +900,7 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   }): void;
+  dropOnNote(card: HTMLElement, source: Highlight, x: number, y: number): void;
   tableCard(element: Element | null): HTMLElement | null;
   linkTo(source: Highlight, x: number, y: number): void;
   dropOnTable(source: Highlight, under: Element | null, x: number, y: number): void;

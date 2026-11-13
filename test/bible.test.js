@@ -6,7 +6,7 @@ import { HEIGHT, WIDTH, project } from '../app/lib/map.js';
 import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
-import { covers, span, tokenize, toggle, wordKey } from '../app/lib/words.js';
+import { covers, inBsb, parseSpanAddress, span, tokenize, toggle, wordAddress, wordKey } from '../app/lib/words.js';
 import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
@@ -341,4 +341,27 @@ test('cross-references pair verses on different cards, each pair once', async ()
     '0:JHN.3.16 2:1JN.4.9',
     '0:JHN.3.16 2:1JN.4.10',
   ]);
+});
+
+test('the BSB words have addresses of their own, and a span stays in one translation', () => {
+  assert.equal(inBsb('JHN.3.16.b3'), true);
+  assert.equal(inBsb('JHN.3.16.w3'), false);
+  // Every BSB word sorts after every KJV word, so no KJV span covers one.
+  assert.ok(wordKey('GEN.1.1.b1') > wordKey('REV.22.21.w999'));
+  assert.ok(wordKey('JHN.3.16.b2') > wordKey('JHN.3.16.b1'));
+  assert.equal(covers({ from: 'JHN.3.16.w1', to: 'JHN.3.16.w99' }, 'JHN.3.16.b3'), false);
+  // A BSB highlight is made, and taken away, as a KJV one is.
+  let list = toggle([], 'JHN.3.16.b5', 'JHN.3.16.b2');
+  assert.deepEqual(list, [{ from: 'JHN.3.16.b2', to: 'JHN.3.16.b5' }]);
+  list = toggle(list, 'JHN.3.16.b3', 'JHN.3.16.b3');
+  assert.deepEqual(list, []);
+  // A drag from one translation into the other changes nothing.
+  assert.deepEqual(toggle([], 'JHN.3.16.w2', 'JHN.3.16.b4'), []);
+  // A card of words, a quote and a word study read the KJV: a BSB span is not one.
+  assert.equal(parseSpanAddress('JHN.3.16.b1-JHN.3.16.b4'), null);
+  assert.deepEqual(parseSpanAddress('JHN.3.16.w1-JHN.3.16.w4'), { from: 'JHN.3.16.w1', to: 'JHN.3.16.w4' });
+  // A word's data-w is its number in the KJV, b and its number in the BSB.
+  assert.equal(wordAddress({ ref: 'JHN.3.16' }, { w: '3' }), 'JHN.3.16.w3');
+  assert.equal(wordAddress({ ref: 'JHN.3.16' }, { w: 'b3' }), 'JHN.3.16.b3');
+  assert.equal(wordAddress({ bsbRef: 'JHN.3.16' }, { w: 'b3' }), 'JHN.3.16.b3');
 });

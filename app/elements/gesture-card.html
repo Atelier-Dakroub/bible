@@ -52,7 +52,7 @@
 <script element>
   import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
   import { centroid, dropLost, step } from '../lib/gesture.js';
-  import { paintWords, span, wordAt } from '../lib/words.js';
+  import { inBsb, paintWords, span, wordAt } from '../lib/words.js';
   import { boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -114,6 +114,19 @@
    * @param {Element | null} target
    */
   const ownPress = (target) => Boolean(target?.closest('button, label, input, select, textarea, [contenteditable]:not([contenteditable="false"])'));
+
+  /**
+   * The word a marking moves on to, or null if it stays: no word, the same
+   * one, or one of the other translation (beside the KJV, the BSB), as a
+   * span stays in the one it began in.
+   *
+   * @param {{ anchor: string, current: string }} marking
+   * @param {Element} under
+   */
+  function nextWord(marking, under) {
+    const word = wordAt(under);
+    return word && word !== marking.current && inBsb(word) === inBsb(marking.anchor) ? word : null;
+  }
 
   /** @param {PointerEvent} event a mouse's other buttons do not move the card */
   const otherButton = (event) => event.pointerType === 'mouse' && event.button !== 0;
@@ -442,8 +455,8 @@
         this.sendLink('card-link-move', event);
         return;
       }
-      const word = wordAt(/** @type {Element} */ (under));
-      if (!word || word === marking.current) return;
+      const word = nextWord(marking, /** @type {Element} */ (under));
+      if (!word) return;
       marking.current = word;
       this.paintMarking();
     },

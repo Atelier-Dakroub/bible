@@ -145,7 +145,7 @@
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
   import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
-  import { covers, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
+  import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, quotesIn, toText } from '../lib/note-doc.js';
@@ -456,7 +456,10 @@
     const index = indexOf(card);
     if (!index.length) return null;
     const first = wordAt(index[0].item);
-    const last = wordAt(index[index.length - 1].item);
+    // Beside the KJV, the BSB's words come last: the span ends in the
+    // translation it begins in.
+    const same = index.filter((entry) => inBsb(wordAt(entry.item) ?? '') === inBsb(first ?? ''));
+    const last = wordAt(same[same.length - 1].item);
     return first && last ? { from: first, to: last } : null;
   }
 
@@ -1059,7 +1062,9 @@
   function indexOf(card) {
     let index = indexes.get(card);
     if (!index) {
-      index = [...card.querySelectorAll('[data-w]')].map((item) => ({ key: wordKey(wordAt(item) ?? ''), item }));
+      // In order of key: beside the KJV, the BSB's words (which sort after
+      // all the KJV's) are between its verses on the page.
+      index = [...card.querySelectorAll('[data-w]')].map((item) => ({ key: wordKey(wordAt(item) ?? ''), item })).sort((a, b) => a.key - b.key);
       indexes.set(card, index);
     }
     return index;
@@ -2268,11 +2273,24 @@
       const card = this.tableCard(under);
       // On a note: the words are quoted in it. On another card: a link. On
       // the empty table: the words become a card of their own.
-      if (card?.dataset.kind === 'note') {
-        this.highlight(source);
-        this.quote(card, source, { x, y });
-      } else if (card) this.linkTo(source, x, y);
+      if (card?.dataset.kind === 'note') this.dropOnNote(card, source, x, y);
+      else if (card) this.linkTo(source, x, y);
       else this.dropOnTable(source, under, x, y);
+    },
+
+    /**
+     * Words let go on a note: highlighted, and quoted in it. A note quotes
+     * the KJV's words only.
+     *
+     * @param {HTMLElement} card
+     * @param {Span} source
+     * @param {number} x
+     * @param {number} y
+     */
+    dropOnNote(card, source, x, y) {
+      this.highlight(source);
+      if (inBsb(source.from)) this.toast('The words are highlighted. A note quotes the KJV only, for now.');
+      else this.quote(card, source, { x, y });
     },
 
     /**
@@ -2313,7 +2331,8 @@
     dropOnTable(source, under, x, y) {
       if (under !== this && under !== this.world()) return;
       this.highlight(source);
-      this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
+      if (inBsb(source.from)) this.toast('The words are highlighted. A card of its own words is for the KJV only, for now.');
+      else this.place({ address: spanAddress(source), pointer: { id: -1, x, y, down: false } });
     },
 
     /**
@@ -2647,7 +2666,8 @@
     /** @param {Tap} tap */
     tapWord({ element }) {
       const word = wordAt(element);
-      if (!word) return false;
+      // A word's study reads the KJV's Strong's numbers: the BSB has none.
+      if (!word || inBsb(word)) return false;
       this.panel()?.showWord(word);
       return true;
     },

@@ -466,10 +466,11 @@
     <div if="kind === 'passage' && version === 'kjv'" class="passage__text">
       <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}" events="${verse.events}" quotes="${verse.quotes}"></kjv-verse>
     </div>
-    <!-- The BSB alone: plain text, with no word addresses. -->
+    <!-- The BSB alone: its words numbered through each verse (data-w b1,
+         b2…), so they take highlights as the KJV's do. -->
     <div if="kind === 'passage' && version === 'bsb'" class="passage__text">
       <div each="row of rows" class="bsb-verse" data-ref="${row.verse.id}">
-        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> ${block.text}</p>
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
         <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.label}</sup> Not in the BSB's main text.</p>
       </div>
     </div>
@@ -538,8 +539,8 @@
       <p class="parallel__legend">Bold: words the other translation does not have. Word forms are compared, not spellings: “believeth” and “believes” are the same word.</p>
       <div each="row of rows" class="parallel__row">
         <kjv-verse data-ref="${row.verse.id}" n="${row.verse.label}" blocks="${row.verse.blocks}" events="${row.verse.events}" quotes="${row.verse.quotes}"></kjv-verse>
-        <div class="bsb-verse">
-          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="part of block.parts"><span if="part.d" class="bsb__d">${part.text}</span><span else>${part.text}</span></template></p>
+        <div class="bsb-verse" data-bsb-ref="${row.verse.id}">
+          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w ${token.d ? 'bsb__d' : ''}" data-w="b${token.w}">${token.text}</span><span else class="${token.d ? 'bsb__d' : ''}">${token.text}</span></template></p>
           <p if="!row.bsb.length" class="verse__missing">Not in the BSB's main text.</p>
         </div>
       </div>
