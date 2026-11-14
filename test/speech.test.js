@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { accentScore, chaptersFrom, joinText, ownVoiceFits, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { LEAD, accentScore, chaptersFrom, joinText, paced, untilNext, ownVoiceFits, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -109,4 +109,17 @@ test('a verse is read as it is built: its words stay where the voice says they a
   assert.equal(text, 'Now it came to pass, as');
   for (const [word, start] of places) assert.equal(text.slice(start).trimStart().startsWith(word), true, word);
   assert.equal(text.indexOf('came'), places[2][1]);
+});
+
+test('the next word is marked a little early, at the pace the voice has kept', () => {
+  // "came " at 60 ms a letter: 300 ms, less the lead.
+  assert.equal(untilNext('came ', 60), 300 - LEAD);
+  // A comma's pause: five letters more.
+  assert.equal(untilNext('pass, ', 60), (6 + 5) * 60 - LEAD);
+  assert.equal(untilNext('it ', 40), 0, 'never before now');
+  // The pace moves a third of the way to what was heard, and a pause is left out.
+  assert.equal(paced(60, 'came ', 450), 60 + (90 - 60) / 3);
+  assert.equal(paced(60, 'pass, ', 900), 60);
+  assert.equal(paced(60, 'to ', 0), 60);
+  assert.equal(paced(60, 'a ', 10000), 60 + (200 - 60) / 3, 'one slow word moves it only so far');
 });

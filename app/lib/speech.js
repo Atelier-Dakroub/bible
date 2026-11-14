@@ -393,6 +393,66 @@ export function joinText(text, piece) {
   return text + (!text || text.endsWith(' ') ? squeezed.replace(/^ /, '') : squeezed);
 }
 
+/** @typedef {{ perChar: number, last: { at: number, time: number } | null, timer: number }} Pace a voice's pace in a verse, from its words so far */
+
+/** A voice's pace before it has said two words: milliseconds a letter at 1×. */
+const START_PACE = 60;
+
+/** How long before the voice says a word has begun that the word is marked: Safari tells each word about this late. */
+export const LEAD = 200;
+
+/** The pause after a mark, as so many letters' time. */
+const PAUSES = { ',': 5, ';': 6, ':': 6, '.': 8, '?': 8, '!': 8 };
+
+/**
+ * The pause at the end of a stretch of text, as so many letters' time: 0
+ * with no mark at its end.
+ *
+ * @param {string} stretch
+ */
+const pauseIn = (stretch) => PAUSES[/** @type {keyof typeof PAUSES} */ (stretch.trimEnd().slice(-1))] ?? 0;
+
+/**
+ * The pace, in milliseconds a letter, with one more stretch heard: a third
+ * the new, two thirds the old, so one slow word does not throw it. A
+ * stretch with a pause in it is left out, as its pause is not its pace.
+ *
+ * @param {number} perChar
+ * @param {string} stretch the text from one word to the next
+ * @param {number} ms how long it took
+ */
+export function paced(perChar, stretch, ms) {
+  if (!stretch.length || pauseIn(stretch) || ms <= 0) return perChar;
+  const heard = Math.min(200, Math.max(20, ms / stretch.length));
+  return perChar + (heard - perChar) / 3;
+}
+
+/**
+ * How long from a word's start until its next word is marked: the stretch
+ * between them at the pace, with any pause, less LEAD.
+ *
+ * @param {string} stretch the text from the word to the next
+ * @param {number} perChar
+ * @param {number} [lead]
+ */
+export function untilNext(stretch, perChar, lead = LEAD) {
+  return Math.max(0, (stretch.length + pauseIn(stretch)) * perChar - lead);
+}
+
+/**
+ * The pace with a word heard at a time: from the last word heard to it.
+ *
+ * @param {Pace} pace changed in place
+ * @param {string} text
+ * @param {number} at where the word begins in the text
+ * @param {number} time when it was heard
+ */
+function learn(pace, text, at, time) {
+  const { last } = pace;
+  if (last && at > last.at) pace.perChar = paced(pace.perChar, text.slice(last.at, at), time - last.time);
+  pace.last = { at, time };
+}
+
 /**
  * Says one word, slower than reading.
  *
@@ -495,19 +555,44 @@ export class Reader {
    * @param {NonNullable<Item['words']>} words
    */
   follow(utterance, item, words) {
+    /** @type {Pace} */
+    const pace = { perChar: START_PACE / utterance.rate, last: null, timer: 0 };
     utterance.addEventListener('boundary', (event) => {
-      if (event.name !== 'word') return;
-      const word = words.find((each) => event.charIndex >= each.start && event.charIndex < each.end);
-      this.mark(word?.element ?? null);
+      if (event.name === 'word') this.hear(item.text, words, event.charIndex, pace);
     });
     utterance.addEventListener('end', () => {
+      clearTimeout(pace.timer);
       item.element.classList.remove('is-read');
       if (this.live()) this.next();
     });
     utterance.addEventListener('error', () => {
+      clearTimeout(pace.timer);
       item.element.classList.remove('is-read');
       if (this.live()) this.finish(item.element);
     });
+  }
+
+  /**
+   * A word the voice says it has begun: marked, and the next word marked a
+   * little before the voice says that one has begun (untilNext), at the
+   * pace the voice has kept so far. Safari tells each word late, so marking
+   * only on its word made the mark trail the voice.
+   *
+   * @param {string} text the verse as it is read
+   * @param {NonNullable<Item['words']>} words
+   * @param {number} at where the word begins in the text
+   * @param {Pace} pace changed in place
+   */
+  hear(text, words, at, pace) {
+    learn(pace, text, at, performance.now());
+    clearTimeout(pace.timer);
+    const index = words.findIndex((each) => at >= each.start && at < each.end);
+    this.mark(words[index]?.element ?? null);
+    const next = words[index + 1];
+    if (index < 0 || !next) return;
+    pace.timer = setTimeout(() => {
+      if (this.live()) this.mark(next.element);
+    }, untilNext(text.slice(words[index].start, next.start), pace.perChar));
   }
 
   /** @param {Element | null} word */
