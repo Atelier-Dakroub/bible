@@ -94,10 +94,10 @@ function fromValue(value) {
   const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isSpan).map(toHighlight) : [];
   const links = Array.isArray(value.links)
     ? value.links
-        .filter((/** @type {any} */ link) => isSpan(link?.a) && isSpan(link?.b))
+        .filter((/** @type {any} */ link) => isEnd(link?.a) && isEnd(link?.b))
         .map((/** @type {any} */ link) => {
           /** @type {Link} */
-          const kept = { a: toSpan(link.a), b: toSpan(link.b) };
+          const kept = { a: toEnd(link.a), b: toEnd(link.b) };
           if (TYPES.includes(link.type) && link.type) kept.type = link.type;
           return kept;
         })
@@ -327,6 +327,23 @@ function cutNote(note) {
 /** @param {any} value */
 function isSpan(value) {
   return isWordAddress(String(value?.from)) && isWordAddress(String(value?.to));
+}
+
+/**
+ * A link's end: words, or a whole card by its address.
+ *
+ * @param {any} value
+ */
+function isEnd(value) {
+  return isSpan(value) || (typeof value?.address === 'string' && value.address.length > 0 && value.address.length <= 200);
+}
+
+/**
+ * @param {any} value
+ * @returns {import('./links.js').End}
+ */
+function toEnd(value) {
+  return isSpan(value) ? toSpan(value) : { address: value.address };
 }
 
 /**

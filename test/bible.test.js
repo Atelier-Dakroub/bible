@@ -7,7 +7,7 @@ import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, inBsb, parseSpanAddress, span, tokenize, toggle, wordAddress, wordKey } from '../app/lib/words.js';
-import { dropLinksTo, firstCovered, removed, toggleLink, versesOf } from '../app/lib/links.js';
+import { dropLinksTo, firstCovered, isWhole, linked, removed, sameEnd, toggleLink, versesOf } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
   const { title, verses } = await passage({ book: 'JHN', chapter: 3, from: 16, to: 18 });
@@ -140,6 +140,29 @@ test('removing a highlight removes the links to it', () => {
   const gone = removed([love, light], [light]);
   assert.deepEqual(gone, [love]);
   assert.equal(dropLinksTo(links, gone).length, 1);
+});
+
+test('a whole card is an end of a link, beside words or another card', () => {
+  const note = { address: 'note:n1' };
+  const passage = { address: 'ROM.5.8' };
+  assert.ok(isWhole(note));
+  assert.ok(!isWhole(love));
+  assert.ok(sameEnd(note, { address: 'note:n1' }));
+  assert.ok(!sameEnd(note, passage));
+  assert.ok(!sameEnd(note, love), 'a card is never words');
+  const links = toggleLink(toggleLink([], note, passage), love, passage);
+  assert.equal(links.length, 2);
+  assert.ok(linked(links, passage, note), 'either way round');
+  assert.ok(!linked(links, note, love));
+  assert.deepEqual(toggleLink(links, passage, note), [{ a: love, b: passage }]);
+  assert.deepEqual(toggleLink([], note, { address: 'note:n1' }), []);
+  // A card that goes takes its links with it; the words keep theirs.
+  assert.deepEqual(dropLinksTo(links, [note]), [{ a: love, b: passage }]);
+});
+
+test('a stored link to a whole card is kept', () => {
+  const kept = parse(JSON.stringify({ links: [{ a: { address: 'note:n1' }, b: love, type: 'quotes' }, { a: { address: '' }, b: love }, { a: { address: 7 }, b: love }] }));
+  assert.deepEqual(kept.links, [{ a: { address: 'note:n1' }, b: love, type: 'quotes' }]);
 });
 
 test('the first word a span covers is found in a sorted index', () => {

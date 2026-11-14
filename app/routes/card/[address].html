@@ -255,6 +255,7 @@
         <p class="rr-card__kind"><span class="rr-pictogram rr-pictogram--place"><svg-icon library="kinds" name="place"></svg-icon></span><span class="rr-kicker">Map</span></p>
         <h2 class="rr-card__title passage__heading">${title}</h2>
       </div>
+      <button type="button" class="rr-card__close rr-card__link" data-action="link" aria-label="Link the map to another card" title="Link: drag to another card, or click to choose one"><svg-icon library="ui" name="link"></svg-icon></button>
       <button type="button" class="rr-card__close" data-action="close" aria-label="Remove the map from the table">×</button>
     </header>
     <div class="rr-card__body">
@@ -353,6 +354,7 @@
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'note'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the note as Markdown" title="Copy the note as Markdown"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
+      <button type="button" class="passage__icon" data-action="link" aria-label="Link ${title} to another card" title="Link: drag to another card, or click to choose one"><svg-icon library="ui" name="link"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
     <!-- The version: one joined bar. Compare follows it on a card in Both. -->

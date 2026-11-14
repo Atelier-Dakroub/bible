@@ -144,7 +144,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { dropLinksTo, firstCovered, nextType, referencePairs, removed, toggleLink } from '../lib/links.js';
+  import { dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, toggleLink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
@@ -393,6 +393,24 @@
   }
 
   /**
+   * Puts a popover under a box on the screen, its right edge at the box's,
+   * or over the box when there is no room under it, and on the screen.
+   * (CSS anchors follow a card's layout box, not its transform.)
+   *
+   * @param {HTMLElement} element
+   * @param {DOMRect} box
+   */
+  function placeBelow(element, box) {
+    const gap = 6;
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    const left = Math.max(gap, Math.min(box.right - width, innerWidth - width - gap));
+    const top = box.bottom + gap + height <= innerHeight - gap ? box.bottom + gap : Math.max(gap, box.top - gap - height);
+    element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
+  }
+
+  /**
    * A guide line, from the table's coordinates to the screen's.
    *
    * @param {{ x1: number, y1: number, x2: number, y2: number }} guide
@@ -460,21 +478,17 @@
   }
 
   /**
-   * All the words of a card, as a span: a link's end when it was not let go
-   * on a highlight.
+   * A whole card as a link's end. A passage is its address, so the link
+   * shows on every card of it in any translation; a note, the map or a
+   * person is its own address too. A card of words (a phrase) is the words,
+   * so its link shows wherever they do.
    *
-   * @param {Element} card
-   * @returns {Span | null}
+   * @param {HTMLElement} card
+   * @returns {End}
    */
-  function wholeSpan(card) {
-    const index = indexOf(card);
-    if (!index.length) return null;
-    const first = wordAt(index[0].item);
-    // Beside the KJV, the BSB's words come last: the span ends in the
-    // translation it begins in.
-    const same = index.filter((entry) => inBsb(wordAt(entry.item) ?? '') === inBsb(first ?? ''));
-    const last = wordAt(same[same.length - 1].item);
-    return first && last ? { from: first, to: last } : null;
+  function wholeOf(card) {
+    const address = card.dataset.address ?? '';
+    return (card.dataset.kind === 'phrase' && parseSpanAddress(address)) || { address };
   }
 
   /**
@@ -989,6 +1003,8 @@
 
   /** @typedef {import('../lib/links.js').Span} Span */
   /** @typedef {import('../lib/links.js').Link} Link */
+  /** @typedef {import('../lib/links.js').End} End */
+  /** @typedef {{ span?: Span, card?: HTMLElement, x: number, y: number }} LinkDrag from words, or from a card's link button */
   /** @typedef {{ card: Element, box: DOMRect }} Place */
 
   // A card's words in reading order, with their sort keys, built the first
@@ -1191,7 +1207,7 @@
     highlights: [],
     /** @type {Link[]} */
     links: [],
-    /** @type {{ span: Span, x: number, y: number } | null} a link being drawn */
+    /** @type {{ end: End, card: HTMLElement | null, x: number, y: number } | null} a link being drawn, from words or from a card */
     pending: null,
     /** the Strong's number the search panel is studying, or "" */
     studied: '',
@@ -1398,6 +1414,9 @@
             this.notes = this.notes.filter((each) => each.id !== note);
             this.paintQuoted(this.world());
           }
+          // The last card of an address takes its whole-card links with it.
+          const address = card.dataset.address ?? '';
+          if (!this.cardsAt(address).length) this.links = dropLinksTo(this.links, [{ address }]);
           this.keep();
           this.paintMap();
           this.drawSoon();
@@ -2271,17 +2290,30 @@
       this.drawSoon();
     },
 
-    /** @param {{ span: Span, x: number, y: number }} detail */
-    linking(detail) {
-      this.pending = detail;
+    /** @param {LinkDrag} detail */
+    linking({ span, card, x, y }) {
+      const end = card ? wholeOf(card) : span;
+      if (end) this.pending = { end, card: card ?? null, x, y };
       this.drawSoon();
     },
 
-    /** @param {{ span: Span, x: number, y: number }} detail */
-    link({ span, x, y }) {
+    /** @param {LinkDrag} detail */
+    link({ span, card: from, x, y }) {
       this.pending = null;
       this.drawSoon();
       if (!Number.isFinite(x)) return;
+      if (from) this.linkCard(from, x, y);
+      else if (span) this.linkWords(span, x, y);
+    },
+
+    /**
+     * Words let go of somewhere: what that does depends on what is there.
+     *
+     * @param {Span} span
+     * @param {number} x
+     * @param {number} y
+     */
+    linkWords(span, x, y) {
       const source = this.sourceOf(span);
       const under = document.elementFromPoint(x, y);
       const card = this.tableCard(under);
@@ -2290,6 +2322,103 @@
       if (card?.dataset.kind === 'note') this.dropOnNote(card, source, x, y);
       else if (card) this.linkTo(source, x, y);
       else this.dropOnTable(source, under, x, y);
+    },
+
+    /**
+     * A line from a card's link button let go on another card: the two
+     * whole cards are linked, or the link between them taken away.
+     *
+     * @param {HTMLElement} card
+     * @param {number} x
+     * @param {number} y
+     */
+    linkCard(card, x, y) {
+      const target = this.tableCard(document.elementFromPoint(x, y));
+      if (!target || target === card) return;
+      if (this.joinCards(card, target) === 'removed') this.toast(`The link to ${tileName(target)} is removed.`);
+    },
+
+    /**
+     * Links two whole cards, or takes away the link between them.
+     *
+     * @param {HTMLElement} card
+     * @param {HTMLElement} target
+     * @returns {'added' | 'removed' | ''} '' when they are the same passage
+     */
+    joinCards(card, target) {
+      const before = this.links.length;
+      this.links = toggleLink(this.links, wholeOf(card), wholeOf(target));
+      if (this.links.length === before) return '';
+      this.keep();
+      this.drawSoon();
+      return this.links.length > before ? 'added' : 'removed';
+    },
+
+    /**
+     * The link button, clicked or pressed with a key: a list of the other
+     * cards on the table, to link this one to (or to take a link away). It
+     * also reaches a card that is off the screen.
+     *
+     * @param {HTMLElement} card
+     * @param {HTMLElement} button
+     */
+    chooseLink(card, button) {
+      const chooser = /** @type {HTMLElement} */ (this.querySelector('.table__chooser'));
+      const from = wholeOf(card);
+      /** @type {End[]} */
+      const seen = [from];
+      /** @type {HTMLElement[]} */
+      const items = [];
+      for (const other of /** @type {NodeListOf<HTMLElement>} */ (this.world().querySelectorAll('gesture-card'))) {
+        const end = wholeOf(other);
+        if (seen.some((each) => sameEnd(each, end))) continue;
+        seen.push(end);
+        items.push(this.chooserItem(card, other, linked(this.links, from, end), chooser));
+      }
+      const title = /** @type {HTMLElement} */ (chooser.querySelector('.chooser__title'));
+      title.textContent = `Link ${tileName(card)} to`;
+      const list = /** @type {HTMLElement} */ (chooser.querySelector('.chooser__list'));
+      list.replaceChildren(...items);
+      /** @type {HTMLElement} */ (chooser.querySelector('.chooser__empty')).hidden = items.length > 0;
+      if (chooser.matches(':popover-open')) chooser.hidePopover();
+      chooser.showPopover();
+      placeBelow(chooser, button.getBoundingClientRect());
+      (items[0] ?? chooser).focus();
+      // Escape, a tap outside, or a choice: the focus goes back to the button,
+      // unless the tap gave it to something else.
+      const done = new AbortController();
+      chooser.addEventListener('toggle', (event) => {
+        if (/** @type {ToggleEvent} */ (event).newState !== 'closed') return;
+        done.abort();
+        if (chooser.contains(document.activeElement) || document.activeElement === document.body) button.focus();
+      }, { signal: done.signal });
+    },
+
+    /**
+     * One card in the list of the link button.
+     *
+     * @param {HTMLElement} card the card the link starts from
+     * @param {HTMLElement} other
+     * @param {boolean} on whether they are linked already
+     * @param {HTMLElement} chooser
+     */
+    chooserItem(card, other, on, chooser) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'chooser__card';
+      item.setAttribute('aria-pressed', String(on));
+      const name = document.createElement('span');
+      name.textContent = tileName(other);
+      const state = document.createElement('span');
+      state.className = 'chooser__state';
+      state.textContent = on ? 'Linked' : '';
+      item.append(name, state);
+      item.addEventListener('click', () => {
+        const done = this.joinCards(card, other);
+        chooser.hidePopover();
+        if (done) this.toast(done === 'added' ? `Linked to ${tileName(other)}.` : `The link to ${tileName(other)} is removed.`);
+      });
+      return item;
     },
 
     /**
@@ -2469,17 +2598,17 @@
 
     /**
      * What a link lands on at a point on the screen: the highlight under the
-     * finger, or else the whole passage of the card under it, or nothing.
+     * finger, or else the whole card under it, or nothing.
      *
      * @param {number} x
      * @param {number} y
-     * @returns {Span | null}
+     * @returns {End | null}
      */
     endAt(x, y) {
       const under = document.elementFromPoint(x, y);
       const card = this.tableCard(under);
       if (!under || !card) return null;
-      return this.highlightAt(under) ?? wholeSpan(card);
+      return this.highlightAt(under) ?? wholeOf(card);
     },
 
     /**
@@ -3122,14 +3251,34 @@
     },
 
     /**
-     * Where a span shows: one box per card that holds any of its words. The
-     * box is the first word of the span on that card, or the card's heading
-     * when the card is in its short form and the words are hidden.
+     * The cards on the table with an address.
      *
-     * @param {Span} span
+     * @param {string} address
+     * @returns {HTMLElement[]}
+     */
+    cardsAt(address) {
+      return /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card')]).filter((card) => card.dataset.address === address);
+    },
+
+    /**
+     * Where a link's end shows. A whole card: the box of each card with its
+     * address. Words: one box per card that holds any of them, the first
+     * word of the span on that card, or the card's heading when the card is
+     * in its short form and the words are hidden.
+     *
+     * @param {End} span
      * @returns {Place[]}
      */
     placesOf(span) {
+      if (isWhole(span)) return this.cardsAt(span.address).map((card) => ({ card, box: card.getBoundingClientRect() }));
+      return this.wordPlaces(span);
+    },
+
+    /**
+     * @param {Span} span
+     * @returns {Place[]}
+     */
+    wordPlaces(span) {
       /** @type {Place[]} */
       const places = [];
       for (const card of this.world().querySelectorAll('gesture-card')) {
@@ -3207,9 +3356,12 @@
      * @returns {Element[]}
      */
     pendingLines() {
-      if (!this.pending) return [];
-      const finger = new DOMRect(this.pending.x, this.pending.y, 0, 0);
-      return this.placesOf(this.pending.span).map((start) => line(start.box, finger, 'link'));
+      const pending = this.pending;
+      if (!pending) return [];
+      const finger = new DOMRect(pending.x, pending.y, 0, 0);
+      // From the card the line is drawn from, not from its copies.
+      const starts = pending.card ? [{ box: pending.card.getBoundingClientRect() }] : this.placesOf(pending.end);
+      return starts.map((start) => line(start.box, finger, 'link'));
     },
 
     /**
@@ -3398,6 +3550,7 @@
           this.keep();
         },
         copy: () => this.copyCard(card, button),
+        link: () => this.chooseLink(card, button),
         listen: () => this.readAloud(card, button),
         'note-kind': () => this.changeKind(card),
       };
@@ -4532,6 +4685,62 @@
     pointer-events: auto;
     cursor: pointer;
   }
+  /* The link button's list of cards. */
+  .table__chooser {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: min(20rem, calc(100vw - 2rem));
+    max-height: min(24rem, 60vh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 6px 24px var(--shade-far);
+  }
+  .chooser__title,
+  .chooser__empty {
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    color: var(--ink-soft);
+    font: 500 0.85rem/1.4 var(--sans);
+  }
+  .chooser__list {
+    display: grid;
+  }
+  .chooser__card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: var(--control-height);
+    padding: 0 0.6rem;
+    border: 0;
+    border-radius: var(--radius-small);
+    background: transparent;
+    color: var(--ink);
+    font: 500 0.95rem/1.3 var(--sans);
+    text-align: start;
+    cursor: pointer;
+  }
+  /* A card linked already: the tag says so; the row stays plain, as a
+     choice again takes the link away. */
+  .chooser__card[aria-pressed='true'] {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink);
+  }
+  .chooser__card:hover {
+    background: color-mix(in srgb, var(--lapis) 8%, var(--paper));
+  }
+  .chooser__state {
+    flex: none;
+    color: var(--lapis);
+    font-size: 0.8rem;
+  }
   .table__label.is-typed {
     border-color: var(--lapis);
     color: var(--lapis);
@@ -4585,5 +4794,12 @@
   <g class="table__fixed"></g>
 </svg>
 <div class="table__labels"></div>
+<!-- The link button's list of cards (chooseLink): a popover, so Escape and a
+     tap outside close it. -->
+<div class="table__chooser" popover role="dialog" aria-labelledby="link-chooser-title" tabindex="-1">
+  <p class="chooser__title" id="link-chooser-title"></p>
+  <div class="chooser__list"></div>
+  <p class="chooser__empty">No other card is on the table.</p>
+</div>
 <p class="table__toast" role="status"></p>
 <slot></slot>

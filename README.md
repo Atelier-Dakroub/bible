@@ -113,14 +113,21 @@ removes it. Marking it in another style changes its style.
 
 Links: while you mark words, drag the marking finger out of the card and lift
 it on another card. That links the marked words to the highlight under your
-finger, or to the whole passage when no highlight is there. A solid white line
+finger, or to the whole card when no highlight is there. The link button at
+the top of every card links whole cards: drag it onto another card, or tap it
+for a list of the cards on the table (the way for the keyboard, and for a
+card off the screen). Any card can be an end: a passage, a note, a person,
+the map. A whole-card end is the card's address, so a link to a passage shows
+on every card of it in any translation; a phrase card's end is its words.
+When the last card of an address leaves the table, its whole-card links go
+too, and Undo brings them back. A solid white line
 shows a link; a dashed gray line joins the places where the same highlighted
 words show on more than one card. Drawing a link again removes it, and
-removing a highlight removes its links. A link is two spans of word
-addresses, kept with the workspace. A label at the middle of each link says
+removing a highlight removes its links. A link's two ends are each a span of
+word addresses or a card's address, kept with the workspace. A label at the middle of each link says
 what it is: a tap changes it from "link" to "quotes", "fulfills" and
-"contrasts", and back. A link with a type has an arrow, from the words you
-marked to the words you dropped them on.
+"contrasts", and back. A link with a type has an arrow, from where the link
+started to where it was dropped.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked
 words become a card of their own, a phrase card. Note, on the rail, puts a

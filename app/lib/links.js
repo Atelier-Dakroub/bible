@@ -1,16 +1,20 @@
-// Links between spans of text.
+// Links between spans of text and whole cards.
 //
-// A link joins two spans of word addresses (app/lib/words.js). It runs from
-// `a`, where the finger started, to `b`, where it lifted. A link can have a
-// type (TYPES), and a typed link is drawn with its direction. Drawing the same
-// two spans again, either way round, removes the link. An end is usually a
-// highlight; an end dropped on a passage with no highlight under the finger
-// is the whole passage, as the span from its first word to its last.
+// A link joins two ends. It runs from `a`, where the finger started, to `b`,
+// where it lifted. An end is a span of word addresses (app/lib/words.js),
+// usually a highlight, or a whole card, named by its address: `JHN.3.16`,
+// `note:n1`, `person:paul`, `map`. A whole passage is the passage in any
+// translation, so its link shows on every card of it, as KJV, as BSB or in
+// the original. A link can have a type (TYPES), and a typed link is drawn
+// with its direction. Drawing the same two ends again, either way round,
+// removes the link.
 
 import { wordKey } from './words.js';
 
 /** @typedef {import('./words.js').Highlight} Span */
-/** @typedef {{ a: Span, b: Span, type?: string }} Link `type` is one of TYPES; none is "" */
+/** @typedef {{ address: string }} Whole a whole card, by its address */
+/** @typedef {Span | Whole} End */
+/** @typedef {{ a: End, b: End, type?: string }} Link `type` is one of TYPES; none is "" */
 
 // What a link says, read from `a` to `b`: "a quotes b", "a fulfills b",
 // "a contrasts with b". The first, "", is a plain link.
@@ -34,39 +38,69 @@ export function sameSpan(x, y) {
 }
 
 /**
- * @param {Link} link
- * @param {Span} x
- * @param {Span} y
+ * Whether an end is a whole card.
+ *
+ * @param {End} end
+ * @returns {end is Whole}
  */
-function joins(link, x, y) {
-  return (sameSpan(link.a, x) && sameSpan(link.b, y)) || (sameSpan(link.a, y) && sameSpan(link.b, x));
+export const isWhole = (end) => 'address' in end;
+
+/**
+ * Whether two ends are the same: the same card, or the same words.
+ *
+ * @param {End} x
+ * @param {End} y
+ */
+export function sameEnd(x, y) {
+  if (isWhole(x) || isWhole(y)) return isWhole(x) && isWhole(y) && x.address === y.address;
+  return sameSpan(x, y);
 }
 
 /**
- * Adds the link, or removes it when it is there already. A span linked to
+ * @param {Link} link
+ * @param {End} x
+ * @param {End} y
+ */
+function joins(link, x, y) {
+  return (sameEnd(link.a, x) && sameEnd(link.b, y)) || (sameEnd(link.a, y) && sameEnd(link.b, x));
+}
+
+/**
+ * Adds the link, or removes it when it is there already. An end linked to
  * itself is not a link.
  *
  * @param {Link[]} links
- * @param {Span} a
- * @param {Span} b
+ * @param {End} a
+ * @param {End} b
  * @returns {Link[]}
  */
 export function toggleLink(links, a, b) {
-  if (sameSpan(a, b)) return links;
+  if (sameEnd(a, b)) return links;
   const found = links.find((link) => joins(link, a, b));
   if (found) return links.filter((link) => link !== found);
   return [...links, { a, b }];
 }
 
 /**
- * The links that still have both ends, after some spans went away.
+ * Whether two ends are linked, either way round.
  *
  * @param {Link[]} links
- * @param {Span[]} gone
+ * @param {End} a
+ * @param {End} b
+ */
+export function linked(links, a, b) {
+  return links.some((link) => joins(link, a, b));
+}
+
+/**
+ * The links that still have both ends, after some ends went away.
+ *
+ * @param {Link[]} links
+ * @param {End[]} gone
  * @returns {Link[]}
  */
 export function dropLinksTo(links, gone) {
-  return links.filter((link) => !gone.some((span) => sameSpan(span, link.a) || sameSpan(span, link.b)));
+  return links.filter((link) => !gone.some((end) => sameEnd(end, link.a) || sameEnd(end, link.b)));
 }
 
 /**

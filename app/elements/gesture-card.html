@@ -11,6 +11,11 @@
      words are one end, and wherever the finger lifts is the other. The table
      decides what the other end is.
 
+     The link button in the card's header ([data-action="link"]) links the
+     whole card: one finger or the mouse drags a line from it, and the card
+     under the lift is the other end. A press that does not move is a click,
+     and the table offers a list of the cards to link to.
+
      The card's position is a matrix in the coordinates of its offset parent,
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
@@ -42,8 +47,10 @@
      Events, all bubbling:
        card-change  a gesture ended, so the position is worth keeping
        card-mark    a marking ended: detail { from, to }, two word addresses
-       card-link-move  a link is being drawn: detail { span, x, y }
-       card-link    a link was drawn: detail { span, x, y }, x and y on screen
+       card-link-move  a link is being drawn: detail { span, x, y } from
+                    words, { card, x, y } from the link button
+       card-link    a link was drawn: the same detail, x and y on screen
+                    (NaN when the browser cancelled it)
        card-paint   the card moved or changed form, so lines to it move too
        card-tap     one finger touched and lifted without moving: detail
                     { target, x, y } (x and y on the screen; none from Enter)
@@ -169,6 +176,10 @@
     marking: null,
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
     tap: null,
+    /** @type {{ id: number, x: number, y: number, dragging: boolean } | null} a line drawn from the link button */
+    handle: null,
+    /** whether the last press on the link button drew a line, so its click is not a click */
+    dragged: false,
     settleTimer: 0,
     /** @type {Matrix | null} what the fingers ask for, before the snap */
     raw: null,
@@ -200,6 +211,7 @@
       // the page) ends as if cancelled; one that lifted has gone already.
       this.addEventListener('lostpointercapture', (event) => this.release(event), { signal });
       this.addEventListener('click', (event) => this.act(event), { signal });
+      this.addEventListener('click', (event) => this.swallow(event), { signal, capture: true });
       this.addEventListener('keydown', (event) => this.key(event), { signal });
       if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
       // For a screen reader: a card, named by its heading, and the keys it
@@ -339,11 +351,89 @@
     /** @param {PointerEvent} event */
     press(event) {
       const target = elementOf(event.target);
-      if (ownPress(target) || otherButton(event)) return;
+      if (this.notMine(event, target)) return;
       this.forgetLost();
       if (this.marking || this.markFrom(event, target)) return;
       this.tap = this.firstTap(event);
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+    },
+
+    /**
+     * Whether a press is not the card's to move it: the link button's, a
+     * control's, or a mouse's other button.
+     *
+     * @param {PointerEvent} event
+     * @param {Element | null} target
+     */
+    notMine(event, target) {
+      return this.grabHandle(event, target) || ownPress(target) || otherButton(event);
+    },
+
+    /**
+     * A press on the link button may draw a line from the card. The button
+     * keeps the pointer, so the lift and the click come back to it.
+     *
+     * @param {PointerEvent} event
+     * @param {Element | null} target
+     */
+    grabHandle(event, target) {
+      const button = target?.closest('[data-action="link"]');
+      if (!button || this.handle || otherButton(event)) return false;
+      this.dragged = false;
+      try {
+        button.setPointerCapture(event.pointerId);
+      } catch {
+        return false;
+      }
+      this.handle = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
+      return true;
+    },
+
+    /**
+     * Once the pointer leaves the place it pressed, the line follows it.
+     *
+     * @param {PointerEvent} event
+     */
+    moveHandle(event) {
+      const handle = /** @type {{ x: number, y: number, dragging: boolean }} */ (this.handle);
+      if (!handle.dragging && !movedFrom(handle, event)) return;
+      handle.dragging = true;
+      this.sendCardLink('card-link-move', event);
+    },
+
+    /**
+     * @param {PointerEvent} event
+     * @param {boolean} keep false when the browser cancelled the pointer
+     */
+    endHandle(event, keep) {
+      const handle = /** @type {{ dragging: boolean }} */ (this.handle);
+      this.handle = null;
+      if (!handle.dragging) return;
+      this.dragged = true;
+      this.sendCardLink('card-link', keep ? event : null);
+    },
+
+    /**
+     * @param {string} type
+     * @param {PointerEvent | null} event
+     */
+    sendCardLink(type, event) {
+      const detail = { card: this, x: event ? event.clientX : NaN, y: event ? event.clientY : NaN };
+      this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
+    },
+
+    /**
+     * The click after a line drawn from the link button is the end of the
+     * drag, not a click: it does not open the list.
+     *
+     * @param {MouseEvent} event
+     */
+    swallow(event) {
+      if (!this.dragged) return;
+      this.dragged = false;
+      if (!elementOf(event.target)?.closest('[data-action="link"]')) return;
+      event.stopPropagation();
+      event.preventDefault();
     },
 
     /**
@@ -562,6 +652,10 @@
 
     /** @param {PointerEvent} event */
     drag(event) {
+      if (this.handle?.id === event.pointerId) {
+        this.moveHandle(event);
+        return;
+      }
       if (this.marking?.id === event.pointerId) {
         this.moveMarking(event);
         return;
@@ -624,6 +718,10 @@
 
     /** @param {PointerEvent} event */
     release(event) {
+      if (this.handle?.id === event.pointerId) {
+        this.endHandle(event, event.type === 'pointerup');
+        return;
+      }
       if (this.marking?.id === event.pointerId) {
         this.endMarking(event, event.type === 'pointerup');
         return;

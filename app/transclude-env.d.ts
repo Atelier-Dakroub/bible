@@ -40,9 +40,13 @@ type Highlight = {
   style?: string | undefined;
 };
 type Link = {
-  a: Highlight;
-  b: Highlight;
+  a: End;
+  b: End;
   type?: string | undefined;
+};
+type End = Highlight | Whole;
+type Whole = {
+  address: string;
 };
 type Note = {
   id: string;
@@ -108,6 +112,12 @@ type Pull = {
   x: number;
   y: number;
   down: boolean;
+};
+type LinkDrag = {
+  span?: Highlight | undefined;
+  card?: HTMLElement | undefined;
+  x: number;
+  y: number;
 };
 type Tap = {
   element: Element;
@@ -734,7 +744,8 @@ export type BibleTableMembers = {
   highlights: Highlight[];
   links: Link[];
   pending: {
-    span: Highlight;
+    end: End;
+    card: HTMLElement | null;
     x: number;
     y: number;
   } | null;
@@ -892,18 +903,17 @@ export type BibleTableMembers = {
     from: string;
     to: string;
   }): void;
-  linking(detail: {
-    span: Highlight;
-    x: number;
-    y: number;
-  }): void;
+  linking({
+    span, card, x, y
+  }: LinkDrag): void;
   link({
-    span, x, y
-  }: {
-    span: Highlight;
-    x: number;
-    y: number;
-  }): void;
+    span, card: from, x, y
+  }: LinkDrag): void;
+  linkWords(span: Highlight, x: number, y: number): void;
+  linkCard(card: HTMLElement, x: number, y: number): void;
+  joinCards(card: HTMLElement, target: HTMLElement): '' | 'added' | 'removed';
+  chooseLink(card: HTMLElement, button: HTMLElement): void;
+  chooserItem(card: HTMLElement, other: HTMLElement, on: boolean, chooser: HTMLElement): HTMLButtonElement;
   dropOnNote(card: HTMLElement, source: Highlight, x: number, y: number): void;
   tableCard(element: Element | null): HTMLElement | null;
   linkTo(source: Highlight, x: number, y: number): void;
@@ -931,7 +941,7 @@ export type BibleTableMembers = {
     quotes: Highlight[];
   }): void;
   sourceOf(span: Highlight): Highlight;
-  endAt(x: number, y: number): Highlight | null;
+  endAt(x: number, y: number): End | null;
   highlightAt(element: Element): Highlight | undefined;
   tapped({
     target, x, y
@@ -1036,7 +1046,9 @@ export type BibleTableMembers = {
   verseBox(card: Element, verse: Element): DOMRect;
   referenceLines(): Element[];
   drawSoon(): void;
-  placesOf(span: Highlight): Place[];
+  cardsAt(address: string): HTMLElement[];
+  placesOf(span: End): Place[];
+  wordPlaces(span: Highlight): Place[];
   draw(): void;
   sameLines(): Element[];
   linkLines(): {
@@ -1285,6 +1297,13 @@ export type GestureCardMembers = {
     t: number;
     target: EventTarget | null;
   } | null;
+  handle: {
+    id: number;
+    x: number;
+    y: number;
+    dragging: boolean;
+  } | null;
+  dragged: boolean;
   settleTimer: number;
   raw: Matrix | null;
   others: Box_3[] | null;
@@ -1312,6 +1331,12 @@ export type GestureCardMembers = {
   keyActions(long: boolean): Record<string, () => void>;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
+  notMine(event: PointerEvent, target: Element | null): boolean;
+  grabHandle(event: PointerEvent, target: Element | null): boolean;
+  moveHandle(event: PointerEvent): void;
+  endHandle(event: PointerEvent, keep: boolean): void;
+  sendCardLink(type: string, event: PointerEvent | null): void;
+  swallow(event: MouseEvent): void;
   firstTap(event: PointerEvent): {
     id: number;
     x: number;

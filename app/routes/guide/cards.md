@@ -15,6 +15,7 @@ These buttons are at the top of the card:
 | Speaker | At the top | Reads the passage aloud. See [Listen and watch](/guide/listen-watch). |
 | Copy | At the top | Copies the words with their reference and version. |
 | Sync | At the top | Makes the card step with the other synced cards. |
+| Link | At the top | Links the whole card to another card. See [Links between cards](#links-between-cards). |
 | **×** | At the top | Takes the card off the table. |
 
 ### Versions
@@ -99,11 +100,23 @@ A highlight has one of three styles: **Filled**, **Underlined** or **Boxed**. Ch
 
 ## Links between cards
 
+A link joins two cards, or words on two cards. Every card can have links: passages, notes, people, places, events, videos and the map.
+
+### Link two whole cards
+
+Drag the link button at the top of a card onto another card, with one finger or the mouse. Lift it on the other card. A line now joins the two cards.
+
+You can also tap or click the link button. A list of the other cards on the table opens. Choose a card from the list. The list also reaches cards that are off the screen, and it works with the keyboard. "Linked" in the list shows a card that is linked already. Escape closes the list.
+
+A link to a passage is a link to the passage in every translation. The line stays when you change the card from KJV to BSB or to the original. If two cards show the same passage, the line goes to both. When you take the last card of a passage, note or map off the table, its whole-card links go too. Undo brings them back.
+
+### Link words
+
 1. Hold a card and mark words, as for a highlight.
 2. Do not lift the marking finger. Drag it out of the card and onto another card.
 3. Lift it on a highlight, or on any words of the other card.
 
-The marked words now link to the highlight under your finger. When no highlight is there, they link to the whole passage of that card.
+The marked words now link to the highlight under your finger. When no highlight is there, they link to the whole card. To quote words in a note instead of linking them, lift them on the note. See [Notes](/guide/notes#quotes).
 
 The lines between cards:
 
@@ -115,7 +128,7 @@ The lines between cards:
 
 ### Link types
 
-A label at the middle of each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from the words you marked to the words you dropped them on.
+A label at the middle of each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from where you started the link to where you dropped it.
 
 To remove a link, draw it again. When you remove a highlight, its links go too.
 
