@@ -157,7 +157,7 @@
   import { foldedIn, foldQuote, quoteAt } from '../lib/note-quotes.js';
   import { toMarkdown } from '../lib/note-markdown.js';
   import { KINDS, isKind, labelOf, nextKind } from '../lib/note-kinds.js';
-  import { LANGUAGE_NAMES, Reader, Recording, readerChoice, sayWord, voiceFor } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, Reader, Recording, namedVoice, readerChoice, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -4124,15 +4124,16 @@
 
     /**
      * Says which of the device's voices reads, as a recording says who reads
-     * it: "Read by Ava, this device's voice." The name comes without the
-     * quality that Chrome adds to it.
+     * it: "Read by Ava, this device's voice.", or "Read in this device's own
+     * voice." where the app names none (lib/speech.js ownVoiceFits). The
+     * name comes without the quality that Chrome adds to it.
      *
      * @param {import('../lib/speech.js').Lang} lang
      */
     async sayVoice(lang) {
-      const voice = await voiceFor(lang);
+      const voice = await namedVoice(lang);
       const name = voice?.name.replace(/\s*\((premium|enhanced)\)/i, '');
-      if (name) this.toast(`Read by ${name}, this device's voice.`);
+      this.toast(name ? `Read by ${name}, this device's voice.` : "Read in this device's own voice.");
     },
 
     /**

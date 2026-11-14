@@ -69,8 +69,59 @@ export async function voicesFor(lang) {
 }
 
 /**
- * The voice that reads a language: the one the reader chose in Tools, if
- * the device still has it; else the best (voicesFor).
+ * Whether a language is better read in the device's own voice, by naming no
+ * voice, than in the best one the browser lists. Safari lists only the
+ * small compact voices, never the Premium or Enhanced ones that the device
+ * has downloaded, yet it reads in the device's own voice (the one chosen in
+ * Spoken Content, Ava (Premium) say) when a page names none: naming the
+ * best it lists would put compact Samantha in Ava's place. So the device's
+ * own voice reads the reader's own language, unless the browser lists a
+ * Premium, Enhanced or Natural one, or the device's own is a voice for fun
+ * (where the browser says which is its own: Safari calls every voice its
+ * own, which says nothing).
+ *
+ * @param {{ name: string, voiceURI?: string } | null | undefined} best the best voice listed (voicesFor)
+ * @param {Lang} lang
+ * @param {string} reader the reader's language (navigator.language)
+ * @param {{ name: string, voiceURI?: string, default: boolean }[]} all every voice listed
+ */
+export function ownVoiceFits(best, lang, reader, all) {
+  if (!best || tagOf(reader).split('-')[0] !== lang || qualityScore(best) >= 4) return false;
+  const marked = all.filter((voice) => voice.default);
+  return !(marked.length === 1 && novelty(marked[0]));
+}
+
+/** @returns {string} the reader's language, as the browser says it */
+const readerLanguage = () => (typeof navigator === 'undefined' ? '' : navigator.language ?? '');
+
+/**
+ * The voice that Automatic names for a language: the best listed, or null
+ * for the device's own (ownVoiceFits).
+ *
+ * @param {Lang} lang
+ * @returns {Promise<SpeechSynthesisVoice | null>}
+ */
+export async function automaticVoice(lang) {
+  const list = await voicesFor(lang);
+  return ownVoiceFits(list[0], lang, readerLanguage(), await voices()) ? null : (list[0] ?? null);
+}
+
+/**
+ * The voice to name on what is read: the one the reader chose in Tools, if
+ * the device still has it; else Automatic's (null: the device's own).
+ *
+ * @param {Lang} lang
+ * @returns {Promise<SpeechSynthesisVoice | null>}
+ */
+export async function namedVoice(lang) {
+  const chosen = voiceChoice(lang);
+  const found = chosen ? (await voicesFor(lang)).find((voice) => voice.voiceURI === chosen) : undefined;
+  return found ?? automaticVoice(lang);
+}
+
+/**
+ * A voice that can read a language, the chosen one or the best: null when
+ * the device has none, and the app says so.
  *
  * @param {Lang} lang
  * @returns {Promise<SpeechSynthesisVoice | null>}
@@ -79,6 +130,23 @@ export async function voiceFor(lang) {
   const all = await voicesFor(lang);
   const chosen = voiceChoice(lang);
   return all.find((voice) => chosen && voice.voiceURI === chosen) ?? all[0] ?? null;
+}
+
+/**
+ * Names a voice on an utterance; with none, the device's own reads, and the
+ * utterance says its language only where that is not the reader's.
+ *
+ * @param {SpeechSynthesisUtterance} utterance
+ * @param {SpeechSynthesisVoice | null} voice
+ * @param {Lang} lang
+ */
+function voiceOn(utterance, voice, lang) {
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  } else if (tagOf(readerLanguage()).split('-')[0] !== lang) {
+    utterance.lang = lang;
+  }
 }
 
 // The voice the reader chose for each language, by its identifier
@@ -321,14 +389,13 @@ export function sayableHebrew(text) {
 export async function sayWord(text, lang, rate = 0.75 * speed()) {
   wake();
   const speech = synth();
-  const voice = await voiceFor(lang);
-  if (!speech || !voice) return false;
+  if (!speech || !(await voiceFor(lang))) return false;
+  const voice = await namedVoice(lang);
   // A reading under way stops first, so its card shows it has stopped.
   /** @type {any} */ (Reader.current)?.stop();
   speech.cancel();
   const utterance = new SpeechSynthesisUtterance(lang === 'he' ? sayableHebrew(text) : text);
-  utterance.voice = voice;
-  utterance.lang = voice.lang;
+  voiceOn(utterance, voice, lang);
   utterance.rate = rate;
   speech.speak(utterance);
   return true;
@@ -382,7 +449,7 @@ export class Reader {
     const item = this.items[this.at];
     const speech = synth();
     if (this.stopped || !item || !speech) return this.finish();
-    const voice = await voiceFor(item.lang);
+    const voice = await namedVoice(item.lang);
     if (this.live()) speech.speak(this.utter(item, voice));
   }
 
@@ -396,10 +463,7 @@ export class Reader {
    */
   utter(item, voice) {
     const utterance = new SpeechSynthesisUtterance(sayable(item));
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
-    }
+    voiceOn(utterance, voice, item.lang);
     utterance.rate = (item.lang === 'en' ? 0.95 : 0.85) * speed();
     item.element.classList.add('is-read');
     this.follow(utterance, item, item.lang === 'he' ? [] : (item.words ?? []));

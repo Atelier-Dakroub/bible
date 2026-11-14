@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { accentScore, chaptersFrom, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { accentScore, chaptersFrom, ownVoiceFits, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -76,4 +76,22 @@ test('the voice list names a voice by its name, its country and its quality', ()
   assert.equal(voiceLabel(voice('Google UK English Female', 'en-GB', { localService: false }), country), 'Google UK English Female, United Kingdom, online');
   assert.equal(voiceLabel(voice('Karen', 'en_AU'), country), 'Karen, Australia');
   assert.equal(voiceLabel(voice('Carmit', 'he'), country), 'Carmit');
+});
+
+test("Safari's compact voice gives way to the device's own, which may be Premium", () => {
+  const voice = (name, uri, extra = {}) => ({ name, voiceURI: uri, default: true, ...extra });
+  // Safari: compact voices only, every one called the device's own.
+  const samantha = voice('Samantha', 'com.apple.voice.compact.en-US.Samantha');
+  const safari = [samantha, voice('Daniel', 'com.apple.voice.compact.en-GB.Daniel'), voice('Bad News', 'com.apple.speech.synthesis.voice.BadNews')];
+  assert.equal(ownVoiceFits(samantha, 'en', 'en-US', safari), true);
+  // Chrome on a Mac lists Ava (Premium): she is named.
+  const ava = voice('Ava (Premium)', 'Ava (Premium)', { default: false });
+  assert.equal(ownVoiceFits(ava, 'en', 'en-US', [ava, { ...samantha, default: false }]), false);
+  // Another language than the reader's: the device's own voice cannot read it.
+  const carmit = voice('Carmit', 'com.apple.voice.compact.he-IL.Carmit');
+  assert.equal(ownVoiceFits(carmit, 'he', 'en-US', [...safari, carmit]), false);
+  // A device whose own voice is a voice for fun: the best plain one is named.
+  const plain = { ...samantha, default: false };
+  assert.equal(ownVoiceFits(plain, 'en', 'en-US', [plain, voice('Zarvox', 'com.apple.speech.synthesis.voice.Zarvox')]), false);
+  assert.equal(ownVoiceFits(null, 'en', 'en-US', []), false);
 });

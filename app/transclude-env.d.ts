@@ -1847,7 +1847,7 @@ export type TableMenuMembers = {
   act(event: MouseEvent): void;
   actions(button: HTMLButtonElement): Record<string, () => void>;
   listVoices(): Promise<void>;
-  voiceRow(lang: 'el' | 'en' | 'he', list: SpeechSynthesisVoice[]): HTMLDivElement;
+  voiceRow(lang: 'el' | 'en' | 'he', list: SpeechSynthesisVoice[], automatic: SpeechSynthesisVoice | null): HTMLDivElement;
   deleteNamed(name: string): void;
   focusKeeper(): () => void;
   send(type: string, detail?: object | undefined): void;

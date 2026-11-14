@@ -55,7 +55,7 @@
 <script element>
   import { isPhone } from '../lib/screen.js';
   import { choice as keysChoice, setChoice as setKeysChoice, typing, wantKeys } from '../lib/keyboard.js';
-  import { LANGUAGE_NAMES, SAMPLES, readerChoice, sayWord, setReaderChoice, setSpeed, setVoiceChoice, speed, voiceChoice, voiceLabel, voices, voicesFor } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, SAMPLES, automaticVoice, readerChoice, sayWord, setReaderChoice, setSpeed, setVoiceChoice, speed, voiceChoice, voiceLabel, voices, voicesFor } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
   import { FILE_LIMITS, listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
@@ -431,7 +431,8 @@
       if (!place || place.contains(document.activeElement)) return;
       const langs = /** @type {('en' | 'he' | 'el')[]} */ (['en', 'he', 'el']);
       const lists = await Promise.all(langs.map((lang) => voicesFor(lang)));
-      place.replaceChildren(...langs.flatMap((lang, index) => (lists[index].length ? [this.voiceRow(lang, lists[index])] : [])));
+      const automatic = await Promise.all(langs.map((lang) => automaticVoice(lang)));
+      place.replaceChildren(...langs.flatMap((lang, index) => (lists[index].length ? [this.voiceRow(lang, lists[index], automatic[index])] : [])));
       const none = this.querySelector('.tools__no-voices');
       if (none instanceof HTMLElement) none.hidden = (await voices()).length > 0;
     },
@@ -441,8 +442,9 @@
      *
      * @param {'en' | 'he' | 'el'} lang
      * @param {SpeechSynthesisVoice[]} list the best first
+     * @param {SpeechSynthesisVoice | null} automatic Automatic's voice; null for the device's own
      */
-    voiceRow(lang, list) {
+    voiceRow(lang, list, automatic) {
       const row = document.createElement('div');
       row.className = 'tools__voice';
       const id = `tools-voice-${lang}`;
@@ -454,7 +456,7 @@
       // first) stands for both.
       const labels = list.map((voice) => voiceLabel(voice));
       select.append(
-        new Option(`Automatic: ${labels[0]}`, ''),
+        new Option(automatic ? `Automatic: ${voiceLabel(automatic)}` : "Automatic: this device's own voice", ''),
         ...list.flatMap((voice, at) => (labels.indexOf(labels[at]) === at ? [new Option(labels[at], voice.voiceURI, false, voice.voiceURI === chosen)] : [])),
       );
       const wrap = Object.assign(document.createElement('span'), { className: 'select' });
