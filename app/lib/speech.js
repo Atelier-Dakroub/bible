@@ -22,6 +22,24 @@
 /** @returns {SpeechSynthesis | null} */
 const synth = () => (typeof speechSynthesis === 'undefined' ? null : speechSynthesis);
 
+let woken = false;
+
+/**
+ * Lets the page speak. Safari on an iPhone speaks only if its first speak()
+ * comes in the tap itself; the app waits for the voices before it speaks,
+ * so the first reading after Safari opens marked its verse in silence. A
+ * silent utterance in the tap opens the way, once a page. Call it before
+ * the first await.
+ */
+export function wake() {
+  const speech = synth();
+  if (!speech || woken) return;
+  woken = true;
+  const silence = new SpeechSynthesisUtterance(' ');
+  silence.volume = 0;
+  speech.speak(silence);
+}
+
 /** The voices, once the device has listed them (Chrome lists them late). */
 export function voices() {
   const speech = synth();
@@ -301,6 +319,7 @@ export function sayableHebrew(text) {
  * @returns {Promise<boolean>} false when the device has no voice for it
  */
 export async function sayWord(text, lang, rate = 0.75 * speed()) {
+  wake();
   const speech = synth();
   const voice = await voiceFor(lang);
   if (!speech || !voice) return false;
@@ -336,6 +355,7 @@ export class Reader {
    * @returns {Promise<Lang | null>} the language with no voice on the device, or null
    */
   async read(items, onEnd, start = 0) {
+    wake();
     Reader.current?.stop();
     Reader.current = this;
     const missing = await missingVoice(items);
