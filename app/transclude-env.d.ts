@@ -2962,6 +2962,7 @@ export type CardAddressData = {
   address: string;
   version: string;
   title: string;
+  short: string;
   verses: WordVerse[];
   rows: {
     verse: WordVerse;

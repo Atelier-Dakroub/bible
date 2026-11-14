@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { formatReference, parseAddress, parseReference, toAddress } from '../app/lib/reference.js';
+import { formatReference, parseAddress, parseReference, shortTitle, toAddress } from '../app/lib/reference.js';
 
 const books = JSON.parse(readFileSync(new URL('../app/data/kjv/books.json', import.meta.url), 'utf8'));
 const typed = (text) => {
@@ -63,4 +63,15 @@ test('a book of one chapter is cited by verse alone', () => {
   assert.equal(typed('Jude 1:5'), 'JUD.1.5');
   assert.equal(typed('Jude 30'), null);
   assert.equal(typed('John 3-4'), null);
+});
+
+test('a title in the short form has its book short', () => {
+  assert.equal(shortTitle('1 Corinthians 13', books), '1 Cor 13');
+  assert.equal(shortTitle('Song of Solomon 2:1', books), 'Song 2:1');
+  assert.equal(shortTitle('1 John 4:8', books), '1 John 4:8');
+  assert.equal(shortTitle('John 3:16, BSB', books), 'John 3:16, BSB');
+  assert.equal(shortTitle('Psalm 119:105–112', books), 'Ps 119:105–112');
+  assert.equal(shortTitle('Mark 1', books), 'Mark 1');
+  assert.equal(shortTitle('Note', books), 'Note');
+  assert.equal(shortTitle('Johnny', books), 'Johnny');
 });

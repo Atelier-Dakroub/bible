@@ -632,6 +632,25 @@ gesture-card[data-zoom='far'] .passage__short {
 gesture-card[data-zoom='far'] .passage__heading {
   font-size: 2.2em;
 }
+/* A passage's title in the short form: its book short ("1 Cor 13"), on one
+   line, as large as the room beside the steps and close allows. The full
+   title stays in the heading for a screen reader, the overview and Copy;
+   the short one is drawn over it, with no text of its own (the "/ ''"). The
+   size: the room (the header less its three buttons, 15rem) over the
+   characters at 0.54em each (the widest measured; most are 0.45em to
+   0.5em), between 1em and 2.2em of the card. */
+gesture-card[data-zoom='far'] .passage__header {
+  container-type: inline-size;
+}
+gesture-card[data-zoom='far'] .passage__heading[data-short] {
+  font-size: 0;
+  white-space: nowrap;
+}
+gesture-card[data-zoom='far'] .passage__heading[data-short]::after {
+  content: attr(data-short);
+  content: attr(data-short) / '';
+  font-size: clamp(calc(1rem * var(--read-scale)), calc((100cqi - 15.25rem) / (var(--chars, 10) * 0.54)), calc(2.2rem * var(--read-scale)));
+}
 gesture-card[data-zoom='far'] .passage__close,
 gesture-card[data-zoom='far'] .passage__step {
   font-size: 2.4em;

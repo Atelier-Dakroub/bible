@@ -60,6 +60,8 @@ Tap the heading of a passage card. The search panel shows the passage guide: par
 
 When you make a card smaller than about half size, it shows its short form: the heading, the first words and the number of verses. Make it larger again to read the whole passage.
 
+In the short form, a passage's heading uses the short name of its book, such as "1 Cor 13" for 1 Corinthians 13 or "Song 2:1" for Song of Solomon 2:1. The heading stays on one line: a long reference shows in smaller letters.
+
 ## Words on a card
 
 Tap a word on a card:

@@ -103,6 +103,35 @@ export function formatReference(ref, books) {
   return text;
 }
 
+// The short names of the books for a reader, as the SBL style has them:
+// "1 Cor 13", "Song 2:1". A card in its short form shows its title so.
+const SHORT_NAMES = {
+  GEN: 'Gen', EXO: 'Exod', LEV: 'Lev', NUM: 'Num', DEU: 'Deut', JOS: 'Josh', JDG: 'Judg', RUT: 'Ruth',
+  '1SA': '1 Sam', '2SA': '2 Sam', '1KI': '1 Kgs', '2KI': '2 Kgs', '1CH': '1 Chr', '2CH': '2 Chr', EZR: 'Ezra', NEH: 'Neh',
+  EST: 'Esth', JOB: 'Job', PSA: 'Ps', PRO: 'Prov', ECC: 'Eccl', SNG: 'Song', ISA: 'Isa', JER: 'Jer', LAM: 'Lam',
+  EZK: 'Ezek', DAN: 'Dan', HOS: 'Hos', JOL: 'Joel', AMO: 'Amos', OBA: 'Obad', JON: 'Jonah', MIC: 'Mic', NAM: 'Nah',
+  HAB: 'Hab', ZEP: 'Zeph', HAG: 'Hag', ZEC: 'Zech', MAL: 'Mal', MAT: 'Matt', MRK: 'Mark', LUK: 'Luke', JHN: 'John',
+  ACT: 'Acts', ROM: 'Rom', '1CO': '1 Cor', '2CO': '2 Cor', GAL: 'Gal', EPH: 'Eph', PHP: 'Phil', COL: 'Col',
+  '1TH': '1 Thess', '2TH': '2 Thess', '1TI': '1 Tim', '2TI': '2 Tim', TIT: 'Titus', PHM: 'Phlm', HEB: 'Heb', JAS: 'Jas',
+  '1PE': '1 Pet', '2PE': '2 Pet', '1JN': '1 John', '2JN': '2 John', '3JN': '3 John', JUD: 'Jude', REV: 'Rev',
+};
+
+/**
+ * A title with its book's name made short: "1 Corinthians 13" is
+ * "1 Cor 13", "Psalm 23" is "Ps 23", "John 3:16, BSB" is "John 3:16,
+ * BSB". A title that does not begin with a book's name is as it was.
+ *
+ * @param {string} title
+ * @param {BookEntry[]} books
+ */
+export function shortTitle(title, books) {
+  const names = books.flatMap((book) => [book.name, ...(book.id === 'PSA' ? ['Psalm'] : [])].map((name) => ({ name, id: book.id })));
+  // The longest name first: "1 John" before "John".
+  const found = names.sort((x, y) => y.name.length - x.name.length).find(({ name }) => title.startsWith(`${name} `));
+  const short = found && /** @type {Record<string, string>} */ (SHORT_NAMES)[found.id];
+  return found && short ? short + title.slice(found.name.length) : title;
+}
+
 /**
  * Exact matches first, then the first book in canon order whose name starts
  * with the text. So "jo" is Joshua, and "joh" is John.
