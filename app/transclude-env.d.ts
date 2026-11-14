@@ -401,6 +401,7 @@ type EntityView = {
   relations: Relation[];
   credit: string;
   mapped: boolean;
+  studied: boolean;
 };
 type Part_2 = {
   text: string;

@@ -32,7 +32,7 @@ These tools work on the table that is open in your browser. Each change is one s
 | --- | --- |
 | Table state | Reads what is on the table: its cards, its links and its marks |
 | Table link | Links two cards on the table, with a type such as "quotes" or "fulfills", or takes the link away |
-| Table study | Lays out a study of a passage, a word, a topic or a person, as **Start a study** does |
+| Table study | Lays out a study of a passage, a word, a topic, or a person, place, event or group, as **Start a study** does |
 | Table note | Writes a note on the table, with headings, beside the cards it links to |
 | Table place | Puts passages on the table in a row, in any version |
 | Table guide | Opens the guide of a passage in the search panel |

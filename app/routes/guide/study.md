@@ -83,13 +83,18 @@ The study goes in the open table to the right of your cards, and the table moves
 - **Each verse comes once.** A cross-reference that shares verses with a card in the study is left out. People named all through the Bible, such as God and Jesus, get no card.
 - **One Undo takes the whole study away.**
 
-**Start a study** is also on a word study, a topic and a person:
+**Start a study** is also on a word study, a topic, and a person, place, event or group:
 
 | Start a study on | The middle | Beside it |
 | --- | --- | --- |
 | A word study (a Strong's number) | The word's landscape (where it is used) and the note | The first verse for each sense of the word, then the first verse in each book that uses it most. Every card marks the word. |
 | A topic of Nave's | The note, which lists the parts of the topic | A passage for each part of the topic, the first one it cites |
 | A person | The person, the note, and their family | The chapters that name them most. The map shows their first journey, or where they were born and died. |
+| A place | The place, the note, and the first events there, or the people born or who died there | The chapters that name it most. The map shows the place. The note lists every event there, and who was born and who died there. |
+| An event | The event, the note, and the people in it | The passages that tell it, in canon order. The map shows its places. The note gives its date, what it is part of, and the events within it. |
+| A group | The group and the note | Its members named most, ten at most, then the chapters that name the group, where any do. |
+
+A group that nothing names and that has no members, such as the Pharisees, has no study.
 
 The study comes from the app's own data, the same as the guide. No language model writes it. To have Claude add notes of its own, see [The assistant](/guide/assistant).
 

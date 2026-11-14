@@ -143,9 +143,10 @@
       <!-- The heading is a result too: pull it out and the entity is a card. -->
       <button type="button" class="entity__title result" data-address="${entity ? entity.id : ''}">${entity ? entity.title : ''}</button>
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
-      <!-- A study of the person: family, the chapters that name them most,
-           and a journey (bible-table startStudy). -->
-      <button if="entity && entity.kind === 'person'" type="button" class="results__switch guide__study" data-study="${entity ? entity.id : ''}">Start a study</button>
+      <!-- A study of the person, place, event or group (data/study.js,
+           bible-table startStudy), where something names it or it has
+           members. -->
+      <button if="entity && entity.studied" type="button" class="results__switch guide__study" data-study="${entity ? entity.id : ''}">Start a study</button>
       <!-- Pictures, as the plates of an encyclopedia: the first large, with
            its caption and credit, the rest small. A tap puts one on the table
            as a card. -->

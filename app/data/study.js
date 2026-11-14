@@ -286,8 +286,9 @@ function referenceOf(address) {
 
 /**
  * A study, to lay out on the table (lib/study.js): of a passage, of a word
- * of the original (H2617), of a topic (topic:PRAYER), or of a person
- * (person:paul_2479). Null when there is none.
+ * of the original (H2617), of a topic (topic:PRAYER), or of a person, a
+ * place, an event or a group (person:paul_2479, place:jerusalem_636,
+ * event:125, group:apostles). Null when there is none.
  *
  * @param {string} subject
  * @returns {Promise<import('../lib/study.js').Plan | null>}
@@ -295,9 +296,12 @@ function referenceOf(address) {
 export async function studyPlan(subject) {
   if (/^[HG]\d+$/.test(subject)) return wordPlan(subject);
   if (subject.startsWith('topic:')) return topicPlan(subject.slice('topic:'.length));
-  if (subject.startsWith('person:')) return personPlan(subject);
-  return passagePlan(subject);
+  const ofEntity = ENTITY_PLANS[/** @type {keyof typeof ENTITY_PLANS} */ (subject.split(':')[0])];
+  return ofEntity ? ofEntity(subject) : passagePlan(subject);
 }
+
+/** The study of each kind of entity, by the start of its id. */
+const ENTITY_PLANS = { person: personPlan, place: placePlan, event: eventPlan, group: groupPlan };
 
 /**
  * A study of a passage: the Old Testament it quotes (or the New Testament
@@ -467,9 +471,173 @@ async function personPlan(id) {
   });
 }
 
+/** @typedef {import('./entities.js').Entity} Entity */
+
 /**
- * The chapters that name a person most (at most MOST, in canon order), each
- * as the verses from the first that names them to the last, ten at most.
+ * Entities that exist, the one named in the most verses first.
+ *
+ * @param {string[]} ids
+ * @param {Record<string, Entity>} all
+ */
+const byMention = (ids, all) => [...new Set(ids)].filter((id) => all[id]).sort((a, b) => (all[b].verses?.length ?? 0) - (all[a].verses?.length ?? 0));
+
+/**
+ * The places of a list that the map can show.
+ *
+ * @param {string[]} ids
+ * @param {Record<string, Entity>} all
+ */
+const mappedOf = (ids, all) => ids.filter((id) => all[id]?.lat != null && onMap(all[id].lon, all[id].lat));
+
+/**
+ * The events that match a test, the earliest first.
+ *
+ * @param {Record<string, Entity>} all
+ * @param {(event: Entity) => boolean} test
+ */
+const eventsWhere = (all, test) =>
+  Object.keys(all)
+    .filter((id) => all[id].kind === 'event' && test(all[id]))
+    .sort((a, b) => (all[a].start ?? 0) - (all[b].start ?? 0));
+
+/**
+ * "Moses, Aaron and Eleazar"; with more than `most`, the first and how many
+ * more.
+ *
+ * @param {string[]} ids
+ * @param {Record<string, Entity>} all
+ * @param {number} [most]
+ */
+function titlesOf(ids, all, most = 8) {
+  const titles = ids.slice(0, most).map((id) => all[id].title);
+  return ids.length > most ? `${titles.join(', ')} and ${ids.length - most} more` : listed(titles, '');
+}
+
+/**
+ * A study of a place: its card, the events there and the people born or
+ * buried there, the chapters that name it most, and the place on the map.
+ *
+ * @param {string} id such as place:bethel_222
+ */
+async function placePlan(id) {
+  const [found, all] = await Promise.all([entity(id), entities()]);
+  if (!found || found.kind !== 'place') return null;
+  const name = found.title;
+  const chapters = chaptersNaming(found.verses ?? []);
+  const events = eventsWhere(all, (event) => Boolean(event.locations?.includes(id)));
+  const born = byMention(Object.keys(all).filter((key) => all[key].birthPlace === id), all);
+  const died = byMention(Object.keys(all).filter((key) => all[key].deathPlace === id), all);
+  if (!chapters.length && !events.length) return null;
+  return planOf({
+    kind: 'place',
+    address: id,
+    title: name,
+    short: name,
+    under: [...new Set([...events.slice(0, 2), ...born, ...died])].slice(0, 3),
+    right: [{ cards: chapters, toward: true }],
+    lines: [
+      `From Theographic: ${name} is named in ${verseCount((found.verses ?? []).length)}.`,
+      chapters.length ? `The passages that name it most: ${listed(chapters.map(referenceOf), '')}.` : '',
+      events.length ? `${counted(events.length, 'event')} here: ${titlesOf(events, all)}.` : '',
+      born.length ? `Born here: ${titlesOf(born, all)}.` : '',
+      died.length ? `Died here: ${titlesOf(died, all)}.` : '',
+    ].filter(Boolean),
+    mapIds: mappedOf([id], all).join(','),
+  });
+}
+
+/** Theographic's units of a duration, as words. */
+const UNITS = /** @type {Record<string, string>} */ ({ Y: 'year', M: 'month', W: 'week', D: 'day' });
+
+/**
+ * An event's date and how long it lasted: "about 1446 BC, 40 years".
+ *
+ * @param {Entity} event
+ */
+function whenOf(event) {
+  if (event.start === null || event.start === undefined) return '';
+  const [, amount, unit] = /^(\d+)([YMWD])$/.exec(event.duration ?? '') ?? [];
+  const span = amount && Number(amount) > 1 ? `, ${counted(Number(amount), UNITS[unit])}` : '';
+  return `${event.approx ? 'about ' : ''}${formatYear(event.start)}${span}`;
+}
+
+/**
+ * A study of an event: its card, the people in it, the passages that tell
+ * it, and its places on the map; the note says when it was, what it is part
+ * of, and what it holds.
+ *
+ * @param {string} id such as event:125
+ */
+async function eventPlan(id) {
+  const [found, all] = await Promise.all([entity(id), entities()]);
+  if (!found || found.kind !== 'event') return null;
+  const passages = chaptersNaming(found.verses ?? []);
+  if (!passages.length) return null;
+  const people = byMention(found.participants ?? [], all);
+  const places = (found.locations ?? []).filter((place) => all[place]);
+  const within = eventsWhere(all, (event) => event.partOf === id);
+  const when = whenOf(found);
+  return planOf({
+    kind: 'event',
+    address: id,
+    title: found.title,
+    short: found.title,
+    under: people.filter((each) => !EVERYWHERE.has(each)).slice(0, 3),
+    right: [{ cards: passages, toward: true }],
+    lines: [
+      `From Theographic${when ? `, dated by Jones: ${when}` : ''}.`,
+      `The passages that tell it: ${listed(passages.map(referenceOf), '')}.`,
+      found.partOf && all[found.partOf] ? `Part of ${all[found.partOf].title}.` : '',
+      within.length ? `Within it: ${titlesOf(within, all)}.` : '',
+      people.length ? `People: ${titlesOf(people, all)}.` : '',
+      places.length ? `Places: ${titlesOf(places, all)}.` : '',
+    ].filter(Boolean),
+    mapIds: mappedOf(places, all).join(','),
+  });
+}
+
+/**
+ * A study of a group: its card, its members named most, and the chapters
+ * that name the group, where any do.
+ *
+ * @param {string} id such as group:apostles
+ */
+async function groupPlan(id) {
+  const [found, all] = await Promise.all([entity(id), entities()]);
+  if (!found || found.kind !== 'group') return null;
+  const members = byMention(found.members ?? [], all);
+  const chapters = chaptersNaming(found.verses ?? []);
+  if (!members.length && !chapters.length) return null;
+  const shown = members.slice(0, 2 * MOST);
+  return planOf({
+    kind: 'group',
+    address: id,
+    title: found.title,
+    short: found.title,
+    right: [{ cards: shown }, { cards: chapters, toward: true }],
+    lines: [
+      `From Theographic: ${found.title}, ${listed([members.length ? counted(members.length, 'member') : '', found.verses?.length ? `named in ${verseCount(found.verses.length)}` : ''], '')}.`,
+      shown.length ? `The members named most, beside the note: ${titlesOf(shown, all, shown.length)}.` : '',
+      chapters.length ? `The passages that name the group: ${listed(chapters.map(referenceOf), '')}.` : '',
+    ].filter(Boolean),
+  });
+}
+
+/**
+ * A chapter's place in the canon, as one number that sorts the chapters: an
+ * event's verses are not always in canon order.
+ *
+ * @param {string} key such as EXO.12
+ */
+function canonKey(key) {
+  const [book, chapter] = key.split('.');
+  return books.findIndex((each) => each.id === book) * 1000 + Number(chapter);
+}
+
+/**
+ * The chapters that name a person, place, group or event most (at most
+ * MOST, in canon order), each as the verses from the first that names them
+ * to the last, ten at most.
  *
  * @param {string[]} verses the verses that name them, in canon order
  */
@@ -481,10 +649,9 @@ function chaptersNaming(verses) {
     const key = `${book}.${chapter}`;
     byChapter.set(key, [...(byChapter.get(key) ?? []), Number(number)]);
   }
-  const order = [...byChapter.keys()];
   const most = [...byChapter].sort((x, y) => y[1].length - x[1].length).slice(0, MOST);
   return most
-    .sort((x, y) => order.indexOf(x[0]) - order.indexOf(y[0]))
+    .sort((x, y) => canonKey(x[0]) - canonKey(y[0]))
     .map(([key, numbers]) => {
       const first = Math.min(...numbers);
       const last = Math.min(Math.max(...numbers), first + 9);

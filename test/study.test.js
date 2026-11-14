@@ -207,5 +207,32 @@ test('a study of a person: family, the chapters that name them most, and a journ
   const paul = await studyPlan('person:paul_2479');
   assert.equal(paul?.journey?.title, "Paul's first journey");
   assert.ok((paul?.columns[1] ?? []).every((address) => address.startsWith('ACT.')));
-  assert.equal(await studyPlan('place:moab_815'), null);
+});
+
+test('a study of a place: the events there, its people, the chapters that name it, the map', async () => {
+  const moab = await studyPlan('place:moab_815');
+  assert.deepEqual(moab?.columns[0], ['place:moab_815', 'note', 'event:136', 'person:ruth_2450', 'person:orpah_2257']);
+  assert.ok(moab?.columns[1].includes('JER.48.1-10'));
+  assert.equal(moab?.mapIds, 'place:moab_815');
+  assert.match(moab?.lines.join(' ') ?? '', /Born here: Ruth and Orpah/);
+});
+
+test('a study of an event: its people, the passages that tell it in canon order, its places', async () => {
+  const exodus = await studyPlan('event:125');
+  assert.deepEqual(exodus?.columns[1], ['EXO.7.1-10', 'EXO.8.1-10', 'EXO.9.1-10', 'EXO.10.1-10', 'EXO.12.1-10']);
+  assert.ok(exodus?.columns[0].includes('person:moses_2108'));
+  assert.equal(exodus?.mapIds, 'place:egypt_362');
+  const crucifixion = await studyPlan('event:459');
+  assert.deepEqual(crucifixion?.columns[1].map((address) => address.split('.')[0]), ['MAT', 'MRK', 'LUK', 'JHN']);
+  assert.ok(!crucifixion?.columns[0].some((id) => id.startsWith('person:jesus_')), 'Jesus is in every study: no card for him');
+  assert.match(crucifixion?.lines.join(' ') ?? '', /Part of Holy Week/);
+});
+
+test('a study of a group: its members named most, or the chapters that name it', async () => {
+  const levi = await studyPlan('group:tribe-of-levi');
+  assert.deepEqual(levi?.columns[1].slice(0, 2), ['person:moses_2108', 'person:aaron_1']);
+  assert.equal(levi?.columns.flat().length, 12, 'the group, the note and ten members');
+  const israel = await studyPlan('group:nation-of-israel');
+  assert.ok(israel?.columns[1].every((address) => address.startsWith('PSA.')));
+  assert.equal(await studyPlan('group:pharisees'), null, 'no members and no verses: no study');
 });
