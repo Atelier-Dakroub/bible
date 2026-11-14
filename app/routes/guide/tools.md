@@ -33,9 +33,10 @@ Each choice is a tile that shows what it does. The tile that is chosen has a lap
 | Setting | Choices |
 | --- | --- |
 | **Voice** | **The app's voice**, **LibriVox** or **This device** |
+| **This device's voice** | **Automatic**, or a voice of this device, for English, Hebrew and Greek. **Try** reads a verse in it. |
 | **Speed** | **0.8×**, **1×**, **1.15×**, **1.3×** or **1.5×** |
 
-Where a voice has no recording of a passage, this device's voice reads it. LibriVox reads the KJV only. See [Listen and watch](/guide/listen-watch).
+Where a voice has no recording of a passage, this device's voice reads it. LibriVox reads the KJV only. See [Listen and watch](/guide/listen-watch), and [Better voices](/guide/listen-watch#better-voices) to add voices to your device.
 
 ## Marks
 

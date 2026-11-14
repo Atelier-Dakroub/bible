@@ -55,7 +55,7 @@
 <script element>
   import { isPhone } from '../lib/screen.js';
   import { choice as keysChoice, setChoice as setKeysChoice, typing, wantKeys } from '../lib/keyboard.js';
-  import { readerChoice, setReaderChoice, setSpeed, speed } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, SAMPLES, readerChoice, sayWord, setReaderChoice, setSpeed, setVoiceChoice, speed, voiceChoice, voiceLabel, voices, voicesFor } from '../lib/speech.js';
   import { slideIn } from '../lib/motion.js';
   import { FILE_LIMITS, listNamed, removeNamed } from '../lib/workspace.js';
   import { PRESETS, sameRule } from '../lib/rules.js';
@@ -156,6 +156,7 @@
 
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('change', (event) => this.choose(event), { signal });
+      globalThis.speechSynthesis?.addEventListener('voiceschanged', () => this.listVoices(), { signal });
       for (const form of this.querySelectorAll('form:not(.menu__save)')) form.addEventListener('submit', (event) => event.preventDefault(), { signal });
       this.paintChoices();
       this.addEventListener('keys-done', () => {
@@ -274,6 +275,7 @@
       this.tab = TABS.includes(tab) ? tab : TABS[0];
       if (this.tab === 'marks') this.setRules(this.rules);
       if (this.tab === 'saved') this.refresh('');
+      if (this.tab === 'reading') this.listVoices();
       this.paintChoices();
       this.querySelector('.tools__body')?.scrollTo({ top: 0 });
       this.dispatchEvent(new Event('panel-change', { bubbles: true }));
@@ -319,8 +321,19 @@
      */
     choose(event) {
       const input = event.target;
+      if (input instanceof HTMLSelectElement) return this.chooseVoice(input);
       if (!(input instanceof HTMLInputElement) || input.closest('reading-settings')) return;
       this.choices()[input.dataset.choice ?? '']?.(input);
+    },
+
+    /**
+     * A voice chosen in the voice list: kept for its language ('' for
+     * Automatic).
+     *
+     * @param {HTMLSelectElement} select
+     */
+    chooseVoice(select) {
+      if (select.dataset.voice) setVoiceChoice(/** @type {any} */ (select.dataset.voice), select.value);
     },
 
     /**
@@ -402,7 +415,57 @@
         import: () => /** @type {HTMLInputElement} */ (this.querySelector('.menu__file')).click(),
         'open-named': () => this.send('workspace-open', { name }),
         'delete-named': () => this.deleteNamed(name),
+        'try-voice': () => sayWord(SAMPLES[/** @type {'en'} */ (button.dataset.lang ?? 'en')] ?? '', /** @type {any} */ (button.dataset.lang ?? 'en'), speed()),
       };
+    },
+
+    /**
+     * Lists the device's voices for each language it can read, in a select
+     * each: Automatic (the best, in the reader's own accent) first, then
+     * every voice, the best first. The device lists its voices late in some
+     * browsers, so this runs again when they come (voiceschanged).
+     */
+    async listVoices() {
+      const place = this.querySelector('.tools__voices');
+      // Not while the reader is in a select: its list would close under them.
+      if (!place || place.contains(document.activeElement)) return;
+      const langs = /** @type {('en' | 'he' | 'el')[]} */ (['en', 'he', 'el']);
+      const lists = await Promise.all(langs.map((lang) => voicesFor(lang)));
+      place.replaceChildren(...langs.flatMap((lang, index) => (lists[index].length ? [this.voiceRow(lang, lists[index])] : [])));
+      const none = this.querySelector('.tools__no-voices');
+      if (none instanceof HTMLElement) none.hidden = (await voices()).length > 0;
+    },
+
+    /**
+     * One language's voice: its name, the select, and Try.
+     *
+     * @param {'en' | 'he' | 'el'} lang
+     * @param {SpeechSynthesisVoice[]} list the best first
+     */
+    voiceRow(lang, list) {
+      const row = document.createElement('div');
+      row.className = 'tools__voice';
+      const id = `tools-voice-${lang}`;
+      const label = Object.assign(document.createElement('label'), { htmlFor: id, textContent: LANGUAGE_NAMES[lang] });
+      const select = Object.assign(document.createElement('select'), { id, name: id });
+      select.dataset.voice = lang;
+      const chosen = voiceChoice(lang);
+      select.append(
+        new Option(`Automatic: ${voiceLabel(list[0])}`, ''),
+        ...list.map((voice) => new Option(voiceLabel(voice), voice.voiceURI, false, voice.voiceURI === chosen)),
+      );
+      const wrap = Object.assign(document.createElement('span'), { className: 'select' });
+      const icon = document.createElement('svg-icon');
+      icon.setAttribute('library', 'ui');
+      icon.setAttribute('name', 'updown');
+      icon.className = 'select__icon';
+      wrap.append(select, icon);
+      const tryIt = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Try' });
+      tryIt.dataset.action = 'try-voice';
+      tryIt.dataset.lang = lang;
+      tryIt.setAttribute('aria-label', `Try the ${LANGUAGE_NAMES[lang]} voice`);
+      row.append(label, wrap, tryIt);
+      return row;
     },
 
     /**
@@ -721,6 +784,40 @@
     font-size: 0.8rem;
     line-height: 1.45;
     text-wrap: pretty;
+  }
+
+  /* The device's voices: a language's name, its select, and Try, on one
+     line; on a narrow panel the select goes under the name. */
+  .tools__voices {
+    display: grid;
+    gap: 0.5rem;
+    container-type: inline-size;
+  }
+  .tools__voice {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .tools__voice > label {
+    color: var(--ink);
+    font: var(--control-font);
+  }
+  .tools__voice .select {
+    min-width: 0;
+  }
+  .tools__voice > button {
+    min-height: var(--control-height);
+    padding: var(--control-padding);
+    font: var(--control-font);
+  }
+  @container (width < 18rem) {
+    .tools__voice {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .tools__voice > label {
+      grid-column: 1 / -1;
+    }
   }
 
   /* A segmented control: native radios, each in its label. The chosen one
@@ -1070,6 +1167,12 @@
         </div>
         <p id="tools-reader-hint" class="tools__hint">Where a voice has no recording of a passage, this device's voice reads it. LibriVox reads the KJV only.</p>
       </fieldset>
+      <div class="tools__field" role="group" aria-labelledby="tools-device-voice" aria-describedby="tools-device-hint">
+        <span id="tools-device-voice" class="tools__name">This device's voice</span>
+        <div class="tools__voices"></div>
+        <p class="tools__hint tools__no-voices" hidden>This browser has no voices to read aloud with.</p>
+        <p id="tools-device-hint" class="tools__hint">Automatic chooses the best voice in your own accent. <a href="/guide/listen-watch#better-voices">Get better voices</a> for this device.</p>
+      </div>
       <fieldset class="tools__field">
         <legend>Speed</legend>
         <div class="tools__segments">

@@ -39,19 +39,103 @@ export function voices() {
 const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Ralph|Fred|Kathy|Grandma|Grandpa|Rocko|Shelley|Flo|Eddy|Reed|Sandy)\b/i;
 
 /**
- * The best voice for a language: one in the reader's own accent (their
- * browser's languages: en-GB in Britain, en-AU in Australia), on the device
- * itself, of the better quality where it says so.
+ * A language's voices on the device, the best first (voiceScore): the
+ * reader's own accent, then quality. The voices for fun are left out.
+ *
+ * @param {Lang} lang
+ * @returns {Promise<SpeechSynthesisVoice[]>}
+ */
+export async function voicesFor(lang) {
+  const preferred = readerLanguages();
+  return (await voices()).filter((voice) => speaks(voice, lang) && !novelty(voice)).sort((a, b) => voiceScore(b, lang, preferred) - voiceScore(a, lang, preferred));
+}
+
+/**
+ * The voice that reads a language: the one the reader chose in Tools, if
+ * the device still has it; else the best (voicesFor).
  *
  * @param {Lang} lang
  * @returns {Promise<SpeechSynthesisVoice | null>}
  */
 export async function voiceFor(lang) {
-  const all = (await voices()).filter((voice) => speaks(voice, lang));
-  if (!all.length) return null;
-  const preferred = readerLanguages();
-  return [...all].sort((a, b) => voiceScore(b, lang, preferred) - voiceScore(a, lang, preferred))[0];
+  const all = await voicesFor(lang);
+  const chosen = voiceChoice(lang);
+  return all.find((voice) => chosen && voice.voiceURI === chosen) ?? all[0] ?? null;
 }
+
+// The voice the reader chose for each language, by its identifier
+// (voiceURI), kept in this browser; none for the best one.
+const VOICE_KEY = 'bible.voice.';
+
+/**
+ * @param {Lang} lang
+ * @returns {string} the chosen voice's identifier, or '' for the best one
+ */
+export function voiceChoice(lang) {
+  try {
+    return localStorage.getItem(VOICE_KEY + lang) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * @param {Lang} lang
+ * @param {string} uri a voice's identifier, or '' for the best one
+ */
+export function setVoiceChoice(lang, uri) {
+  try {
+    if (uri) localStorage.setItem(VOICE_KEY + lang, uri);
+    else localStorage.removeItem(VOICE_KEY + lang);
+  } catch {
+    // No storage: the choice lasts until the page closes.
+  }
+}
+
+/**
+ * A voice as the voice list in Tools names it: its name without the words
+ * that the browser adds, its country, and its quality; "online" for a voice
+ * that sends the text to a server to be read.
+ *
+ *   "Ava, United States, Premium"   "Libby, United Kingdom, Natural, online"
+ *
+ * @param {{ name: string, voiceURI?: string, lang: string, localService: boolean }} voice
+ * @param {(region: string) => string} [country] a region code's name
+ */
+export function voiceLabel(voice, country = countryName) {
+  const name = voice.name
+    .replace(/\s*\((premium|enhanced)\)/i, '')
+    .replace(/^Microsoft\s+/, '')
+    .replace(/\s+Online\s+\(Natural\)/i, '')
+    .replace(/\s+-\s+.*$/, '')
+    .trim();
+  const region = tagOf(voice.lang).split('-')[1] ?? '';
+  return [name, region && country(region.toUpperCase()), qualityName(voice), voice.localService ? '' : 'online'].filter(Boolean).join(', ');
+}
+
+/** @param {{ name: string, voiceURI?: string }} voice its quality's name, or '' */
+function qualityName(voice) {
+  const score = qualityScore(voice);
+  if (score === 5) return 'Premium';
+  if (score < 4) return '';
+  return /natural/i.test(voice.name) ? 'Natural' : 'Enhanced';
+}
+
+/** @param {string} region "GB" as "United Kingdom"; the code itself where the browser cannot say */
+function countryName(region) {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(region) ?? region;
+  } catch {
+    return region;
+  }
+}
+
+/** What a voice says when the reader tries it in Tools: John 1:1 (Genesis 1:1 in Hebrew). */
+export const SAMPLES = {
+  en: 'In the beginning was the Word, and the Word was with God, and the Word was God.',
+  he: 'בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁמַיִם וְאֵת הָאָרֶץ',
+  el: 'Ἐν ἀρχῇ ἦν ὁ λόγος, καὶ ὁ λόγος ἦν πρὸς τὸν θεόν',
+};
 
 /**
  * Whether a voice speaks a language (Hebrew is also "iw", its old code).
@@ -213,9 +297,10 @@ export function sayableHebrew(text) {
  *
  * @param {string} text
  * @param {Lang} lang
+ * @param {number} [rate] slower than reading, as a word is said alone
  * @returns {Promise<boolean>} false when the device has no voice for it
  */
-export async function sayWord(text, lang) {
+export async function sayWord(text, lang, rate = 0.75 * speed()) {
   const speech = synth();
   const voice = await voiceFor(lang);
   if (!speech || !voice) return false;
@@ -225,7 +310,7 @@ export async function sayWord(text, lang) {
   const utterance = new SpeechSynthesisUtterance(lang === 'he' ? sayableHebrew(text) : text);
   utterance.voice = voice;
   utterance.lang = voice.lang;
-  utterance.rate = 0.75 * speed();
+  utterance.rate = rate;
   speech.speak(utterance);
   return true;
 }

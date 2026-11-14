@@ -33,7 +33,25 @@ The device's voice also reads the versions that have no recording:
 - The BSB, where the app's voice has no recording.
 - The Hebrew or the Greek, on **Original**, **Word by word** and **Syntax**, in their modern pronunciation.
 
-The device's voice speaks in the accent of your browser's language: a British voice for English (United Kingdom), an Australian voice for English (Australia). Where your language names no country, a British voice reads English, as the KJV is British. For a better voice, download a voice marked Enhanced or Premium in the device's settings (on a Mac or an iPhone: Accessibility, Spoken Content). The app chooses an Enhanced or Premium voice before the others. When the device's voice starts, a short message says which voice reads.
+### This device's voice
+
+Choose the device's voice in **Tools**, **Reading**, **Read aloud**, **This device's voice**. There is a list for each language that the device can read: English, Hebrew and Greek. **Try** reads the first words of John (of Genesis in Hebrew) in the voice that you chose.
+
+**Automatic** chooses the best voice in your own accent. The accent comes from your browser's language: English (United Kingdom) gets a British voice, English (Australia) an Australian voice. Where your language names no country, a British voice reads English, as the KJV is British. In that accent, a voice marked Premium comes first, then Enhanced or Natural, then the others.
+
+The list names each voice, its country and its quality. A voice marked **online** sends the text to a server, which reads it. When the device's voice starts, a short message says which voice reads.
+
+### Better voices
+
+Most devices have a small voice for each language, and better ones to download. After you add a voice, close the browser and open it again, then choose the voice in **Tools**.
+
+- **iPhone or iPad:** Settings › Accessibility › Spoken Content › Voices. Choose the language, then download a voice marked Enhanced or Premium. Web pages cannot use the Siri voices. If the voice that you downloaded is not in the list in **Tools**, Safari does not give it to web pages, and the app cannot use it.
+- **Mac:** System Settings › Accessibility › Spoken Content › System voice › Manage Voices. Download a voice marked Enhanced or Premium.
+- **Windows:** Microsoft Edge has Microsoft's Natural voices, which are the best on Windows. They are online voices: the text goes to Microsoft. Chrome has Google's online voices and the voices of Windows; Firefox has only the voices of Windows. To add a voice to Windows: Settings › Time & language › Speech › Manage voices › Add voices.
+- **Linux:** Chrome and Firefox read aloud through Speech Dispatcher. If the list in **Tools** is empty, install it and a voice. On Debian or Ubuntu: `sudo apt install speech-dispatcher espeak-ng`. Then `spd-say hello` must speak. eSpeak NG sounds robotic. Piper is a free voice that sounds natural, and Speech Dispatcher can use it: see your distribution's guide (for example, the Arch Linux wiki's page on Speech Dispatcher).
+- **Android:** Settings › System › Languages › Text-to-speech output (the names change from one phone maker to another). Choose Google's speech engine, then download the voice data for your language. On Android, the browser can list the languages and not each voice: then choose the voice in the phone's settings.
+
+Online voices, and some others, do not say which word they read. Then the card marks only the verse.
 
 When the device's voice says which word it reads, the card marks that word too. A device with no Hebrew or Greek voice says so. A Mac and an iPhone have good voices for both.
 

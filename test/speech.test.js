@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { accentScore, chaptersFrom, qualityScore, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { accentScore, chaptersFrom, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -64,4 +64,16 @@ test('a recording plays from a verse: its chapter begins there', () => {
 
 test('Hebrew loses its cantillation and paragraph marks before it is read', () => {
   assert.equal(sayableHebrew('בְּרֵאשִׁ֖ית בָּרָ֣א ׃ פ'), 'בְּרֵאשִׁית בָּרָא');
+});
+
+test('the voice list names a voice by its name, its country and its quality', () => {
+  const country = (region) => ({ US: 'United States', GB: 'United Kingdom', AU: 'Australia' })[region] ?? region;
+  const voice = (name, lang, extra = {}) => ({ name, lang, localService: true, ...extra });
+  assert.equal(voiceLabel(voice('Ava', 'en-US', { voiceURI: 'com.apple.voice.premium.en-US.Ava' }), country), 'Ava, United States, Premium');
+  assert.equal(voiceLabel(voice('Evan (Enhanced)', 'en-US'), country), 'Evan, United States, Enhanced');
+  assert.equal(voiceLabel(voice('Samantha', 'en-US', { voiceURI: 'com.apple.voice.compact.en-US.Samantha' }), country), 'Samantha, United States');
+  assert.equal(voiceLabel(voice('Microsoft Libby Online (Natural) - English (United Kingdom)', 'en-GB', { localService: false }), country), 'Libby, United Kingdom, Natural, online');
+  assert.equal(voiceLabel(voice('Google UK English Female', 'en-GB', { localService: false }), country), 'Google UK English Female, United Kingdom, online');
+  assert.equal(voiceLabel(voice('Karen', 'en_AU'), country), 'Karen, Australia');
+  assert.equal(voiceLabel(voice('Carmit', 'he'), country), 'Carmit');
 });
