@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chaptersFrom, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { accentScore, chaptersFrom, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -14,11 +14,25 @@ test('a voice speaks its language; Hebrew is also iw', () => {
 
 test('the better voice reads: not one for fun, of high quality, on the device, British for English', () => {
   const voice = { name: 'Daniel', lang: 'en-GB', localService: true, default: false };
-  assert.equal(voiceScore(voice, 'en'), 3);
-  assert.equal(voiceScore({ ...voice, name: 'Daniel (Enhanced)' }, 'en'), 7);
-  assert.equal(voiceScore({ ...voice, name: 'Zarvox' }, 'en'), -7);
-  assert.equal(voiceScore({ ...voice, lang: 'en-US', localService: false, default: true }, 'en'), 0.5);
-  assert.equal(voiceScore(voice, 'he'), 2);
+  assert.equal(voiceScore(voice, 'en', []), 3);
+  assert.equal(voiceScore({ ...voice, name: 'Daniel (Enhanced)' }, 'en', []), 7);
+  assert.equal(voiceScore({ ...voice, name: 'Zarvox' }, 'en', []), -7);
+  assert.equal(voiceScore({ ...voice, lang: 'en-US', localService: false, default: true }, 'en', []), 0.5);
+  assert.equal(voiceScore(voice, 'he', []), 2);
+});
+
+test('a voice in the reader\'s own accent reads first', () => {
+  assert.equal(accentScore('en-AU', 'en', ['en-AU', 'en-GB', 'en']), 5);
+  assert.equal(accentScore('en_GB', 'en', ['en-AU', 'en-GB', 'en']), 4);
+  assert.equal(accentScore('en-US', 'en', ['en-AU', 'en-GB', 'en']), 0);
+  assert.equal(accentScore('en-GB', 'en', ['en']), 1, 'no region: British, as the KJV is');
+  assert.equal(accentScore('en-GB', 'en', ['fr-FR']), 1);
+  assert.equal(accentScore('el-GR', 'el', ['en-GB']), 0);
+  // In Australia, a plain Australian voice comes before an enhanced American one.
+  const karen = { name: 'Karen', lang: 'en-AU', localService: true, default: false };
+  const ava = { name: 'Ava (Premium)', lang: 'en-US', localService: true, default: true };
+  assert.ok(voiceScore(karen, 'en', ['en-AU']) > voiceScore(ava, 'en', ['en-AU']));
+  assert.ok(voiceScore(ava, 'en', ['en-US']) > voiceScore(karen, 'en', ['en-US']));
 });
 
 test('a recording plays from a verse: its chapter begins there', () => {

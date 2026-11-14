@@ -86,8 +86,9 @@ plays from the card's first verse to its last (`app/data/audio.js`,
 `/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters, and
 `/audio/<voice>/<version>/GEN.1.m4a` for the app's voice).
 Where there is no recording, and for the other versions, the device's own
-voice reads (`app/lib/speech.js`): the KJV or the
-BSB in English, the Hebrew or the Greek in Original, Word by word and Syntax,
+voice reads (`app/lib/speech.js`), in the reader's own accent where the
+device has a voice for it (the browser's languages: en-GB, en-AU; British
+where they name no country): the KJV or the BSB in English, the Hebrew or the Greek in Original, Word by word and Syntax,
 in their modern pronunciations. The verse being read is marked, and the word
 too where the voice says which. A second press stops it. On Word by word, each
 transliteration shows its syllables with the stressed one in bold

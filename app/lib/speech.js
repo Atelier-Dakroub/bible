@@ -39,9 +39,9 @@ export function voices() {
 const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Ralph|Fred|Kathy|Grandma|Grandpa|Rocko|Shelley|Flo|Eddy|Reed|Sandy)\b/i;
 
 /**
- * The best voice for a language: one on the device itself, of the better
- * quality where it says so, and for English a British one first, as the KJV
- * is.
+ * The best voice for a language: one in the reader's own accent (their
+ * browser's languages: en-GB in Britain, en-AU in Australia), on the device
+ * itself, of the better quality where it says so.
  *
  * @param {Lang} lang
  * @returns {Promise<SpeechSynthesisVoice | null>}
@@ -49,7 +49,8 @@ const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jes
 export async function voiceFor(lang) {
   const all = (await voices()).filter((voice) => speaks(voice, lang));
   if (!all.length) return null;
-  return [...all].sort((a, b) => voiceScore(b, lang) - voiceScore(a, lang))[0];
+  const preferred = readerLanguages();
+  return [...all].sort((a, b) => voiceScore(b, lang, preferred) - voiceScore(a, lang, preferred))[0];
 }
 
 /**
@@ -59,23 +60,50 @@ export async function voiceFor(lang) {
  * @param {Lang} lang
  */
 export function speaks(voice, lang) {
-  return voice.lang.toLowerCase().replace('_', '-').startsWith(lang) || (lang === 'he' && voice.lang.startsWith('iw'));
+  return tagOf(voice.lang).startsWith(lang) || (lang === 'he' && voice.lang.startsWith('iw'));
+}
+
+/** The reader's languages, as their browser lists them, the first first. */
+function readerLanguages() {
+  return typeof navigator === 'undefined' ? [] : [...(navigator.languages ?? [navigator.language])].filter(Boolean);
+}
+
+/** @param {string} tag "en_gb" as "en-GB"'s lower case: "en-gb" */
+const tagOf = (tag) => tag.toLowerCase().replace('_', '-');
+
+/**
+ * How near a voice is to the reader's own accent: 5 for the first of their
+ * languages with a region (en-GB, en-AU) that the voice speaks, one less for
+ * each later one, 0 for another region. A reader whose languages name no
+ * region of this language hears a British voice first, as the KJV is.
+ *
+ * @param {string} voiceLang
+ * @param {Lang} lang
+ * @param {readonly string[]} preferred
+ */
+export function accentScore(voiceLang, lang, preferred) {
+  const regions = preferred.map(tagOf).filter((tag) => tag.startsWith(`${lang}-`));
+  const tag = tagOf(voiceLang);
+  if (!regions.length) return lang === 'en' && tag === 'en-gb' ? 1 : 0;
+  const index = regions.indexOf(tag);
+  return index < 0 ? 0 : Math.max(1, 5 - index);
 }
 
 /**
- * How good a voice is for reading: not one for fun, of the better quality
- * where it says so, on the device itself, and for English a British one,
- * as the KJV is.
+ * How good a voice is for reading: not one for fun, in the reader's accent
+ * (that comes before quality: a reader in Britain wants a British voice), of
+ * the better quality where it says so, on the device itself.
  *
  * @param {{ name: string, lang: string, localService: boolean, default: boolean }} voice
  * @param {Lang} lang
+ * @param {readonly string[]} [preferred] the reader's languages (navigator.languages)
  */
-export function voiceScore(voice, lang) {
+export function voiceScore(voice, lang, preferred = readerLanguages()) {
   return (
     (NOVELTY.test(voice.name) ? -10 : 0) +
     (/premium|enhanced|natural|neural/i.test(voice.name) ? 4 : 0) +
     (voice.localService ? 2 : 0) +
-    (lang === 'en' && /en-GB/i.test(voice.lang) ? 1 : 0) +
+    accentScore(voice.lang, lang, preferred) +
     (voice.default ? 0.5 : 0)
   );
 }

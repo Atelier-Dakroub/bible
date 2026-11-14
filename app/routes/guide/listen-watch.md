@@ -24,7 +24,7 @@ Choose the voice in **Tools**, **Reading**, **Read aloud**, **Voice**:
 | --- | --- |
 | **The app's voice** | The app's own recorded voice, a plain male voice. It reads the KJV and the BSB, where the app has its recording. |
 | **LibriVox** | The recording of the whole KJV by Michael Armenta, for LibriVox. It reads the KJV only. |
-| **This device** | The voice of this device. |
+| **This device** | The voice of this device, in your own accent where the device has one. |
 
 Where the chosen voice has no recording of a passage, another recording reads it, if there is one. Else this device's voice reads it. When a recording starts, a short message says who reads.
 
@@ -32,6 +32,8 @@ The device's voice also reads the versions that have no recording:
 
 - The BSB, where the app's voice has no recording.
 - The Hebrew or the Greek, on **Original**, **Word by word** and **Syntax**, in their modern pronunciation.
+
+The device's voice speaks in the accent of your browser's language: a British voice for English (United Kingdom), an Australian voice for English (Australia). Where your language names no country, a British voice reads English, as the KJV is British. For a better voice, download a voice marked Enhanced or Premium in the device's settings (on a Mac or an iPhone: Accessibility, Spoken Content).
 
 When the device's voice says which word it reads, the card marks that word too. A device with no Hebrew or Greek voice says so. A Mac and an iPhone have good voices for both.
 
