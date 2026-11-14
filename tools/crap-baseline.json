@@ -1,7 +1,7 @@
 {
  "limit": 30,
- "written": "2026-11-11",
- "count": 37,
+ "written": "2026-11-14",
+ "count": 36,
  "allowed": {
   "tools/import-relief.js rings": [
    306
@@ -50,9 +50,6 @@
   ],
   "tools/import-xrefs.js target": [
    90
-  ],
-  "tools/import-audio.js heard": [
-   72
   ],
   "tools/import-relief.js loadGrid": [
    72

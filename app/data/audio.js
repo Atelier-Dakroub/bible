@@ -1,12 +1,9 @@
 // The Bible read aloud from recordings: where each verse begins in each.
 //
-// Two kinds of recording, a file to a chapter, outside git:
-//   - the app's own voice (tools/voice/generate.py): audio/<voice>/<version>,
-//     times in app/data/audio/<voice>-<version>.json; for the KJV and the BSB.
-//   - LibriVox's KJV, read by Michael Armenta (tools/import-audio.js):
-//     audio/kjv, times in app/data/audio/kjv.json.
-// app/server.js serves the files: /audio/<voice>/<version>/GEN.1.m4a and
-// /audio/GEN.1.m4a (LibriVox). Where a chapter's file is not there (or the app
+// The app's own voice (tools/voice/generate.py), a file to a chapter, outside
+// git: audio/<voice>/<version>, times in app/data/audio/<voice>-<version>.json;
+// for the KJV and the BSB. app/server.js serves the files:
+// /audio/<voice>/<version>/GEN.1.m4a. Where a chapter's file is not there (or the app
 // runs where it has no files, as on Cloudflare), the passage has no such
 // recording, and a card reads in the device's voice instead.
 //
@@ -26,7 +23,7 @@ const ROOT = /** @type {any} */ (globalThis).process?.env?.BIBLE_AUDIO ?? 'audio
 
 /**
  * @typedef {{
- *   id: string, version: string, kind: 'own' | 'librivox', reader: string,
+ *   id: string, version: string, kind: 'own', reader: string,
  *   dir: string, url: string, times: string
  * }} Recording a recording: its folder on disk, its address on the server,
  *   and the file of its times
@@ -39,7 +36,6 @@ const GAP = 0.3;
 export const RECORDINGS = [
   { id: 'plain-male-kjv', version: 'kjv', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/kjv`, url: '/audio/plain-male/kjv', times: 'app/data/audio/plain-male-kjv.json' },
   { id: 'plain-male-bsb', version: 'bsb', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/bsb`, url: '/audio/plain-male/bsb', times: 'app/data/audio/plain-male-bsb.json' },
-  { id: 'librivox-kjv', version: 'kjv', kind: 'librivox', reader: 'Michael Armenta, for LibriVox (public domain)', dir: `${ROOT}/kjv`, url: '/audio', times: 'app/data/audio/kjv.json' },
 ];
 
 /** @type {Map<string, Promise<Record<string, [number, number[]]>>>} */
@@ -94,7 +90,7 @@ function hasFile(path) {
  *   a chapter's file, and each verse of the passage in it: where it begins
  *   and where the next begins (the end of the chapter, for the last), in
  *   seconds
- * @typedef {{ id: string, kind: 'own' | 'librivox', reader: string, chapters: RecordedChapter[] }} RecordingOf
+ * @typedef {{ id: string, kind: 'own', reader: string, chapters: RecordedChapter[] }} RecordingOf
  */
 
 /**
@@ -131,7 +127,7 @@ async function chaptersOf(recording, ref) {
     const key = `${ref.book}.${chapter}`;
     const entry = known[key];
     if (!entry || !(await hasFile(`${recording.dir}/${key}.m4a`))) return null;
-    chapterIn(chapters, `${recording.url}/${key}.m4a`).verses.push(verseTime(recording, key, verse, entry));
+    chapterIn(chapters, `${recording.url}/${key}.m4a`).verses.push(verseTime(key, verse, entry));
   }
   return chapters;
 }
@@ -152,19 +148,18 @@ function chapterIn(chapters, file) {
 }
 
 /**
- * Where a verse begins in its chapter's file, and where it ends: where the
- * next begins; in the app's own voice, in the middle of the pause before it
- * (generate.py's PAUSE), so that a stop a little late is still silent. The
+ * Where a verse begins in its chapter's file, and where it ends: in the
+ * middle of the pause before the next (generate.py's PAUSE), so that a stop
+ * a little late is still silent. The
  * last verse ends a second after the chapter's length, which is rounded to
  * the second: the file's own end stops it, and its last words are heard.
  *
- * @param {Recording} recording
  * @param {string} key the chapter, such as JHN.3
  * @param {number} verse
  * @param {[number, number[]]} entry the chapter's length, and its verses' starts in tenths of a second
  */
-export function verseTime(recording, key, verse, [seconds, starts]) {
-  const until = verse < starts.length ? starts[verse] / 10 - (recording.kind === 'own' ? GAP : 0) : seconds + 1;
+export function verseTime(key, verse, [seconds, starts]) {
+  const until = verse < starts.length ? starts[verse] / 10 - GAP : seconds + 1;
   return { id: `${key}.${verse}`, at: starts[verse - 1] / 10, until };
 }
 
@@ -172,7 +167,7 @@ export function verseTime(recording, key, verse, [seconds, starts]) {
  * A chapter's file, or part of it (an HTTP byte range, so a player can begin
  * at a verse), for app/server.js.
  *
- * @param {string} folder the recording's folder, such as plain-male/kjv, or '' for LibriVox's
+ * @param {string} folder the recording's folder, such as plain-male/kjv
  * @param {string} name such as GEN.1.m4a
  * @param {string | undefined} range the request's Range header
  * @returns {Promise<Response>}
@@ -195,8 +190,7 @@ export async function chapterFile(folder, name, range) {
  * @param {string} name
  */
 function recordingFile(folder, name) {
-  const url = folder ? `/audio/${folder}` : '/audio';
-  const recording = RECORDINGS.find((each) => each.url === url);
+  const recording = RECORDINGS.find((each) => each.url === `/audio/${folder}`);
   if (!files || !recording || !/^[1-3A-Z]{3}\.\d{1,3}\.m4a$/.test(name)) return null;
   return `${recording.dir}/${name}`;
 }

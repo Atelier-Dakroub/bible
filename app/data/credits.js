@@ -224,14 +224,6 @@ export const CREDITS = [
         url: 'https://watch.thechosen.tv/',
       },
       {
-        name: 'The King James Version, read for LibriVox',
-        by: 'Michael Armenta, for LibriVox',
-        gives: 'The KJV read aloud.',
-        license: 'Public domain',
-        url: 'https://librivox.org/',
-        changes: 'Each chapter cut from the readings, with the time of each verse.',
-      },
-      {
         name: "The app's own reading",
         by: 'Made for the app with Qwen3-TTS (Apache 2.0), in a voice designed for it: a synthetic voice, not a recording of a person',
         gives: 'The KJV and the BSB read aloud.',

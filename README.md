@@ -15,7 +15,7 @@ npm run dev      # then open http://localhost:1960/table
 
 The texts, dictionaries, maps and pictures are in the repository, so nothing
 else needs to be downloaded or imported. The recordings are not (about
-1.7 GB): without them, the device's own voice reads aloud (see "Reading
+1.5 GB for each version): without them, the device's own voice reads aloud (see "Reading
 aloud" below). `.env.example` lists the optional settings.
 
 `npm run verify` runs the tests, the CRAP check, the types and a build; see
@@ -66,7 +66,7 @@ Tools, Table chooses Automatic, Always or Never.
 Reading aloud: who reads is chosen in Tools, Reading, Read aloud (Voice):
 The app's voice (`tools/voice`: a plain male voice designed for the app and
 made with Qwen3-TTS, for the KJV and the BSB where its recording is made),
-LibriVox (the KJV only), or This device, the device's own voice, which also
+or This device, the device's own voice, which also
 reads whatever has no recording. The recordings a passage has are listed on
 its card, so a tap starts one at once.
 
@@ -80,11 +80,10 @@ its place, and the next time it goes on from that verse ("Listen from verse
 1:4"); a reading that ends leaves the mode and begins again next time. One
 card is in the mode at a time. Tools, Reading, Read aloud (Speed) sets the
 reading speed (0.8×, 1×, 1.15×, 1.3×, 1.5×) for the recording, at the same
-pitch, and for the device's voice; each device keeps its own. LibriVox is
-the recording of the whole KJV, read by Michael Armenta (public domain); it
+pitch, and for the device's voice; each device keeps its own. A recording
 plays from the card's first verse to its last (`app/data/audio.js`,
-`/listen/<address>` for the times, `/audio/GEN.1.m4a` for the chapters, and
-`/audio/<voice>/<version>/GEN.1.m4a` for the app's voice).
+`/listen/<address>` for the times, `/audio/<voice>/<version>/GEN.1.m4a` for
+the chapters).
 Where there is no recording, and for the other versions, the device's own
 voice reads (`app/lib/speech.js`), in the reader's own accent where the
 device has a voice for it (the browser's languages: en-GB, en-AU; British
@@ -353,7 +352,7 @@ npm run verify   # the tests (with the CRAP check), the types and a build: the b
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js`, `import-videos.js` and `import-audio.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`) and the app's voice (`voice/`). |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js` and `import-videos.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`) and the app's voice (`voice/`). |
 | `app/data/audio/` | The time each verse begins in each recording. |
 | `app/data/videos.json` | The videos and the passages each one shows. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
@@ -825,28 +824,6 @@ attribution; passed on only inside a work made from it). RiverATLAS
 (figshare) stops automated clients; a download of it by hand can replace
 HydroRIVERS with no change to the map. Run the Natural Earth import first,
 then the coast, then the rivers:
-
-The KJV's recording: LibriVox's "Bible (KJV), Complete" (127 MP3 files,
-about 101 hours, 2.7 GB) is transcribed once with whisper.cpp (`whisper-cli`,
-Homebrew, with the ggml-base.en model), each word with its time; the words
-heard are matched to the KJV's (`tools/lib/align.js`: four-word anchors found
-once in each, the longest chain of them in order, and the words between by
-the least edits), and each verse starts where the reader's voice comes back
-after the pause before it. The chapters are cut to AAC files, one each, in
-`audio/kjv` (about 1.5 GB, outside git; `BIBLE_AUDIO` names another place);
-the times are in `app/data/audio/kjv.json`. The app's server streams the
-files, with byte ranges (`app/server.js`). A test cut of 40 verses in Genesis,
-and 48 across Deuteronomy, Psalms, Isaiah, Matthew, Acts and Revelation,
-began on their first words, but for words whisper misheard in the test
-itself. 1,185 of the 1,189 chapters play: the reader skipped Exodus 22,
-2 Chronicles 4 and 8, and Job 14 (each recording goes from the chapter before
-to the chapter after), which the device's voice reads. Other LibriVox readers
-have them: Darren L. Slider (Exodus 22), Joy Chan (2 Chronicles 4 and 8),
-Peter Tucker (Job 14).
-
-```sh
-node tools/import-audio.js <LibriVox directory with sections.json> <work directory> [audio directory]
-```
 
 ```sh
 node tools/import-map.js <Natural Earth GeoJSON directory>

@@ -336,9 +336,9 @@ export function setSpeed(value) {
 }
 
 // Who reads a recorded version, kept in this browser: the app's own voice,
-// LibriVox's reader (the KJV), or the device's voice.
+// or the device's voice.
 const READER_KEY = 'bible.reader';
-export const READERS = /** @type {const} */ (['own', 'librivox', 'device']);
+export const READERS = /** @type {const} */ (['own', 'device']);
 
 /** @returns {typeof READERS[number]} */
 export function readerChoice() {
@@ -604,9 +604,10 @@ export class Recording {
 
   /**
    * @param {HTMLAudioElement} audio
-   * @param {{ title?: string, resume?: () => void, failed?: () => void }} [options] the passage's
-   *   name, for the lock screen, how to go on after a pause there, and what
-   *   to do when the recording cannot be played (a missing file, no network)
+   * @param {{ title?: string, artist?: string, album?: string, resume?: () => void, failed?: () => void }} [options]
+   *   the passage's name, its reader and its version, for the lock screen;
+   *   how to go on after a pause there; and what to do when the recording
+   *   cannot be played (a missing file, no network)
    */
   constructor(audio, options = {}) {
     this.audio = audio;
@@ -635,7 +636,8 @@ export class Recording {
    * @param {MediaSession} media
    */
   claim(media) {
-    media.metadata = new MediaMetadata({ title: this.options.title ?? 'The KJV', artist: 'Michael Armenta', album: 'King James Version, read for LibriVox' });
+    const { title = 'The Bible', artist = "The app's voice", album = '' } = this.options;
+    media.metadata = new MediaMetadata({ title, artist, album });
     media.setActionHandler('pause', () => this.stop());
     media.setActionHandler('stop', () => this.stop());
     media.setActionHandler('play', () => this.options.resume?.());

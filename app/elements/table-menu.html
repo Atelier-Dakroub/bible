@@ -78,7 +78,7 @@
     keyboard: 'auto',
     /** the reading speed (lib/speech.js) */
     speed: 1,
-    /** who reads a recorded version: own, librivox or device (lib/speech.js) */
+    /** who reads a recorded version: own or device (lib/speech.js) */
     reader: 'own',
   };
   const TABS = ['reading', 'marks', 'table', 'saved'];
@@ -1167,10 +1167,9 @@
         <legend>Voice</legend>
         <div class="tools__segments">
           <label class="tools__segment"><input type="radio" name="reader" value="own" data-choice="reader" />The app's voice</label>
-          <label class="tools__segment"><input type="radio" name="reader" value="librivox" data-choice="reader" />LibriVox</label>
           <label class="tools__segment"><input type="radio" name="reader" value="device" data-choice="reader" />This device</label>
         </div>
-        <p id="tools-reader-hint" class="tools__hint">Where a voice has no recording of a passage, this device's voice reads it. LibriVox reads the KJV only.</p>
+        <p id="tools-reader-hint" class="tools__hint">Where the app's voice has no recording of a passage, this device's voice reads it.</p>
       </fieldset>
       <div class="tools__field" role="group" aria-labelledby="tools-device-voice" aria-describedby="tools-device-hint">
         <span id="tools-device-voice" class="tools__name">This device's voice</span>

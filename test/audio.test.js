@@ -22,7 +22,6 @@ test('a Range header asks for part of a recording', () => {
 test('the last verse of a chapter plays to the end of its file', () => {
   // Genesis 1 is 252.4 s long, kept as 252: its last words are after that.
   const entry = /** @type {[number, number[]]} */ ([252, [0, 2198, 2326, 2446]]);
-  const own = /** @type {any} */ ({ kind: 'own' });
-  assert.deepEqual(verseTime(own, 'GEN.1', 4, entry), { id: 'GEN.1.4', at: 244.6, until: 253 });
-  assert.ok(verseTime(own, 'GEN.1', 3, entry).until < 244.6, 'a verse before the last ends in the pause before the next');
+  assert.deepEqual(verseTime('GEN.1', 4, entry), { id: 'GEN.1.4', at: 244.6, until: 253 });
+  assert.ok(verseTime('GEN.1', 3, entry).until < 244.6, 'a verse before the last ends in the pause before the next');
 });

@@ -175,10 +175,26 @@
    */
   const pointOf = (x, y) => (x === undefined || y === undefined ? null : { x, y });
 
+  /** The recorded versions' names, for the lock screen. */
+  /** @type {Record<string, string>} */
+  const VERSION_NAMES = { kjv: 'King James Version', bsb: 'Berean Standard Bible' };
+
   /**
-   * The recording a card's speaker lists (data/audio.js), of the reader
-   * chosen in Tools: the app's voice first, then LibriVox's; none when the
-   * device's voice is chosen, or none is listed.
+   * What the phone's lock screen shows while a card's recording plays: the
+   * passage, its reader and its version.
+   *
+   * @param {HTMLElement} card
+   * @param {string} reader
+   */
+  function lockScreen(card, reader) {
+    const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
+    return { title, artist: reader, album: VERSION_NAMES[card.dataset.version ?? ''] ?? '' };
+  }
+
+  /**
+   * The recording a card's speaker lists (data/audio.js): the app's voice,
+   * where it has the passage; none when the device's voice is chosen in
+   * Tools, or none is listed.
    *
    * @param {HTMLElement} button the card's speaker button, whose data-listen lists them
    * @returns {{ kind: string, reader: string, chapters: import('../lib/speech.js').RecordedChapter[] } | null}
@@ -186,7 +202,7 @@
   function recordingOf(button) {
     const choice = readerChoice();
     const recordings = choice === 'device' ? [] : listedRecordings(button);
-    return recordings.find((each) => each.kind === choice) ?? recordings[0] ?? null;
+    return recordings[0] ?? null;
   }
 
   /**
@@ -4004,10 +4020,10 @@
     },
 
     /**
-     * Reads a card aloud, verse by verse, in its version. The KJV plays
-     * LibriVox's recording where the app has it (data/audio.js, routes/listen);
-     * otherwise, and for the BSB, the Hebrew and the Greek (Original, Word by
-     * word, Syntax), the device's voice reads it. A second press stops it,
+     * Reads a card aloud, verse by verse, in its version. The KJV and the
+     * BSB play the app's own recording where it has the passage
+     * (data/audio.js, routes/listen); otherwise, and for the Hebrew and the
+     * Greek (Original, Word by word, Syntax), the device's voice reads it. A second press stops it,
      * and the card keeps the verse it stopped in (data-read-at): the next
      * press goes on from there. A reading that ends begins again next time.
      *
@@ -4092,14 +4108,14 @@
       audio.muted = true;
       audio.play().catch(() => null);
       this.listenLook(card, true);
-      if (reader) this.toast(reader === "The app's voice" ? "Read in the app's own voice." : `Read by ${reader}.`);
-      const title = card.querySelector('.passage__heading')?.textContent?.trim() ?? '';
+      if (reader) this.toast("Read in the app's own voice.");
+
       // The lock screen's Play goes on from where the reading paused.
       const resume = () => {
         if (card.isConnected) this.readAloud(card, button, card.dataset.readAt ?? '');
       };
       const failed = () => this.toast('The recording could not be played. Check the connection and try again.');
-      new Recording(audio, { title, resume, failed }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
+      new Recording(audio, { ...lockScreen(card, reader), resume, failed }).play(chapters, (id) => card.querySelector(`[data-ref="${CSS.escape(id)}"]`), ended, start);
     },
 
     /**
@@ -5052,10 +5068,18 @@
   :scope.is-zooming :is(.table__lines, .table__labels) {
     visibility: hidden;
   }
-  /* A short message at the foot of the screen (toast), over everything. */
+  /* A short message at the foot of the screen (toast), over everything. Its
+     width is its words', up to the screen less a margin: placed at the
+     middle and moved back by half, it would otherwise wrap at half the
+     screen. */
   .table__toast {
     position: absolute;
     left: 50%;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    text-align: center;
+    text-wrap: balance;
     bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
     z-index: 3000000;
     margin: 0;

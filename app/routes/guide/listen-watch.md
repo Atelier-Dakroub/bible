@@ -23,10 +23,9 @@ Choose the voice in **Tools**, **Reading**, **Read aloud**, **Voice**:
 | Choice | Who reads |
 | --- | --- |
 | **The app's voice** | The app's own recorded voice, a plain male voice. It reads the KJV and the BSB, where the app has its recording. |
-| **LibriVox** | The recording of the whole KJV by Michael Armenta, for LibriVox. It reads the KJV only. |
 | **This device** | The voice of this device, in your own accent where the device has one. |
 
-Where the chosen voice has no recording of a passage, another recording reads it, if there is one. Else this device's voice reads it. When a recording starts, a short message says who reads.
+Where the app's voice has no recording of a passage, this device's voice reads it. When a reading starts, a short message says who reads.
 
 The device's voice also reads the versions that have no recording:
 

@@ -2,9 +2,8 @@
 
 <!-- A listening test: the same passages read by each voice, for choosing
      the voice of the app's own recordings. The samples are made in the
-     scratchpad (open text-to-speech models) and the LibriVox reference cut
-     from the KJV's recording; they live in app/public/voices, outside git,
-     with samples.json and librivox.json listing them. A choice per passage
+     scratchpad (open text-to-speech models); they live in app/public/voices,
+     outside git, with samples.json listing them. A choice per passage
      is kept in this browser and summed up at the top. Not linked from the
      app. -->
 
@@ -137,13 +136,8 @@
     summary.textContent = chosen.length ? `Your picks: ${chosen.map(([passage, label]) => `${passage}: ${label}`).join(' · ')}` : '';
   };
 
-  /** The samples: the people's recordings first, then the made voices. */
-  const fetchSamples = async () => {
-    const [made, human] = await Promise.all(
-      ['/voices/samples.json', '/voices/librivox.json'].map((url) => fetch(url).then((response) => (response.ok ? response.json() : [])).catch(() => [])),
-    );
-    return [...human, ...made];
-  };
+  /** The samples. */
+  const fetchSamples = () => fetch('/voices/samples.json').then((response) => (response.ok ? response.json() : [])).catch(() => []);
 
   /** @param {any[]} all the samples, by passage and version */
   const byPassage = (all) => {
