@@ -99,6 +99,19 @@ function cardAddress(text) {
 }
 
 /**
+ * What a study is of, as the table asks for it: a Strong's number, a topic
+ * or a person as it is, else a passage's address.
+ *
+ * @param {unknown} text
+ */
+function studySubject(text) {
+  const name = String(text ?? '').trim();
+  if (/^[HG]\d+$/i.test(name)) return name.toUpperCase();
+  if (/^(topic|person):/.test(name)) return name;
+  return toAddress(refOf(name));
+}
+
+/**
  * The table's links as lines: each end by its title and address, with the type.
  *
  * @param {{ from: { address: string, title: string }, to: { address: string, title: string }, type: string }[]} links
@@ -163,12 +176,12 @@ const TOOLS = {
 
   table_study: {
     description:
-      "Lay out a study of a passage on the open table, as the guide's \"Start a study\" button does: the passage, a study note with headings, the Old Testament it quotes (or the New Testament passages that quote it), its parallels, the cross-references with the most votes, the people it names, and its places marked on the map, in columns, every card linked to the passage. One step that Undo takes back. Add your own notes after with table_note.",
-    inputSchema: { type: 'object', properties: { reference: { type: 'string', description: 'A passage, such as "Matthew 1:18-25" or MAT.1.18-25.' } }, required: ['reference'] },
-    async run({ reference }) {
-      const { plan } = await tell({ action: 'study', address: toAddress(refOf(reference)) });
-      const list = (/** @type {string} */ label, /** @type {string[]} */ items) => (items.length ? `\n${label}: ${items.join(', ')}` : '');
-      return `A study of ${plan.title} (${plan.address}) is on the table.${list(plan.quoting ? 'It quotes' : 'Quoted in', plan.quotations)}${list('Parallels', plan.parallels)}${list('Cross-references', plan.references)}${list('People', plan.people)}${plan.mapIds ? `\nOn the map: ${plan.mapIds}` : ''}\nUndo takes it back.`;
+      "Lay out a study on the open table, as the panel's \"Start a study\" buttons do, in columns, every card linked to the middle, with a study note that has headings. Of a passage: the Old Testament it quotes (or the New Testament passages that quote it), its parallels, the cross-references with the most votes, the people it names, and its places on the map. Of a word of the original (a Strong's number, such as G26): where it is used, a verse for each sense, and the word marked on every card. Of a topic of Nave's (topic:PRAYER; the topic tool gives keys): a passage for each part. Of a person (person:paul_2479; the entity tool gives ids): family, the chapters that name them most, and a journey on the map. One step that Undo takes back. Add your own notes after with table_note.",
+    inputSchema: { type: 'object', properties: { subject: { type: 'string', description: 'A passage ("Matthew 1:18-25" or MAT.1.18-25), a Strong\'s number (G26), a topic (topic:PRAYER) or a person (person:paul_2479).' } }, required: ['subject'] },
+    async run({ subject }) {
+      const { plan } = await tell({ action: 'study', address: studySubject(subject) });
+      const cards = plan.columns.flat().filter((/** @type {string} */ each) => each !== 'note');
+      return `A study of ${plan.title} is on the table: ${cards.join(', ')}, and a study note.\n${plan.lines.join('\n')}\nUndo takes it back.`;
     },
   },
 

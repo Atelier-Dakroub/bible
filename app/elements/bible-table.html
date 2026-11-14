@@ -1780,7 +1780,7 @@
      *   show_places   mark places on the map: { places }
      *   show_journey  draw a journey's route on the map: { journey }
      *   mark          mark words on every card, or unmark: { kind, value, label, off }
-     *   study         lay out a study of a passage: { address }
+     *   study         lay out a study of a passage, a word, a topic or a person: { address }
      *   note          write a note, beside the cards it links to: { title, text, kind, link }
      *   clear         a new, empty table (Undo brings the old one back)
      *   undo          take back the last change
@@ -1900,13 +1900,14 @@
     },
 
     /**
-     * Lays out a study of a passage (lib/study.js): the passage, its study
-     * note, and what its guide finds, in columns in the open table to the
-     * right of the cards there, every card linked to the passage. The table
-     * glides to it. One step, which Undo takes back. Returns the plan, or
-     * null when there is none.
+     * Lays out a study (lib/study.js) of a passage, a word of the original
+     * (G26), a topic (topic:PRAYER) or a person (person:paul_2479): its card,
+     * its study note, and what the data finds, in columns in the open table
+     * to the right of the cards there, every card linked to the middle. The
+     * table glides to it. One step, which Undo takes back. Returns the plan,
+     * or null when there is none.
      *
-     * @param {string} address
+     * @param {string} address the subject
      * @returns {Promise<import('../lib/study.js').Plan | null>}
      */
     async startStudy(address) {
@@ -1914,7 +1915,7 @@
       /** @type {import('../lib/study.js').Plan | null} */
       const plan = response?.ok ? await response.json() : null;
       if (!plan) {
-        this.toast('There is no study for this passage.');
+        this.toast('There is no study for this.');
         return null;
       }
       this.applying += 1;
@@ -1938,16 +1939,54 @@
       const note = `note:${this.addNote({ doc: studyDoc(plan), title: `Study: ${plan.short}` })}`;
       const before = new Set(this.world().querySelectorAll('gesture-card'));
       // The map, when it is not on the table, is the study's last column.
-      const columns = [...columnsOf(plan, note), ...(plan.mapIds && !this.mapCard() ? [[MAP]] : [])];
-      const cards = await Promise.all(columns.map((column) => Promise.all(column.map((each) => this.fetchCard(each, {})))));
+      const map = (plan.mapIds || plan.journey) && !this.mapCard() ? [[MAP]] : [];
+      const cards = await Promise.all([...columnsOf(plan, note), ...map].map((column) => Promise.all(column.map((each) => this.fetchCard(each, {})))));
       const laid = cards.map((column) => /** @type {Card[]} */ (column.filter(Boolean))).filter((column) => column.length);
       this.layStudy(laid, before);
-      // Only between cards that came: a card that did not load has no link.
+      this.linkStudy(plan, note, laid);
+      await this.markStudy(plan);
+    },
+
+    /**
+     * A study's links, between the cards that came: a card that did not load
+     * has none.
+     *
+     * @param {import('../lib/study.js').Plan} plan
+     * @param {string} note the note's address
+     * @param {Card[][]} laid
+     */
+    linkStudy(plan, note, laid) {
       const loaded = new Set(laid.flat().map((card) => card.dataset.address ?? ''));
       for (const { a, b, type } of linksOf(plan, note).filter((link) => [link.a, link.b].every((end) => isWhole(end) && loaded.has(end.address)))) {
         this.links = setLink(this.links, a, b, type);
       }
+    },
+
+    /**
+     * A study's marks: its places or journey on the map, and a word's mark
+     * on every card.
+     *
+     * @param {import('../lib/study.js').Plan} plan
+     */
+    async markStudy(plan) {
       if (plan.mapIds) await this.markPlaces(plan.mapIds);
+      if (plan.journey) await this.drawJourney(plan.journey);
+      const rule = /** @type {Rule | null} */ (plan.rule);
+      if (rule && !this.rules.some((each) => sameRule(each, rule))) this.setRules(toggleRule(this.rules, rule));
+    },
+
+    /**
+     * Draws a journey on the map, without moving the table (showJourney
+     * moves it to the map).
+     *
+     * @param {import('../data/journeys.js').JourneyView} journey
+     */
+    async drawJourney(journey) {
+      await this.openMap();
+      await customElements.whenDefined('map-view');
+      /** @type {any} */ (this.mapView())?.showJourney(journey);
+      const proposed = journey.stops.filter((stop) => stop.proposed).map(({ x, y }) => ({ x, y }));
+      await this.markPlaces(journey.stops.map((stop) => stop.place).filter(Boolean).join(','), proposed);
     },
 
     /**
@@ -1981,14 +2020,15 @@
      * the table if it is not there.
      *
      * @param {string} ids place ids, with commas between
+     * @param {{ x: number, y: number }[]} [more] other points the view takes in, in map units
      */
-    async markPlaces(ids) {
+    async markPlaces(ids, more = []) {
       const list = ids.split(',').filter(Boolean);
       await this.openMap();
       this.shownPlaces = new Set(list);
       this.paintMap();
       await customElements.whenDefined('map-view');
-      await this.mapView()?.fit(list);
+      await this.mapView()?.fit(list, more);
     },
 
     /**

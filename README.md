@@ -296,6 +296,12 @@ Study tools:
   verse comes once, and God and Jesus get no card. The columns go to the
   right of the cards on the table, at the scale that fits the screen across
   (not below 0.6), every card linked to the passage, as one step for Undo.
+  The same button on a word study lays out the word's landscape and a verse
+  for each sense (then for each book that uses it most), and marks the word
+  on every card; on a topic of Nave's, a passage for each part of the topic
+  around the note; on a person, their family, the chapters that name them
+  most, and their first journey (or birth and death places) on the map. One
+  plan shape serves all four (`planOf` in `app/lib/study.js`).
 - **Parallel passages** are runs of cross-references: verse after verse of
   one passage refers to verse after verse of another, in the same order.
   That finds Kings and Chronicles, the Synoptic Gospels, 2 Samuel 22 and
@@ -1002,7 +1008,7 @@ first to answer replies. So each change is a step that Undo takes back.
 | --- | --- |
 | `table_state` | what is on the table: its cards, its links and its marks |
 | `table_link` | links two cards on the table, with a type (quotes, fulfills, contrasts), or takes the link away |
-| `table_study` | lays out a study of a passage, as Start a study does |
+| `table_study` | lays out a study of a passage, a Strong's number, a topic or a person, as Start a study does |
 | `table_note` | writes a note (a title, a kind, text with `#` headings) beside the cards it links to |
 | `table_place` | puts passages down in a row, in any version, as one step |
 | `table_guide` | opens a passage's guide in the search panel |

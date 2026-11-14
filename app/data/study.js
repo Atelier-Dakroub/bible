@@ -12,12 +12,14 @@
 
 import parallelList from './parallels.json' with { type: 'json' };
 import { AUTHORS, CANON_CREDIT, GROUPS } from './canon.js';
-import { answer, books, entityView, grammarFind, grammarQuery, matching, passage, preview, referenceBook, strongsBook, verseCount } from './bible.js';
+import { answer, books, entityView, entryFor, grammarFind, grammarQuery, matching, passage, preview, referenceBook, strongsBook, verseCount } from './bible.js';
 import { entities, entity, formatYear, namedIn } from './entities.js';
 import { onMap } from '../lib/map.js';
 import { formatReference, parseAddress, shortTitle, toAddress, versesIn } from '../lib/reference.js';
 import { parseSpanAddress } from '../lib/words.js';
 import { versesOf } from '../lib/links.js';
+import { MOST, NOTE, counted, listed, planOf } from '../lib/study.js';
+import { sensesOf, versesOfSense } from './senses.js';
 import { journeysFor } from './journeys.js';
 import { imagesOf } from './images.js';
 import { videosFor } from './videos.js';
@@ -252,48 +254,242 @@ export async function guideResults(address) {
 }
 
 // The persons named all through the Bible: a card of one adds little to a
-// study of a passage.
+// study.
 const EVERYWHERE = new Set(['person:god_1324', 'person:jesus_904', 'person:jesus_905', 'person:holy_spirit_7400']);
 
 /**
- * A study of a passage, to lay out on the table (lib/study.js): the passage,
- * the Old Testament it quotes (or the New Testament passages that quote
- * it), its parallels, the cross-references with the most votes, the people
- * it names most, and its places for the map. Each passage once. Null for an
- * address with no guide.
+ * Picks addresses in order, up to `most`, leaving out any that shares a
+ * verse with one picked before (1 Peter 2:24 beside 1 Peter 2:24-25), or
+ * with the verses in `seen`, which it adds to.
  *
- * @param {string} address
+ * @param {string[]} addresses
+ * @param {number} most
+ * @param {Set<string>} seen verse ids
+ */
+function freshOf(addresses, most, seen) {
+  /** @type {string[]} */
+  const kept = [];
+  for (const address of addresses) {
+    const verses = versesOf(address);
+    if (kept.length >= most || verses.some((verse) => seen.has(verse))) continue;
+    for (const verse of verses) seen.add(verse);
+    kept.push(address);
+  }
+  return kept;
+}
+
+/** @param {string} address its reference, as "John 3:16" */
+function referenceOf(address) {
+  const ref = parseAddress(address, books);
+  return ref ? formatReference(ref, books) : address;
+}
+
+/**
+ * A study, to lay out on the table (lib/study.js): of a passage, of a word
+ * of the original (H2617), of a topic (topic:PRAYER), or of a person
+ * (person:paul_2479). Null when there is none.
+ *
+ * @param {string} subject
  * @returns {Promise<import('../lib/study.js').Plan | null>}
  */
-export async function studyPlan(address) {
+export async function studyPlan(subject) {
+  if (/^[HG]\d+$/.test(subject)) return wordPlan(subject);
+  if (subject.startsWith('topic:')) return topicPlan(subject.slice('topic:'.length));
+  if (subject.startsWith('person:')) return personPlan(subject);
+  return passagePlan(subject);
+}
+
+/**
+ * A study of a passage: the Old Testament it quotes (or the New Testament
+ * passages that quote it), its parallels, the cross-references with the
+ * most votes, the people it names most, and its places for the map.
+ *
+ * @param {string} address
+ */
+async function passagePlan(address) {
   const { guide } = await guideResults(address);
   if (!guide) return null;
-  // The verses on the table so far: a passage that shares a verse with one
-  // already there (1 Peter 2:24 beside 1 Peter 2:24-25) is left out.
   const seen = new Set(versesOf(guide.address));
-  /** @param {{ address: string }[]} results @param {number} most */
-  const fresh = (results, most) => {
-    /** @type {string[]} */
-    const kept = [];
-    for (const { address: each } of results) {
-      const verses = versesOf(each);
-      if (kept.length >= most || verses.some((verse) => seen.has(verse))) continue;
-      for (const verse of verses) seen.add(verse);
-      kept.push(each);
-    }
-    return kept;
-  };
-  return {
+  const quoting = quotationsOf(guide.address).quoting;
+  const quotations = freshOf(guide.quotations.map((each) => each.address), 4, seen);
+  const parallels = freshOf(guide.parallels.map((each) => each.address), 3, seen);
+  const references = freshOf(guide.references.map((each) => each.address), MOST, seen);
+  const people = guide.people.filter((each) => !EVERYWHERE.has(each.id)).slice(0, 3).map((each) => each.id);
+  const quoted = { cards: quotations, type: 'quotes', toward: !quoting };
+  const parts = [
+    quotations.length ? counted(quotations.length, quoting ? 'passage it quotes' : 'passage that quotes it', quoting ? 'passages it quotes' : 'passages that quote it') : '',
+    parallels.length ? counted(parallels.length, 'parallel') : '',
+    references.length ? counted(references.length, 'cross-reference') : '',
+    people.length ? counted(people.length, 'person', 'people') : '',
+    guide.mapIds ? 'its places on the map' : '',
+  ];
+  return planOf({
+    kind: 'passage',
     address: guide.address,
     title: guide.title,
     short: shortTitle(guide.title, books),
-    quoting: quotationsOf(guide.address).quoting,
-    quotations: fresh(guide.quotations, 4),
-    parallels: fresh(guide.parallels, 3),
-    references: fresh(guide.references, 5),
-    people: guide.people.filter((each) => !EVERYWHERE.has(each.id)).slice(0, 3).map((each) => each.id),
+    left: quoting ? [quoted] : [],
+    under: people,
+    right: [...(quoting ? [] : [quoted]), { cards: parallels, toward: true }, { cards: references, toward: true }],
+    lines: [`From the guide: ${listed(parts, 'no more than the passage')}.`],
     mapIds: guide.mapIds,
-  };
+  });
+}
+
+/**
+ * Every verse that uses a Strong's number, in canon order.
+ *
+ * @param {string} code
+ */
+async function versesWith(code) {
+  const all = await Promise.all(books.map((entry) => strongsBook(entry.id)));
+  return all.flatMap((each) => Object.entries(each).flatMap(([address, codes]) => (codes.split(' ').includes(code) ? [address] : [])));
+}
+
+/**
+ * A study of a word of the original: where it is used (its landscape), and
+ * a verse for each of its senses, the first in the Bible that uses it so;
+ * a word with no senses has the first verse of each book that uses it most.
+ * Every card marks the word.
+ *
+ * @param {string} code such as G26
+ */
+async function wordPlan(code) {
+  const found = await versesWith(code);
+  const entry = await entryFor(code, found.length);
+  if (!entry || !found.length) return null;
+  const senses = (await sensesOf(code)).filter((each) => each.count > 0).sort((x, y) => y.count - x.count);
+  /** @type {{ address: string, label: string }[]} */
+  const picked = [];
+  const has = (/** @type {string} */ address) => picked.some((one) => one.address === address);
+  if (senses.length > 1) {
+    for (const sense of senses.slice(0, MOST)) {
+      const inSense = await versesOfSense(code, sense.n);
+      const first = found.find((each) => inSense.has(each) && !has(each));
+      if (first) picked.push({ address: first, label: `In the sense “${sense.gloss.split(',')[0]}”` });
+    }
+  }
+  // The books that use it most fill the column: the first verse of each.
+  /** @type {Map<string, string[]>} */
+  const byBook = new Map();
+  for (const each of found) byBook.set(each.split('.')[0], [...(byBook.get(each.split('.')[0]) ?? []), each]);
+  for (const [book, verses] of [...byBook].sort((x, y) => y[1].length - x[1].length)) {
+    if (picked.length >= MOST) break;
+    if (!has(verses[0])) picked.push({ address: verses[0], label: `${books.find((each) => each.id === book)?.name ?? book}, which uses it in ${verseCount(verses.length)}` });
+  }
+  const verses = picked.sort((x, y) => found.indexOf(x.address) - found.indexOf(y.address));
+  const title = `${entry.xlit} (${code})`;
+  return planOf({
+    kind: 'word',
+    address: `landscape:${code}`,
+    title,
+    short: title,
+    right: [{ cards: verses.map((each) => each.address), toward: true }],
+    lines: [
+      `${entry.lemma}, ${entry.xlit}: ${entry.count}. Every card marks it.`,
+      senses.length > 1 ? 'The first verse for each sense, then the first in each book that uses it most:' : 'The first verse in each book that uses it most:',
+      ...verses.map((each) => `${each.label}: ${referenceOf(each.address)}`),
+    ],
+    rule: { kind: 'strongs', value: code, label: `${code} ${entry.xlit}` },
+  });
+}
+
+/**
+ * A study of a topic of Nave's: a passage for each part of the topic, the
+ * first it cites. The topic has no card: the note is the middle.
+ *
+ * @param {string} key such as PRAYER
+ */
+async function topicPlan(key) {
+  const found = await topic(key);
+  if (!found) return null;
+  const seen = new Set();
+  /** @type {{ address: string, label: string }[]} */
+  const picked = [];
+  for (const line of found.lines) {
+    const first = line.parts.find((part) => part.address)?.address;
+    if (!first || picked.length >= 2 * MOST) continue;
+    const [kept] = freshOf([first], 1, seen);
+    if (kept) picked.push({ address: kept, label: line.label });
+  }
+  if (!picked.length) return null;
+  return planOf({
+    kind: 'topic',
+    address: NOTE,
+    title: found.name,
+    short: found.name,
+    right: [{ cards: picked.map((each) => each.address), toward: true }],
+    lines: [
+      `From Nave's Topical Bible: a passage for each part of the topic, the first it cites, of its ${found.count.toLocaleString('en')} references.`,
+      ...picked.map((each) => `${each.label ? `${each.label}: ` : ''}${referenceOf(each.address)}`),
+    ],
+  });
+}
+
+/**
+ * A study of a person: their card and family, the chapters that name them
+ * most, and their journey on the map, or where they were born and died.
+ *
+ * @param {string} id such as person:paul_2479
+ */
+async function personPlan(id) {
+  const [found, all] = await Promise.all([entity(id), entities()]);
+  if (!found || found.kind !== 'person') return null;
+  const chapters = chaptersNaming(found.verses ?? []);
+  const family = [found.father, found.mother, ...(found.partners ?? []), ...(found.siblings ?? []), ...(found.children ?? [])]
+    .filter((each) => typeof each === 'string' && all[each])
+    .slice(0, 4);
+  const [journey] = await journeysFor({ person: id });
+  const mapped = (/** @type {string | null} */ place) => (place && all[place]?.lat != null && onMap(all[place].lon, all[place].lat) ? place : '');
+  const born = mapped(found.birthPlace);
+  const died = mapped(found.deathPlace);
+  const places = [...new Set([born, died].filter(Boolean))];
+  const name = found.title;
+  return planOf({
+    kind: 'person',
+    address: id,
+    title: name,
+    short: name,
+    under: family,
+    right: [{ cards: chapters, toward: true }],
+    lines: [
+      `From Theographic: ${name} is named in ${verseCount((found.verses ?? []).length)}.`,
+      chapters.length ? `The passages that name ${name} most: ${listed(chapters.map(referenceOf), '')}.` : '',
+      family.length ? `Family: ${listed(family.map((each) => all[each].title), '')}.` : '',
+      journey
+        ? `On the map: ${journey.title}${journey.route ? `, ${journey.route}` : ''}.`
+        : places.length
+          ? `On the map: ${listed([born ? `${all[born].title}, where ${name} was born` : '', died ? `${all[died].title}, where ${name} died` : ''], '')}.`
+          : '',
+    ].filter(Boolean),
+    mapIds: journey ? '' : places.join(','),
+    journey: journey ?? null,
+  });
+}
+
+/**
+ * The chapters that name a person most (at most MOST, in canon order), each
+ * as the verses from the first that names them to the last, ten at most.
+ *
+ * @param {string[]} verses the verses that name them, in canon order
+ */
+function chaptersNaming(verses) {
+  /** @type {Map<string, number[]>} */
+  const byChapter = new Map();
+  for (const verse of verses) {
+    const [book, chapter, number] = verse.split('.');
+    const key = `${book}.${chapter}`;
+    byChapter.set(key, [...(byChapter.get(key) ?? []), Number(number)]);
+  }
+  const order = [...byChapter.keys()];
+  const most = [...byChapter].sort((x, y) => y[1].length - x[1].length).slice(0, MOST);
+  return most
+    .sort((x, y) => order.indexOf(x[0]) - order.indexOf(y[0]))
+    .map(([key, numbers]) => {
+      const first = Math.min(...numbers);
+      const last = Math.min(Math.max(...numbers), first + 9);
+      return last > first ? `${key}.${first}-${last}` : `${key}.${first}`;
+    });
 }
 
 // The landscape.

@@ -687,7 +687,7 @@ let lexicon = null;
  * @param {number} verseCount how many verses use it
  * @returns {Promise<Entry | null>}
  */
-async function entryFor(code, verseCount) {
+export async function entryFor(code, verseCount) {
   lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
   const found = (await lexicon)[code];
   if (!found) return null;

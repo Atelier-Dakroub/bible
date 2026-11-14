@@ -143,6 +143,9 @@
       <!-- The heading is a result too: pull it out and the entity is a card. -->
       <button type="button" class="entity__title result" data-address="${entity ? entity.id : ''}">${entity ? entity.title : ''}</button>
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
+      <!-- A study of the person: family, the chapters that name them most,
+           and a journey (bible-table startStudy). -->
+      <button if="entity && entity.kind === 'person'" type="button" class="results__switch guide__study" data-study="${entity ? entity.id : ''}">Start a study</button>
       <!-- Pictures, as the plates of an encyclopedia: the first large, with
            its caption and credit, the rest small. A tap puts one on the table
            as a card. -->
@@ -199,6 +202,9 @@
       <p class="entry__def">${entry ? entry.def : ''}</p>
       <p class="entry__kjv">KJV: ${entry ? entry.kjv : ''}</p>
       <p class="entry__credit">Strong's dictionary, from Open Scriptures (CC BY-SA).</p>
+      <!-- A study of the word: where it is used, a verse for each sense,
+           and the word marked on every card (bible-table startStudy). -->
+      <button type="button" class="results__switch guide__study" data-study="${entry ? entry.code : ''}">Start a study</button>
     </section>
     <!-- The senses of the word (data/senses.js): a tap lists the verses that
          use it in that sense; the sense on show is pressed. -->
@@ -340,6 +346,9 @@
          reference is a link, as in a dictionary entry. -->
     <details if="topic" class="topic" open="${topicOpen}">
       <summary class="topic__summary"><span class="topic__name">${topic ? topic.name : ''}</span> <span class="topic__count">Topic · ${topic ? topic.count.toLocaleString('en') : 0} references</span></summary>
+      <!-- A study of the topic: a passage for each part, around a note
+           (bible-table startStudy). -->
+      <button type="button" class="results__switch guide__study" data-study="topic:${topic ? topic.key : ''}">Start a study</button>
       <ul class="topic__lines">
         <li each="line of topic ? topic.lines : []" class="topic__line topic__line--d${line.depth > 2 ? 2 : line.depth}"><span if="line.label" class="topic__label">${line.label}</span> <template each="part of line.parts"><button if="part.address" type="button" class="cite" data-address="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template><button if="line.see" type="button" class="entity__link topic__see" data-topic="${line.see}">See ${line.seeName}</button><span if="!line.see && line.seeName" class="topic__see">See ${line.seeName}</span></li>
       </ul>

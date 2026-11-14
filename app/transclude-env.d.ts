@@ -98,15 +98,47 @@ type Step = {
   scroll?: number | undefined;
 };
 type Plan = {
+  kind: string;
   address: string;
   title: string;
   short: string;
-  quoting: boolean;
-  quotations: string[];
-  parallels: string[];
-  references: string[];
-  people: string[];
+  columns: string[][];
+  joins: Join[];
+  lines: string[];
   mapIds: string;
+  journey: any;
+  rule: Mark | null;
+};
+type Join = {
+  a: string;
+  b: string;
+  type?: string | undefined;
+};
+type Mark = {
+  kind: string;
+  value: string;
+  label: string;
+};
+type JourneyView = {
+  id: string;
+  title: string;
+  route: string;
+  basis: string;
+  passage: string;
+  passageTitle: string;
+  years: string;
+  km: number;
+  stops: {
+    place: string;
+    name: string;
+    x: number;
+    y: number;
+    ref: string;
+    refTitle: string;
+    by: string;
+    reading: boolean;
+    proposed: boolean;
+  }[];
 };
 type Point_2 = {
   x: number;
@@ -149,27 +181,6 @@ type View = {
   x: number;
   y: number;
   w: number;
-};
-type JourneyView = {
-  id: string;
-  title: string;
-  route: string;
-  basis: string;
-  passage: string;
-  passageTitle: string;
-  years: string;
-  km: number;
-  stops: {
-    place: string;
-    name: string;
-    x: number;
-    y: number;
-    ref: string;
-    refTitle: string;
-    by: string;
-    reading: boolean;
-    proposed: boolean;
-  }[];
 };
 type Place = {
   card: Element;
@@ -673,7 +684,7 @@ type Row_2 = {
   name: string;
   y: number;
   cells: Cell[];
-  marks: Mark[];
+  marks: Mark_2[];
   end: number;
   total: string;
 };
@@ -683,7 +694,7 @@ type Cell = {
   x: number;
   w: number;
 };
-type Mark = {
+type Mark_2 = {
   x: number;
   y: number;
   size: number;
@@ -846,8 +857,14 @@ export type BibleTableMembers = {
   }[];
   startStudy(address: string): Promise<Plan | null>;
   putStudy(plan: Plan): Promise<void>;
+  linkStudy(plan: Plan, note: string, laid: Card[][]): void;
+  markStudy(plan: Plan): Promise<void>;
+  drawJourney(journey: JourneyView): Promise<void>;
   layStudy(columns: Card[][], before: Set<Element>): void;
-  markPlaces(ids: string): Promise<void>;
+  markPlaces(ids: string, more?: {
+    x: number;
+    y: number;
+  }[] | undefined): Promise<void>;
   addNote({
     doc, title, kind
   }: {

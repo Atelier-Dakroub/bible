@@ -167,16 +167,45 @@ test('a workspace keeps its rules and the compare of a card, and drops bad ones'
 
 test('a study of a passage holds what its guide finds, each verse once', async () => {
   const plan = await studyPlan('ACT.9.1-9');
+  const cards = plan?.columns.flat() ?? [];
   assert.equal(plan?.short, 'Acts 9:1–9');
-  assert.equal(plan?.quoting, true);
-  assert.ok(plan?.parallels.includes('ACT.22.3-16'), 'Paul tells it again in Acts 22');
-  assert.ok(plan?.people.includes('person:paul_2479'));
-  assert.ok(!plan?.people.some((id) => id.startsWith('person:god_')), 'God is named everywhere: no card for him');
+  assert.ok(cards.includes('ACT.22.3-16'), 'Paul tells it again in Acts 22');
+  assert.ok(cards.includes('person:paul_2479'));
+  assert.ok(!cards.some((id) => id.startsWith('person:god_')), 'God is named everywhere: no card for him');
   assert.match(plan?.mapIds ?? '', /damascus/);
-  // Isaiah 53: the New Testament quotes it; 1 Peter 2:24 is not beside 1 Peter 2:24-25.
+  // Isaiah 53: the New Testament quotes it, on its right; 1 Peter 2:24 is not beside 1 Peter 2:24-25.
   const isaiah = await studyPlan('ISA.53');
-  assert.equal(isaiah?.quoting, false);
-  assert.ok((isaiah?.quotations.length ?? 0) > 0);
-  assert.ok(!(isaiah?.references.includes('1PE.2.24') && isaiah.references.includes('1PE.2.24-25')));
+  assert.equal(isaiah?.columns[0][0], 'ISA.53');
+  assert.ok(isaiah?.joins.some((join) => join.type === 'quotes' && join.b === 'ISA.53'));
+  const all = isaiah?.columns.flat() ?? [];
+  assert.ok(!(all.includes('1PE.2.24') && all.includes('1PE.2.24-25')));
   assert.equal(await studyPlan('NOPE.1'), null);
+});
+
+test('a study of a word: its landscape, a verse for each sense, and the word marked', async () => {
+  const plan = await studyPlan('G3056');
+  assert.equal(plan?.columns[0][0], 'landscape:G3056');
+  assert.equal(plan?.columns[1].length, 5);
+  assert.deepEqual(plan?.rule, { kind: 'strongs', value: 'G3056', label: 'G3056 lógos' });
+  assert.ok(plan?.lines.some((line) => line.startsWith('In the sense “word”')));
+  assert.equal(await studyPlan('G999999'), null);
+});
+
+test('a study of a topic: a passage for each part, around its note', async () => {
+  const plan = await studyPlan('topic:PRAYER');
+  assert.equal(plan?.address, 'note');
+  assert.equal(plan?.columns[0][0], 'note');
+  assert.ok(plan?.lines.some((line) => line.startsWith('Daily, in the morning: Psalm 5:3')));
+  assert.equal(await studyPlan('topic:NOTHING_SUCH'), null);
+});
+
+test('a study of a person: family, the chapters that name them most, and a journey', async () => {
+  const ruth = await studyPlan('person:ruth_2450');
+  assert.deepEqual(ruth?.columns[0].slice(0, 3), ['person:ruth_2450', 'note', 'person:boaz_519']);
+  assert.ok(ruth?.columns[1].includes('RUT.1.4-13'));
+  assert.equal(ruth?.mapIds, 'place:moab_815');
+  const paul = await studyPlan('person:paul_2479');
+  assert.equal(paul?.journey?.title, "Paul's first journey");
+  assert.ok((paul?.columns[1] ?? []).every((address) => address.startsWith('ACT.')));
+  assert.equal(await studyPlan('place:moab_815'), null);
 });

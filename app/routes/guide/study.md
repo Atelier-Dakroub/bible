@@ -83,6 +83,14 @@ The study goes in the open table to the right of your cards, and the table moves
 - **Each verse comes once.** A cross-reference that shares verses with a card in the study is left out. People named all through the Bible, such as God and Jesus, get no card.
 - **One Undo takes the whole study away.**
 
+**Start a study** is also on a word study, a topic and a person:
+
+| Start a study on | The middle | Beside it |
+| --- | --- | --- |
+| A word study (a Strong's number) | The word's landscape (where it is used) and the note | The first verse for each sense of the word, then the first verse in each book that uses it most. Every card marks the word. |
+| A topic of Nave's | The note, which lists the parts of the topic | A passage for each part of the topic, the first one it cites |
+| A person | The person, the note, and their family | The chapters that name them most. The map shows their first journey, or where they were born and died. |
+
 The study comes from the app's own data, the same as the guide. No language model writes it. To have Claude add notes of its own, see [The assistant](/guide/assistant).
 
 The guide finds a parallel only where many verses refer to each other in order. It does not find a quotation of one verse in this way. The quotations have their own part of the guide.
