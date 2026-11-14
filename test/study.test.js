@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { books, parallel, strongsResults, search } from '../app/data/bible.js';
-import { guideResults, landscape, parallelsOf } from '../app/data/study.js';
+import { guideResults, landscape, parallelsOf, studyPlan } from '../app/data/study.js';
 import { AUTHORS, GROUPS } from '../app/data/canon.js';
 import { differences, plain } from '../app/lib/compare.js';
 import { matches, nextStyle, RULE_STYLES, stylesFor, toggleRule, toRule } from '../app/lib/rules.js';
@@ -163,4 +163,20 @@ test('a workspace keeps its rules and the compare of a card, and drops bad ones'
   assert.deepEqual(kept.rules.map((rule) => [rule.value, rule.style]), [['H2617', 'dots'], ['place', 'over']]);
   assert.equal(toRule({ kind: 'entity', value: 'person:david_994' })?.label, 'person:david_994');
   assert.match(snapshot(kept), /"rules":\[/);
+});
+
+test('a study of a passage holds what its guide finds, each verse once', async () => {
+  const plan = await studyPlan('ACT.9.1-9');
+  assert.equal(plan?.short, 'Acts 9:1–9');
+  assert.equal(plan?.quoting, true);
+  assert.ok(plan?.parallels.includes('ACT.22.3-16'), 'Paul tells it again in Acts 22');
+  assert.ok(plan?.people.includes('person:paul_2479'));
+  assert.ok(!plan?.people.some((id) => id.startsWith('person:god_')), 'God is named everywhere: no card for him');
+  assert.match(plan?.mapIds ?? '', /damascus/);
+  // Isaiah 53: the New Testament quotes it; 1 Peter 2:24 is not beside 1 Peter 2:24-25.
+  const isaiah = await studyPlan('ISA.53');
+  assert.equal(isaiah?.quoting, false);
+  assert.ok((isaiah?.quotations.length ?? 0) > 0);
+  assert.ok(!(isaiah?.references.includes('1PE.2.24') && isaiah.references.includes('1PE.2.24-25')));
+  assert.equal(await studyPlan('NOPE.1'), null);
 });

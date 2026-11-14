@@ -41,6 +41,7 @@
        rule-add      detail { kind, value, label }: mark it on every card, or
                      stop (app/lib/rules.js)
        place-beside  detail { addresses }: the guide's parallels, beside the card
+       start-study   detail { address }: lay out a study of the guide's passage
        show-note     detail { id }: a note on the passage
        show-journey  detail { journey }: draw a journey on the map
                      (data/journeys.js JourneyView)
@@ -439,6 +440,7 @@
         ['[data-show-map]:not([data-show-map=""])', (element) => this.tell('show-on-map', { ids: data(element, 'showMap') })],
         ['[data-rule-kind]', (element) => this.tell('rule-add', { kind: element.dataset.ruleKind, value: element.dataset.ruleValue, label: element.dataset.ruleLabel })],
         ['[data-beside]:not([data-beside=""])', (element) => this.tell('place-beside', { addresses: data(element, 'beside').split(',') })],
+        ['[data-study]:not([data-study=""])', (element) => this.tell('start-study', { address: data(element, 'study') })],
         ['[data-questions]', () => this.showQuestions()],
         ['[data-note-show]:not([data-note-show=""])', (element) => this.tell('show-note', { id: data(element, 'noteShow') })],
         ['[data-strongs]:not([data-strongs=""])', (element) => {

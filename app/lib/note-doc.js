@@ -110,6 +110,25 @@ export const schema = new Schema({
 });
 
 /**
+ * A text with headings as a document: a line that begins "# " is a heading,
+ * "## " a smaller one, and any other line a paragraph. An assistant writes
+ * its notes so (tools/mcp-server.js table_note).
+ *
+ * @param {string} text
+ * @returns {any} the document as JSON
+ */
+export function fromOutline(text) {
+  /** @param {string} words */
+  const inline = (words) => (words ? [{ type: 'text', text: words }] : []);
+  const content = text.split('\n').map((line) => {
+    const heading = /^(#{1,2}) +(.*)$/.exec(line);
+    if (heading) return { type: 'heading', attrs: { level: heading[1].length }, content: inline(heading[2].trim()) };
+    return { type: 'paragraph', content: inline(line) };
+  });
+  return { type: 'doc', content };
+}
+
+/**
  * A plain text as a document: a paragraph a line.
  *
  * @param {string} text

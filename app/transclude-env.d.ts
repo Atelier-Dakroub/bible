@@ -97,6 +97,17 @@ type Step = {
   typed?: string | undefined;
   scroll?: number | undefined;
 };
+type Plan = {
+  address: string;
+  title: string;
+  short: string;
+  quoting: boolean;
+  quotations: string[];
+  parallels: string[];
+  references: string[];
+  people: string[];
+  mapIds: string;
+};
 type Point_2 = {
   x: number;
   y: number;
@@ -833,6 +844,37 @@ export type BibleTableMembers = {
     };
     type: string;
   }[];
+  startStudy(address: string): Promise<Plan | null>;
+  putStudy(plan: Plan): Promise<void>;
+  layStudy(columns: Card[][], before: Set<Element>): void;
+  markPlaces(ids: string): Promise<void>;
+  addNote({
+    doc, title, kind
+  }: {
+    doc: any;
+    title?: string | undefined;
+    kind?: Kind | undefined;
+  }): string;
+  noteFor(command: {
+    title?: unknown;
+    text?: unknown;
+    kind?: unknown;
+    link?: unknown;
+  }): Promise<{
+    note: string;
+    links: {
+      from: {
+        address: string;
+        title: string;
+      };
+      to: {
+        address: string;
+        title: string;
+      };
+      type: string;
+    }[];
+  }>;
+  placeNote(card: Card, targets: End[]): void;
   placeRow(addresses: string[], version: string): Promise<{
     address: string;
     title: string;

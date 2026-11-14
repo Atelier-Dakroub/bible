@@ -60,8 +60,30 @@ Tap the heading of a passage card. Or give the card the focus and press <kbd>Ent
 
 The buttons of the guide:
 
+- **Start a study** lays out a study of the passage on the table. See [Start a study](#start-a-study).
 - **Put them beside the card** puts the parallel passages in a row to the right of the card, at the same size. Undo takes them back in one step.
 - **Show its places on the map** marks all its places on the map.
+
+## Start a study
+
+**Start a study**, at the top of a passage guide, puts a first study of the passage on the table, in columns:
+
+| Column | What it holds |
+| --- | --- |
+| Left | The Old Testament passages that the passage quotes, for a New Testament passage. |
+| Middle | The passage, a study note, and the people the passage names. |
+| Next | The New Testament passages that quote it, for an Old Testament passage. Then its parallel passages. |
+| Right | The five cross-references with the most votes. |
+| Last | The map, with the passage's places marked, if the map is not on the table yet. |
+
+The study goes in the open table to the right of your cards, and the table moves to show it. The cards are made smaller so that more of the study fits on the screen.
+
+- **The study note** says what the study holds, and has three headings for you to write under: Observations, Questions and Application.
+- **Every card is linked to the passage.** A quotation is a "quotes" link, from the New Testament to the Old. So the whole study moves as one group (see [Move linked cards together](/guide/cards#move-linked-cards-together)).
+- **Each verse comes once.** A cross-reference that shares verses with a card in the study is left out. People named all through the Bible, such as God and Jesus, get no card.
+- **One Undo takes the whole study away.**
+
+The study comes from the app's own data, the same as the guide. No language model writes it. To have Claude add notes of its own, see [The assistant](/guide/assistant).
 
 The guide finds a parallel only where many verses refer to each other in order. It does not find a quotation of one verse in this way. The quotations have their own part of the guide.
 

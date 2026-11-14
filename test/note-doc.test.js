@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { docOf, fromText, schema, toText } from '../app/lib/note-doc.js';
+import { docOf, fromOutline, fromText, schema, toText } from '../app/lib/note-doc.js';
 import { parse } from '../app/lib/workspace.js';
 
 test('a note from before documents reads as a paragraph a line', () => {
@@ -23,6 +23,18 @@ test('a document keeps its headings, lists and marks, and gives its text', () =>
   const doc = docOf({ doc: json, text: '' });
   assert.deepEqual(JSON.parse(JSON.stringify(doc.toJSON())), json);
   assert.equal(toText(doc), 'Light\nJohn 1:5\nGenesis 1:3');
+});
+
+test('a text with headings reads as headings and paragraphs', () => {
+  const doc = fromOutline('# Questions\nWho is Immanuel?\n\n## Why\n#not a heading');
+  assert.deepEqual(doc.content.map((/** @type {any} */ node) => [node.type, node.attrs?.level ?? 0, node.content[0]?.text ?? '']), [
+    ['heading', 1, 'Questions'],
+    ['paragraph', 0, 'Who is Immanuel?'],
+    ['paragraph', 0, ''],
+    ['heading', 2, 'Why'],
+    ['paragraph', 0, '#not a heading'],
+  ]);
+  assert.equal(toText(schema.nodeFromJSON(doc)).split('\n')[0], 'Questions');
 });
 
 test('a document that does not fit the schema falls back to the text', () => {

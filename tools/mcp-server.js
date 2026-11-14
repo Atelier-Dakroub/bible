@@ -161,6 +161,37 @@ const TOOLS = {
     },
   },
 
+  table_study: {
+    description:
+      "Lay out a study of a passage on the open table, as the guide's \"Start a study\" button does: the passage, a study note with headings, the Old Testament it quotes (or the New Testament passages that quote it), its parallels, the cross-references with the most votes, the people it names, and its places marked on the map, in columns, every card linked to the passage. One step that Undo takes back. Add your own notes after with table_note.",
+    inputSchema: { type: 'object', properties: { reference: { type: 'string', description: 'A passage, such as "Matthew 1:18-25" or MAT.1.18-25.' } }, required: ['reference'] },
+    async run({ reference }) {
+      const { plan } = await tell({ action: 'study', address: toAddress(refOf(reference)) });
+      const list = (/** @type {string} */ label, /** @type {string[]} */ items) => (items.length ? `\n${label}: ${items.join(', ')}` : '');
+      return `A study of ${plan.title} (${plan.address}) is on the table.${list(plan.quoting ? 'It quotes' : 'Quoted in', plan.quotations)}${list('Parallels', plan.parallels)}${list('Cross-references', plan.references)}${list('People', plan.people)}${plan.mapIds ? `\nOn the map: ${plan.mapIds}` : ''}\nUndo takes it back.`;
+    },
+  },
+
+  table_note: {
+    description:
+      'Write a note on the open table, as the reader does: a title, and text where a line that begins "# " is a heading, "## " a smaller one, and any other line a paragraph. It lies beside the first card it links to. kind is observation, question, interpretation, application or prayer; none for a plain note. Name the cards to link it to by address (from table_state) or reference; each must be on the table. Undo takes it back.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        text: { type: 'string' },
+        kind: { type: 'string', enum: ['observation', 'question', 'interpretation', 'application', 'prayer'] },
+        link: { type: 'array', items: { type: 'string' }, description: 'Cards on the table to link the note to.' },
+      },
+      required: ['text'],
+    },
+    async run({ title, text, kind, link }) {
+      const links = Array.isArray(link) ? link.map(cardAddress) : [];
+      const { note } = await tell({ action: 'note', title, text, kind, link: links });
+      return `The note (${note}) is on the table${links.length ? `, linked to ${links.join(', ')}` : ''}. Undo takes it back.`;
+    },
+  },
+
   table_place: {
     description: "Put passages on the open table, as cards in a row in its open part, in one step that Undo takes back. Up to 12. The version is kjv (the default), bsb, both (the two side by side), original, interlinear, reverse, or syntax (the original clause by clause).",
     inputSchema: {

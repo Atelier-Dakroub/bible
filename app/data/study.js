@@ -15,8 +15,9 @@ import { AUTHORS, CANON_CREDIT, GROUPS } from './canon.js';
 import { answer, books, entityView, grammarFind, grammarQuery, matching, passage, preview, referenceBook, strongsBook, verseCount } from './bible.js';
 import { entities, entity, formatYear, namedIn } from './entities.js';
 import { onMap } from '../lib/map.js';
-import { formatReference, parseAddress, toAddress, versesIn } from '../lib/reference.js';
+import { formatReference, parseAddress, shortTitle, toAddress, versesIn } from '../lib/reference.js';
 import { parseSpanAddress } from '../lib/words.js';
+import { versesOf } from '../lib/links.js';
 import { journeysFor } from './journeys.js';
 import { imagesOf } from './images.js';
 import { videosFor } from './videos.js';
@@ -248,6 +249,51 @@ export async function guideResults(address) {
     // Videos of the passage: a scene of a film first, a book's overview after.
     videos: videosFor(guide.address),
   });
+}
+
+// The persons named all through the Bible: a card of one adds little to a
+// study of a passage.
+const EVERYWHERE = new Set(['person:god_1324', 'person:jesus_904', 'person:jesus_905', 'person:holy_spirit_7400']);
+
+/**
+ * A study of a passage, to lay out on the table (lib/study.js): the passage,
+ * the Old Testament it quotes (or the New Testament passages that quote
+ * it), its parallels, the cross-references with the most votes, the people
+ * it names most, and its places for the map. Each passage once. Null for an
+ * address with no guide.
+ *
+ * @param {string} address
+ * @returns {Promise<import('../lib/study.js').Plan | null>}
+ */
+export async function studyPlan(address) {
+  const { guide } = await guideResults(address);
+  if (!guide) return null;
+  // The verses on the table so far: a passage that shares a verse with one
+  // already there (1 Peter 2:24 beside 1 Peter 2:24-25) is left out.
+  const seen = new Set(versesOf(guide.address));
+  /** @param {{ address: string }[]} results @param {number} most */
+  const fresh = (results, most) => {
+    /** @type {string[]} */
+    const kept = [];
+    for (const { address: each } of results) {
+      const verses = versesOf(each);
+      if (kept.length >= most || verses.some((verse) => seen.has(verse))) continue;
+      for (const verse of verses) seen.add(verse);
+      kept.push(each);
+    }
+    return kept;
+  };
+  return {
+    address: guide.address,
+    title: guide.title,
+    short: shortTitle(guide.title, books),
+    quoting: quotationsOf(guide.address).quoting,
+    quotations: fresh(guide.quotations, 4),
+    parallels: fresh(guide.parallels, 3),
+    references: fresh(guide.references, 5),
+    people: guide.people.filter((each) => !EVERYWHERE.has(each.id)).slice(0, 3).map((each) => each.id),
+    mapIds: guide.mapIds,
+  };
 }
 
 // The landscape.

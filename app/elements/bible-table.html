@@ -151,11 +151,12 @@
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
-  import { docOf, quotesIn, toText } from '../lib/note-doc.js';
+  import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
+  import { columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
   import { edit as editNoteText, show as showNoteText } from '../lib/note-editing.js';
   import { foldedIn, foldQuote, quoteAt } from '../lib/note-quotes.js';
   import { toMarkdown } from '../lib/note-markdown.js';
-  import { KINDS, labelOf, nextKind } from '../lib/note-kinds.js';
+  import { KINDS, isKind, labelOf, nextKind } from '../lib/note-kinds.js';
   import { LANGUAGE_NAMES, Reader, Recording, readerChoice, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
@@ -563,6 +564,21 @@
     const kind = typeof type === 'string' ? type : '';
     if (!TYPES.includes(kind)) throw new Error(`A link's type is one of: ${TYPES.filter(Boolean).join(', ')}; or none.`);
     return kind;
+  }
+
+  /**
+   * An assistant's note, as the table keeps it: its words as a document, a
+   * title and a kind if given, and the cards to link it to.
+   *
+   * @param {{ title?: unknown, text?: unknown, kind?: unknown, link?: unknown }} command
+   */
+  function noteFields({ title, text, kind, link }) {
+    return {
+      doc: fromOutline(typeof text === 'string' ? text : ''),
+      title: typeof title === 'string' ? title.trim() : '',
+      kind: isKind(kind) ? kind : undefined,
+      link: /** @type {unknown[]} */ (Array.isArray(link) ? link : []),
+    };
   }
 
   /**
@@ -1146,7 +1162,7 @@
   }
   // The events that change the cards or bring one: the overview gives way
   // to full size first, so that each works on the table as it is.
-  const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'show-on-map', 'show-journey'];
+  const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'show-on-map', 'show-journey', 'start-study'];
 
   /**
    * A card's name on its tile in the overview: its title, else its kind.
@@ -1482,6 +1498,7 @@
       }, options);
       this.addEventListener('rule-style', (event) => this.setRules(nextStyle(this.rules, /** @type {CustomEvent} */ (event).detail.index)), options);
       this.addEventListener('place-beside', (event) => this.placeBeside(/** @type {CustomEvent} */ (event).detail.addresses), options);
+      this.addEventListener('start-study', (event) => this.startStudy(/** @type {CustomEvent} */ (event).detail.address), options);
       this.addEventListener('show-note', (event) => this.showNote(/** @type {CustomEvent} */ (event).detail.id), options);
       // The card removes itself after the event, so keep what is left a moment
       // later. A note goes with its card; undo brings both back.
@@ -1763,6 +1780,8 @@
      *   show_places   mark places on the map: { places }
      *   show_journey  draw a journey's route on the map: { journey }
      *   mark          mark words on every card, or unmark: { kind, value, label, off }
+     *   study         lay out a study of a passage: { address }
+     *   note          write a note, beside the cards it links to: { title, text, kind, link }
      *   clear         a new, empty table (Undo brings the old one back)
      *   undo          take back the last change
      *
@@ -1814,6 +1833,12 @@
           if (Boolean(command.off) === on) this.setRules(toggleRule(this.rules, rule));
           return { rules: rules() };
         },
+        study: async (command) => {
+          const plan = await this.startStudy(String(command.address ?? ''));
+          if (!plan) throw new Error('There is no study for that passage.');
+          return { plan };
+        },
+        note: (command) => this.noteFor(command),
         clear: async () => {
           await this.openWorkspace(empty(), '', 'A new, empty table. Undo brings the old one back.');
           return { cleared: true };
@@ -1872,6 +1897,163 @@
         return { address: end.address, title: card ? tileName(card) : '' };
       };
       return this.links.map(({ a, b, type }) => ({ from: name(a), to: name(b), type: type ?? '' }));
+    },
+
+    /**
+     * Lays out a study of a passage (lib/study.js): the passage, its study
+     * note, and what its guide finds, in columns in the open table to the
+     * right of the cards there, every card linked to the passage. The table
+     * glides to it. One step, which Undo takes back. Returns the plan, or
+     * null when there is none.
+     *
+     * @param {string} address
+     * @returns {Promise<import('../lib/study.js').Plan | null>}
+     */
+    async startStudy(address) {
+      const response = await fetch(`/study/${encodeURIComponent(address)}`).catch(() => null);
+      /** @type {import('../lib/study.js').Plan | null} */
+      const plan = response?.ok ? await response.json() : null;
+      if (!plan) {
+        this.toast('There is no study for this passage.');
+        return null;
+      }
+      this.applying += 1;
+      try {
+        await this.putStudy(plan);
+        this.later = true;
+      } finally {
+        this.applying -= 1;
+        this.finish();
+      }
+      this.drawSoon();
+      return plan;
+    },
+
+    /**
+     * The cards of a study, its note and its links, put on the table.
+     *
+     * @param {import('../lib/study.js').Plan} plan
+     */
+    async putStudy(plan) {
+      const note = `note:${this.addNote({ doc: studyDoc(plan), title: `Study: ${plan.short}` })}`;
+      const before = new Set(this.world().querySelectorAll('gesture-card'));
+      // The map, when it is not on the table, is the study's last column.
+      const columns = [...columnsOf(plan, note), ...(plan.mapIds && !this.mapCard() ? [[MAP]] : [])];
+      const cards = await Promise.all(columns.map((column) => Promise.all(column.map((each) => this.fetchCard(each, {})))));
+      const laid = cards.map((column) => /** @type {Card[]} */ (column.filter(Boolean))).filter((column) => column.length);
+      this.layStudy(laid, before);
+      // Only between cards that came: a card that did not load has no link.
+      const loaded = new Set(laid.flat().map((card) => card.dataset.address ?? ''));
+      for (const { a, b, type } of linksOf(plan, note).filter((link) => [link.a, link.b].every((end) => isWhole(end) && loaded.has(end.address)))) {
+        this.links = setLink(this.links, a, b, type);
+      }
+      if (plan.mapIds) await this.markPlaces(plan.mapIds);
+    },
+
+    /**
+     * Puts a study's cards down in their columns, at the scale that fits the
+     * free part of the screen across, to the right of the cards already on
+     * the table, and glides the table to show it.
+     *
+     * @param {Card[][]} columns
+     * @param {Set<Element>} before the cards on the table before the study
+     */
+    layStudy(columns, before) {
+      const free = this.free();
+      const margin = 48;
+      const rights = [...before].filter((each) => each.isConnected).map((each) => each.getBoundingClientRect().right);
+      const corner = { x: Math.max(free.left + margin, ...rights.map((right) => right + 4 * ROW_GAP)), y: free.top + margin };
+      const sizes = columns.map((column) => column.map((card) => ({ width: card.offsetWidth, height: card.offsetHeight })));
+      const { scale, at } = layOut(sizes, corner, free.right - free.left - 2 * margin, ROW_GAP);
+      const world = this.world().getBoundingClientRect();
+      columns.forEach((column, i) =>
+        column.forEach((card, j) => {
+          card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: at[i][j].x - world.left, f: at[i][j].y - world.top });
+          this.raise(card);
+        }),
+      );
+      const shift = free.left + margin - corner.x;
+      if (shift) this.glide(shift, 0);
+    },
+
+    /**
+     * Marks places on the map, without moving the table: the map comes onto
+     * the table if it is not there.
+     *
+     * @param {string} ids place ids, with commas between
+     */
+    async markPlaces(ids) {
+      const list = ids.split(',').filter(Boolean);
+      await this.openMap();
+      this.shownPlaces = new Set(list);
+      this.paintMap();
+      await customElements.whenDefined('map-view');
+      await this.mapView()?.fit(list);
+    },
+
+    /**
+     * A new note in the workspace, with its words; its address is `note:` and
+     * the id returned. The card comes when it is fetched.
+     *
+     * @param {{ doc: any, title?: string, kind?: import('../lib/note-kinds.js').Kind }} fields
+     */
+    addNote({ doc, title, kind }) {
+      const id = newId('n');
+      /** @type {import('../lib/workspace.js').Note} */
+      const note = { id, text: '', doc, quotes: [], ...(title ? { title: title.slice(0, 120) } : {}), ...(kind ? { kind } : {}) };
+      note.text = toText(docOf(note));
+      this.notes = [...this.notes, note];
+      return id;
+    },
+
+    /**
+     * An assistant's note: its words (lib/note-doc.js fromOutline), on the
+     * table beside the first card it links to, or in the open part; linked
+     * to each card named in `link`.
+     *
+     * @param {{ title?: unknown, text?: unknown, kind?: unknown, link?: unknown }} command
+     */
+    async noteFor(command) {
+      const fields = noteFields(command);
+      const targets = fields.link.map((address) => this.cardEnd(address));
+      const id = this.addNote(fields);
+      this.applying += 1;
+      try {
+        const card = await this.fetchCard(`note:${id}`, {});
+        if (!card) {
+          this.notes = this.notes.filter((each) => each.id !== id);
+          throw new Error('The note could not be put on the table.');
+        }
+        this.placeNote(card, targets);
+        for (const end of targets) this.links = setLink(this.links, { address: `note:${id}` }, end);
+        this.later = true;
+      } finally {
+        this.applying -= 1;
+        this.finish();
+      }
+      this.drawSoon();
+      return { note: `note:${id}`, links: this.linkStates() };
+    },
+
+    /**
+     * A new note beside the first card it links to, at its scale, else in
+     * the open part of the table.
+     *
+     * @param {Card} card
+     * @param {End[]} targets
+     */
+    placeNote(card, targets) {
+      const first = targets[0];
+      const beside = first ? this.placesOf(first)[0]?.card : undefined;
+      if (!(beside instanceof HTMLElement)) {
+        card.placeAt(this.openSpot());
+        return;
+      }
+      const box = beside.getBoundingClientRect();
+      const world = this.world().getBoundingClientRect();
+      const scale = /** @type {Card} */ (beside).matrix?.a ?? 1;
+      card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: box.right + ROW_GAP - world.left, f: box.top - world.top });
+      this.raise(card);
     },
 
     /**

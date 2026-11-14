@@ -237,6 +237,9 @@
          panel fills in .guide__notes. -->
     <section if="guide" class="guide" aria-label="Guide to ${guide ? guide.title : ''}">
       <button type="button" class="entity__title result" data-address="${guide ? guide.address : ''}">${guide ? guide.title : ''}</button>
+      <!-- A study: the passage and what this guide finds, laid out on the
+           table in columns and linked (bible-table startStudy). -->
+      <button type="button" class="results__switch guide__study" data-study="${guide ? guide.address : ''}">Start a study</button>
       <section class="guide__notes" hidden></section>
       <!-- Pictures, as the plates of an encyclopedia: the first large, with
            its caption and credit, the rest small. A tap puts one on the table

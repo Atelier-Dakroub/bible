@@ -287,6 +287,15 @@ Study tools:
   their dates, and the notes on the table that quote it. "Put them beside
   the card" lays the parallels out in a row to the right of the card, at
   its size. "Show its places on the map" marks them all on the map.
+- **Start a study**, at the top of the guide, lays the passage out as a
+  study, from the guide's own data (`studyPlan` in `app/data/study.js`,
+  `/study/:address`, `app/lib/study.js`): the Old Testament it quotes on its
+  left (or the New Testament passages that quote it on its right), a study
+  note with headings, the people it names, its parallels, the five
+  cross-references with the most votes, and the map with its places. Each
+  verse comes once, and God and Jesus get no card. The columns go to the
+  right of the cards on the table, at the scale that fits the screen across
+  (not below 0.6), every card linked to the passage, as one step for Undo.
 - **Parallel passages** are runs of cross-references: verse after verse of
   one passage refers to verse after verse of another, in the same order.
   That finds Kings and Chronicles, the Synoptic Gospels, 2 Samuel 22 and
@@ -330,7 +339,7 @@ npm run verify   # the tests (with the CRAP check), the types and a build: the b
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `guide/` the guide's Markdown pages, `credits.html` the sources, `design.html` the design system, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `table-rail`, `time-line`, `table-menu`, `note-editor` (the dock of the on-screen keyboard while a note is written), `touch-keys`, `video-player`, `svg-icon`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `apca.js`, `chrome.js`, `citations.js`, `compare.js`, `cover.js`, `gesture.js`, `grammar.js`, `history.js`, `keyboard.js`, `lemma.js`, `links.js`, `map.js`, `markdown.js`, `motion.js`, the notes' `note-*.js`, `palm.js`, `pointer-log.js`, `reference.js`, `rules.js`, `screen.js`, `snap.js`, `spatial.js`, `speech.js`, `syllables.js`, `timeline.js`, `trail.js`, `words.js`, `workspace.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `apca.js`, `chrome.js`, `citations.js`, `compare.js`, `cover.js`, `gesture.js`, `grammar.js`, `history.js`, `keyboard.js`, `lemma.js`, `links.js`, `map.js`, `markdown.js`, `motion.js`, the notes' `note-*.js`, `palm.js`, `pointer-log.js`, `reference.js`, `rules.js`, `screen.js`, `snap.js`, `spatial.js`, `speech.js`, `study.js`, `syllables.js`, `timeline.js`, `trail.js`, `words.js`, `workspace.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
@@ -993,6 +1002,8 @@ first to answer replies. So each change is a step that Undo takes back.
 | --- | --- |
 | `table_state` | what is on the table: its cards, its links and its marks |
 | `table_link` | links two cards on the table, with a type (quotes, fulfills, contrasts), or takes the link away |
+| `table_study` | lays out a study of a passage, as Start a study does |
+| `table_note` | writes a note (a title, a kind, text with `#` headings) beside the cards it links to |
 | `table_place` | puts passages down in a row, in any version, as one step |
 | `table_guide` | opens a passage's guide in the search panel |
 | `table_search` | searches in the search panel |
