@@ -40,6 +40,28 @@ export function wake() {
   speech.speak(silence);
 }
 
+/** @param {number} ms */
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Stops whatever the voice says (the silence that wake() said, a word, the
+ * last reading), and waits until it has stopped. Safari stops a moment
+ * after cancel(), and then tells the utterance spoken next that it has
+ * ended: the first verse was taken as read while the voice read it, and the
+ * mark ran a verse ahead of the voice. So the next words wait for the quiet,
+ * a third of a second at most.
+ */
+export async function quiet() {
+  const speech = synth();
+  if (!speech || !busy(speech)) return;
+  speech.cancel();
+  for (let tries = 0; tries < 10 && busy(speech); tries++) await pause(30);
+  await pause(50);
+}
+
+/** @param {SpeechSynthesis} speech whether it says something, or has more to say */
+const busy = (speech) => speech.speaking || speech.pending;
+
 /** The voices, once the device has listed them (Chrome lists them late). */
 export function voices() {
   const speech = synth();
@@ -504,11 +526,13 @@ export class Reader {
     if (missing) return missing;
     // Another reading began while the voices loaded: it wins.
     if (Reader.current !== this) return null;
+    await quiet();
+    // Another reading began while the last went quiet: it wins.
+    if (Reader.current !== this) return null;
     this.items = items;
     this.at = Math.min(Math.max(0, start), items.length - 1) - 1;
     this.onEnd = onEnd ?? null;
     this.stopped = false;
-    synth()?.cancel();
     await this.next();
     return null;
   }
