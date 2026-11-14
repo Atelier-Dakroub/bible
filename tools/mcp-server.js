@@ -86,6 +86,41 @@ function refOf(text) {
   return ref;
 }
 
+/**
+ * A card's address as an assistant names it: an address as it is (JHN.3.16,
+ * note:n1, map:near-east, a phrase's words), else a reference made one.
+ *
+ * @param {unknown} text
+ */
+function cardAddress(text) {
+  const name = String(text ?? '').trim();
+  if (/^[a-z]+:/.test(name) || /^[1-3]?[A-Z]{2,3}\.\d/.test(name)) return name;
+  return toAddress(refOf(name));
+}
+
+/**
+ * The table's links as lines: each end by its title and address, with the type.
+ *
+ * @param {{ from: { address: string, title: string }, to: { address: string, title: string }, type: string }[]} links
+ */
+const linkLines = (links) =>
+  links.map(({ from, to, type }) => `- ${from.title || from.address} (${from.address}) ${type || 'linked to'} ${to.title || to.address} (${to.address})`).join('\n');
+
+/**
+ * What table_state says: the cards, then the links and the marks, if any.
+ *
+ * @param {any} state the table's answer to "state"
+ */
+function stateText(state) {
+  const cards = state.cards.map((/** @type {any} */ card) => `- ${card.title || card.address} (${card.address}${card.version !== 'kjv' ? `, ${card.version}` : ''})`).join('\n');
+  const sections = [`${state.name ? `The table "${state.name}". ` : ''}${state.cards.length} cards:\n${cards || '(none)'}`];
+  const links = linkLines(state.links);
+  if (links) sections.push(`Links:\n${links}`);
+  const rules = state.rules.map((/** @type {any} */ rule) => `${rule.label} (${rule.kind} ${rule.value})`).join(', ');
+  if (rules) sections.push(`Marked on every card: ${rules}`);
+  return sections.join('\n\n');
+}
+
 /** @param {import('../app/lib/reference.js').Reference} ref */
 const named = (ref) => `${formatReference(ref, books)} (${toAddress(ref)})`;
 
@@ -100,13 +135,29 @@ const lines = (results) => results.map((each) => `- ${each.title} (${each.addres
  */
 const TOOLS = {
   table_state: {
-    description: 'What is on the open table now: its cards (address, title, version) and the marks on every card. Use it before changing the table, and to cite what the reader is looking at.',
+    description: 'What is on the open table now: its cards (address, title, version), the links between them, and the marks on every card. Use it before changing the table, and to cite what the reader is looking at.',
     inputSchema: { type: 'object', properties: {} },
     async run() {
-      const state = await tell({ action: 'state' });
-      const cards = state.cards.map((/** @type {any} */ card) => `- ${card.title || card.address} (${card.address}${card.version !== 'kjv' ? `, ${card.version}` : ''})`).join('\n');
-      const rules = state.rules.map((/** @type {any} */ rule) => `${rule.label} (${rule.kind} ${rule.value})`).join(', ');
-      return `${state.name ? `The table "${state.name}". ` : ''}${state.cards.length} cards:\n${cards || '(none)'}${rules ? `\n\nMarked on every card: ${rules}` : ''}`;
+      return stateText(await tell({ action: 'state' }));
+    },
+  },
+
+  table_link: {
+    description:
+      "Link two cards on the open table, as the reader does with a card's link button, or take the link away. Name each card by its address from table_state (JHN.3.16, note:…, person:…, map:…) or by a reference (John 3:16); both must be on the table. A link to a passage shows on every card of it, in any translation. type says what the link is, read from `from` to `to`: quotes, fulfills or contrasts; none is a plain link. Linking two linked cards again changes the link's type and direction. Undo takes it back.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'A card on the table: its address, or a reference.' },
+        to: { type: 'string', description: 'Another card on the table.' },
+        type: { type: 'string', enum: ['', 'quotes', 'fulfills', 'contrasts'], description: 'What `from` does to `to`; "" (the default) for a plain link.' },
+        off: { type: 'boolean', description: 'True to take the link away.' },
+      },
+      required: ['from', 'to'],
+    },
+    async run({ from, to, type, off }) {
+      const { links } = await tell({ action: 'link', from: cardAddress(from), to: cardAddress(to), type, off });
+      return `${off ? 'Link taken away' : 'Linked'}. Links on the table now:\n${linkLines(links) || '(none)'}\nUndo takes it back.`;
     },
   },
 

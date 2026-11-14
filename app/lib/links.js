@@ -82,6 +82,37 @@ export function toggleLink(links, a, b) {
 }
 
 /**
+ * The link from `a` to `b` with a type, in that direction: added, or put in
+ * the place of the link between them that was there. An end linked to
+ * itself is not a link.
+ *
+ * @param {Link[]} links
+ * @param {End} a
+ * @param {End} b
+ * @param {string} [type] one of TYPES
+ * @returns {Link[]}
+ */
+export function setLink(links, a, b, type = '') {
+  if (sameEnd(a, b)) return links;
+  /** @type {Link} */
+  const link = type ? { a, b, type } : { a, b };
+  const at = links.findIndex((each) => joins(each, a, b));
+  return at < 0 ? [...links, link] : links.map((each, index) => (index === at ? link : each));
+}
+
+/**
+ * The links without the one between two ends, if there was one.
+ *
+ * @param {Link[]} links
+ * @param {End} a
+ * @param {End} b
+ * @returns {Link[]}
+ */
+export function unlink(links, a, b) {
+  return links.filter((link) => !joins(link, a, b));
+}
+
+/**
  * Whether two ends are linked, either way round.
  *
  * @param {Link[]} links

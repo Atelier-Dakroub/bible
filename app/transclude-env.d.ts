@@ -796,6 +796,39 @@ export type BibleTableMembers = {
     action: string;
   }): Promise<unknown>;
   commands(): Record<string, (command: any) => unknown>;
+  linkFor({
+    from, to, type, off
+  }: {
+    from?: unknown;
+    to?: unknown;
+    type?: unknown;
+    off?: unknown;
+  }): {
+    links: {
+      from: {
+        address: string;
+        title: string;
+      };
+      to: {
+        address: string;
+        title: string;
+      };
+      type: string;
+    }[];
+  };
+  changeLinks(links: Link[]): void;
+  cardEnd(address: unknown): End;
+  linkStates(): {
+    from: {
+      address: string;
+      title: string;
+    };
+    to: {
+      address: string;
+      title: string;
+    };
+    type: string;
+  }[];
   placeRow(addresses: string[], version: string): Promise<{
     address: string;
     title: string;

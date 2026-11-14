@@ -30,7 +30,8 @@ These tools work on the table that is open in your browser. Each change is one s
 
 | Tool | What it does |
 | --- | --- |
-| Table state | Reads what is on the table: its cards and its marks |
+| Table state | Reads what is on the table: its cards, its links and its marks |
+| Table link | Links two cards on the table, with a type such as "quotes" or "fulfills", or takes the link away |
 | Table place | Puts passages on the table in a row, in any version |
 | Table guide | Opens the guide of a passage in the search panel |
 | Table search | Searches in the search panel |

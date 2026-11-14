@@ -144,7 +144,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, toggleLink } from '../lib/links.js';
+  import { TYPES, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
@@ -475,6 +475,17 @@
       const first = wordKey(address);
       return [first, first + 999];
     });
+  }
+
+  /**
+   * A link's type from an assistant: one of TYPES, none ("") if not given.
+   *
+   * @param {unknown} type
+   */
+  function linkType(type) {
+    const kind = typeof type === 'string' ? type : '';
+    if (!TYPES.includes(kind)) throw new Error(`A link's type is one of: ${TYPES.filter(Boolean).join(', ')}; or none.`);
+    return kind;
   }
 
   /**
@@ -1663,7 +1674,8 @@
      * through the table's own methods, so it is a step that Undo takes back,
      * as a hand's would be.
      *
-     *   state         what is on the table
+     *   state         what is on the table: its cards, links and marks
+     *   link          link two cards, or take the link away: { from, to, type, off }
      *   place         put passages down in a row: { addresses, version }
      *   guide         open a passage's guide in the search panel: { address }
      *   search        search, in the search panel: { query }
@@ -1693,7 +1705,8 @@
       const panel = this.panel();
       const rules = () => this.rules.map(({ kind, value, label }) => ({ kind, value, label }));
       return {
-        state: () => ({ name: this.name ?? '', cards: [...this.world().querySelectorAll('gesture-card')].map((card) => cardState(/** @type {HTMLElement} */ (card))), rules: rules() }),
+        state: () => ({ name: this.name ?? '', cards: [...this.world().querySelectorAll('gesture-card')].map((card) => cardState(/** @type {HTMLElement} */ (card))), links: this.linkStates(), rules: rules() }),
+        link: (command) => this.linkFor(command),
         place: async (command) => ({ placed: await this.placeRow(/** @type {string[]} */ (command.addresses ?? []).filter((each) => typeof each === 'string').slice(0, 12), String(command.version ?? '')) }),
         guide: async (command) => {
           await panel?.showGuide(String(command.address), []);
@@ -1730,6 +1743,55 @@
           return { undone: true };
         },
       };
+    },
+
+    /**
+     * An assistant's link between two cards on the table, named by their
+     * addresses: set, with its type, from `from` to `to`; or taken away.
+     *
+     * @param {{ from?: unknown, to?: unknown, type?: unknown, off?: unknown }} command
+     */
+    linkFor({ from, to, type, off }) {
+      const a = this.cardEnd(from);
+      const b = this.cardEnd(to);
+      if (sameEnd(a, b)) throw new Error('A card cannot be linked to itself.');
+      this.changeLinks(off ? unlink(this.links, a, b) : setLink(this.links, a, b, linkType(type)));
+      return { links: this.linkStates() };
+    },
+
+    /**
+     * Keeps the links, if they changed, as a step that Undo takes back.
+     *
+     * @param {Link[]} links
+     */
+    changeLinks(links) {
+      if (links === this.links) return;
+      this.links = links;
+      this.keep();
+      this.drawSoon();
+    },
+
+    /**
+     * The whole-card end of the card on the table with an address.
+     *
+     * @param {unknown} address
+     * @returns {End}
+     */
+    cardEnd(address) {
+      const card = typeof address === 'string' ? this.cardsAt(address)[0] : undefined;
+      if (!card) throw new Error(`No card ${String(address)} is on the table. Put it down first, or see what is there.`);
+      return wholeOf(card);
+    },
+
+    /** The links, each end by its name, for an assistant. */
+    linkStates() {
+      /** @param {End} end */
+      const name = (end) => {
+        if (!isWhole(end)) return { address: spanAddress(end), title: 'words' };
+        const card = this.cardsAt(end.address)[0];
+        return { address: end.address, title: card ? tileName(card) : '' };
+      };
+      return this.links.map(({ a, b, type }) => ({ from: name(a), to: name(b), type: type ?? '' }));
     },
 
     /**

@@ -985,7 +985,8 @@ first to answer replies. So each change is a step that Undo takes back.
 
 | Tool | What it does on the table |
 | --- | --- |
-| `table_state` | what is on the table: its cards and its marks |
+| `table_state` | what is on the table: its cards, its links and its marks |
+| `table_link` | links two cards on the table, with a type (quotes, fulfills, contrasts), or takes the link away |
 | `table_place` | puts passages down in a row, in any version, as one step |
 | `table_guide` | opens a passage's guide in the search panel |
 | `table_search` | searches in the search panel |

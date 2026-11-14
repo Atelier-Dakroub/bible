@@ -7,7 +7,7 @@ import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, inBsb, parseSpanAddress, span, tokenize, toggle, wordAddress, wordKey } from '../app/lib/words.js';
-import { dropLinksTo, firstCovered, isWhole, linked, removed, sameEnd, toggleLink, versesOf } from '../app/lib/links.js';
+import { dropLinksTo, firstCovered, isWhole, linked, removed, sameEnd, setLink, toggleLink, unlink, versesOf } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
   const { title, verses } = await passage({ book: 'JHN', chapter: 3, from: 16, to: 18 });
@@ -158,6 +158,18 @@ test('a whole card is an end of a link, beside words or another card', () => {
   assert.deepEqual(toggleLink([], note, { address: 'note:n1' }), []);
   // A card that goes takes its links with it; the words keep theirs.
   assert.deepEqual(dropLinksTo(links, [note]), [{ a: love, b: passage }]);
+});
+
+test('an assistant sets a link with its type and direction, or takes it away', () => {
+  const note = { address: 'note:n1' };
+  const passage = { address: 'ROM.5.8' };
+  const one = setLink([], note, passage);
+  assert.deepEqual(one, [{ a: note, b: passage }]);
+  // The same two ends again: the link changes in its place, to the new way round.
+  assert.deepEqual(setLink(one, passage, note, 'quotes'), [{ a: passage, b: note, type: 'quotes' }]);
+  assert.deepEqual(setLink(one, note, { address: 'note:n1' }), one);
+  assert.deepEqual(unlink(one, passage, note), []);
+  assert.deepEqual(unlink(one, passage, love), one);
 });
 
 test('a stored link to a whole card is kept', () => {
