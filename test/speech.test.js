@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { accentScore, chaptersFrom, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { accentScore, chaptersFrom, qualityScore, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -22,8 +22,8 @@ test('the better voice reads: not one for fun, of high quality, on the device, B
 });
 
 test('a voice in the reader\'s own accent reads first', () => {
-  assert.equal(accentScore('en-AU', 'en', ['en-AU', 'en-GB', 'en']), 5);
-  assert.equal(accentScore('en_GB', 'en', ['en-AU', 'en-GB', 'en']), 4);
+  assert.equal(accentScore('en-AU', 'en', ['en-AU', 'en-GB', 'en']), 6);
+  assert.equal(accentScore('en_GB', 'en', ['en-AU', 'en-GB', 'en']), 5);
   assert.equal(accentScore('en-US', 'en', ['en-AU', 'en-GB', 'en']), 0);
   assert.equal(accentScore('en-GB', 'en', ['en']), 1, 'no region: British, as the KJV is');
   assert.equal(accentScore('en-GB', 'en', ['fr-FR']), 1);
@@ -33,6 +33,22 @@ test('a voice in the reader\'s own accent reads first', () => {
   const ava = { name: 'Ava (Premium)', lang: 'en-US', localService: true, default: true };
   assert.ok(voiceScore(karen, 'en', ['en-AU']) > voiceScore(ava, 'en', ['en-AU']));
   assert.ok(voiceScore(ava, 'en', ['en-US']) > voiceScore(karen, 'en', ['en-US']));
+});
+
+test('an iPhone\'s Enhanced or Premium voice is known by its identifier, as its name does not say', () => {
+  assert.equal(qualityScore({ name: 'Ava', voiceURI: 'com.apple.voice.premium.en-US.Ava' }), 5);
+  assert.equal(qualityScore({ name: 'Ava (Premium)' }), 5);
+  assert.equal(qualityScore({ name: 'Evan', voiceURI: 'com.apple.voice.enhanced.en-US.Evan' }), 4);
+  assert.equal(qualityScore({ name: 'Microsoft Libby Online (Natural) - English (United Kingdom)' }), 4);
+  assert.equal(qualityScore({ name: 'Samantha', voiceURI: 'com.apple.voice.compact.en-US.Samantha' }), 0);
+  assert.equal(qualityScore({ name: 'Samantha', voiceURI: 'com.apple.voice.super-compact.en-US.Samantha' }), -1);
+  // An American reader: the Enhanced voice, not the old Siri voice, which is the default.
+  const voice = (name, uri, extra = {}) => ({ name, voiceURI: `com.apple.voice.${uri}`, lang: 'en-US', localService: true, default: false, ...extra });
+  const samantha = voice('Samantha', 'compact.en-US.Samantha', { default: true });
+  const evan = voice('Evan', 'enhanced.en-US.Evan');
+  assert.ok(voiceScore(evan, 'en', ['en-US']) > voiceScore(samantha, 'en', ['en-US']));
+  // The old robotic voices are never chosen, whatever their name in the reader's language.
+  assert.ok(voiceScore({ ...evan, name: 'Eddie', voiceURI: 'com.apple.eloquence.en-US.Eddy' }, 'en', ['en-US']) < 0);
 });
 
 test('a recording plays from a verse: its chapter begins there', () => {

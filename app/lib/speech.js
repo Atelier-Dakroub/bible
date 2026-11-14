@@ -72,10 +72,11 @@ function readerLanguages() {
 const tagOf = (tag) => tag.toLowerCase().replace('_', '-');
 
 /**
- * How near a voice is to the reader's own accent: 5 for the first of their
+ * How near a voice is to the reader's own accent: 6 for the first of their
  * languages with a region (en-GB, en-AU) that the voice speaks, one less for
  * each later one, 0 for another region. A reader whose languages name no
- * region of this language hears a British voice first, as the KJV is.
+ * region of this language hears a British voice first, as the KJV is. The
+ * first region outweighs any quality (qualityScore).
  *
  * @param {string} voiceLang
  * @param {Lang} lang
@@ -86,22 +87,47 @@ export function accentScore(voiceLang, lang, preferred) {
   const tag = tagOf(voiceLang);
   if (!regions.length) return lang === 'en' && tag === 'en-gb' ? 1 : 0;
   const index = regions.indexOf(tag);
-  return index < 0 ? 0 : Math.max(1, 5 - index);
+  return index < 0 ? 0 : Math.max(1, 6 - index);
 }
 
 /**
- * How good a voice is for reading: not one for fun, in the reader's accent
- * (that comes before quality: a reader in Britain wants a British voice), of
- * the better quality where it says so, on the device itself.
+ * How good a voice sounds, from its name and its identifier (voiceURI).
+ * Safari on an iPhone names an Apple voice "Ava" at every quality: only its
+ * identifier says which (com.apple.voice.premium.en-US.Ava,
+ * com.apple.voice.enhanced…, com.apple.voice.compact…,
+ * com.apple.voice.super-compact…). Chrome and Edge say it in the name
+ * ("Ava (Premium)", "Microsoft Libby Online (Natural)").
  *
- * @param {{ name: string, lang: string, localService: boolean, default: boolean }} voice
+ * @param {{ name: string, voiceURI?: string }} voice
+ */
+export function qualityScore({ name, voiceURI = '' }) {
+  const said = `${name} ${voiceURI}`;
+  if (/premium/i.test(said)) return 5;
+  if (/enhanced|natural|neural/i.test(said)) return 4;
+  return /super-compact/i.test(said) ? -1 : 0;
+}
+
+/**
+ * Whether a voice is one for fun, or one of the Mac's and iPhone's old
+ * robotic voices (Eloquence), by its name or its identifier.
+ *
+ * @param {{ name: string, voiceURI?: string }} voice
+ */
+const novelty = ({ name, voiceURI = '' }) => NOVELTY.test(name) || /com\.apple\.eloquence/i.test(voiceURI);
+
+/**
+ * How good a voice is for reading: not one for fun, of the better quality
+ * where it says so, in the reader's accent (a reader in Britain wants a
+ * British voice: the accent comes before quality), on the device itself.
+ *
+ * @param {{ name: string, voiceURI?: string, lang: string, localService: boolean, default: boolean }} voice
  * @param {Lang} lang
  * @param {readonly string[]} [preferred] the reader's languages (navigator.languages)
  */
 export function voiceScore(voice, lang, preferred = readerLanguages()) {
   return (
-    (NOVELTY.test(voice.name) ? -10 : 0) +
-    (/premium|enhanced|natural|neural/i.test(voice.name) ? 4 : 0) +
+    (novelty(voice) ? -10 : 0) +
+    qualityScore(voice) +
     (voice.localService ? 2 : 0) +
     accentScore(voice.lang, lang, preferred) +
     (voice.default ? 0.5 : 0)
