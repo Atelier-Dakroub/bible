@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { accentScore, chaptersFrom, ownVoiceFits, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
+import { accentScore, chaptersFrom, joinText, ownVoiceFits, qualityScore, voiceLabel, sayableHebrew, speaks, voiceScore } from '../app/lib/speech.js';
 
 test('a voice speaks its language; Hebrew is also iw', () => {
   assert.equal(speaks({ lang: 'en-GB' }, 'en'), true);
@@ -94,4 +94,19 @@ test("Safari's compact voice gives way to the device's own, which may be Premium
   const plain = { ...samantha, default: false };
   assert.equal(ownVoiceFits(plain, 'en', 'en-US', [plain, voice('Zarvox', 'com.apple.speech.synthesis.voice.Zarvox')]), false);
   assert.equal(ownVoiceFits(null, 'en', 'en-US', []), false);
+});
+
+test('a verse is read as it is built: its words stay where the voice says they are', () => {
+  // A KJV verse's text nodes: the markup's line breaks, then its words.
+  const pieces = ['\n\n\n\n\n\n\n  ', '\n  ', 'Now ', 'it ', 'came ', 'to ', 'pass, ', '\n', '¶ ', 'as'];
+  let text = '';
+  const places = [];
+  for (const piece of pieces) {
+    const start = text.length;
+    text = joinText(text, piece);
+    if (piece.trim() && piece !== '¶ ') places.push([piece.trim(), start]);
+  }
+  assert.equal(text, 'Now it came to pass, as');
+  for (const [word, start] of places) assert.equal(text.slice(start).trimStart().startsWith(word), true, word);
+  assert.equal(text.indexOf('came'), places[2][1]);
 });

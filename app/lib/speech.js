@@ -379,6 +379,21 @@ export function sayableHebrew(text) {
 }
 
 /**
+ * A verse's text as it is read, with the next piece of the page's text on
+ * the end: each run of spaces and line breaks one space, none at the start,
+ * and the paragraph mark left out. Built a piece at a time, so that where a
+ * word begins in it is where the voice says it begins (a `boundary` event's
+ * charIndex); squeezing the spaces afterwards would move every word.
+ *
+ * @param {string} text the text so far
+ * @param {string} piece
+ */
+export function joinText(text, piece) {
+  const squeezed = piece.replace(/¶/g, '').replace(/\s+/g, ' ');
+  return text + (!text || text.endsWith(' ') ? squeezed.replace(/^ /, '') : squeezed);
+}
+
+/**
  * Says one word, slower than reading.
  *
  * @param {string} text

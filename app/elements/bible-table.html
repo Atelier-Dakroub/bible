@@ -157,7 +157,7 @@
   import { foldedIn, foldQuote, quoteAt } from '../lib/note-quotes.js';
   import { toMarkdown } from '../lib/note-markdown.js';
   import { KINDS, isKind, labelOf, nextKind } from '../lib/note-kinds.js';
-  import { LANGUAGE_NAMES, Reader, Recording, namedVoice, readerChoice, sayWord } from '../lib/speech.js';
+  import { LANGUAGE_NAMES, Reader, Recording, joinText, namedVoice, readerChoice, sayWord } from '../lib/speech.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -1064,7 +1064,7 @@
     const reading = { text: '', found: [] };
     const walker = document.createTreeWalker(verse, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) readNode(reading, node, verse, words);
-    return { text: reading.text.replace(/\s+/g, ' '), lang, element: verse, words: reading.found };
+    return { text: reading.text, lang, element: verse, words: reading.found };
   }
 
   /** @typedef {{ text: string, found: { start: number, end: number, element: Element }[] }} Reading a verse's text as it is read, so far, and its words in it */
@@ -1085,7 +1085,7 @@
     if (!parent || parent.closest(UNREAD)) return;
     const word = parent.closest(words);
     const start = reading.text.length;
-    reading.text += (node.textContent ?? '').replace(/¶/g, '');
+    reading.text = joinText(reading.text, node.textContent ?? '');
     markWord(reading, word, verse, start);
     // Words in separate elements with no space between them in the page.
     if (needsSpace(reading.text, word, words)) reading.text += ' ';
