@@ -13,7 +13,9 @@
      A card sends `card-mark` when a hand marks words, and the table adds or
      removes the span and paints every card again.
 
-     Lines (app/lib/links.js), drawn in one SVG layer over the resting cards:
+     Lines (app/lib/links.js), drawn in one SVG layer over the resting cards,
+     so that a line shows over its own two cards; a card above both of its
+     ends covers it (app/lib/cover.js), as on a real table:
        solid ink     a link the reader drew between two spans
        dashed        the same highlighted words, shown on more than one card
        dotted        a cross-reference (OpenBible.info) from a verse on one
@@ -144,6 +146,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
+  import { covering, ranks, within } from '../lib/cover.js';
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
@@ -364,8 +367,82 @@
     return places.flatMap((id) => {
       if (frame && !frame.shows(id)) return [];
       const box = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect();
-      return box?.width ? [lineToDot(edge, box, 'place')] : [];
+      return box?.width ? [joined(lineToDot(edge, box, 'place'), card, map)] : [];
     });
+  }
+
+  /** @type {WeakMap<Element, [Element, Element]>} the two cards a line joins */
+  const lineEnds = new WeakMap();
+
+  /**
+   * Notes the cards a line joins, so a card above both can cover it.
+   *
+   * @param {Element} drawn
+   * @param {Element} a
+   * @param {Element} b
+   */
+  function joined(drawn, a, b) {
+    lineEnds.set(drawn, [a, b]);
+    return drawn;
+  }
+
+  /**
+   * The box around a line.
+   *
+   * @param {Element} drawn
+   */
+  function spanOf(drawn) {
+    const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((name) => Number(drawn.getAttribute(name)));
+    return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) };
+  }
+
+  /**
+   * A mask that hides what lies under some cards' boxes.
+   *
+   * @param {string} id
+   * @param {DOMRect[]} boxes
+   */
+  function coverMask(id, boxes) {
+    const mask = document.createElementNS(SVG, 'mask');
+    mask.id = id;
+    const far = { x: -1e5, y: -1e5, width: 2e5, height: 2e5 };
+    for (const [name, value] of Object.entries(far)) mask.setAttribute(name, String(value));
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+    const rect = (/** @type {{ x: number, y: number, width: number, height: number }} */ box, /** @type {string} */ fill) => {
+      const shape = document.createElementNS(SVG, 'rect');
+      for (const name of /** @type {const} */ (['x', 'y', 'width', 'height'])) shape.setAttribute(name, String(box[name]));
+      shape.setAttribute('fill', fill);
+      return shape;
+    };
+    mask.append(rect(far, 'white'), ...boxes.map((box) => rect(box, 'black')));
+    return mask;
+  }
+
+  /**
+   * The cards above both ends of a line and across it, by their place on
+   * the page; none for a line that does not join two cards.
+   *
+   * @param {Element} drawn
+   * @param {Map<Element, number>} index each card's place on the page
+   * @param {number[]} rank
+   * @param {DOMRect[]} boxes
+   */
+  function coveringLine(drawn, index, rank, boxes) {
+    const ends = lineEnds.get(drawn);
+    const a = ends ? index.get(ends[0]) : undefined;
+    const b = ends ? index.get(ends[1]) : undefined;
+    return a === undefined || b === undefined ? [] : covering(a, b, spanOf(drawn), rank, boxes);
+  }
+
+  /**
+   * A link's label, or none where a card covers it.
+   *
+   * @param {{ at: Point, text: string, typed: boolean, line?: Element }} label
+   * @param {Map<Element, DOMRect[]>} covered
+   */
+  function uncovered(label, covered) {
+    const over = label.line ? covered.get(label.line) : undefined;
+    return over && within(label.at, over) ? { ...label, at: { x: NaN, y: NaN } } : label;
   }
 
   /**
@@ -3333,7 +3410,7 @@
         if (!boxes.has(verse)) boxes.set(verse, this.verseBox(cards[card], verse));
         return /** @type {DOMRect} */ (boxes.get(verse));
       };
-      return pairs.map(({ from, to }) => line(boxOf(from), boxOf(to), 'ref'));
+      return pairs.map(({ from, to }) => joined(line(boxOf(from), boxOf(to), 'ref'), cards[from.card], cards[to.card]));
     },
 
     drawSoon() {
@@ -3395,8 +3472,39 @@
       // have a layer of their own, drawn on every pan frame (they are few).
       /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
       const links = this.linkLines();
-      this.placeLabels(links.labels);
-      drawn.replaceChildren(...this.placeLines(), ...this.referenceLines(), ...this.sameLines(), ...links.lines, ...this.guideLines(), ...this.pendingLines());
+      const lines = [...this.placeLines(), ...this.referenceLines(), ...this.sameLines(), ...links.lines];
+      const covered = this.cover(lines);
+      this.placeLabels(links.labels.map((label) => uncovered(label, covered)));
+      drawn.replaceChildren(...lines, ...this.guideLines(), ...this.pendingLines());
+    },
+
+    /**
+     * Masks the lines that a card above both of their ends lies over, and
+     * says which cards cover each.
+     *
+     * @param {Element[]} lines
+     * @returns {Map<Element, DOMRect[]>}
+     */
+    cover(lines) {
+      const cards = [...this.world().querySelectorAll('gesture-card')];
+      const index = new Map(cards.map((card, at) => [card, at]));
+      const rank = ranks(cards.map((card) => Number(/** @type {HTMLElement} */ (card).style.zIndex) || 0));
+      const boxes = cards.map((card) => card.getBoundingClientRect());
+      /** @type {Map<string, string>} a mask for each set of covering cards */
+      const masks = new Map();
+      /** @type {Map<Element, DOMRect[]>} */
+      const covered = new Map();
+      for (const drawn of lines) {
+        const over = coveringLine(drawn, index, rank, boxes);
+        if (!over.length) continue;
+        const key = over.join(' ');
+        if (!masks.has(key)) masks.set(key, `table-cover-${masks.size}`);
+        drawn.setAttribute('mask', `url(#${masks.get(key)})`);
+        covered.set(drawn, over.map((at) => boxes[at]));
+      }
+      const layer = this.querySelector('.table__covers');
+      layer?.replaceChildren(...[...masks].map(([key, id]) => coverMask(id, key.split(' ').map((at) => boxes[Number(at)]))));
+      return covered;
     },
 
     /**
@@ -3407,7 +3515,7 @@
     sameLines() {
       return this.highlights.flatMap((span) => {
         const places = this.placesOf(span);
-        return places.slice(1).map((place, at) => line(places[at].box, place.box, 'same'));
+        return places.slice(1).map((place, at) => joined(line(places[at].box, place.box, 'same'), places[at].card, place.card));
       });
     },
 
@@ -3419,16 +3527,16 @@
     linkLines() {
       /** @type {Element[]} */
       const lines = [];
-      /** @type {{ at: Point, text: string, typed: boolean }[]} */
+      /** @type {{ at: Point, text: string, typed: boolean, line?: Element }[]} */
       const labels = [];
       for (const { a, b, type } of this.links) {
         const ends = this.placesOf(b);
         const drawn = this.placesOf(a).flatMap((start) => {
           const near = nearest(start, ends);
-          return near ? [linkLine(start.box, near.box, type)] : [];
+          return near ? [joined(linkLine(start.box, near.box, type), start.card, near.card)] : [];
         });
         lines.push(...drawn);
-        labels.push(drawn.length ? labelOn(drawn[0], type) : { at: { x: NaN, y: NaN }, text: '', typed: false });
+        labels.push(drawn.length ? { ...labelOn(drawn[0], type), line: drawn[0] } : { at: { x: NaN, y: NaN }, text: '', typed: false });
       }
       return { lines, labels };
     },
@@ -4883,6 +4991,7 @@
     <marker id="link-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path class="table__arrow" d="M0,0 L10,5 L0,10 z"></path>
     </marker>
+    <g class="table__covers"></g>
   </defs>
   <g class="table__drawn"></g>
   <g class="table__fixed"></g>

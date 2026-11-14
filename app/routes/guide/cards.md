@@ -139,6 +139,8 @@ The lines between cards:
 | Dashed | The same highlighted words, shown on more than one card. |
 | Dotted | A cross-reference from a verse on one card to a verse on another card. |
 
+A line shows over its own two cards, so it points at the words. A card that lies over both ends of a line covers it, as a sheet of paper would, and the line's label hides under it too.
+
 ### Link types
 
 A label at the middle of each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from where you started the link to where you dropped it.

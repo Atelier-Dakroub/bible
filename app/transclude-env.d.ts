@@ -1096,6 +1096,7 @@ export type BibleTableMembers = {
   placesOf(span: End): Place[];
   wordPlaces(span: Highlight): Place[];
   draw(): void;
+  cover(lines: Element[]): Map<Element, DOMRect[]>;
   sameLines(): Element[];
   linkLines(): {
     lines: Element[];
@@ -1103,6 +1104,7 @@ export type BibleTableMembers = {
       at: Point;
       text: string;
       typed: boolean;
+      line?: Element | undefined;
     }[];
   };
   guideLines(): Element[];
