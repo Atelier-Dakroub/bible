@@ -207,6 +207,7 @@ type RecordedChapter = {
     until: number;
   }[];
 };
+type Lang = 'el' | 'en' | 'he';
 type Box_2 = {
   left: number;
   top: number;
@@ -1194,6 +1195,7 @@ export type BibleTableMembers = {
     chapters: RecordedChapter[];
   }, start: string, ended: (at: Element | null) => void): void;
   readWithDevice(card: HTMLElement, start: string, ended: (at: Element | null) => void): Promise<void>;
+  sayVoice(lang: Lang): Promise<void>;
   listenLook(card: HTMLElement, playing?: boolean | undefined): void;
   toast(message: string): void;
   toastTimer: number;
@@ -1838,11 +1840,14 @@ export type TableMenuMembers = {
   }): void;
   paintChoices(): void;
   choose(event: Event): void;
+  chooseVoice(select: HTMLSelectElement): void;
   choices(): Record<string, (input: HTMLInputElement) => void>;
   setSnap(on: boolean): void;
   setPen(style: string): void;
   act(event: MouseEvent): void;
   actions(button: HTMLButtonElement): Record<string, () => void>;
+  listVoices(): Promise<void>;
+  voiceRow(lang: 'el' | 'en' | 'he', list: SpeechSynthesisVoice[]): HTMLDivElement;
   deleteNamed(name: string): void;
   focusKeeper(): () => void;
   send(type: string, detail?: object | undefined): void;
