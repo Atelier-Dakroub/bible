@@ -5068,10 +5068,10 @@
   :scope.is-zooming :is(.table__lines, .table__labels) {
     visibility: hidden;
   }
-  /* A short message at the foot of the screen (toast), over everything. Its
-     width is its words', up to the screen less a margin: placed at the
-     middle and moved back by half, it would otherwise wrap at half the
-     screen. */
+  /* A short message at the top of the screen (toast), over everything, clear
+     of the rail at the foot of a phone and of its notch. Its width is its
+     words', up to the screen less a margin: placed at the middle and moved
+     back by half, it would otherwise wrap at half the screen. */
   .table__toast {
     position: absolute;
     left: 50%;
@@ -5080,7 +5080,7 @@
     max-width: calc(100% - 2rem);
     text-align: center;
     text-wrap: balance;
-    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    top: calc(1rem + env(safe-area-inset-top, 0px));
     z-index: 3000000;
     margin: 0;
     padding: 0.6rem 1rem;
