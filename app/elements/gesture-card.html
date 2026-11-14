@@ -11,6 +11,13 @@
      words are one end, and wherever the finger lifts is the other. The table
      decides what the other end is.
 
+     A group: Shift and a drag (a mouse or a pen), or one finger held still
+     for GROUP_MS and then moved, moves the card and the cards linked to it.
+     The card sends `card-group` as the group starts, moves and ends, and the
+     table moves the others by as much (detail { phase, dx, dy }, the move in
+     the parent's coordinates). A second finger ends the group, and the card
+     turns and scales alone. A group does not snap.
+
      The link button in the card's header ([data-action="link"]) links the
      whole card: one finger or the mouse drags a line from it, and the card
      under the lift is the other end. A press that does not move is a click,
@@ -51,6 +58,8 @@
                     words, { card, x, y } from the link button
        card-link    a link was drawn: the same detail, x and y on screen
                     (NaN when the browser cancelled it)
+       card-group   a group drag: detail { phase: 'start' | 'move' | 'end',
+                    dx, dy }, the card's move since the start
        card-paint   the card moved or changed form, so lines to it move too
        card-tap     one finger touched and lifted without moving: detail
                     { target, x, y } (x and y on the screen; none from Enter)
@@ -81,6 +90,8 @@
   // How long, and how still, a finger holds a card before a second finger marks.
   const HOLD_MS = 200;
   const STILL_PX = 10;
+  // How long one finger holds a card still before a drag moves its group.
+  const GROUP_MS = 500;
   // A tap is short and still. Anything longer or further is a move.
   const TAP_MS = 350;
   // The keyboard's steps.
@@ -180,6 +191,9 @@
     handle: null,
     /** whether the last press on the link button drew a line, so its click is not a click */
     dragged: false,
+    /** @type {{ from: Matrix } | null} a group drag, from where the card was */
+    group: null,
+    groupTimer: 0,
     settleTimer: 0,
     /** @type {Matrix | null} what the fingers ask for, before the snap */
     raw: null,
@@ -189,6 +203,7 @@
     guiding: false,
 
     connected({ signal }) {
+      signal.addEventListener('abort', () => clearTimeout(this.groupTimer));
       const parent = this.parent();
       const start = translation(
         Number(this.x) * parent.clientWidth - this.offsetWidth / 2,
@@ -356,6 +371,7 @@
       if (this.marking || this.markFrom(event, target)) return;
       this.tap = this.firstTap(event);
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
+      this.armGroup(event);
     },
 
     /**
@@ -434,6 +450,48 @@
       if (!elementOf(event.target)?.closest('[data-action="link"]')) return;
       event.stopPropagation();
       event.preventDefault();
+    },
+
+    /**
+     * A first finger with Shift starts a group; a finger (not a mouse) that
+     * stays still GROUP_MS starts one too. A second finger ends it.
+     *
+     * @param {PointerEvent} event
+     */
+    armGroup(event) {
+      clearTimeout(this.groupTimer);
+      if (this.points?.size !== 1) this.endGroup();
+      else if (event.shiftKey) this.startGroup();
+      else if (event.pointerType !== 'mouse') this.groupTimer = setTimeout(() => this.holdGroup(), GROUP_MS);
+    },
+
+    /** Still held by one finger that has not moved: the group lifts. */
+    holdGroup() {
+      if (this.points?.size === 1 && this.tap && !this.marking) this.startGroup();
+    },
+
+    startGroup() {
+      this.group = { from: /** @type {Matrix} */ (this.matrix) };
+      this.sendGroup('start');
+    },
+
+    endGroup() {
+      clearTimeout(this.groupTimer);
+      if (!this.group) return;
+      this.sendGroup('end');
+      this.group = null;
+    },
+
+    /** The card moved: its group moves with it. */
+    moveGroup() {
+      if (this.group) this.sendGroup('move');
+    },
+
+    /** @param {'start' | 'move' | 'end'} phase */
+    sendGroup(phase) {
+      const from = /** @type {{ from: Matrix }} */ (this.group).from;
+      const now = /** @type {Matrix} */ (this.matrix);
+      this.dispatchEvent(new CustomEvent('card-group', { bubbles: true, detail: { phase, dx: now.e - from.e, dy: now.f - from.f } }));
     },
 
     /**
@@ -526,6 +584,7 @@
      * @param {string} word
      */
     startMarking(pointerId, word) {
+      this.endGroup();
       try {
         this.setPointerCapture(pointerId);
       } catch {
@@ -681,7 +740,10 @@
      * @param {PointerEvent} event
      */
     dropMovedTap(event) {
-      if (this.tap && movedFrom(this.tap, event)) this.tap = null;
+      if (!this.tap || !movedFrom(this.tap, event)) return;
+      this.tap = null;
+      // A finger that moves before the group lifts moves the card alone.
+      clearTimeout(this.groupTimer);
     },
 
     /**
@@ -749,6 +811,7 @@
 
     /** No pointer holds the card: it comes down, and the table keeps it. */
     letGo() {
+      this.endGroup();
       this.classList.remove('is-held');
       this.raw = null;
       this.others = null;
@@ -765,7 +828,7 @@
      * @param {PointerEvent} event
      */
     snaps(event) {
-      return !event.metaKey && !event.ctrlKey && !this.closest('[data-snap="off"]');
+      return !this.group && !event.metaKey && !event.ctrlKey && !this.closest('[data-snap="off"]');
     },
 
     /**
@@ -823,6 +886,7 @@
       const scale = scaleOf(matrix);
       // For a size that must not follow the card's (the overview's tiles).
       this.style.setProperty('--card-scale', String(scale));
+      this.moveGroup();
       const far = this.dataset.zoom === 'far';
       if (!far && scale < FAR_BELOW) this.dataset.zoom = 'far';
       if (far && scale > NEAR_ABOVE) this.dataset.zoom = 'near';

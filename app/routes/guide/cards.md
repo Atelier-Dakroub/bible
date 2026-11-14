@@ -110,6 +110,17 @@ You can also tap or click the link button. A list of the other cards on the tabl
 
 A link to a passage is a link to the passage in every translation. The line stays when you change the card from KJV to BSB or to the original. If two cards show the same passage, the line goes to both. When you take the last card of a passage, note or map off the table, its whole-card links go too. Undo brings them back.
 
+### Move linked cards together
+
+Cards that are linked move as a group. A pile of ideas then goes anywhere on the table in one move.
+
+- **With a mouse or a trackpad:** hold Shift and drag a card.
+- **With a finger:** hold a card still for half a second, then drag it with the same finger.
+
+When the group starts, a blue ring shows round each card in it, before anything moves. The group is every card that you can reach from the card along links, one step after another: if A links to B and B links to C, all three move. The cards in the group only move: they do not turn or change size. A drag without Shift, or a finger that moves at once, moves one card only. One Undo puts the whole group back.
+
+A link between two piles joins them into one group. To move a pile alone, take that link away first.
+
 ### Link words
 
 1. Hold a card and mark words, as for a highlight.

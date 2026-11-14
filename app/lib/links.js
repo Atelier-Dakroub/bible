@@ -124,6 +124,35 @@ export function linked(links, a, b) {
 }
 
 /**
+ * What is joined to `start`, step by step: a group of cards that moves
+ * together. Each join joins all that is on one side to all that is on the
+ * other, as a link joins every card that shows one end to every card that
+ * shows the other; a join with nothing on one side joins nothing. `start` is
+ * in the group.
+ *
+ * @template T
+ * @param {T} start
+ * @param {[T[], T[]][]} joins
+ * @returns {Set<T>}
+ */
+export function cluster(start, joins) {
+  const found = new Set([start]);
+  const open = joins.filter(([one, other]) => one.length > 0 && other.length > 0).map(([one, other]) => [...one, ...other]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const sides of open) {
+      if (!sides.some((each) => found.has(each))) continue;
+      for (const each of sides) {
+        grew = grew || !found.has(each);
+        found.add(each);
+      }
+    }
+  }
+  return found;
+}
+
+/**
  * The links that still have both ends, after some ends went away.
  *
  * @param {Link[]} links

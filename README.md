@@ -120,7 +120,11 @@ card off the screen). Any card can be an end: a passage, a note, a person,
 the map. A whole-card end is the card's address, so a link to a passage shows
 on every card of it in any translation; a phrase card's end is its words.
 When the last card of an address leaves the table, its whole-card links go
-too, and Undo brings them back. A solid white line
+too, and Undo brings them back. Linked cards move as a group: Shift and a
+drag (a mouse or a pen), or one finger held still for half a second and then
+dragged, moves the card and every card linked to it step by step
+(`cluster` in `app/lib/links.js`), with a ring round each as it lifts. The
+group moves only, never snaps, and is one step for Undo. A solid white line
 shows a link; a dashed gray line joins the places where the same highlighted
 words show on more than one card. Drawing a link again removes it, and
 removing a highlight removes its links. A link's two ends are each a span of

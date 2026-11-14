@@ -48,6 +48,22 @@ type End = Highlight | Whole;
 type Whole = {
   address: string;
 };
+type Card = HTMLElement & {
+  matrix: Matrix;
+  hold(id: number, at: Point, scale?: number | undefined): void;
+  placeAt(at: Point, scale?: number | undefined): void;
+  setMatrix(m: Matrix): void;
+  zoomAt(at: Point, factor: number): void;
+  turnAt(at: Point, radians: number): void;
+};
+type Matrix = {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+};
 type Note = {
   id: string;
   text: string;
@@ -80,22 +96,6 @@ type Step = {
   kind: string;
   typed?: string | undefined;
   scroll?: number | undefined;
-};
-type Card = HTMLElement & {
-  matrix: Matrix;
-  hold(id: number, at: Point, scale?: number | undefined): void;
-  placeAt(at: Point, scale?: number | undefined): void;
-  setMatrix(m: Matrix): void;
-  zoomAt(at: Point, factor: number): void;
-  turnAt(at: Point, radians: number): void;
-};
-type Matrix = {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  f: number;
 };
 type Point_2 = {
   x: number;
@@ -749,6 +749,10 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   } | null;
+  grouped: {
+    card: Card;
+    from: Matrix;
+  }[];
   studied: string;
   shown: string;
   frame: number;
@@ -943,6 +947,15 @@ export type BibleTableMembers = {
     span, card: from, x, y
   }: LinkDrag): void;
   linkWords(span: Highlight, x: number, y: number): void;
+  moveGroup(card: Card, {
+    phase, dx, dy
+  }: {
+    phase: string;
+    dx: number;
+    dy: number;
+  }): void;
+  liftGroup(card: Card): void;
+  dropGroup(): void;
   linkCard(card: HTMLElement, x: number, y: number): void;
   joinCards(card: HTMLElement, target: HTMLElement): '' | 'added' | 'removed';
   chooseLink(card: HTMLElement, button: HTMLElement): void;
@@ -1337,6 +1350,10 @@ export type GestureCardMembers = {
     dragging: boolean;
   } | null;
   dragged: boolean;
+  group: {
+    from: Matrix;
+  } | null;
+  groupTimer: number;
   settleTimer: number;
   raw: Matrix | null;
   others: Box_3[] | null;
@@ -1370,6 +1387,12 @@ export type GestureCardMembers = {
   endHandle(event: PointerEvent, keep: boolean): void;
   sendCardLink(type: string, event: PointerEvent | null): void;
   swallow(event: MouseEvent): void;
+  armGroup(event: PointerEvent): void;
+  holdGroup(): void;
+  startGroup(): void;
+  endGroup(): void;
+  moveGroup(): void;
+  sendGroup(phase: 'end' | 'move' | 'start'): void;
   firstTap(event: PointerEvent): {
     id: number;
     x: number;

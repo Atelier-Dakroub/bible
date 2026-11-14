@@ -144,7 +144,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { TYPES, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
+  import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { emptyTrail } from '../lib/trail.js';
@@ -1220,6 +1220,8 @@
     links: [],
     /** @type {{ end: End, card: HTMLElement | null, x: number, y: number } | null} a link being drawn, from words or from a card */
     pending: null,
+    /** @type {{ card: Card, from: Matrix }[]} the other cards of a group being moved, and where each was */
+    grouped: [],
     /** the Strong's number the search panel is studying, or "" */
     studied: '',
     /** the entity the search panel is showing, or "" */
@@ -1372,6 +1374,7 @@
       this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-paint', () => this.drawSoon(), options);
+      this.addEventListener('card-group', (event) => this.moveGroup(/** @type {Card} */ (event.target), /** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-tap', (event) => this.tapped(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('study', (event) => this.study(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('show-entity', (event) => {
@@ -2384,6 +2387,35 @@
       if (card?.dataset.kind === 'note') this.dropOnNote(card, source, x, y);
       else if (card) this.linkTo(source, x, y);
       else this.dropOnTable(source, under, x, y);
+    },
+
+    /**
+     * A card moved with its group (gesture-card's card-group): the cards
+     * linked to it, step by step, lift with it and move as far as it moves.
+     *
+     * @param {Card} card
+     * @param {{ phase: string, dx: number, dy: number }} detail
+     */
+    moveGroup(card, { phase, dx, dy }) {
+      if (phase === 'start') this.liftGroup(card);
+      else if (phase === 'move') this.grouped.forEach(({ card: each, from }) => each.setMatrix({ ...from, e: from.e + dx, f: from.f + dy }));
+      else this.dropGroup();
+    },
+
+    /** @param {Card} card */
+    liftGroup(card) {
+      const joins = this.links.map(({ a, b }) => /** @type {[Element[], Element[]]} */ ([this.placesOf(a).map((place) => place.card), this.placesOf(b).map((place) => place.card)]));
+      const others = /** @type {Card[]} */ ([...cluster(/** @type {Element} */ (card), joins)].filter((each) => each !== card));
+      this.grouped = others.map((each) => ({ card: each, from: { ...each.matrix } }));
+      if (!others.length) return;
+      // Above the other cards while they move, as the held card is.
+      for (const each of others) this.raise(each);
+      for (const each of [card, ...others]) each.classList.add('is-grouped');
+    },
+
+    dropGroup() {
+      for (const each of this.world().querySelectorAll('.is-grouped')) each.classList.remove('is-grouped');
+      this.grouped = [];
     },
 
     /**

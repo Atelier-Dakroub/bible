@@ -7,7 +7,7 @@ import { ERAS, packLanes, positionOf } from '../app/lib/timeline.js';
 import { pan } from '../app/lib/gesture.js';
 import { parse } from '../app/lib/workspace.js';
 import { covers, inBsb, parseSpanAddress, span, tokenize, toggle, wordAddress, wordKey } from '../app/lib/words.js';
-import { dropLinksTo, firstCovered, isWhole, linked, removed, sameEnd, setLink, toggleLink, unlink, versesOf } from '../app/lib/links.js';
+import { cluster, dropLinksTo, firstCovered, isWhole, linked, removed, sameEnd, setLink, toggleLink, unlink, versesOf } from '../app/lib/links.js';
 
 test('a passage holds the verses of its range', async () => {
   const { title, verses } = await passage({ book: 'JHN', chapter: 3, from: 16, to: 18 });
@@ -170,6 +170,18 @@ test('an assistant sets a link with its type and direction, or takes it away', (
   assert.deepEqual(setLink(one, note, { address: 'note:n1' }), one);
   assert.deepEqual(unlink(one, passage, note), []);
   assert.deepEqual(unlink(one, passage, love), one);
+});
+
+test('linked cards move as one group, joined step by step', () => {
+  // A–B, B–C: a chain. D–E apart. F shows a link's end whose other end is not on the table.
+  const joins = /** @type {[string[], string[]][]} */ ([[['A'], ['B']], [['B'], ['C']], [['D'], ['E']], [['F'], []]]);
+  assert.deepEqual([...cluster('A', joins)].sort(), ['A', 'B', 'C']);
+  assert.deepEqual([...cluster('C', joins)].sort(), ['A', 'B', 'C']);
+  assert.deepEqual([...cluster('E', joins)].sort(), ['D', 'E']);
+  assert.deepEqual([...cluster('F', joins)], ['F']);
+  assert.deepEqual([...cluster('Z', joins)], ['Z']);
+  // A passage on two cards: both copies come with the card it links to.
+  assert.deepEqual([...cluster('note', [[['note'], ['jhn1', 'jhn2']]])].sort(), ['jhn1', 'jhn2', 'note']);
 });
 
 test('a stored link to a whole card is kept', () => {
