@@ -641,6 +641,21 @@ gesture-card[data-zoom='far'] .passage__step {
 gesture-card[data-zoom='far'] .passage__icon {
   display: none;
 }
+/* The link button stays in the short form, as large as close, so a small
+   card on a phone can still start a link. It sits in the bottom corner,
+   beside the count of verses, where the heading leaves room. */
+gesture-card[data-zoom='far'] > .passage {
+  position: relative;
+}
+gesture-card[data-zoom='far'] .passage__icon[data-action='link'] {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.4rem;
+  display: grid;
+  width: 5rem;
+  height: 5rem;
+  font-size: 2.4em;
+}
 gesture-card[data-zoom='far'] kjv-verse,
 gesture-card[data-zoom='far'] .passage__text,
 gesture-card[data-zoom='far'] .passage__parallel,

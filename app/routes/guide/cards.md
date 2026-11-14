@@ -104,7 +104,7 @@ A link joins two cards, or words on two cards. Every card can have links: passag
 
 ### Link two whole cards
 
-Drag the link button at the top of a card onto another card, with one finger or the mouse. Lift it on the other card. A line now joins the two cards.
+Drag the link button at the top of a card onto another card, with one finger or the mouse. On a small card in its short form, the link button is in the bottom corner, beside the count of verses. Lift it on the other card. A line now joins the two cards.
 
 You can also tap or click the link button. A list of the other cards on the table opens. Choose a card from the list. The list also reaches cards that are off the screen, and it works with the keyboard. "Linked" in the list shows a card that is linked already. Escape closes the list.
 
