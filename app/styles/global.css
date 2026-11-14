@@ -491,6 +491,36 @@ gesture-card.is-grouped > .rr-card {
   min-width: 0;
   margin: 0 0.2rem;
 }
+/* A passage's title stays on one line. It is drawn over the heading, with
+   no text of its own (the "/ ''"), so the full title stays in the heading
+   for a screen reader, the overview and Copy. A title too long for the room
+   beside the seven buttons has its book short ("2 Cor 6:11"; the card route
+   chooses). The size: the room (the header less its buttons, 15rem) over
+   the characters at 0.54em each (the widest measured; most are 0.45em to
+   0.5em), from 0.9rem to 1.4rem. */
+.passage__header:has(> .passage__heading[data-near]) {
+  container-type: inline-size;
+}
+.passage__heading[data-near] {
+  font-size: 0;
+  white-space: nowrap;
+}
+.passage__heading[data-near]::after {
+  content: attr(data-near);
+  content: attr(data-near) / '';
+  font-size: clamp(0.9rem, calc((100cqi - 15rem) / (var(--near-chars, 10) * 0.54)), 1.4rem);
+}
+/* Both translations side by side: the card is wide, and the full title fits. */
+.passage--both .passage__heading[data-near]::after {
+  content: attr(data-title);
+  content: attr(data-title) / '';
+  font-size: clamp(0.9rem, calc((100cqi - 15rem) / (var(--title-chars, 10) * 0.54)), 1.4rem);
+}
+/* A phrase card is as wide as it needs, up to its most: its title, short,
+   widens it rather than wrap. */
+.passage--phrase .passage__heading {
+  white-space: nowrap;
+}
 .passage__spacer {
   flex: 1;
 }
@@ -632,19 +662,11 @@ gesture-card[data-zoom='far'] .passage__short {
 gesture-card[data-zoom='far'] .passage__heading {
   font-size: 2.2em;
 }
-/* A passage's title in the short form: its book short ("1 Cor 13"), on one
-   line, as large as the room beside the steps and close allows. The full
-   title stays in the heading for a screen reader, the overview and Copy;
-   the short one is drawn over it, with no text of its own (the "/ ''"). The
-   size: the room (the header less its three buttons, 15rem) over the
-   characters at 0.54em each (the widest measured; most are 0.45em to
-   0.5em), between 1em and 2.2em of the card. */
-gesture-card[data-zoom='far'] .passage__header {
-  container-type: inline-size;
-}
+/* A passage's title in the short form: its book short ("1 Cor 13"), as
+   large as the room beside the steps and close allows (the header less its
+   three buttons, 15rem), between 1em and 2.2em of the card. */
 gesture-card[data-zoom='far'] .passage__heading[data-short] {
   font-size: 0;
-  white-space: nowrap;
 }
 gesture-card[data-zoom='far'] .passage__heading[data-short]::after {
   content: attr(data-short);
