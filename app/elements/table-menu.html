@@ -450,9 +450,12 @@
       const select = Object.assign(document.createElement('select'), { id, name: id });
       select.dataset.voice = lang;
       const chosen = voiceChoice(lang);
+      // Safari lists a voice in two sizes under one name: the better (the
+      // first) stands for both.
+      const labels = list.map((voice) => voiceLabel(voice));
       select.append(
-        new Option(`Automatic: ${voiceLabel(list[0])}`, ''),
-        ...list.map((voice) => new Option(voiceLabel(voice), voice.voiceURI, false, voice.voiceURI === chosen)),
+        new Option(`Automatic: ${labels[0]}`, ''),
+        ...list.flatMap((voice, at) => (labels.indexOf(labels[at]) === at ? [new Option(labels[at], voice.voiceURI, false, voice.voiceURI === chosen)] : [])),
       );
       const wrap = Object.assign(document.createElement('span'), { className: 'select' });
       const icon = document.createElement('svg-icon');
