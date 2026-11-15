@@ -74,6 +74,28 @@ type Note = {
   title?: string | undefined;
 };
 type Kind = 'application' | 'interpretation' | 'observation' | 'prayer' | 'question';
+type List = {
+  id: string;
+  title?: string | undefined;
+  items: ListItem[];
+};
+type ListItem = StoredCard & {
+  title: string;
+  text: string;
+};
+type StoredCard = {
+  id: string;
+  address: string;
+  matrix: Matrix;
+  version?: string | undefined;
+  sync?: boolean | undefined;
+  compare?: boolean | undefined;
+  view?: {
+    x: number;
+    y: number;
+    w: number;
+  } | undefined;
+};
 type Guide = {
   x1: number;
   y1: number;
@@ -201,19 +223,6 @@ type LabelRoom = {
   panels: DOMRect[];
   top: Element | undefined;
 };
-type StoredCard = {
-  id: string;
-  address: string;
-  matrix: Matrix;
-  version?: string | undefined;
-  sync?: boolean | undefined;
-  compare?: boolean | undefined;
-  view?: {
-    x: number;
-    y: number;
-    w: number;
-  } | undefined;
-};
 type RecordedChapter = {
   file: string;
   verses: {
@@ -243,6 +252,7 @@ type Workspace = {
   links: Link[];
   notes: Note[];
   rules: Rule[];
+  lists: List[];
   trail: Trail;
 };
 type SearchedNote = {
@@ -845,6 +855,7 @@ export type BibleTableMembers = {
   frame: number;
   lineFrame: number;
   notes: Note[];
+  lists: List[];
   pen: string;
   history: {
     reset(snapshot: string): void;
@@ -1236,6 +1247,7 @@ export type BibleTableMembers = {
   drawSoon(): void;
   cardsAt(address: string): HTMLElement[];
   placesOf(span: End): Place[];
+  listPlaces(span: End): Place[];
   wordPlaces(span: Highlight): Place[];
   draw(): void;
   sameLines(panels: DOMRect[]): {
@@ -1293,6 +1305,7 @@ export type BibleTableMembers = {
   toast(message: string): void;
   toastTimer: number;
   copyCard(card: HTMLElement, button: HTMLButtonElement): Promise<void>;
+  textToCopy(card: HTMLElement, note: any): string;
   noteForCopy(card: HTMLElement, note: {
     doc?: any;
     text: string;
@@ -1359,6 +1372,24 @@ export type BibleTableMembers = {
   fetchCard(address: string, {
     version, replacing, id, sync, compare
   }: FetchOptions): Promise<Card | null>;
+  dropLinksOfGone(card: HTMLElement): void;
+  contentGone(address: string): boolean;
+  listAt(address: string): false | List | null;
+  paintList(card: HTMLElement): void;
+  paintLists(): void;
+  changeList(id: string, change: (list: List) => List): void;
+  nameList(field: EventTarget | null): void;
+  moveRow(card: HTMLElement, id: string, by: -1 | 1): void;
+  gather(listCard: HTMLElement, cards: Card[]): boolean;
+  dropOnList(card: Card): boolean;
+  listUnder(card: Card): HTMLElement | null;
+  markListUnder(card: Card): void;
+  clearListMarks(): void;
+  spreadList(listCard: HTMLElement, ids?: string[] | undefined): Promise<void>;
+  putColumn(items: ListItem[], x: number, top: number): Promise<void>;
+  dropList(card: HTMLElement): string[];
+  offerGather(chooser: HTMLElement, card: Card): void;
+  gatherGroup(card: Card): Promise<void>;
   noteAt(address: string): false | Note | null;
   putCard(card: HTMLElement, replacing: Element | null, id: string | undefined): boolean;
   markCard(card: HTMLElement, {

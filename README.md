@@ -667,6 +667,20 @@ that does not exist stays text. About 25,000 references in Easton are links.
 The summary on an entity's card on the table has the same links: a tap puts
 the passage down beside the card.
 
+## Lists
+
+A list card (`list:<id>`) holds other cards, a row for each
+(`app/lib/lists.js`). A card gathered into it leaves the table and is kept
+as it was (address, version, size, turn), with its title and first words, in
+the workspace's `lists`. A card let go with its middle on a list card joins
+it; the link chooser's **Gather into a list** gathers a card and its link
+group into a new list in its place. A row's tap takes its card out beside
+the list; **Spread** takes them all, in a column. A link to a gathered card
+is drawn to the list card (`placesOf` falls back to `listPlaces`), so the
+list moves with the link's group, and a link between two piles no longer
+joins them. Closing a list takes its cards and their whole-card links; Undo
+brings them back. Copy gives the list as text.
+
 ## Pasted references, and your notes in a search
 
 Text pasted on the table, not in a field, puts down a card for each

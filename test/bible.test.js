@@ -67,7 +67,7 @@ test('the table pans by the mean move of the fingers in both frames', () => {
 });
 
 test('a broken or old workspace reads as an empty table', () => {
-  const blank = { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], trail: { steps: [], index: -1 } };
+  const blank = { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: { steps: [], index: -1 } };
   assert.deepEqual(parse(null), blank);
   assert.deepEqual(parse('not json'), blank);
   const kept = parse(

@@ -150,6 +150,27 @@ The label stands where no card or panel is: beside the dot at one end, or along 
 
 To remove a link, draw it again. When you remove a highlight, its links go too.
 
+## Lists
+
+A list card holds other cards, a row for each. Use it to keep a list of passages, or to put a pile of cards away in one card and bring it back later.
+
+### Make a list
+
+- Tap the link button on a card, then **Gather into a list, with its linked cards**. A list takes the card's place, with the card and every card linked to it, step by step.
+- Move a card onto a list, and let go when the list shows a green ring. The card joins the list.
+
+### Use a list
+
+- Type a name in the field at the top.
+- Tap a row to take its card out. The card goes beside the list.
+- Tap **↑** or **↓** to move a row.
+- Tap **Spread** to take all the cards out, in a column beside the list.
+- Tap the copy button to copy the list as text: its name, then a line for each card.
+
+A card in a list keeps its version, size and links. A link to a card in a list goes to the list card, and the list moves with that link's group. So a link between two lists does not join their cards into one group.
+
+When you take a list card off the table, its cards go with it. Undo brings them back.
+
 ## Phrase cards
 
 Mark words with two hands, then lift the marking finger on the empty table. The marked words become a card of their own, a phrase card. Its words keep their place in the Bible, so its highlights and links show as on any card.

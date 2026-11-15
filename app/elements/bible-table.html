@@ -156,6 +156,7 @@
   import { footnoteTitle } from '../lib/footnotes.js';
   import { pastedReferences } from '../lib/citations.js';
   import { syncedAddress } from '../lib/commentary-address.js';
+  import { inAList, listHolding, listName, listText, moved, withItems } from '../lib/lists.js';
   import { notesMatching } from '../lib/note-search.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
@@ -629,6 +630,78 @@
     const text = link.type || 'link';
     const spot = first ? spotFor(first, text, room) : null;
     return { at: spot ?? { x: NaN, y: NaN }, text, typed: Boolean(link.type) };
+  }
+
+  /**
+   * Whether a card may go into a list: not a list, and not the map, which
+   * the rail puts down and takes away.
+   *
+   * @param {HTMLElement} card
+   */
+  const gatherable = (card) => card.dataset.kind !== 'list' && card.dataset.address !== 'map:near-east';
+
+  /**
+   * Whether a point is inside a box.
+   *
+   * @param {{ x: number, y: number }} point
+   * @param {DOMRect} box
+   */
+  const inside = (point, box) => point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
+
+  /**
+   * A card's first words, for its row in a list.
+   *
+   * @param {HTMLElement} card
+   */
+  function firstWordsOf(card) {
+    const text = (card.querySelector('.passage__text, .passage__parallel, .commentary__text, .entity__summary, .note__body, figcaption')?.textContent ?? '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      // The first verse's number, which the row's title says.
+      .replace(/^\d+\s+/, '');
+    return text.length > 140 ? `${text.slice(0, text.lastIndexOf(' ', 140))}…` : text;
+  }
+
+  /**
+   * A list card's heading, name, rows and hint, from its list.
+   *
+   * @param {HTMLElement} card
+   * @param {import('../lib/workspace.js').List} list
+   */
+  function paintListCard(card, list) {
+    const heading = card.querySelector('.passage__heading');
+    if (heading) heading.textContent = listName(list);
+    const name = /** @type {HTMLInputElement | null} */ (card.querySelector('.list__name'));
+    if (name && document.activeElement !== name) name.value = list.title ?? '';
+    card.querySelector('.list__rows')?.replaceChildren(...list.items.map((item, i) => listRow(item, i, list.items.length)));
+    card.querySelector('.list__empty')?.toggleAttribute('hidden', list.items.length > 0);
+    card.querySelector('.list__spread')?.toggleAttribute('disabled', !list.items.length);
+  }
+
+  /**
+   * A row of a list card: its card's title and first words, a tap to take
+   * it out, and buttons to move it up or down.
+   *
+   * @param {import('../lib/workspace.js').ListItem} item
+   * @param {number} at
+   * @param {number} count
+   */
+  function listRow(item, at, count) {
+    const row = document.createElement('li');
+    row.className = 'list__row';
+    const open = Object.assign(document.createElement('button'), { type: 'button', className: 'list__open', title: `Take ${item.title} out of the list` });
+    open.dataset.listOpen = item.id;
+    open.append(Object.assign(document.createElement('span'), { className: 'list__title', textContent: item.title }));
+    if (item.text) open.append(Object.assign(document.createElement('span'), { className: 'list__text', textContent: item.text }));
+    /** @param {'up' | 'down'} way */
+    const mover = (way) => {
+      const button = Object.assign(document.createElement('button'), { type: 'button', className: 'list__move', textContent: way === 'up' ? '↑' : '↓', disabled: way === 'up' ? at === 0 : at === count - 1 });
+      button.setAttribute('aria-label', `Move ${item.title} ${way}`);
+      button.dataset[way === 'up' ? 'listUp' : 'listDown'] = item.id;
+      return button;
+    };
+    row.append(open, mover('up'), mover('down'));
+    return row;
   }
 
   /** The most cards one paste puts down. */
@@ -1486,6 +1559,9 @@
     lineFrame: 0,
     /** @type {Note[]} */
     notes: [],
+
+    /** @type {import('../lib/workspace.js').List[]} the list cards' cards (lib/lists.js) */
+    lists: [],
     /** the style of the next highlight */
     pen: STYLES[0],
     /** @type {ReturnType<typeof createHistory> | null} */
@@ -1538,6 +1614,7 @@
       this.highlights = workspace.highlights;
       this.links = workspace.links;
       this.notes = workspace.notes;
+      this.lists = workspace.lists;
       this.rules = workspace.rules;
       this.shownPlaces = new Set();
       this.paint();
@@ -1621,7 +1698,10 @@
       this.addEventListener('change', (event) => this.answeredChanged(event), options);
       this.addEventListener('workspace-import', (event) => this.importFile(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('place', (event) => this.place(/** @type {CustomEvent} */ (event).detail), options);
-      this.addEventListener('card-change', () => this.keep(), options);
+      this.addEventListener('card-change', (event) => {
+        // A card let go on a list card joins the list (lib/lists.js).
+        if (!this.dropOnList(/** @type {Card} */ (event.target))) this.keep();
+      }, options);
       // A move of the map inside its frame is kept, but is not a step to undo,
       // as a pan of the table is not.
       this.addEventListener('map-change', () => this.keep(false), options);
@@ -1631,7 +1711,15 @@
       this.addEventListener('card-mark', (event) => this.mark(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link-move', (event) => this.linking(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-link', (event) => this.link(/** @type {CustomEvent} */ (event).detail), options);
-      this.addEventListener('card-paint', () => this.drawSoon(), options);
+      this.addEventListener('card-paint', (event) => {
+        this.markListUnder(/** @type {Card} */ (event.target));
+        this.drawSoon();
+      }, options);
+      // A list's name, as it is typed; kept when the field is left.
+      this.addEventListener('input', (event) => this.nameList(event.target), options);
+      this.addEventListener('change', (event) => {
+        if (event.target instanceof HTMLInputElement && event.target.matches('.list__name')) this.keep();
+      }, options);
       this.addEventListener('card-group', (event) => this.moveGroup(/** @type {Card} */ (event.target), /** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-tap', (event) => this.tapped(/** @type {CustomEvent} */ (event).detail), options);
       // A footnote's letter pressed with Enter or Space (a tap comes as card-tap).
@@ -1693,9 +1781,7 @@
             this.notes = this.notes.filter((each) => each.id !== note);
             this.paintQuoted(this.world());
           }
-          // The last card of an address takes its whole-card links with it.
-          const address = card.dataset.address ?? '';
-          if (!this.cardsAt(address).length) this.links = dropLinksTo(this.links, [{ address }]);
+          this.dropLinksOfGone(card);
           this.keep();
           this.paintMap();
           this.drawSoon();
@@ -2946,6 +3032,7 @@
       list.replaceChildren(...items);
       /** @type {HTMLElement} */ (chooser.querySelector('.chooser__empty')).hidden = items.length > 0;
       if (chooser.matches(':popover-open')) chooser.hidePopover();
+      this.offerGather(chooser, /** @type {Card} */ (/** @type {unknown} */ (card)));
       chooser.showPopover();
       placeBelow(chooser, button.getBoundingClientRect());
       (items[0] ?? chooser).focus();
@@ -3930,8 +4017,21 @@
      * @returns {Place[]}
      */
     placesOf(span) {
-      if (isWhole(span)) return this.cardsAt(span.address).map((card) => ({ card, box: card.getBoundingClientRect() }));
-      return this.wordPlaces(span);
+      const places = isWhole(span) ? this.cardsAt(span.address).map((card) => ({ card, box: card.getBoundingClientRect() })) : this.wordPlaces(span);
+      return places.length ? places : this.listPlaces(span);
+    },
+
+    /**
+     * Where an end shows when its card is in a list: the list card. So the
+     * link is drawn to it, and the list moves with the link's group.
+     *
+     * @param {End} span
+     * @returns {Place[]}
+     */
+    listPlaces(span) {
+      const list = listHolding(this.lists, span);
+      const card = list ? this.cardsAt(`list:${list.id}`)[0] : null;
+      return card ? [{ card, box: card.getBoundingClientRect() }] : [];
     },
 
     /**
@@ -4228,6 +4328,10 @@
         stepTo: (address) => this.step(card, address),
         unquote: (span) => this.unquote(card, span),
         fold: (span) => this.fold(card, span),
+        // A list's row: its card out beside the list, or the row moved.
+        listOpen: (id) => this.spreadList(card, [id]),
+        listUp: (id) => this.moveRow(card, id, -1),
+        listDown: (id) => this.moveRow(card, id, 1),
       };
       /** @type {Record<string, () => void>} by its action */
       const actions = {
@@ -4243,6 +4347,7 @@
         link: () => this.chooseLink(card, button),
         listen: () => this.readAloud(card, button),
         'note-kind': () => this.changeKind(card),
+        spread: () => this.spreadList(card),
       };
       const name = Object.keys(named).find((each) => button.dataset[each]);
       if (name) named[name](button.dataset[name] ?? '');
@@ -4453,12 +4558,25 @@
     async copyCard(card, button) {
       const note = card.dataset.kind === 'note' ? this.notes.find((each) => each.id === card.dataset.note) : null;
       this.writing?.end();
-      const done = await copyText(note ? this.noteForCopy(card, note) : passageForCopy(card));
+      const done = await copyText(this.textToCopy(card, note));
       // The button is an icon: a small label beside it says what happened.
       button.dataset.done = done ? 'Copied' : 'Copy failed';
       setTimeout(() => {
         delete button.dataset.done;
       }, 1500);
+    },
+
+    /**
+     * What Copy puts on the clipboard: a note as Markdown, a list as text, a
+     * passage as its words and reference.
+     *
+     * @param {HTMLElement} card
+     * @param {any} note the card's note, if it is a note's card
+     */
+    textToCopy(card, note) {
+      if (note) return this.noteForCopy(card, note);
+      const list = this.listAt(card.dataset.address ?? '');
+      return list ? listText(list) : passageForCopy(card);
     },
 
     /**
@@ -4780,9 +4898,8 @@
      * @returns {Promise<Card | null>}
      */
     async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false, compare = false }) {
+      if (this.contentGone(address)) return null;
       const note = this.noteAt(address);
-      // A note's card whose note is gone has nothing to show.
-      if (note === false) return null;
       const card = await loadCard(address, version, note ? note.quotes : []);
       if (!card) {
         this.toast('This card could not load. Check the connection and try again.');
@@ -4790,10 +4907,242 @@
       }
       if (!this.putCard(card, replacing, id)) return null;
       this.markCard(card, { sync, compare, version, note });
+      this.paintList(card);
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
       this.loadReferences(card);
       return /** @type {Card} */ (/** @type {unknown} */ (card));
+    },
+
+    /**
+     * The whole-card links of a card that went, when it was the last card of
+     * its address and no list holds one. A list takes its cards with it, and
+     * their links; Undo brings them back.
+     *
+     * @param {HTMLElement} card
+     */
+    dropLinksOfGone(card) {
+      const gone = [String(card.dataset.address), ...this.dropList(card)];
+      const lost = gone.filter((address) => !this.cardsAt(address).length && !inAList(this.lists, address));
+      this.links = dropLinksTo(this.links, lost.map((address) => ({ address })));
+    },
+
+    /**
+     * Whether a card's address names a note or a list that is gone, so the
+     * card has nothing to show.
+     *
+     * @param {string} address
+     */
+    contentGone(address) {
+      return this.noteAt(address) === false || this.listAt(address) === false;
+    },
+
+    /**
+     * The list a list card's address names: null for any other card, false
+     * when the list is gone.
+     *
+     * @param {string} address
+     */
+    listAt(address) {
+      if (!address.startsWith('list:')) return null;
+      return this.lists.find((each) => `list:${each.id}` === address) ?? false;
+    },
+
+    /**
+     * A list card's rows, name and hint, from its list.
+     *
+     * @param {HTMLElement} card
+     */
+    paintList(card) {
+      const list = this.listAt(card.dataset.address ?? '');
+      if (list) paintListCard(card, list);
+    },
+
+    /** Every list card, painted again (after an undo, say). */
+    paintLists() {
+      for (const card of this.world().querySelectorAll('gesture-card[data-kind="list"]')) this.paintList(/** @type {HTMLElement} */ (card));
+    },
+
+    /**
+     * Changes one list, and paints its card.
+     *
+     * @param {string} id
+     * @param {(list: import('../lib/workspace.js').List) => import('../lib/workspace.js').List} change
+     */
+    changeList(id, change) {
+      this.lists = this.lists.map((list) => (list.id === id ? change(list) : list));
+      const card = this.cardsAt(`list:${id}`)[0];
+      if (card) this.paintList(card);
+    },
+
+    /**
+     * A list's name as it is typed.
+     *
+     * @param {EventTarget | null} field
+     */
+    nameList(field) {
+      if (!(field instanceof HTMLInputElement) || !field.matches('.list__name')) return;
+      const id = /** @type {HTMLElement | null} */ (field.closest('gesture-card'))?.dataset.address?.slice(5) ?? '';
+      const title = field.value.trim().slice(0, 120);
+      this.changeList(id, ({ title: _, ...list }) => (title ? { ...list, title } : list));
+    },
+
+    /**
+     * @param {HTMLElement} card a list card
+     * @param {string} id a row's
+     * @param {-1 | 1} by
+     */
+    moveRow(card, id, by) {
+      this.changeList(card.dataset.address?.slice(5) ?? '', (list) => moved(list, id, by));
+      this.keep();
+    },
+
+    /**
+     * Cards into a list: each leaves the table and becomes a row, kept as it
+     * was. Its links stay, drawn to the list card. Not a list or the map.
+     *
+     * @param {HTMLElement} listCard
+     * @param {Card[]} cards
+     */
+    gather(listCard, cards) {
+      const taken = cards.filter((card) => card !== listCard && gatherable(card));
+      const items = taken.flatMap((card) => {
+        const stored = this.storedOf(card);
+        return stored ? [{ ...stored, title: cardTitle(card, stored.address), text: firstWordsOf(card) }] : [];
+      });
+      if (!items.length) return false;
+      this.changeList(listCard.dataset.address?.slice(5) ?? '', (list) => withItems(list, items));
+      for (const card of taken) card.remove();
+      this.keep();
+      this.paintMap();
+      this.drawSoon();
+      return true;
+    },
+
+    /**
+     * A card let go on a list card: it joins the list, when its middle is
+     * over the list.
+     *
+     * @param {Card} card
+     */
+    dropOnList(card) {
+      const under = this.listUnder(card);
+      this.clearListMarks();
+      return under ? this.gather(under, [card]) : false;
+    },
+
+    /**
+     * The list card under a card's middle, if any; never the card itself.
+     *
+     * @param {Card} card
+     * @returns {HTMLElement | null}
+     */
+    listUnder(card) {
+      if (!(card instanceof HTMLElement) || !gatherable(card)) return null;
+      const box = card.getBoundingClientRect();
+      const middle = { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 };
+      const lists = /** @type {HTMLElement[]} */ ([...this.world().querySelectorAll('gesture-card[data-kind="list"]')]);
+      return lists.find((list) => list !== card && inside(middle, list.getBoundingClientRect())) ?? null;
+    },
+
+    /**
+     * While a card moves, the list it would join shows it.
+     *
+     * @param {Card} card
+     */
+    markListUnder(card) {
+      const under = this.listUnder(card);
+      for (const list of this.world().querySelectorAll('gesture-card[data-kind="list"]')) list.classList.toggle('is-drop-target', list === under);
+    },
+
+    clearListMarks() {
+      for (const list of this.world().querySelectorAll('.is-drop-target')) list.classList.remove('is-drop-target');
+    },
+
+    /**
+     * Takes cards out of a list, in a column beside it, each at its own size,
+     * upright; all of them, or those named. One step that undo takes back.
+     *
+     * @param {HTMLElement} listCard
+     * @param {string[]} [ids]
+     */
+    async spreadList(listCard, ids) {
+      const list = this.listAt(listCard.dataset.address ?? '');
+      if (!list) return;
+      const taking = list.items.filter((item) => !ids || ids.includes(item.id));
+      if (!taking.length) return;
+      this.changeList(list.id, (each) => ({ ...each, items: each.items.filter((item) => !taking.includes(item)) }));
+      const matrix = /** @type {Card} */ (/** @type {unknown} */ (listCard)).matrix;
+      await this.putColumn(taking, matrix.e + listCard.offsetWidth * scaleOf(matrix) + ROW_GAP, matrix.f);
+      this.keep();
+      this.drawSoon();
+    },
+
+    /**
+     * Cards that were kept, put down one under another from a point, each at
+     * its own size, upright.
+     *
+     * @param {import('../lib/workspace.js').ListItem[]} items
+     * @param {number} x
+     * @param {number} top
+     */
+    async putColumn(items, x, top) {
+      let y = top;
+      for (const item of items) {
+        const scale = scaleOf(item.matrix);
+        await this.restore({ ...item, matrix: { a: scale, b: 0, c: 0, d: scale, e: x, f: y } });
+        const card = this.cardsAt(item.address).find((each) => idOf(each) === item.id);
+        y += (card?.offsetHeight ?? 200) * scale + ROW_GAP / 2;
+      }
+    },
+
+    /**
+     * A list card closed: its list goes, and the addresses of its cards are
+     * given back, so their links can go too.
+     *
+     * @param {HTMLElement} card
+     * @returns {string[]}
+     */
+    dropList(card) {
+      const list = this.listAt(card.dataset.address ?? '');
+      if (!list) return [];
+      this.lists = this.lists.filter((each) => each !== list);
+      if (list.items.length) this.toast(`The list went with its ${list.items.length === 1 ? 'card' : `${list.items.length} cards`}. Undo brings it back.`);
+      return list.items.map((item) => item.address);
+    },
+
+    /**
+     * The link chooser's offer to gather the card, and every card linked to
+     * it step by step, into a new list in its place.
+     *
+     * @param {HTMLElement} chooser
+     * @param {Card} card
+     */
+    offerGather(chooser, card) {
+      const button = /** @type {HTMLButtonElement} */ (chooser.querySelector('.chooser__gather'));
+      button.hidden = !gatherable(card);
+      button.onclick = () => {
+        chooser.hidePopover();
+        this.gatherGroup(card);
+      };
+    },
+
+    /**
+     * A new list in a card's place, with the card and its group in it.
+     *
+     * @param {Card} card
+     */
+    async gatherGroup(card) {
+      const joins = this.links.map(({ a, b }) => /** @type {[Element[], Element[]]} */ ([this.placesOf(a).map((place) => place.card), this.placesOf(b).map((place) => place.card)]));
+      const group = /** @type {Card[]} */ ([...cluster(/** @type {Element} */ (card), joins)]);
+      const id = newId('l');
+      this.lists = [...this.lists, { id, items: [] }];
+      const listCard = await this.fetchCard(`list:${id}`, {});
+      if (!listCard) return;
+      const scale = scaleOf(card.matrix);
+      listCard.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: card.matrix.e, f: card.matrix.f });
+      this.raise(listCard);
+      this.gather(listCard, group);
     },
 
     /**
@@ -4901,7 +5250,7 @@
       const kept = this.unloaded.filter((stored) => !cards.some((card) => card.id === stored.id));
       // In the overview, the table is kept as it will be at full size.
       const offset = this.overview ? keeping(middleOf(this.free()), this.offset, this.zoom, 1) : this.offset;
-      return { offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, trail: this.trailNow() };
+      return { offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, lists: this.lists, trail: this.trailNow() };
     },
 
     /** The search panel's trail, or the one a table brought that the panel has not taken yet. */
@@ -5033,6 +5382,7 @@
         for (const id of remove) byId.get(id)?.remove();
         const waits = [...add.map((stored) => this.restore(stored)), ...move.map((stored) => this.moveCard(byId.get(stored.id), stored, record))];
         await Promise.all(waits);
+        this.paintLists();
         this.repaint();
         this.later = Boolean(this.later) || record;
       } finally {
@@ -5055,6 +5405,7 @@
       this.highlights = target.highlights;
       this.links = target.links;
       this.notes = target.notes;
+      this.lists = target.lists;
       this.rules = target.rules;
       if (record) this.panel()?.setTrail?.(target.trail, true);
       if (target.offset.x === this.offset.x && target.offset.y === this.offset.y) return;
@@ -5472,6 +5823,21 @@
     color: var(--ink);
     box-shadow: 0 6px 24px var(--shade-far);
   }
+  /* The chooser's first offer: gather the card's group into a list. */
+  .chooser__gather {
+    display: block;
+    width: 100%;
+    min-height: var(--control-height);
+    margin-bottom: 0.3rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+    background: var(--tint);
+    color: var(--ink);
+    font: 500 0.9rem/1.3 var(--sans);
+    text-align: start;
+    cursor: pointer;
+  }
   .chooser__title,
   .chooser__empty {
     margin: 0;
@@ -5598,6 +5964,8 @@
 <!-- The link button's list of cards (chooseLink): a popover, so Escape and a
      tap outside close it. -->
 <div class="table__chooser" popover role="dialog" aria-labelledby="link-chooser-title" tabindex="-1">
+  <!-- Gathers the card and its group into a new list (gatherGroup). -->
+  <button type="button" class="chooser__gather">Gather into a list, with its linked cards</button>
   <p class="chooser__title" id="link-chooser-title"></p>
   <div class="chooser__list"></div>
   <p class="chooser__empty">No other card is on the table.</p>

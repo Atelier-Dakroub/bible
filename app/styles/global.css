@@ -336,6 +336,7 @@ gesture-card.is-grouped > .rr-card {
 }
 .passage--note { --kind: var(--ink-soft); }
 .passage--commentary { --kind: var(--slate); }
+.passage--list { --kind: var(--verdigris); }
 .kind--person { --kind: var(--ochre); }
 .kind--place { --kind: var(--verdigris); }
 .kind--group { --kind: var(--slate); }
@@ -1435,6 +1436,87 @@ gesture-card[data-zoom='far'] .note__text {
   margin: 0.4rem 0;
   color: var(--ink-soft);
   font: 500 0.75rem/1.4 var(--sans);
+}
+
+/* A list card (lib/lists.js): its name, then a row for each card in it,
+   each a button that takes the card out, with ↑ and ↓ beside it. A card
+   held over the list, which it joins when let go, rings the list. */
+.list__name {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.25rem;
+  margin: 0.2rem 0 0.5rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 0.9rem/1.3 var(--sans);
+}
+.list__rows {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.list__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: stretch;
+  gap: 0.2rem;
+}
+.list__open {
+  display: grid;
+  gap: 0.1rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+}
+.list__title {
+  font: 600 0.85rem/1.3 var(--sans);
+}
+.list__text {
+  color: var(--ink-soft);
+  font: calc(0.8rem * var(--read-scale)) / 1.4 var(--serif);
+}
+.list__move {
+  min-width: 2rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--ink-soft);
+  font: 600 0.85rem var(--sans);
+  cursor: pointer;
+}
+.list__move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.list__empty {
+  margin: 0.4rem 0;
+  color: var(--ink-soft);
+  font: 500 0.8rem/1.4 var(--sans);
+}
+.list__tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+.list__spread {
+  min-height: 2.25rem;
+  padding: 0 0.9rem;
+  font: 500 var(--ui-text)/1.3 var(--sans);
+}
+gesture-card.is-drop-target > .passage {
+  outline: calc(3px / var(--card-scale, 1)) solid var(--verdigris);
+  outline-offset: calc(3px / var(--card-scale, 1));
 }
 
 /* A word that names a person, place or group: a tap shows it. */

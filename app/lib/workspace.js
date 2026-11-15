@@ -21,7 +21,9 @@
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ id: string, text: string, doc?: any, quotes: Span[], kind?: import('./note-kinds.js').Kind, answered?: boolean, title?: string }} Note `doc` is its words as a document (lib/note-doc.js); `text` the same as plain text; `kind` its kind (lib/note-kinds.js), none for a plain note; `answered` a question's box; `title` the reader's own, else the kind's name shows */
 /** @typedef {import('./rules.js').Rule} Rule */
-/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], trail: import('./trail.js').Trail }} Workspace `trail` is the search panel's research trail (lib/trail.js); like the offset, it is not a step to undo */
+/** @typedef {StoredCard & { title: string, text: string }} ListItem a card gathered into a list: as it was kept on the table, with its title and first words for the list's row */
+/** @typedef {{ id: string, title?: string, items: ListItem[] }} List a list card's cards (bible-table, lists); its card is list:<id> */
+/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], lists: List[], trail: import('./trail.js').Trail }} Workspace `trail` is the search panel's research trail (lib/trail.js); like the offset, it is not a step to undo */
 
 import { isKind } from './note-kinds.js';
 import { isWordAddress, STYLES } from './words.js';
@@ -35,7 +37,7 @@ const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 's
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], trail: emptyTrail() };
+  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: emptyTrail() };
 }
 
 /**
@@ -79,16 +81,7 @@ function fromValue(value) {
         let id = typeof card.id === 'string' && card.id && !ids.has(card.id) ? card.id : `card${i}`;
         while (ids.has(id)) id = `${id}x`;
         ids.add(id);
-        /** @type {StoredCard} */
-        const stored = { id, address: card.address, matrix: card.matrix };
-        if (VERSIONS.includes(String(card.version))) stored.version = card.version;
-        if (card.sync === true) stored.sync = true;
-        if (card.compare === true) stored.compare = true;
-        const view = card.view;
-        if (view && [view.x, view.y, view.w].every((n) => typeof n === 'number' && Number.isFinite(n)) && view.w > 0) {
-          stored.view = { x: view.x, y: view.y, w: view.w };
-        }
-        return stored;
+        return toStored(card, id);
       })
     : [];
   const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isSpan).map(toHighlight) : [];
@@ -121,7 +114,54 @@ function fromValue(value) {
     const rule = toRule(each);
     if (rule && !rules.some((kept) => sameRule(kept, rule))) rules.push(rule);
   }
-  return { offset, cards, highlights, links, notes, rules, trail: toTrail(value.trail) };
+  return { offset, cards, highlights, links, notes, rules, lists: toLists(value.lists), trail: toTrail(value.trail) };
+}
+
+/**
+ * A card as it is kept, from what was read.
+ *
+ * @param {any} card a value that isCard
+ * @param {string} id
+ * @returns {StoredCard}
+ */
+function toStored(card, id) {
+  /** @type {StoredCard} */
+  const stored = { id, address: card.address, matrix: card.matrix };
+  if (VERSIONS.includes(String(card.version))) stored.version = card.version;
+  if (card.sync === true) stored.sync = true;
+  if (card.compare === true) stored.compare = true;
+  const view = card.view;
+  if (view && [view.x, view.y, view.w].every((n) => typeof n === 'number' && Number.isFinite(n)) && view.w > 0) {
+    stored.view = { x: view.x, y: view.y, w: view.w };
+  }
+  return stored;
+}
+
+/**
+ * The lists, from what was read: each with an id, and its cards as they
+ * were kept, each with its title and first words.
+ *
+ * @param {any} value
+ * @returns {List[]}
+ */
+function toLists(value) {
+  if (!Array.isArray(value)) return [];
+  /** @type {Set<string>} */
+  const ids = new Set();
+  return value
+    .filter((list) => typeof list?.id === 'string' && /^[a-z0-9]{1,40}$/i.test(list.id) && !ids.has(list.id) && ids.add(list.id))
+    .map((list) => ({
+      id: list.id,
+      ...(typeof list.title === 'string' && list.title.trim() ? { title: list.title.trim().slice(0, 120) } : {}),
+      items: (Array.isArray(list.items) ? list.items : [])
+        .filter(isCard)
+        .slice(0, FILE_LIMITS.cards)
+        .map((/** @type {any} */ item, /** @type {number} */ i) => ({
+          ...toStored(item, typeof item.id === 'string' && item.id ? item.id : `${list.id}-${i}`),
+          title: typeof item.title === 'string' ? item.title.slice(0, 120) : item.address,
+          text: typeof item.text === 'string' ? item.text.slice(0, 200) : '',
+        })),
+    }));
 }
 
 /** @returns {Workspace} */
@@ -158,7 +198,7 @@ export function save(workspace) {
  */
 export function snapshot(workspace) {
   const cards = [...workspace.cards].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
-  return JSON.stringify({ cards, highlights: workspace.highlights, links: workspace.links, notes: workspace.notes, rules: workspace.rules });
+  return JSON.stringify({ cards, highlights: workspace.highlights, links: workspace.links, notes: workspace.notes, rules: workspace.rules, lists: workspace.lists });
 }
 
 /**
@@ -309,6 +349,7 @@ function withinLimits(workspace) {
     highlights: workspace.highlights.slice(0, limits.marks),
     links: workspace.links.slice(0, limits.marks),
     notes: workspace.notes.slice(0, limits.notes).map((note) => (note.text.length > limits.noteText || note.quotes.length > limits.quotes ? cutNote(note) : note)),
+    lists: workspace.lists.slice(0, limits.notes),
   };
 }
 

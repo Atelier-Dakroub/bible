@@ -203,3 +203,18 @@ test('a table file is cut to the limits: a shared file cannot freeze the browser
   assert.equal(found.workspace.notes[0].text.length, FILE_LIMITS.noteText);
   assert.equal(found.workspace.notes[0].doc, undefined);
 });
+
+test('lists come back with their cards, and a broken one is left out', () => {
+  const matrix = { a: 1, b: 0, c: 0, d: 1, e: 10, f: 20 };
+  const value = {
+    lists: [
+      { id: 'l1', title: '  Grace  ', items: [{ id: 'c1', address: 'JHN.3.16', matrix, version: 'bsb', title: 'John 3:16', text: 'For God so loved' }, { address: '' }] },
+      { id: 'l1', items: [] },
+      { id: 'bad id!', items: [] },
+      { title: 'no id' },
+    ],
+  };
+  const { lists } = parse(JSON.stringify(value));
+  assert.deepEqual(lists, [{ id: 'l1', title: 'Grace', items: [{ id: 'c1', address: 'JHN.3.16', matrix, version: 'bsb', title: 'John 3:16', text: 'For God so loved' }] }]);
+  assert.deepEqual(parse('{}').lists, []);
+});

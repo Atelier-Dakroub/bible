@@ -28,6 +28,8 @@
   //                             player, with the passages it shows
   //   note:<id>                 a note; its text is in the browser, and
   //                             `quotes` names the spans it quotes
+  //   list:<id>                 a list of cards gathered from the table; its
+  //                             rows are in the browser (lib/lists.js)
   //   commentary:mhcc:JHN.3.16  a commentary's comments on a passage, a page
   //                             at a time (~2 for the second; data/commentaries.js)
   export const prerender = false;
@@ -37,6 +39,7 @@
   // the KJV with the original under each word (reverse).
   const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'];
   const NOTE = /^note:([a-z0-9]{1,40})$/i;
+  const LIST = /^list:([a-z0-9]{1,40})$/i;
   const MAX_QUOTES = 20;
 
   /** @typedef {{ x: number, y: number, w: number, h: number }} Box */
@@ -160,6 +163,15 @@
   }
 
   /**
+   * A list card: the shell, which the table fills with its rows.
+   *
+   * @type {Maker}
+   */
+  async function listCard(address, version) {
+    return card({ kind: 'list', address, version, title: 'List' });
+  }
+
+  /**
    * A commentary's comments on a passage, such as commentary:mhcc:JHN.3.16.
    *
    * @type {Maker}
@@ -251,6 +263,7 @@
     [(address) => NOTE.test(address), noteCard],
     [(address) => parseSpanAddress(address) !== null, phraseCard],
     [(address) => isCommentary(address), commentaryCard],
+    [(address) => LIST.test(address), listCard],
     [(address) => address.includes(':'), entityCard],
   ];
 
@@ -384,6 +397,7 @@
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" data-listen="${listen}" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'note'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the note as Markdown" title="Copy the note as Markdown"><svg-icon library="ui" name="copy"></svg-icon></button>
+      <button if="kind === 'list'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the list as text" title="Copy the list as text"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'commentary'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
       <button type="button" class="passage__icon" data-action="link" aria-label="Link ${title} to another card" title="Link: drag to another card, or click to choose one"><svg-icon library="ui" name="link"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
@@ -460,6 +474,18 @@
         <p class="entity__credit">${video ? video.credit : ''} <a if="video && video.play.kind !== 'link'" class="video-card__source" href="${video ? video.link : ''}" target="_blank" rel="noopener noreferrer">Watch at the source<svg-icon library="ui" name="external" label=", in a new tab"></svg-icon></a></p>
       </figcaption>
     </figure>
+    <!-- A list: the cards gathered into it, a row each, which the table
+         fills in (bible-table paintList). A tap on a row takes its card out
+         beside the list; Spread takes them all out. A card moved onto the
+         list joins it. -->
+    <div if="kind === 'list'" class="list">
+      <input class="list__name" type="text" maxlength="120" placeholder="Name this list" aria-label="Name of the list" />
+      <ol class="list__rows"></ol>
+      <p class="list__empty">Move a card onto this list to add it.</p>
+      <div class="list__tools">
+        <button type="button" class="list__spread" data-action="spread">Spread</button>
+      </div>
+    </div>
     <!-- A commentary: its comments on the passage, a page at a time. Each
          comment begins with its verses; a reference in it puts that passage
          beside the card. -->
