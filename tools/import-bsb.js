@@ -9,23 +9,23 @@
 //   <BOOK>.json   { "JHN.3.16": [{ "style": "p", "text": "For God so loved ..." }], ... }
 //
 // A verse is a list of blocks, each a paragraph style and plain text: `p` for
-// prose, `q1` and `q2` for lines of poetry, `d` for a psalm title. Footnotes,
-// section headings and Strong's tags are left out; the parallel view shows the
-// text. A psalm title, which the USFM puts before verse 1, joins verse 1, as it
-// does in the KJV data.
+// prose, `q1` and `q2` for lines of poetry, `d` for a psalm title. A block with
+// footnotes has `notes`, each the place in the text it follows and its words:
+//
+//   { "style": "p", "text": "The Word became flesh and made His dwelling among us.",
+//     "notes": [{ "at": 52, "text": "Or and tabernacled among us" }] }
+//
+// Section headings and Strong's tags are left out. A psalm title, which the
+// USFM puts before verse 1, joins verse 1, as it does in the KJV data.
 //
 // The verse addresses are the KJV data's. A verse the BSB leaves out of its
 // main text, such as Matthew 17:21, has no entry.
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { CLOSE, OPEN, footnoteText, withNotes } from './lib/bsb-notes.js';
 
 const [usfmDir, out = 'app/data/bsb'] = process.argv.slice(2);
-
-if (!usfmDir) {
-  console.error('Usage: node tools/import-bsb.js <usfm directory> [output directory]');
-  process.exit(1);
-}
 
 // Paragraph markers and the block style each starts. Anything else that starts
 // a line (headings, references, book titles) is not verse text.
@@ -41,18 +41,28 @@ function clean(text) {
     .replace(/\s+/g, ' ');
 }
 
+if (!usfmDir) {
+  console.error('Usage: node tools/import-bsb.js <usfm directory> [output directory]');
+  process.exit(1);
+}
+
 const books = JSON.parse(await readFile('app/data/kjv/books.json', 'utf8'));
 const files = await readdir(usfmDir);
 await mkdir(out, { recursive: true });
 
 let total = 0;
+let notesTotal = 0;
 const missing = [];
 const loaderLines = [];
 
 for (const { id, verses: counts } of books) {
   const file = files.find((name) => name.slice(3, 6) === id && name.endsWith('.usfm'));
   if (!file) throw new Error(`No USFM file for ${id}`);
-  const lines = (await readFile(path.join(usfmDir, file), 'utf8')).replace(/\\f .*?\\f\*/gs, '').split('\n');
+  /** @type {string[]} */
+  const footnotes = [];
+  const lines = (await readFile(path.join(usfmDir, file), 'utf8'))
+    .replace(/\\f .*?\\f\*/gs, (footnote) => `${OPEN}${footnotes.push(footnoteText(footnote)) - 1}${CLOSE}`)
+    .split('\n');
 
   /** @type {Record<string, { style: string, text: string }[]>} */
   const result = {};
@@ -118,8 +128,10 @@ for (const { id, verses: counts } of books) {
     }
   }
 
-  for (const blocks of Object.values(result)) {
+  for (const [address, blocks] of Object.entries(result)) {
     for (const block of blocks) block.text = block.text.trim();
+    result[address] = withNotes(blocks, footnotes);
+    notesTotal += result[address].reduce((sum, block) => sum + (block.notes?.length ?? 0), 0);
   }
   counts.forEach((count, i) => {
     for (let n = 1; n <= count; n += 1) if (!result[`${id}.${i + 1}.${n}`]?.length) missing.push(`${id}.${i + 1}.${n}`);
@@ -140,11 +152,11 @@ await writeFile(
       translation: 'Berean Standard Bible',
       source: 'https://eBible.org/Scriptures/engbsb_usfm.zip',
       license: 'Public domain.',
-      note: 'Verses the BSB leaves out of its main text have no entry.',
+      note: 'Verses the BSB leaves out of its main text have no entry. Footnotes are kept, each at the place in the text it follows.',
     },
     null,
     2,
   ) + '\n',
 );
 
-console.log(`${total} verses written to ${out}. ${missing.length} KJV verses have no BSB text: ${missing.slice(0, 20).join(' ')}${missing.length > 20 ? ' …' : ''}`);
+console.log(`${total} verses and ${notesTotal} footnotes written to ${out}. ${missing.length} KJV verses have no BSB text: ${missing.slice(0, 20).join(' ')}${missing.length > 20 ? ' …' : ''}`);
