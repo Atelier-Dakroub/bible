@@ -135,15 +135,17 @@ The lines between cards:
 
 | Line | What it shows |
 | --- | --- |
-| Solid | A link that you drew. |
+| Solid curve | A link that you drew. |
 | Dashed | The same highlighted words, shown on more than one card. |
 | Dotted | A cross-reference from a verse on one card to a verse on another card. |
 
-A line shows over its own two cards, so it points at the words. A card that lies over both ends of a line covers it, as a sheet of paper would, and the line's label hides under it too.
+A link never covers the text. It leaves a card at the side that faces the other card, as a curve, and it goes under any card in its way. A dot on the card's edge shows where a link leaves the card. For a link of words, the dot is level with the words, and a blue bar in the margin marks them.
 
 ### Link types
 
-A label at the middle of each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from where you started the link to where you dropped it.
+A label beside each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from where you started the link to where you dropped it.
+
+The label stands where no card is: beside the dot at one end, or along the curve. When cards are close together and there is no room, the label shows only after you touch one of the two cards.
 
 To remove a link, draw it again. When you remove a highlight, its links go too.
 
