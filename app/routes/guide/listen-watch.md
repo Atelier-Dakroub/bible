@@ -18,19 +18,16 @@ Only one card is in the listening mode at a time.
 
 ### Who reads
 
-Choose the voice in **Tools**, **Reading**, **Read aloud**, **Voice**:
+The voice of this device reads aloud, in your own accent where the device has one. When a reading starts, a short message says which voice reads.
+
+A copy of the app that you run on your own computer can also play recordings of the KJV and the BSB: a voice made with AI, or your own voice. The file `docs/recordings.md` in the app's source tells you how to make them and turn them on. Then **Tools**, **Reading**, **Read aloud**, **Voice** shows a choice:
 
 | Choice | Who reads |
 | --- | --- |
-| **The app's voice** | The app's own recorded voice, a plain male voice. It reads the KJV and the BSB, where the app has its recording. |
-| **This device** | The voice of this device, in your own accent where the device has one. |
+| **Recording** | The recorded voice, where it has a recording of the passage. |
+| **This device** | The voice of this device. |
 
-Where the app's voice has no recording of a passage, this device's voice reads it. When a reading starts, a short message says who reads.
-
-The device's voice also reads the versions that have no recording:
-
-- The BSB, where the app's voice has no recording.
-- The Hebrew or the Greek, on **Original**, **Word by word** and **Syntax**, in their modern pronunciation.
+Where there is no recording of a passage, this device's voice reads it. The device's voice also reads the Hebrew and the Greek, on **Original**, **Word by word** and **Syntax**, in their modern pronunciation.
 
 ### This device's voice
 

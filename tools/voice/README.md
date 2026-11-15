@@ -2,7 +2,9 @@
 
 A Bible version read aloud in a voice of our own, a file to a chapter, with the
 time each verse begins. The app plays it on a card's speaker (Tools, Reading,
-Read aloud: Voice, "The app's voice"); `app/data/audio.js` lists the recordings.
+Read aloud: Voice, "Recording") when `BIBLE_AUDIO` names the folder of the
+recordings; `app/data/audio.js` finds them. `docs/recordings.md` is the guide
+for anyone who makes their own.
 
 ## The voices
 

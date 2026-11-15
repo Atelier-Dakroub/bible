@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
-import { byteRange, verseTime } from '../app/data/audio.js';
+import { byteRange, findRecordings, verseTime } from '../app/data/audio.js';
+
+test('recordings are off without a folder', async () => {
+  assert.deepEqual(await findRecordings(null), []);
+  assert.deepEqual(await findRecordings(join(tmpdir(), 'no-such-folder-of-recordings')), []);
+});
+
+test("the recordings in a folder: each voice's versions, with its name", async () => {
+  const root = mkdtempSync(join(tmpdir(), 'recordings-'));
+  try {
+    mkdirSync(join(root, 'plain-male', 'kjv'), { recursive: true });
+    mkdirSync(join(root, 'plain-male', 'bsb'), { recursive: true });
+    writeFileSync(join(root, 'plain-male', 'voice.json'), '{ "reader": "The app\'s voice" }');
+    mkdirSync(join(root, 'my_voice', 'kjv'), { recursive: true });
+    // Not a version the app has, a file, and a name with a dot: left out.
+    mkdirSync(join(root, 'my_voice', 'web'), { recursive: true });
+    writeFileSync(join(root, 'notes.txt'), '');
+    mkdirSync(join(root, '.hidden', 'kjv'), { recursive: true });
+    const found = await findRecordings(root);
+    assert.deepEqual(
+      found.map(({ id, version, reader, url }) => ({ id, version, reader, url })),
+      [
+        { id: 'my_voice-kjv', version: 'kjv', reader: 'My voice', url: '/audio/my_voice/kjv' },
+        { id: 'plain-male-kjv', version: 'kjv', reader: "The app's voice", url: '/audio/plain-male/kjv' },
+        { id: 'plain-male-bsb', version: 'bsb', reader: "The app's voice", url: '/audio/plain-male/bsb' },
+      ],
+    );
+    // The times: the folder's own first, then those of tools/voice/generate.py.
+    assert.deepEqual(found[1].times, [join(root, 'plain-male', 'kjv', 'times.json').replaceAll('\\', '/'), 'app/data/audio/plain-male-kjv.json']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('a Range header asks for part of a recording', () => {
   assert.equal(byteRange(undefined, 1000), null);

@@ -1,13 +1,21 @@
 // The Bible read aloud from recordings: where each verse begins in each.
 //
-// The app's own voice (tools/voice/generate.py), a file to a chapter, outside
-// git: audio/<voice>/<version>, times in app/data/audio/<voice>-<version>.json;
-// for the KJV and the BSB. app/server.js serves the files:
-// /audio/<voice>/<version>/GEN.1.m4a. Where a chapter's file is not there (or the app
-// runs where it has no files, as on Cloudflare), the passage has no such
-// recording, and a card reads in the device's voice instead.
+// Recordings are off unless BIBLE_AUDIO names their folder (.env). Without
+// it, and where the app has no files (as on Cloudflare), every card reads in
+// the device's own voice. docs/recordings.md tells how to make recordings.
 //
-// BIBLE_AUDIO moves the folder that holds the recordings (default audio).
+// The folder holds a folder for each voice, and in it one for each version
+// it reads (kjv, bsb), a file to a chapter:
+//
+//   <BIBLE_AUDIO>/<voice>/voice.json         { "reader": "…" }, the name shown (optional)
+//   <BIBLE_AUDIO>/<voice>/<version>/JHN.3.m4a
+//   <BIBLE_AUDIO>/<voice>/<version>/times.json
+//
+// times.json: { "chapters": { "JHN.3": [seconds, [start of each verse, in tenths]] } }.
+// The times of tools/voice/generate.py are in app/data/audio/<voice>-<version>.json,
+// which is read where the folder has no times.json. app/server.js serves the
+// files: /audio/<voice>/<version>/JHN.3.m4a. Where a chapter's file is not
+// there, the passage has no such recording, and the device's voice reads it.
 
 import index from './kjv/books.json' with { type: 'json' };
 import { versesIn } from '../lib/reference.js';
@@ -19,27 +27,118 @@ const files = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:
 const fileStreams = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:fs') ?? null;
 /** @type {any} */
 const streams = /** @type {any} */ (globalThis).process?.getBuiltinModule?.('node:stream') ?? null;
-const ROOT = /** @type {any} */ (globalThis).process?.env?.BIBLE_AUDIO ?? 'audio';
+/** @type {string | null} the folder of the recordings, or none */
+const ROOT = /** @type {any} */ (globalThis).process?.env?.BIBLE_AUDIO || null;
+/** The versions a recording can read: the texts the app has. */
+const VERSIONS = ['kjv', 'bsb'];
+/** A voice's folder name: no dots or slashes, so a request cannot leave the folder. */
+const VOICE_NAME = /^[a-z0-9][a-z0-9_-]*$/i;
 
 /**
  * @typedef {{
  *   id: string, version: string, kind: 'own', reader: string,
- *   dir: string, url: string, times: string
+ *   dir: string, url: string, times: string[]
  * }} Recording a recording: its folder on disk, its address on the server,
- *   and the file of its times
+ *   and the files that can hold its times, the first found used
  */
 
-/** @type {Recording[]} the recordings, the app's own voice first */
-/** Seconds before the next verse at which one of the app's own verses ends: about half its pause of 0.55 s. */
+/** Seconds before the next verse at which a verse ends: about half the pause of 0.55 s between verses. */
 const GAP = 0.3;
 
-export const RECORDINGS = [
-  { id: 'plain-male-kjv', version: 'kjv', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/kjv`, url: '/audio/plain-male/kjv', times: 'app/data/audio/plain-male-kjv.json' },
-  { id: 'plain-male-bsb', version: 'bsb', kind: 'own', reader: "The app's voice", dir: `${ROOT}/plain-male/bsb`, url: '/audio/plain-male/bsb', times: 'app/data/audio/plain-male-bsb.json' },
-];
+/**
+ * A voice's name as the app shows it: its voice.json's reader, or its folder
+ * name in words ("plain-male" is "Plain male").
+ *
+ * @param {string} root
+ * @param {string} voice
+ */
+async function readerOf(root, voice) {
+  const named = await files
+    .readFile(`${root}/${voice}/voice.json`, 'utf8')
+    .then((text) => JSON.parse(text).reader, () => null)
+    .catch(() => null);
+  if (typeof named === 'string' && named.trim()) return named.trim();
+  const words = voice.replace(/[-_]+/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The versions of a voice that have a folder.
+ *
+ * @param {string} root
+ * @param {string} voice
+ */
+async function versionsOf(root, voice) {
+  const found = await Promise.all(VERSIONS.map((version) => files.stat(`${root}/${voice}/${version}`).then((info) => info.isDirectory(), () => false)));
+  return VERSIONS.filter((_, at) => found[at]);
+}
+
+/**
+ * The recordings in a folder: each voice's folder, and in it each version's.
+ * None if there is no such folder, or no files here.
+ *
+ * @param {string | null} root
+ * @returns {Promise<Recording[]>}
+ */
+export async function findRecordings(root) {
+  if (!root || !files) return [];
+  const entries = await files.readdir(root, { withFileTypes: true }).catch(() => []);
+  const voices = entries.filter((/** @type {any} */ entry) => entry.isDirectory() && VOICE_NAME.test(entry.name)).map((/** @type {any} */ entry) => String(entry.name)).sort();
+  /** @type {Recording[]} */
+  const found = [];
+  for (const voice of voices) {
+    const reader = await readerOf(root, voice);
+    for (const version of await versionsOf(root, voice)) found.push(recordingAt(root, voice, version, reader));
+  }
+  return found;
+}
+
+/**
+ * @param {string} root
+ * @param {string} voice
+ * @param {string} version
+ * @param {string} reader
+ * @returns {Recording}
+ */
+function recordingAt(root, voice, version, reader) {
+  const dir = `${root}/${voice}/${version}`;
+  return { id: `${voice}-${version}`, version, kind: 'own', reader, dir, url: `/audio/${voice}/${version}`, times: [`${dir}/times.json`, `app/data/audio/${voice}-${version}.json`] };
+}
+
+/** @type {Promise<Recording[]> | null} */
+let known = null;
+
+/**
+ * The recordings of this copy of the app. Looked for again after a minute,
+ * so that a voice added while the app runs shows.
+ *
+ * @returns {Promise<Recording[]>}
+ */
+export function recordings() {
+  if (!known) {
+    known = findRecordings(ROOT);
+    setTimeout(() => {
+      known = null;
+    }, 60_000);
+  }
+  return known;
+}
 
 /** @type {Map<string, Promise<Record<string, [number, number[]]>>>} */
 const loaded = new Map();
+
+/**
+ * The first of some files that reads as JSON, or null.
+ *
+ * @param {string[]} paths
+ */
+async function firstJson(paths) {
+  for (const path of paths) {
+    const text = await files.readFile(path, 'utf8').catch(() => null);
+    if (text !== null) return JSON.parse(text);
+  }
+  return null;
+}
 
 /**
  * A recording's times, by chapter. Read from disk, as the recordings are made
@@ -51,9 +150,7 @@ const loaded = new Map();
 function timesOf(recording) {
   let times = loaded.get(recording.id);
   if (!times) {
-    times = files
-      ? files.readFile(recording.times, 'utf8').then((text) => JSON.parse(text).chapters, () => ({}))
-      : Promise.resolve({});
+    times = files ? firstJson(recording.times).then((data) => data?.chapters ?? {}, () => ({})) : Promise.resolve({});
     loaded.set(recording.id, times);
     // Read again in a minute: a recording being made grows.
     setTimeout(() => loaded.delete(recording.id), 60_000);
@@ -104,7 +201,7 @@ function hasFile(path) {
 export async function recordingsOf(ref, version = 'kjv') {
   /** @type {RecordingOf[]} */
   const found = [];
-  for (const recording of RECORDINGS.filter((each) => each.version === version)) {
+  for (const recording of (await recordings()).filter((each) => each.version === version)) {
     const chapters = await chaptersOf(recording, ref);
     if (chapters?.length) found.push({ id: recording.id, kind: recording.kind, reader: recording.reader, chapters });
   }
@@ -173,7 +270,7 @@ export function verseTime(key, verse, [seconds, starts]) {
  * @returns {Promise<Response>}
  */
 export async function chapterFile(folder, name, range) {
-  const file = recordingFile(folder, name);
+  const file = await recordingFile(folder, name);
   const info = file ? await files.stat(file).catch(() => null) : null;
   if (!file || !info) return new Response('No such recording.', { status: 404 });
   const size = Number(info.size);
@@ -189,8 +286,8 @@ export async function chapterFile(folder, name, range) {
  * @param {string} folder
  * @param {string} name
  */
-function recordingFile(folder, name) {
-  const recording = RECORDINGS.find((each) => each.url === `/audio/${folder}`);
+async function recordingFile(folder, name) {
+  const recording = (await recordings()).find((each) => each.url === `/audio/${folder}`);
   if (!files || !recording || !/^[1-3A-Z]{3}\.\d{1,3}\.m4a$/.test(name)) return null;
   return `${recording.dir}/${name}`;
 }

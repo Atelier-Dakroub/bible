@@ -14,9 +14,10 @@ npm run dev      # then open http://localhost:1960/table
 ```
 
 The texts, dictionaries, maps and pictures are in the repository, so nothing
-else needs to be downloaded or imported. The recordings are not (about
-1.5 GB for each version): without them, the device's own voice reads aloud (see "Reading
-aloud" below). `.env.example` lists the optional settings.
+else needs to be downloaded or imported. The app reads aloud in the device's
+own voice; to add recordings of your own, made with AI or in your own voice,
+see [docs/recordings.md](docs/recordings.md). `.env.example` lists the
+optional settings.
 
 `npm run verify` runs the tests, the CRAP check, the types and a build; see
 CONTRIBUTING.md.
@@ -63,11 +64,13 @@ have their own, and not once a real key has been pressed on the visit. Its
 Hide key, Escape, or a tap away from the field hides it; the note stays open.
 Tools, Table chooses Automatic, Always or Never.
 
-Reading aloud: who reads is chosen in Tools, Reading, Read aloud (Voice):
-The app's voice (`tools/voice`: a plain male voice designed for the app and
-made with Qwen3-TTS, for the KJV and the BSB where its recording is made),
-or This device, the device's own voice, which also
-reads whatever has no recording. The recordings a passage has are listed on
+Reading aloud: the device's own voice reads. A copy that runs under Node can
+also play recordings of the KJV and the BSB, made with AI (`tools/voice`,
+Qwen3-TTS) or in your own voice (`tools/join-verses.js`); they are off unless
+`BIBLE_AUDIO` names their folder (`docs/recordings.md`). Then Tools, Reading,
+Read aloud (Voice) chooses Recording or This device (`GET /listen` lists the
+voices), and the device's voice reads whatever has no recording. The
+recordings a passage has are listed on
 its card, so a tap starts one at once.
 
 The speaker on a passage card is a mode. Pressed (lapis), the
@@ -359,8 +362,8 @@ npm run verify   # the tests (with the CRAP check), the types and a build: the b
 | `app/data/canon.js` | The books by group, and the traditional author of each. |
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
-| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js` and `import-videos.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`) and the app's voice (`voice/`). |
-| `app/data/audio/` | The time each verse begins in each recording. |
+| `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js` and `import-videos.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`), the AI voice (`voice/`) and the joining of recordings made a verse to a file (`join-verses.js`). |
+| `app/data/audio/` | The time each verse begins in each recording that `tools/voice/generate.py` makes. |
 | `app/data/videos.json` | The videos and the passages each one shows. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |

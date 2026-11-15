@@ -157,6 +157,7 @@
       this.addEventListener('click', (event) => this.act(event), { signal });
       this.addEventListener('change', (event) => this.choose(event), { signal });
       globalThis.speechSynthesis?.addEventListener('voiceschanged', () => this.listVoices(), { signal });
+      this.showReaders();
       for (const form of this.querySelectorAll('form:not(.menu__save)')) form.addEventListener('submit', (event) => event.preventDefault(), { signal });
       this.paintChoices();
       this.addEventListener('keys-done', () => {
@@ -417,6 +418,16 @@
         'delete-named': () => this.deleteNamed(name),
         'try-voice': () => sayWord(SAMPLES[/** @type {'en'} */ (button.dataset.lang ?? 'en')] ?? '', /** @type {any} */ (button.dataset.lang ?? 'en'), speed()),
       };
+    },
+
+    /**
+     * Shows the choice of reader only where this copy of the app has
+     * recordings (GET /listen). Without them, the device's voice reads.
+     */
+    async showReaders() {
+      const found = await fetch('/listen').then((response) => (response.ok ? response.json() : []), () => []);
+      const field = this.querySelector('.tools__readers');
+      if (field instanceof HTMLElement) field.hidden = !Array.isArray(found) || !found.length;
     },
 
     /**
@@ -766,6 +777,9 @@
     text-wrap: balance;
   }
   /* A group of choices: its name over them, and a hint under them. */
+  .tools__field[hidden] {
+    display: none;
+  }
   .tools__field {
     display: grid;
     gap: 0.35rem;
@@ -1163,13 +1177,14 @@
     </section>
     <form class="tools__part" aria-labelledby="tools-listen">
       <h2 id="tools-listen" class="tools__heading">Read aloud</h2>
-      <fieldset class="tools__field" aria-describedby="tools-reader-hint">
+      <!-- Only where this copy of the app has recordings (showReaders). -->
+      <fieldset class="tools__field tools__readers" aria-describedby="tools-reader-hint" hidden>
         <legend>Voice</legend>
         <div class="tools__segments">
-          <label class="tools__segment"><input type="radio" name="reader" value="own" data-choice="reader" />The app's voice</label>
+          <label class="tools__segment"><input type="radio" name="reader" value="own" data-choice="reader" />Recording</label>
           <label class="tools__segment"><input type="radio" name="reader" value="device" data-choice="reader" />This device</label>
         </div>
-        <p id="tools-reader-hint" class="tools__hint">Where the app's voice has no recording of a passage, this device's voice reads it.</p>
+        <p id="tools-reader-hint" class="tools__hint">Where there is no recording of a passage, this device's voice reads it.</p>
       </fieldset>
       <div class="tools__field" role="group" aria-labelledby="tools-device-voice" aria-describedby="tools-device-hint">
         <span id="tools-device-voice" class="tools__name">This device's voice</span>

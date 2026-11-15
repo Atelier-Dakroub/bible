@@ -186,6 +186,10 @@ type Place = {
   card: Element;
   box: DOMRect;
 };
+type Point_3 = {
+  x: number;
+  y: number;
+};
 type StoredCard = {
   id: string;
   address: string;
@@ -252,7 +256,7 @@ type Run = {
     d: boolean;
   }[];
 };
-type Point_3 = {
+type Point_4 = {
   x: number;
   y: number;
 };
@@ -267,9 +271,9 @@ type Settings = {
   edge: 'bottom' | 'left' | 'right' | 'top';
   size: 'l' | 'm' | 's';
   hidden: boolean;
-  float: Record<'search' | 'timeline' | 'tools', Point_4 | null>;
+  float: Record<'search' | 'timeline' | 'tools', Point_5 | null>;
 };
-type Point_4 = {
+type Point_5 = {
   x: number;
   y: number;
 };
@@ -1160,13 +1164,25 @@ export type BibleTableMembers = {
   cover(lines: Element[]): Map<Element, DOMRect[]>;
   sameLines(): Element[];
   linkLines(): {
-    lines: Element[];
+    lines: SVGPathElement[];
+    marks: (SVGCircleElement | SVGRectElement)[];
     labels: {
-      at: Point;
+      at: Point_3;
       text: string;
       typed: boolean;
-      line?: Element | undefined;
     }[];
+  };
+  drawLink(link: Link, cards: Element[], table: {
+    boxes: DOMRect[];
+    top: Element | undefined;
+  }): {
+    lines: SVGPathElement[];
+    marks: (SVGCircleElement | SVGRectElement)[];
+    label: {
+      at: Point_3;
+      text: string;
+      typed: boolean;
+    };
   };
   guideLines(): Element[];
   pendingLines(): Element[];
@@ -1522,7 +1538,7 @@ export type MapViewProps = {};
 /** Members of `<map-view>`, from its `export const prototype`. */
 export type MapViewMembers = {
   view: View | null;
-  points: Map<number, Point_3> | null;
+  points: Map<number, Point_4> | null;
   tap: {
     id: number;
     x: number;
@@ -1571,7 +1587,7 @@ export type MapViewMembers = {
     y: number;
   }[] | undefined): Promise<void>;
   shows(id: string): boolean;
-  fraction(at: Point_3): {
+  fraction(at: Point_4): {
     x: number;
     y: number;
   };
@@ -1847,6 +1863,7 @@ export type TableMenuMembers = {
   setPen(style: string): void;
   act(event: MouseEvent): void;
   actions(button: HTMLButtonElement): Record<string, () => void>;
+  showReaders(): Promise<void>;
   listVoices(): Promise<void>;
   voiceRow(lang: 'el' | 'en' | 'he', list: SpeechSynthesisVoice[], automatic: SpeechSynthesisVoice | null): HTMLDivElement;
   deleteNamed(name: string): void;
@@ -1954,20 +1971,20 @@ export type TableRailMembers = {
     safe: Insets;
     search: {
       open: boolean;
-      float: Point_4 | null;
+      float: Point_5 | null;
       expanded: boolean;
       w: number;
       h: number;
     };
     timeline: {
       open: boolean;
-      float: Point_4 | null;
+      float: Point_5 | null;
       w: number;
       h: number;
     };
     tools: {
       open: boolean;
-      float: Point_4 | null;
+      float: Point_5 | null;
       w: number;
       h: number;
       anchor: {
