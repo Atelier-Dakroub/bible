@@ -8,6 +8,12 @@
      the table's chrome keeps clear of them by the safe-area insets
      (lib/chrome.js layout, table-rail). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!-- The tab's icon: the SVG where the browser draws one, else the .ico, which
+     is also at the address a browser asks for when a page names no icon.
+     sizes="32x32" keeps Chrome from taking the .ico over the SVG. Made by
+     tools/icons.js. -->
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
 <!-- Added to a phone's Home Screen, the table opens as an app of its own:
      the whole screen, no browser bars, the status bar see-through over it
      (black-translucent), so the table runs under the notch, and its chrome
