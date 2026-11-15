@@ -10,7 +10,15 @@
   // text and the adapter parses it. `fallthrough` matters: without it this rule
   // replaces the default text rule for .txt, .html and .sql rather than adding
   // to it, and says nothing.
-  "rules": [{ "type": "Text", "globs": ["**/routes.json"], "fallthrough": true }]
+  "rules": [{ "type": "Text", "globs": ["**/routes.json"], "fallthrough": true }],
+
+  // The files the edge serves before the worker runs: the public files, the
+  // hashed assets, and app/data under data/ (tools/edge-data.js). Static
+  // assets cost no requests and no CPU, and keep the worker under its 64 MiB.
+  // The worker reads the data through ASSETS (app/data/load.js). "none",
+  // because the pages are the worker's: without it the edge answers /about
+  // with about.html, or redirects it.
+  "assets": { "directory": "dist/edge", "binding": "ASSETS", "html_handling": "none" }
 
   // A custom domain goes here, and the deploy then makes the DNS record and the
   // certificate, so the next person reads the address without logging in:
