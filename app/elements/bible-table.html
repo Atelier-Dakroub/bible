@@ -151,6 +151,7 @@
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
+  import { keepStorage } from '../lib/persist.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
   import { columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
@@ -5016,6 +5017,11 @@
       }
       this.setName(name);
       menu?.refresh(`Saved “${name}”.`);
+      // The reader wants to keep it: ask the browser not to clear it
+      // (lib/persist.js). Said only when the browser refuses.
+      keepStorage().then((kept) => {
+        if (kept === 'refused') menu?.refresh(`Saved “${name}”. This browser can still clear it to make space, so save to a file to keep a copy.`);
+      });
     },
 
     /** @param {string} name */

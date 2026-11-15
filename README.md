@@ -832,6 +832,12 @@ videos and the MCP bridge always go to the network. Under the dev server
 there is no `/precache.json`, so the worker passes everything on.
 `test/sw.test.js` runs the worker in a sandbox.
 
+Saving a table under a name asks the browser for persistent storage
+(`app/lib/persist.js`), so the saved tables and the caches are not cleared
+to make space, or, in Safari, after seven days without a visit. Chrome and
+Safari decide without asking; Firefox asks the reader once. If the browser
+refuses, the Saved tab says so and points to a file.
+
 The icons come from two drawings, `public/icons/app.svg` and
 `public/icons/favicon.svg`. `npm run icons` (`tools/icons.js`, which needs
 `rsvg-convert`) makes the PNGs, the maskable icon and `favicon.ico` from them.

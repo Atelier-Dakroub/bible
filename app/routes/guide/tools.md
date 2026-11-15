@@ -108,6 +108,8 @@ The browser keeps the table on show for you. This tab keeps tables under a name,
 
 When you change a saved table, save it again to keep the changes under its name.
 
+When you save a table, the app asks the browser to keep its storage. Most browsers decide for themselves. Firefox asks you. If the browser does not agree, it can clear your saved tables when the device needs space. Then the app tells you, and a file is the safe copy.
+
 ### Saved tables
 
 This list shows each saved table, with the time when you saved it.
