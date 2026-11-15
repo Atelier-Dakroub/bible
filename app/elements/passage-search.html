@@ -35,6 +35,9 @@
 
      showGuide(address, notes) shows the passage guide (data/study.js) and
      the notes the table found on the passage. searchFor(text) searches.
+     Above a search's results go the reader's notes that match it, on the
+     table and in the saved tables (notesFound, from the table; the search
+     of them is in the browser, lib/note-search.js).
 
      The buttons in an answer send, all bubbling:
        show-on-map   detail { ids }, place ids with commas between
@@ -42,7 +45,8 @@
                      stop (app/lib/rules.js)
        place-beside  detail { addresses }: the guide's parallels, beside the card
        start-study   detail { address }: lay out a study of the guide's passage
-       show-note     detail { id }: a note on the passage
+       show-note     detail { id }: a note on the passage, or on the table
+       note-open     detail { name, id }: a note in a saved table, which opens it
        show-journey  detail { journey }: draw a journey on the map
                      (data/journeys.js JourneyView)
      showRules(rules) shows which offers to mark are on.
@@ -156,6 +160,46 @@
   }
 
   /**
+   * A note in a saved table, in a search's list: a button that opens the
+   * table and shows the note.
+   *
+   * @param {string} table its name
+   * @param {{ id: string, title?: string, text: string, kind?: string, answered?: boolean }} note
+   */
+  function savedNoteItem(table, note) {
+    const item = noteItem(note);
+    const button = /** @type {HTMLElement} */ (item.firstElementChild);
+    delete button.dataset.noteShow;
+    button.dataset.noteOpen = note.id;
+    button.dataset.noteTable = table;
+    return item;
+  }
+
+  /**
+   * A heading and a list, for the notes in a search.
+   *
+   * @param {string} title
+   * @param {HTMLElement[]} items
+   */
+  function noteGroup(title, items) {
+    const heading = Object.assign(document.createElement('h3'), { className: 'guide__heading', textContent: title });
+    const list = Object.assign(document.createElement('ol'), { className: 'results__list' });
+    list.append(...items);
+    return [heading, list];
+  }
+
+  /**
+   * The headings and lists of the notes that match a search: those on the
+   * table, then those in each saved table.
+   *
+   * @param {{ here: any[], saved: { name: string, notes: any[] }[] }} found
+   */
+  function noteGroups(found) {
+    const here = found.here.length ? noteGroup('In your notes', found.here.map(noteItem)) : [];
+    return [...here, ...found.saved.flatMap((table) => noteGroup(`In your saved table “${table.name}”`, table.notes.map((note) => savedNoteItem(table.name, note))))];
+  }
+
+  /**
    * The ? button's count of open questions, and its name.
    *
    * @param {HTMLElement} button
@@ -245,6 +289,9 @@
     away: false,
     /** @type {((address: string) => { id: string, text: string }[]) | null} the notes on a passage, from the table */
     notesFor: null,
+
+    /** @type {((query: string) => { here: any[], saved: { name: string, notes: any[] }[] }) | null} the reader's notes that match a search, from the table */
+    notesFound: null,
 
     connected({ signal }) {
       const form = /** @type {HTMLFormElement} */ (this.querySelector('form'));
@@ -443,6 +490,7 @@
         ['[data-study]:not([data-study=""])', (element) => this.tell('start-study', { address: data(element, 'study') })],
         ['[data-questions]', () => this.showQuestions()],
         ['[data-note-show]:not([data-note-show=""])', (element) => this.tell('show-note', { id: data(element, 'noteShow') })],
+        ['[data-note-open]:not([data-note-open=""])', (element) => this.tell('note-open', { name: data(element, 'noteTable'), id: data(element, 'noteOpen') })],
         ['[data-strongs]:not([data-strongs=""])', (element) => {
           input.value = data(element, 'strongs');
           this.run(undefined, 'open');
@@ -721,6 +769,7 @@
       const text = await this.fetchAnswer(asked);
       if (text === null) return false;
       const answer = this.showAnswer(text, how, scroll);
+      this.showNotesFound(asked);
       this.announceStudy(answer);
       if (how !== 'trail') this.remember(asked, answer, how, input.value);
       return true;
@@ -768,6 +817,20 @@
       results.scrollTop = scroll;
       this.announce(results);
       return /** @type {HTMLElement | null} */ (results.querySelector('[data-code]'));
+    },
+
+    /**
+     * The reader's notes that match a typed search, above its results.
+     *
+     * @param {URLSearchParams} asked
+     */
+    showNotesFound(asked) {
+      const query = asked.get('q');
+      const groups = query && this.notesFound ? noteGroups(this.notesFound(query)) : [];
+      if (!groups.length) return;
+      const section = Object.assign(document.createElement('section'), { className: 'search__notes' });
+      section.append(...groups);
+      this.querySelector('.search__results')?.prepend(section);
     },
 
     /**

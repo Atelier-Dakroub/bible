@@ -66,6 +66,14 @@ Tap **Hide**. The rail and the panels go away, and one small Show button stays a
 
 A drag up or down in the results scrolls the list. Only a drag to the side pulls a card out.
 
+### Paste references
+
+Copy a list of references, or any text with references in it, such as a sermon outline or an email. Then click the table and paste (<kbd>Command</kbd>+<kbd>V</kbd>, or <kbd>Ctrl</kbd>+<kbd>V</kbd>). A card for each reference goes on the table, up to 12 at a time.
+
+- A reference needs its verse in running text, such as `Romans 8:28`. A line that is only a reference can be a whole chapter, such as `Psalm 23`.
+- `John 3:16, 18; 4:1` gives three cards: John 3:16, John 3:18 and John 4:1.
+- The pasted text stays on your device.
+
 A passage of more than 24 verses comes onto the table at half size, in its short form. See [Cards](/guide/cards#size-and-the-short-form).
 
 ## Move, turn and scale a card

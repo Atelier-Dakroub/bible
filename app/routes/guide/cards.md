@@ -35,6 +35,7 @@ Under the heading is a row of version buttons. Tap one to show the passage in th
 Some notes on the versions:
 
 - In **Both**, a verse that the BSB leaves out of its main text says "Not in the BSB's main text".
+- In **BSB** and **Both**, a small blue letter after a word is a footnote of the BSB: another way to translate it, what the Hebrew or Greek says word for word, or a difference in the manuscripts. Tap the letter to read the note. Tap outside the note, or press <kbd>Escape</kbd>, to close it.
 - In **Both**, the **Compare** button sets in bold the words that one translation has and the other does not. It compares the forms of words: "believeth" and "believes" are the same word.
 - In **Original** and **Word by word**, the Greek is the text that the KJV translated. A word that the modern critical text does not have has a dotted ochre line under it.
 - In **Reverse**, English in a softer ink has no word of the original of its own. It is part of a word (such as "in the"), or the translators supplied it.

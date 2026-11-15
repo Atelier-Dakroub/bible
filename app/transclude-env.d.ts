@@ -167,6 +167,12 @@ type Tap = {
   x?: number | undefined;
   y?: number | undefined;
 };
+type BookEntry = {
+  id: string;
+  name: string;
+  abbreviation: string;
+  verses: number[];
+};
 type MapView = HTMLElement & {
   view: View | null;
   setView(view: View): void;
@@ -238,6 +244,13 @@ type Workspace = {
   notes: Note[];
   rules: Rule[];
   trail: Trail;
+};
+type SearchedNote = {
+  id: string;
+  title?: string | undefined;
+  text: string;
+  kind?: string | undefined;
+  answered?: boolean | undefined;
 };
 type Box_3 = {
   left: number;
@@ -585,7 +598,14 @@ type PlainBlock = {
     text: string;
     w: number;
     d: boolean;
+    notes?: Mark_2[] | undefined;
+    head?: string | undefined;
+    tail?: string | undefined;
   }[];
+};
+type Mark_2 = {
+  text: string;
+  label: string;
 };
 type BaseMap = {
   width: number;
@@ -695,7 +715,7 @@ type Row_2 = {
   name: string;
   y: number;
   cells: Cell[];
-  marks: Mark_2[];
+  marks: Mark_3[];
   end: number;
   total: string;
 };
@@ -705,7 +725,7 @@ type Cell = {
   x: number;
   w: number;
 };
-type Mark_2 = {
+type Mark_3 = {
   x: number;
   y: number;
   size: number;
@@ -1106,6 +1126,13 @@ export type BibleTableMembers = {
   tapHeading({
     element
   }: Tap): boolean;
+  tapFootnote({
+    element
+  }: Tap): boolean;
+  showFootnote(mark: HTMLElement): void;
+  books: Promise<BookEntry[] | null> | null;
+  bookList(): Promise<BookEntry[] | null>;
+  pasted(event: ClipboardEvent): Promise<void>;
   tapWord({
     element
   }: Tap): boolean;
@@ -1352,7 +1379,20 @@ export type BibleTableMembers = {
   openWorkspace(workspace: Workspace, name: string, message: string): Promise<void>;
   setName(name: string): void;
   saveAs(name: string): void;
-  openNamed(name: string): void;
+  openNamed(name: string): Promise<void>;
+  notesFound(query: string): {
+    here: SearchedNote[];
+    saved: {
+      name: string;
+      notes: SearchedNote[];
+    }[];
+  };
+  openNoteIn({
+    name, id
+  }: {
+    name: string;
+    id: string;
+  }): Promise<void>;
   exportFile(): void;
   markdownOf(card: Element, note: {
     doc?: any;
@@ -1684,6 +1724,13 @@ export type PassageSearchMembers = {
     id: string;
     text: string;
   }[]) | null;
+  notesFound: ((query: string) => {
+    here: any[];
+    saved: {
+      name: string;
+      notes: any[];
+    }[];
+  }) | null;
   connected({
     signal
   }: {
@@ -1748,6 +1795,7 @@ export type PassageSearchMembers = {
   fetchAnswer(query: URLSearchParams): Promise<string | null>;
   failed(): null;
   showAnswer(text: string, how: How, scroll: number): HTMLElement | null;
+  showNotesFound(asked: URLSearchParams): void;
   announceStudy(answer: HTMLElement | null): void;
   keepScroll(): void;
   remember(query: URLSearchParams, answer: HTMLElement | null, how: How, typed: string): void;

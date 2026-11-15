@@ -473,7 +473,7 @@
         <div class="note__words">
           <kjv-verse each="verse of quote.verses" data-ref="${verse.id}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
           <div each="row of quote.rows" class="bsb-verse" data-ref="${row.verse.id}">
-            <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
+            <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.head ?? token.text}</span><span else>${token.head ?? token.text}</span><button each="note of token.notes ?? []" type="button" class="fn" data-note="${note.text}" aria-label="Footnote ${note.label}: ${note.text}">${note.label}</button><span if="token.tail">${token.tail}</span></template></p>
           </div>
         </div>
       </section>
@@ -483,7 +483,7 @@
     <div if="kind === 'phrase'" class="passage__text">
       <kjv-verse each="verse of verses" data-ref="${verse.id}" data-paragraph="${verse.paragraph}" n="${verse.label}" blocks="${verse.blocks}"></kjv-verse>
       <div each="row of rows" class="bsb-verse" data-ref="${row.verse.id}">
-        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.head ?? token.text}</span><span else>${token.head ?? token.text}</span><button each="note of token.notes ?? []" type="button" class="fn" data-note="${note.text}" aria-label="Footnote ${note.label}: ${note.text}">${note.label}</button><span if="token.tail">${token.tail}</span></template></p>
       </div>
     </div>
     <!-- The KJV alone: its words have addresses, so highlights and links show. -->
@@ -494,7 +494,7 @@
          b2…), so they take highlights as the KJV's do. -->
     <div if="kind === 'passage' && version === 'bsb'" class="passage__text">
       <div each="row of rows" class="bsb-verse" data-ref="${row.verse.id}">
-        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.text}</span><span else>${token.text}</span></template></p>
+        <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w" data-w="b${token.w}">${token.head ?? token.text}</span><span else>${token.head ?? token.text}</span><button each="note of token.notes ?? []" type="button" class="fn" data-note="${note.text}" aria-label="Footnote ${note.label}: ${note.text}">${note.label}</button><span if="token.tail">${token.tail}</span></template></p>
         <p if="!row.bsb.length" class="verse__missing"><sup class="verse__number">${row.verse.label}</sup> Not in the BSB's main text.</p>
       </div>
     </div>
@@ -564,7 +564,7 @@
       <div each="row of rows" class="parallel__row">
         <kjv-verse data-ref="${row.verse.id}" n="${row.verse.label}" blocks="${row.verse.blocks}" events="${row.verse.events}" quotes="${row.verse.quotes}"></kjv-verse>
         <div class="bsb-verse" data-bsb-ref="${row.verse.id}">
-          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w ${token.d ? 'bsb__d' : ''}" data-w="b${token.w}">${token.text}</span><span else class="${token.d ? 'bsb__d' : ''}">${token.text}</span></template></p>
+          <p each="block of row.bsb" class="verse__block verse__block--${block.style}"><sup if="block.numbered" class="verse__number">${row.verse.label}</sup> <template each="token of block.tokens"><span if="token.w" class="w bsb__w ${token.d ? 'bsb__d' : ''}" data-w="b${token.w}">${token.head ?? token.text}</span><span else class="${token.d ? 'bsb__d' : ''}">${token.head ?? token.text}</span><button each="note of token.notes ?? []" type="button" class="fn" data-note="${note.text}" aria-label="Footnote ${note.label}: ${note.text}">${note.label}</button><span if="token.tail">${token.tail}</span></template></p>
           <p if="!row.bsb.length" class="verse__missing">Not in the BSB's main text.</p>
         </div>
       </div>

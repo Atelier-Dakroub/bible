@@ -13,7 +13,7 @@
 // taken for books. A chapter without a verse ("Gen. 12") needs the stop too.
 // A reference to a verse that does not exist is left as text.
 
-import { findBook, parseAddress, toAddress } from './reference.js';
+import { findBook, parseAddress, parseReference, toAddress } from './reference.js';
 
 /** @typedef {import('./reference.js').BookEntry} BookEntry */
 /** @typedef {{ text: string, address?: string }} Part */
@@ -69,12 +69,17 @@ function addressOf(books, book, chapter, from, to) {
 export function citations(text, books) {
   /** @type {{ at: number, end: number, book: string, chapter: number, from?: string, to?: string }[]} */
   const found = [];
-  for (const match of text.matchAll(CITED)) {
+  CITED.lastIndex = 0;
+  for (let match = CITED.exec(text); match; match = CITED.exec(text)) {
     const [whole, name, stop, chapter, from, to] = match;
-    if (!from && !stop) continue;
-    const book = bookOf(books, name, Boolean(stop));
-    if (!book) continue;
-    found.push({ at: match.index ?? 0, end: (match.index ?? 0) + whole.length, book: book.id, chapter: Number(chapter), from, to });
+    const book = from || stop ? bookOf(books, name, Boolean(stop)) : null;
+    if (!book) {
+      // Not a reference: look again from the next word, which may start
+      // one ("Read 1 John 4:8" is 1 John, not John).
+      CITED.lastIndex = match.index + name.length;
+      continue;
+    }
+    found.push({ at: match.index, end: match.index + whole.length, book: book.id, chapter: Number(chapter), from, to });
   }
   // References with no book, where no named one covers them.
   for (const match of text.matchAll(BARE)) {
@@ -132,4 +137,29 @@ export function citations(text, books) {
   }
   plain(text.slice(done));
   return parts;
+}
+
+/**
+ * The references in pasted text, such as a list, a sermon outline or an
+ * email, as addresses in the order they come, each once.
+ *
+ * A line, or each part of it between semicolons, may be a reference on its
+ * own, as typed in the search ("rom 8:28; psalm 23"). Any other line is read
+ * as prose (citations).
+ *
+ * @param {string} text
+ * @param {BookEntry[]} books
+ * @param {number} [limit] at most this many
+ * @returns {string[]}
+ */
+export function pastedReferences(text, books, limit = 12) {
+  const found = new Set();
+  for (const line of text.split(/\r?\n/)) {
+    const pieces = line.split(';').map((piece) => parseReference(piece.replace(/[.,]\s*$/, ''), books));
+    const addresses = pieces.every(Boolean)
+      ? pieces.map((ref) => toAddress(/** @type {import('./reference.js').Reference} */ (ref)))
+      : citations(line, books).flatMap((part) => (part.address ? [part.address] : []));
+    for (const address of addresses) found.add(address);
+  }
+  return [...found].slice(0, limit);
 }

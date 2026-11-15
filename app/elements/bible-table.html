@@ -86,7 +86,8 @@
 
      A passage card's ‹ and ›, beside its heading, step it through the text. Cards with Sync
      on step together: when one steps, the others go to the same passage.
-     Copy puts the card's words and reference on the clipboard.
+     Copy puts the card's words and reference on the clipboard. Paste on the
+     table puts down a card for each reference in the pasted text (pasted).
 
      A mouse, a trackpad and a keyboard work too:
        wheel, or two fingers on a trackpad   pan the table
@@ -150,8 +151,11 @@
   import { createPalmGuard } from '../lib/palm.js';
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
-  import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
+  import { diffCards, empty, fromFile, listNamed, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
   import { keepStorage } from '../lib/persist.js';
+  import { footnoteTitle } from '../lib/footnotes.js';
+  import { pastedReferences } from '../lib/citations.js';
+  import { notesMatching } from '../lib/note-search.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
   import { columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
@@ -624,6 +628,33 @@
     const text = link.type || 'link';
     const spot = first ? spotFor(first, text, room) : null;
     return { at: spot ?? { x: NaN, y: NaN }, text, typed: Boolean(link.type) };
+  }
+
+  /** The most cards one paste puts down. */
+  const PASTE_LIMIT = 12;
+
+  /**
+   * The text of a paste on the table; none for a paste in a field, which is
+   * the field's.
+   *
+   * @param {ClipboardEvent} event
+   */
+  function pastedText(event) {
+    const inField = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]');
+    return inField ? '' : (event.clipboardData?.getData('text/plain').trim() ?? '');
+  }
+
+  /**
+   * What the table says after a paste.
+   *
+   * @param {number} found references found, one more than the limit when there are more
+   * @param {boolean} books whether the list of books came
+   */
+  function pastedMessage(found, books) {
+    if (!books) return 'The pasted text could not be read: check the connection.';
+    if (!found) return 'No Bible reference in the pasted text.';
+    if (found > PASTE_LIMIT) return `The first ${PASTE_LIMIT} references are on the table.`;
+    return found === 1 ? 'One reference is on the table.' : `${found} references are on the table.`;
   }
 
   /**
@@ -1319,7 +1350,7 @@
   }
   // The events that change the cards or bring one: the overview gives way
   // to full size first, so that each works on the table as it is.
-  const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'show-on-map', 'show-journey', 'start-study'];
+  const FULL_SIZE = ['place', 'place-beside', 'note-new', 'toggle-map', 'toggle-books', 'table-undo', 'table-redo', 'workspace-open', 'workspace-new', 'workspace-import', 'show-note', 'note-open', 'show-on-map', 'show-journey', 'start-study'];
 
   /**
    * A card's name on its tile in the overview: its title, else its kind.
@@ -1498,6 +1529,7 @@
         const panel = /** @type {any} */ (this.querySelector('passage-search'));
         if (!panel) return;
         panel.notesFor = (/** @type {string} */ address) => this.notesAt(address);
+        panel.notesFound = (/** @type {string} */ query) => this.notesFound(query);
         panel.setTrail(this.pendingTrail ?? emptyTrail(), true);
         this.pendingTrail = null;
       });
@@ -1536,6 +1568,7 @@
       this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
       // Not passive: a pinch must not zoom the whole page.
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
+      document.addEventListener('paste', (event) => this.pasted(event), options);
       document.addEventListener('keydown', (event) => this.overviewKey(event), options);
       this.addEventListener('toggle-overview', () => this.toggleOverview(), options);
       addEventListener('resize', () => this.refitOverview(), options);
@@ -1600,6 +1633,11 @@
       this.addEventListener('card-paint', () => this.drawSoon(), options);
       this.addEventListener('card-group', (event) => this.moveGroup(/** @type {Card} */ (event.target), /** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('card-tap', (event) => this.tapped(/** @type {CustomEvent} */ (event).detail), options);
+      // A footnote's letter pressed with Enter or Space (a tap comes as card-tap).
+      this.addEventListener('click', (event) => {
+        const mark = event.target instanceof Element ? event.target.closest('gesture-card .fn') : null;
+        if (mark instanceof HTMLElement && event.detail === 0) this.showFootnote(mark);
+      }, options);
       this.addEventListener('study', (event) => this.study(/** @type {CustomEvent} */ (event).detail), options);
       this.addEventListener('show-entity', (event) => {
         const panel = /** @type {any} */ (this.querySelector('passage-search'));
@@ -1631,6 +1669,7 @@
       this.addEventListener('place-beside', (event) => this.placeBeside(/** @type {CustomEvent} */ (event).detail.addresses), options);
       this.addEventListener('start-study', (event) => this.startStudy(/** @type {CustomEvent} */ (event).detail.address), options);
       this.addEventListener('show-note', (event) => this.showNote(/** @type {CustomEvent} */ (event).detail.id), options);
+      this.addEventListener('note-open', (event) => this.openNoteIn(/** @type {CustomEvent} */ (event).detail), options);
       // The card removes itself after the event, so keep what is left a moment
       // later. A note goes with its card; undo brings both back.
       this.addEventListener('card-remove', (event) => {
@@ -3153,7 +3192,7 @@
       const tap = { element: target, x, y };
       // The first that knows the tap takes it, in this order.
       const handlers = [
-        this.tapLink, this.tapSaid, this.tapListening, this.tapMore, this.tapTitle, this.tapNote,
+        this.tapLink, this.tapFootnote, this.tapSaid, this.tapListening, this.tapMore, this.tapTitle, this.tapNote,
         this.tapForm, this.tapStudy, this.tapPlace, this.tapChapter, this.tapHeading, this.tapWord, this.tapVerse,
       ];
       for (const handle of handlers) if (handle.call(this, tap)) return;
@@ -3326,6 +3365,68 @@
       if (!(card instanceof HTMLElement)) return false;
       this.headingTapped(card);
       return true;
+    },
+
+    /**
+     * A footnote's letter on a BSB card (lib/footnotes.js): its words show
+     * beside it. The card holds the finger, so the button never hears its
+     * click; a key's click comes through the table's click listener.
+     *
+     * @param {Tap} tap
+     */
+    tapFootnote({ element }) {
+      const mark = element.closest('.fn');
+      if (!(mark instanceof HTMLElement) || !mark.closest('gesture-card')) return false;
+      this.showFootnote(mark);
+      return true;
+    },
+
+    /**
+     * Shows a footnote in the table's popover, under its letter. Escape or a
+     * tap outside closes it, and the focus stays where it was.
+     *
+     * @param {HTMLElement} mark
+     */
+    showFootnote(mark) {
+      const popover = /** @type {HTMLElement} */ (this.querySelector('.table__footnote'));
+      const verse = /** @type {HTMLElement} */ (mark.closest('[data-ref], [data-bsb-ref]'));
+      /** @type {HTMLElement} */ (popover.querySelector('.footnote__label')).textContent = footnoteTitle(verse.dataset, String(mark.textContent));
+      /** @type {HTMLElement} */ (popover.querySelector('.footnote__text')).textContent = mark.getAttribute('data-note');
+      // Open, or kept open for the next letter.
+      popover.togglePopover(true);
+      placeBelow(popover, mark.getBoundingClientRect());
+    },
+
+    /** @type {Promise<import('../lib/reference.js').BookEntry[] | null> | null} the books, for references in pasted text */
+    books: null,
+
+    /**
+     * The books and the verses of their chapters, fetched once (routes/books).
+     * A failed fetch is tried again at the next paste.
+     */
+    bookList() {
+      this.books ??= fetch('/books').then((response) => (response.ok ? response.json() : null), () => null);
+      this.books.then((books) => {
+        if (!books) this.books = null;
+      });
+      return this.books;
+    },
+
+    /**
+     * Text pasted on the table, not in a field: a card for each reference in
+     * it (lib/citations.js, pastedReferences), each where a tapped result goes.
+     * The text stays in the browser: only the list of books is fetched.
+     *
+     * @param {ClipboardEvent} event
+     */
+    async pasted(event) {
+      const text = pastedText(event);
+      if (!text) return;
+      event.preventDefault();
+      const books = await this.bookList();
+      const found = books ? pastedReferences(text, books, PASTE_LIMIT + 1) : [];
+      this.toast(pastedMessage(found.length, Boolean(books)));
+      await this.placeEach(found.slice(0, PASTE_LIMIT));
     },
 
     /** @param {Tap} tap */
@@ -5025,10 +5126,36 @@
     },
 
     /** @param {string} name */
-    openNamed(name) {
+    async openNamed(name) {
       const workspace = loadNamed(name);
       if (!workspace) return;
-      this.openWorkspace(workspace, name, `Opened “${name}”. Undo goes back to the table before it.`);
+      await this.openWorkspace(workspace, name, `Opened “${name}”. Undo goes back to the table before it.`);
+    },
+
+    /**
+     * The reader's notes that match a search (lib/note-search.js): on the
+     * table, and in each saved table but the one on show.
+     *
+     * @param {string} query
+     */
+    notesFound(query) {
+      const here = notesMatching(query, this.notes);
+      const saved = listNamed()
+        .filter(({ name }) => name !== this.name)
+        .map(({ name }) => ({ name, notes: notesMatching(query, loadNamed(name)?.notes ?? [], 5) }))
+        .filter((table) => table.notes.length);
+      return { here, saved };
+    },
+
+    /**
+     * A note in a saved table, from a search: the table opens (undo takes it
+     * back), and the note comes into view.
+     *
+     * @param {{ name: string, id: string }} detail
+     */
+    async openNoteIn({ name, id }) {
+      await this.openNamed(name);
+      this.showNote(id);
     },
 
     exportFile() {
@@ -5301,6 +5428,29 @@
     pointer-events: auto;
     cursor: pointer;
   }
+  /* A BSB footnote, under its letter. */
+  .table__footnote {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: max-content;
+    max-width: min(22rem, calc(100vw - 2rem));
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 6px 24px var(--shade-far);
+  }
+  .footnote__label {
+    margin: 0 0 0.2rem;
+    color: var(--ink-soft);
+    font: 600 0.75rem/1.3 var(--sans);
+  }
+  .footnote__text {
+    margin: 0;
+    font: 1rem/1.45 var(--serif);
+  }
   /* The link button's list of cards. */
   .table__chooser {
     position: fixed;
@@ -5446,6 +5596,12 @@
   <p class="chooser__title" id="link-chooser-title"></p>
   <div class="chooser__list"></div>
   <p class="chooser__empty">No other card is on the table.</p>
+</div>
+<!-- A BSB footnote (showFootnote): a popover, so Escape and a tap outside
+     close it. -->
+<div class="table__footnote" popover role="note" aria-labelledby="footnote-label">
+  <p class="footnote__label" id="footnote-label"></p>
+  <p class="footnote__text"></p>
 </div>
 <p class="table__toast" role="status"></p>
 <slot></slot>

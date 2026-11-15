@@ -667,6 +667,21 @@ that does not exist stays text. About 25,000 references in Easton are links.
 The summary on an entity's card on the table has the same links: a tap puts
 the passage down beside the card.
 
+## Pasted references, and your notes in a search
+
+Text pasted on the table, not in a field, puts down a card for each
+reference in it, up to 12 (`pastedReferences` in `app/lib/citations.js`). A
+line that is one reference may name a chapter alone; in running text a
+reference needs its verse, so "I am 5" is not Amos 5. "John 3:16, 18; 4:1"
+is three references. The table fetches only the list of books (`GET
+/books`); the pasted text stays in the browser.
+
+A typed search also lists the reader's notes that have every word of it,
+on the table and in the saved tables (`app/lib/note-search.js`). Case and
+accents do not matter. The notes live in the browser, so they are searched
+there. A note in a saved table opens that table, as one step that undo
+takes back.
+
 ## The research trail
 
 The search panel keeps a trail of what you looked at (`app/lib/trail.js`):
@@ -951,14 +966,20 @@ paths and 3.1 MB of images.
 
 `app/data/bsb/<BOOK>.json` holds the Berean Standard Bible (public domain) by
 the KJV data's verse addresses: `{ "JHN.3.16": [{ "style": "p", "text": "For God so loved ..." }] }`.
+A block with footnotes has `notes`, each the place in the text it follows and
+its words: `"notes": [{ "at": 53, "text": "Or and tabernacled among us" }]`.
 
 ```sh
 node tools/import-bsb.js <usfm directory from eBible.org's engbsb_usfm.zip>
 ```
 
-Footnotes, section headings and Strong's tags are left out. A psalm title
-joins verse 1, as in the KJV data. 31,086 verses; the 16 KJV verses with no
-BSB text have no entry.
+The 4,846 footnotes are kept (`tools/lib/bsb-notes.js`): each is held in the
+text as a mark while the lines are read, then taken out with its place, so
+the text is the same as with no footnotes. A card shows each as a letter
+after its word, a, b, c through the verse (`app/lib/footnotes.js`), and a tap
+shows the note. Section headings and Strong's tags are left out. A psalm
+title joins verse 1, as in the KJV data. 31,086 verses; the 16 KJV verses
+with no BSB text have no entry.
 
 ## The entity data
 

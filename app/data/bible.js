@@ -19,6 +19,7 @@ import { SAID, lemmaIndex, plain } from '../lib/lemma.js';
 import { GROUPS } from './canon.js';
 import { onMap } from '../lib/map.js';
 import { inBsb, tokenize } from '../lib/words.js';
+import { footnoted } from '../lib/footnotes.js';
 import { differences } from '../lib/compare.js';
 import { citations } from '../lib/citations.js';
 import { syllablesOf } from '../lib/syllables.js';
@@ -269,7 +270,7 @@ export function bsbWithin(blocks, low, high) {
     .filter((block) => block.tokens.some((token) => token.w));
 }
 
-/** @typedef {{ style: string, text: string, numbered: boolean, tokens: { text: string, w: number, d: boolean }[] }} PlainBlock a block of the BSB; `tokens` are its words, numbered through the verse (w, 0 for none), with the words the KJV does not share marked (d) */
+/** @typedef {{ style: string, text: string, numbered: boolean, tokens: { text: string, w: number, d: boolean, notes?: import('../lib/footnotes.js').Mark[], head?: string, tail?: string }[] }} PlainBlock a block of the BSB; `tokens` are its words, numbered through the verse (w, 0 for none), with the words the KJV does not share marked (d), and the footnotes on the words they follow (notes; head and tail are the token shown before and after them; lib/footnotes.js) */
 /** @typedef {{ verse: WordVerse, bsb: PlainBlock[] }} Row */
 
 /** @type {Map<string, Promise<Record<string, { style: string, text: string }[]>>>} */
@@ -623,9 +624,15 @@ export async function parallel(ref) {
         runs: block.runs.map((run) => ({ ...run, tokens: run.tokens.map((token) => ({ ...token, d: kjvDiff.get(token) ?? false })) })),
       })),
     };
+    // The footnotes are lettered through the verse, across its blocks.
+    let lettered = 0;
     return {
       verse: marked,
-      bsb: blocks.map((block, i) => ({ ...block, numbered: i === first, tokens: withDiff(split[i], bsbDiff) })),
+      bsb: blocks.map((block, i) => {
+        const placed = footnoted(withDiff(split[i], bsbDiff), /** @type {any} */ (block).notes, lettered);
+        lettered = placed.next;
+        return { ...block, numbered: i === first, tokens: placed.tokens };
+      }),
     };
   });
   return { title, rows };

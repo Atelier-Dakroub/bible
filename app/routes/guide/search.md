@@ -81,6 +81,15 @@ The summary at the top says what the search found. The panel shows the first 50 
 - Drag a result out to the side to put it where you want.
 - With the keyboard, move to a result with <kbd>Tab</kbd> and press <kbd>Enter</kbd>.
 
+### Your notes
+
+When you search for words, your notes that have all of those words show above the results. Notes on this table come first, then notes in each of your saved tables.
+
+- Tap a note on this table to bring it into view.
+- Tap a note in a saved table to open that table and show the note. Undo goes back to the table you had before.
+
+Your notes stay on your device. The search of them happens there too.
+
 Some answers have more buttons:
 
 - **Where, chapter by chapter** puts a landscape of the search on the table. See [Study](/guide/study#the-landscape).
