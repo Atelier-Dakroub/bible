@@ -13,9 +13,11 @@
      A card sends `card-mark` when a hand marks words, and the table adds or
      removes the span and paints every card again.
 
-     Lines (app/lib/links.js), drawn in one SVG layer over the resting cards,
-     so that a line shows over its own two cards; a card above both of its
-     ends covers it (app/lib/cover.js), as on a real table:
+     Lines (app/lib/links.js, app/lib/link-lines.js): curves from each
+     card's edge, at the height of the words they join, drawn in an SVG
+     layer under the cards, so that no line covers the text. A dot over the
+     card marks where a line leaves it. The lines to the map and to the
+     timeline show again over the map and the strip, where they end:
        solid ink     a link the reader drew between two spans
        dashed        the same highlighted words, shown on more than one card
        dotted        a cross-reference (OpenBible.info) from a verse on one
@@ -146,7 +148,6 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { covering, ranks, within } from '../lib/cover.js';
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
@@ -158,7 +159,7 @@
   import { toMarkdown } from '../lib/note-markdown.js';
   import { KINDS, isKind, labelOf, nextKind } from '../lib/note-kinds.js';
   import { LANGUAGE_NAMES, Reader, Recording, joinText, namedVoice, readerChoice, sayWord } from '../lib/speech.js';
-  import { besidePort, curvePath, labelSpot, marginBar, port, wholeCard } from '../lib/link-lines.js';
+  import { besidePort, curvePath, dotPort, labelSpot, marginBar, port, tickPath, tickPoint, wholeCard, within } from '../lib/link-lines.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -358,8 +359,9 @@
   }
 
   /**
-   * A line from a card to each tick of the events it tells, from the card's
-   * edge, so the line does not cross its text.
+   * A curve from a card to each tick of the events it tells
+   * (lib/link-lines.js): out from the card's edge, under the cards, and into
+   * the tick from above.
    *
    * @param {Element} card
    * @param {Map<string, DOMRect>} ticks
@@ -367,12 +369,16 @@
   function eventLines(card, ticks) {
     const events = (cardNamed.get(card) ?? []).filter((id) => ticks.has(id));
     if (!events.length) return [];
-    const edge = card.getBoundingClientRect();
-    return events.map((id) => line(edge, /** @type {DOMRect} */ (ticks.get(id)), 'time'));
+    const box = card.getBoundingClientRect();
+    return events.map((id) => {
+      const tick = /** @type {DOMRect} */ (ticks.get(id));
+      return curveOf(tickPath(port(box, tick, tick), tickPoint(tick, box)), 'time');
+    });
   }
 
   /**
-   * A line from a card to each place it names that the map shows.
+   * A curve from a card to each place it names that the map shows: out from
+   * the card's edge, under the cards, and into the place's dot from the side.
    *
    * @param {Element} card
    * @param {Element} map the map's card
@@ -381,37 +387,42 @@
   function placeLinesOf(card, map, frame) {
     const places = (cardNamed.get(card) ?? []).filter((id) => id.startsWith('place:'));
     if (!places.length) return [];
-    const edge = card.getBoundingClientRect();
+    const box = card.getBoundingClientRect();
     return places.flatMap((id) => {
       if (frame && !frame.shows(id)) return [];
-      const box = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect();
-      return box?.width ? [joined(lineToDot(edge, box, 'place'), card, map)] : [];
+      const dot = map.querySelector(`[data-place="${CSS.escape(id)}"] circle`)?.getBoundingClientRect();
+      if (!dot?.width) return [];
+      const a = port(box, dot, dot);
+      return [curveOf(curvePath(a, dotPort(dot, a)), 'place')];
     });
   }
 
-  /** @type {WeakMap<Element, [Element, Element]>} the two cards a line joins */
-  const lineEnds = new WeakMap();
-
   /**
-   * Notes the cards a line joins, so a card above both can cover it.
+   * A curve, as an SVG path of a kind (its class).
    *
-   * @param {Element} drawn
-   * @param {Element} a
-   * @param {Element} b
+   * @param {string} d
+   * @param {string} kind
    */
-  function joined(drawn, a, b) {
-    lineEnds.set(drawn, [a, b]);
-    return drawn;
+  function curveOf(d, kind) {
+    const path = document.createElementNS(SVG, 'path');
+    path.setAttribute('class', kind);
+    path.setAttribute('d', d);
+    return path;
   }
 
   /**
-   * The box around a line.
+   * A clip to a box on the screen.
    *
-   * @param {Element} drawn
+   * @param {string} id
+   * @param {DOMRect} box
    */
-  function spanOf(drawn) {
-    const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((name) => Number(drawn.getAttribute(name)));
-    return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) };
+  function clipTo(id, box) {
+    const clip = document.createElementNS(SVG, 'clipPath');
+    clip.id = id;
+    const rect = document.createElementNS(SVG, 'rect');
+    for (const [name, value] of Object.entries({ x: box.left, y: box.top, width: box.width, height: box.height })) rect.setAttribute(name, String(value));
+    clip.append(rect);
+    return clip;
   }
 
   /**
@@ -437,19 +448,25 @@
   }
 
   /**
-   * The cards above both ends of a line and across it, by their place on
-   * the page; none for a line that does not join two cards.
+   * The curves that end on a card or a panel, again over it: the part of
+   * each over its box shows (the clip); the rest stays under the cards. The
+   * cards above it cover that part (the mask, when there is one).
    *
-   * @param {Element} drawn
-   * @param {Map<Element, number>} index each card's place on the page
-   * @param {number[]} rank
-   * @param {DOMRect[]} boxes
+   * @param {Element[]} lines
+   * @param {string} id
+   * @param {DOMRect} box the map card's or the timeline strip's
+   * @param {DOMRect[]} [above] the cards above it
    */
-  function coveringLine(drawn, index, rank, boxes) {
-    const ends = lineEnds.get(drawn);
-    const a = ends ? index.get(ends[0]) : undefined;
-    const b = ends ? index.get(ends[1]) : undefined;
-    return a === undefined || b === undefined ? [] : covering(a, b, spanOf(drawn), rank, boxes);
+  function overBox(lines, id, box, above = []) {
+    if (!lines.length) return [];
+    const masked = above.length ? [coverMask(`${id}-cover`, above)] : [];
+    const copies = lines.map((line) => {
+      const copy = /** @type {Element} */ (line.cloneNode());
+      copy.setAttribute('clip-path', `url(#${id})`);
+      if (masked.length) copy.setAttribute('mask', `url(#${id}-cover)`);
+      return copy;
+    });
+    return [clipTo(id, box), ...masked, ...copies];
   }
 
   /**
@@ -480,11 +497,37 @@
    * @param {string | undefined} type
    */
   function linkCurve(a, b, type) {
-    const path = document.createElementNS(SVG, 'path');
-    path.setAttribute('class', type ? 'link link--typed' : 'link');
-    path.setAttribute('d', curvePath(a, b));
+    const path = curveOf(curvePath(a, b), type ? 'link link--typed' : 'link');
     if (type) path.setAttribute('marker-end', 'url(#link-arrow)');
     return path;
+  }
+
+  /**
+   * The mark of a cross-reference or of the same words where the curve
+   * leaves a card: a small, soft dot at the port.
+   *
+   * @param {Port} at
+   * @returns {Element[]}
+   */
+  function softDot(at) {
+    const dot = document.createElementNS(SVG, 'circle');
+    dot.setAttribute('class', 'port port--soft');
+    dot.setAttribute('cx', String(at.x));
+    dot.setAttribute('cy', String(at.y));
+    dot.setAttribute('r', '2.5');
+    return [dot];
+  }
+
+  /**
+   * The curves between places on cards (a chain, or pairs), of a kind, with
+   * a soft dot at each port.
+   *
+   * @param {LinkEnds[]} ends
+   * @param {string} kind
+   * @param {Element[]} cards
+   */
+  function softCurves(ends, kind, cards) {
+    return { lines: ends.map((each) => curveOf(curvePath(each.a, each.b), kind)), marks: ends.flatMap((each) => endMarks(each, cards, softDot)) };
   }
 
   /**
@@ -531,15 +574,16 @@
    *
    * @param {LinkEnds} ends
    * @param {Element[]} cards
+   * @param {(at: Port, card: DOMRect, words: DOMRect) => Element[]} [marker] a link's marks, or soft dots
    */
-  function endMarks(ends, cards) {
+  function endMarks(ends, cards, marker = portMarks) {
     const sides = [
       { place: ends.start, at: ends.a, box: ends.from },
       { place: ends.end, at: ends.b, box: ends.to },
     ];
     return sides
       .filter(({ place, at }) => !within(at, cards.filter((card) => levelOf(card) > levelOf(place.card)).map((card) => card.getBoundingClientRect())))
-      .flatMap(({ place, at, box }) => portMarks(at, box, place.box));
+      .flatMap(({ place, at, box }) => marker(at, box, place.box));
   }
 
   /**
@@ -1335,32 +1379,6 @@
   function line(from, to, kind) {
     const start = edge(from, middle(to));
     const end = edge(to, middle(from));
-    const element = document.createElementNS(SVG, 'line');
-    element.setAttribute('class', kind);
-    element.setAttribute('x1', String(start.x));
-    element.setAttribute('y1', String(start.y));
-    element.setAttribute('x2', String(end.x));
-    element.setAttribute('y2', String(end.y));
-    return element;
-  }
-
-  /**
-   * A line from the edge of a box to a dot: aimed at the dot's middle, and
-   * ending at its rim, so that it points at the dot and the name beside it.
-   * (A line to the facing edge of the dot's box ends at a corner of the box
-   * when it comes in at a slant, beside the dot.)
-   *
-   * @param {DOMRect} from
-   * @param {DOMRect} dot the dot's box
-   * @param {string} kind the class
-   */
-  function lineToDot(from, dot, kind) {
-    const centre = middle(dot);
-    const start = edge(from, centre);
-    const length = Math.hypot(centre.x - start.x, centre.y - start.y);
-    // A little clear of the rim, so the line does not run into the dot.
-    const rim = Math.min(dot.width / 2 + 2, length);
-    const end = length ? { x: centre.x - ((centre.x - start.x) * rim) / length, y: centre.y - ((centre.y - start.y) * rim) / length } : centre;
     const element = document.createElementNS(SVG, 'line');
     element.setAttribute('class', kind);
     element.setAttribute('x1', String(start.x));
@@ -2692,7 +2710,7 @@
       /** @type {SVGGElement | null} */ (this.querySelector('.table__links-drawn'))?.setAttribute('transform', `translate(${dx} ${dy})`);
       const labels = /** @type {HTMLElement | null} */ (this.querySelector('.table__labels'));
       if (labels) labels.style.translate = `${dx}px ${dy}px`;
-      /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
+      this.drawTimeLines();
       clearTimeout(this.restTimer);
       this.restTimer = setTimeout(() => this.drawSoon(), 120);
     },
@@ -3634,15 +3652,19 @@
     },
 
     /**
-     * A line from each card to the places on the map that it names.
+     * A curve from each card to the places on the map that it names: under
+     * the cards, and again over the map, where it ends at the dots.
      *
-     * @returns {Element[]}
+     * @returns {{ lines: Element[], over: Element[] }}
      */
     placeLines() {
       const map = this.mapCard();
-      if (!map) return [];
+      if (!map) return { lines: [], over: [] };
       const frame = this.mapView(map);
-      return [...this.world().querySelectorAll('gesture-card')].filter((card) => card !== map).flatMap((card) => placeLinesOf(card, map, frame));
+      const cards = [...this.world().querySelectorAll('gesture-card')];
+      const lines = cards.filter((card) => card !== map).flatMap((card) => placeLinesOf(card, map, frame));
+      const above = cards.filter((card) => levelOf(card) > levelOf(map)).map((card) => card.getBoundingClientRect());
+      return { lines, over: overBox(lines, 'table-map-clip', map.getBoundingClientRect(), above) };
     },
 
     /** @param {Element} root */
@@ -3675,21 +3697,34 @@
     },
 
     /**
-     * A line from each card to the ticks of the events it tells, and the
-     * ticks marked. Nothing while the strip is collapsed.
+     * A curve from each card to the ticks of the events it tells, and the
+     * ticks marked: under the cards, and again over the strip, where it ends
+     * at the ticks. Nothing while the strip is collapsed.
      *
-     * @returns {Element[]}
+     * @returns {{ lines: Element[], over: Element[] }}
      */
     timeLines() {
       const strip = /** @type {any} */ (this.querySelector('time-line'));
-      if (!strip) return [];
+      if (!strip) return { lines: [], over: [] };
       const cards = [...this.world().querySelectorAll('gesture-card')];
       // Every class change first, then every measurement: a measurement after
       // a change forces the browser to work out the styles again.
       const told = toldEvents(cards);
       markTicks(strip, told);
       const ticks = tickBoxes(strip, told);
-      return cards.flatMap((card) => eventLines(card, ticks));
+      const lines = cards.flatMap((card) => eventLines(card, ticks));
+      return { lines, over: overBox(lines, 'table-strip-clip', strip.getBoundingClientRect()) };
+    },
+
+    /**
+     * The curves to the timeline, which does not pan: a layer of their own,
+     * under the cards and over the strip, drawn again on every pan frame
+     * (they are few).
+     */
+    drawTimeLines() {
+      const { lines, over } = this.timeLines();
+      /** @type {SVGGElement | null} */ (this.querySelector('.table__links-fixed'))?.replaceChildren(...lines);
+      /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...over);
     },
 
     /** @param {Element} card */
@@ -3718,10 +3753,9 @@
     },
 
     /**
-     * A line for each cross-reference from a verse on one card to a verse on
-     * another, once per pair of verses whichever way the reference runs.
-     *
-     * @returns {Element[]}
+     * A curve for each cross-reference from a verse on one card to a verse
+     * on another, once per pair of verses whichever way the reference runs:
+     * from each card's edge at the verse, under the cards.
      */
     referenceLines() {
       const cards = [...this.world().querySelectorAll('gesture-card')];
@@ -3736,7 +3770,9 @@
         if (!boxes.has(verse)) boxes.set(verse, this.verseBox(cards[card], verse));
         return /** @type {DOMRect} */ (boxes.get(verse));
       };
-      return pairs.map(({ from, to }) => joined(line(boxOf(from), boxOf(to), 'ref'), cards[from.card], cards[to.card]));
+      /** @param {{ card: number, id: string }} end */
+      const placeOf = (end) => ({ card: cards[end.card], box: boxOf(end) });
+      return softCurves(pairs.map(({ from, to }) => linkEnds(placeOf(from), placeOf(to))), 'ref', cards);
     },
 
     drawSoon() {
@@ -3794,59 +3830,32 @@
       this.drawnAt = { ...this.offset };
       drawn.removeAttribute('transform');
       /** @type {HTMLElement | null} */ (this.querySelector('.table__labels'))?.style.removeProperty('translate');
-      // The lines to the timeline end at the strip, which does not pan: they
-      // have a layer of their own, drawn on every pan frame (they are few).
-      /** @type {SVGGElement | null} */ (this.querySelector('.table__fixed'))?.replaceChildren(...this.timeLines());
-      // The links' curves go under the cards, their marks over them.
+      this.drawTimeLines();
+      // Every line between cards is a curve from their edges, under the
+      // cards (lib/link-lines.js), so none covers the text: the links on top
+      // of the others. Their marks, and the ends on the map, go over them.
       const under = /** @type {SVGGElement} */ (this.querySelector('.table__links-drawn'));
       under.removeAttribute('transform');
       const links = this.linkLines();
-      const lines = [...this.placeLines(), ...this.referenceLines(), ...this.sameLines()];
-      this.cover(lines);
+      const places = this.placeLines();
+      const refs = this.referenceLines();
+      const same = this.sameLines();
       this.placeLabels(links.labels);
-      under.replaceChildren(...links.lines);
-      drawn.replaceChildren(...lines, ...links.marks, ...this.guideLines(), ...this.pendingLines());
+      under.replaceChildren(...places.lines, ...refs.lines, ...same.lines, ...links.lines);
+      drawn.replaceChildren(...places.over, ...refs.marks, ...same.marks, ...links.marks, ...this.guideLines(), ...this.pendingLines());
     },
 
     /**
-     * Masks the lines that a card above both of their ends lies over, and
-     * says which cards cover each.
-     *
-     * @param {Element[]} lines
-     * @returns {Map<Element, DOMRect[]>}
-     */
-    cover(lines) {
-      const cards = [...this.world().querySelectorAll('gesture-card')];
-      const index = new Map(cards.map((card, at) => [card, at]));
-      const rank = ranks(cards.map((card) => Number(/** @type {HTMLElement} */ (card).style.zIndex) || 0));
-      const boxes = cards.map((card) => card.getBoundingClientRect());
-      /** @type {Map<string, string>} a mask for each set of covering cards */
-      const masks = new Map();
-      /** @type {Map<Element, DOMRect[]>} */
-      const covered = new Map();
-      for (const drawn of lines) {
-        const over = coveringLine(drawn, index, rank, boxes);
-        if (!over.length) continue;
-        const key = over.join(' ');
-        if (!masks.has(key)) masks.set(key, `table-cover-${masks.size}`);
-        drawn.setAttribute('mask', `url(#${masks.get(key)})`);
-        covered.set(drawn, over.map((at) => boxes[at]));
-      }
-      const layer = this.querySelector('.table__covers');
-      layer?.replaceChildren(...[...masks].map(([key, id]) => coverMask(id, key.split(' ').map((at) => boxes[Number(at)]))));
-      return covered;
-    },
-
-    /**
-     * The same words on several cards: a chain from each place to the next.
-     *
-     * @returns {Element[]}
+     * The same words on several cards: a chain of curves from each place to
+     * the next, under the cards.
      */
     sameLines() {
-      return this.highlights.flatMap((span) => {
+      const cards = [...this.world().querySelectorAll('gesture-card')];
+      const ends = this.highlights.flatMap((span) => {
         const places = this.placesOf(span);
-        return places.slice(1).map((place, at) => joined(line(places[at].box, place.box, 'same'), places[at].card, place.card));
+        return places.slice(1).map((place, at) => linkEnds(places[at], place));
       });
+      return softCurves(ends, 'same', cards);
     },
 
     /**
@@ -5157,14 +5166,14 @@
   /* In the overview, only the links between cards stay, thin and faint: they
      show which cards go together. Their labels are too small to read there,
      and the other lines hide the tiles' names. */
-  :scope.is-overview .table__lines line:not(.link) {
+  :scope.is-overview :is(.table__lines, .table__links) :is(line, path, circle, rect):not(.link, .table__arrow) {
     display: none;
   }
   :scope.is-overview .table__links .link {
     opacity: 0.5;
     stroke-width: 1;
   }
-  :scope.is-overview :is(.table__labels, .table__lines :is(.port, .port-bar)) {
+  :scope.is-overview .table__labels {
     display: none;
   }
   /* While the table zooms in or out, the lines wait: they are drawn where
@@ -5217,10 +5226,15 @@
        place   a card to a place on the map: verdigris, dashed
        time    a card to its event on the timeline: purple
        ref     a cross-reference: soft ink, dotted
-       guide   a snap guide: lapis, dotted */
-  .table__lines line {
+       guide   a snap guide: lapis, dotted
+     All but the guides are curves under the cards (.table__links); the
+     ends on the map and on the timeline show again over them. */
+  :is(.table__lines, .table__links) :is(line, path) {
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
+  }
+  :is(.table__lines, .table__links) path:not(.table__arrow) {
+    fill: none;
   }
   .table__lines .link {
     stroke: var(--ink);
@@ -5311,7 +5325,7 @@
     border-color: var(--lapis);
     color: var(--lapis);
   }
-  .table__lines .same {
+  :is(.table__lines, .table__links) .same {
     stroke: var(--ink-soft);
     stroke-dasharray: 6 6;
   }
@@ -5328,12 +5342,12 @@
     font: 0.75rem ui-monospace, monospace;
     pointer-events: none;
   }
-  .table__lines .place {
+  :is(.table__lines, .table__links) .place {
     stroke: var(--verdigris);
     stroke-width: 1;
     stroke-dasharray: 3 3;
   }
-  .table__lines .time {
+  :is(.table__lines, .table__links) .time {
     stroke: color-mix(in srgb, var(--purple) 70%, transparent);
     stroke-width: 1;
   }
@@ -5342,7 +5356,7 @@
     stroke-width: 1;
     stroke-dasharray: 2 4;
   }
-  .table__lines .ref {
+  :is(.table__lines, .table__links) .ref {
     stroke: var(--ink-soft);
     stroke-dasharray: 1 6;
     stroke-linecap: round;
@@ -5360,13 +5374,14 @@
     overflow: visible;
   }
   .table__links .link {
-    fill: none;
     stroke: var(--ink);
-    stroke-width: 2;
-    vector-effect: non-scaling-stroke;
   }
   .table__lines .port {
     fill: var(--ink);
+  }
+  /* Where a cross-reference or the same words leave a card. */
+  .table__lines .port--soft {
+    fill: var(--ink-soft);
   }
   .table__lines .port-bar {
     fill: var(--lapis);
@@ -5376,6 +5391,7 @@
 <!-- The links' curves (linkLines): before the world, so the cards lie over them. -->
 <svg class="table__links" aria-hidden="true">
   <g class="table__links-drawn"></g>
+  <g class="table__links-fixed"></g>
 </svg>
 <div class="table__world"></div>
 <svg class="table__lines" aria-hidden="true">
@@ -5383,7 +5399,6 @@
     <marker id="link-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path class="table__arrow" d="M0,0 L10,5 L0,10 z"></path>
     </marker>
-    <g class="table__covers"></g>
   </defs>
   <g class="table__drawn"></g>
   <g class="table__fixed"></g>

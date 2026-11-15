@@ -23,7 +23,7 @@ The strip is one row of eras. Each era has the same width, whatever its length i
 
 Each event of the Bible is a tick on the strip. Tap a tick to show the event in the search panel, with its date and its verses. On a touch screen, a tap between ticks takes the nearest tick.
 
-The ticks of the events that the cards on the table tell are marked. A line joins each card to its events.
+The ticks of the events that the cards on the table tell are marked. A line joins each card to its events. It leaves the card at its edge and goes under the other cards, so it does not cover their text.
 
 A small purple diamond in the margin of a passage card marks a verse where a dated event begins. Tap it to show the event and mark its tick.
 

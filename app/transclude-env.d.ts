@@ -1149,23 +1149,35 @@ export type BibleTableMembers = {
   glide(dx: number, dy: number): void;
   stopGlide(): void;
   paintMap(): void;
-  placeLines(): Element[];
+  placeLines(): {
+    lines: Element[];
+    over: Element[];
+  };
   paintStudy(root: Element): void;
   loadEvents(card: Element): Promise<void>;
-  timeLines(): Element[];
+  timeLines(): {
+    lines: Element[];
+    over: Element[];
+  };
+  drawTimeLines(): void;
   loadReferences(card: Element): Promise<void>;
   verseBox(card: Element, verse: Element): DOMRect;
-  referenceLines(): Element[];
+  referenceLines(): {
+    lines: SVGPathElement[];
+    marks: Element[];
+  };
   drawSoon(): void;
   cardsAt(address: string): HTMLElement[];
   placesOf(span: End): Place[];
   wordPlaces(span: Highlight): Place[];
   draw(): void;
-  cover(lines: Element[]): Map<Element, DOMRect[]>;
-  sameLines(): Element[];
+  sameLines(): {
+    lines: SVGPathElement[];
+    marks: Element[];
+  };
   linkLines(): {
     lines: SVGPathElement[];
-    marks: (SVGCircleElement | SVGRectElement)[];
+    marks: Element[];
     labels: {
       at: Point_3;
       text: string;
@@ -1177,7 +1189,7 @@ export type BibleTableMembers = {
     top: Element | undefined;
   }): {
     lines: SVGPathElement[];
-    marks: (SVGCircleElement | SVGRectElement)[];
+    marks: Element[];
     label: {
       at: Point_3;
       text: string;

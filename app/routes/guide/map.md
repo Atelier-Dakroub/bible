@@ -41,7 +41,7 @@ The dots, names and lines keep their size at every zoom. Only the distances grow
 
 ## Places named by the cards
 
-The places that the cards on the table name always have their names on the map. A dashed line joins each place to each card that names it. A line goes only to a place inside the view of the map.
+The places that the cards on the table name always have their names on the map. A dashed line joins each place to each card that names it. It leaves the card at its edge and goes under the other cards, so it does not cover their text. A line goes only to a place inside the view of the map.
 
 - Tap a place on the map to show it in the search panel.
 - Tap the name of a sea or a lake to show it in the search panel.

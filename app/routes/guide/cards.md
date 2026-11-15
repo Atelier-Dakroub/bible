@@ -139,7 +139,7 @@ The lines between cards:
 | Dashed | The same highlighted words, shown on more than one card. |
 | Dotted | A cross-reference from a verse on one card to a verse on another card. |
 
-A link never covers the text. It leaves a card at the side that faces the other card, as a curve, and it goes under any card in its way. A dot on the card's edge shows where a link leaves the card. For a link of words, the dot is level with the words, and a blue bar in the margin marks them.
+No line covers the text. Each line leaves a card at the side that faces the other card, level with the words or the verse that it joins, as a curve. It goes under any card in its way. A dot on the card's edge shows where a line leaves the card: a dark dot for a link, a small gray dot for the other lines. For a link of words, a blue bar in the margin also marks the words.
 
 ### Link types
 

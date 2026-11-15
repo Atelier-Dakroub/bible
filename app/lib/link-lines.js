@@ -73,6 +73,44 @@ export function curvePath(a, b) {
 }
 
 /**
+ * The end of a curve at a dot, such as a place on the map: on the dot's rim,
+ * on the side the curve comes from, so that it goes into the dot sideways.
+ *
+ * @param {Box} dot
+ * @param {Point} from where the curve starts
+ * @returns {Port}
+ */
+export function dotPort(dot, from) {
+  const side = from.x <= centreX(dot) ? -1 : 1;
+  return { x: centreX(dot) + side * (dot.width / 2 + 2), y: dot.top + dot.height / 2, side };
+}
+
+/**
+ * The point of a tick on the timeline where a curve ends: the middle of its
+ * edge that faces the card.
+ *
+ * @param {Box} tick
+ * @param {Box} card
+ * @returns {Point}
+ */
+export function tickPoint(tick, card) {
+  return { x: centreX(tick), y: tick.top >= card.top ? tick.top : tick.bottom };
+}
+
+/**
+ * A curve from a card's port to a tick on the timeline: out sideways from
+ * the card, and into the tick from straight above (or below).
+ *
+ * @param {Port} a
+ * @param {Point} tick
+ */
+export function tickPath(a, tick) {
+  const reach = Math.max(REACH, Math.abs(tick.y - a.y) / 2);
+  const toward = tick.y >= a.y ? -1 : 1;
+  return `M${a.x},${a.y} C${a.x + a.side * REACH},${a.y} ${tick.x},${tick.y + toward * reach} ${tick.x},${tick.y}`;
+}
+
+/**
  * The point at t (0 to 1) along the curve.
  *
  * @param {Port} a
@@ -131,6 +169,17 @@ export function besidePort(end, text) {
 export function labelSpot(a, b, text, cards) {
   const places = [besidePort(a, text), besidePort(b, text), ...ALONG.map((t) => pointOn(a, b, t))];
   return places.find((at) => !cards.some((card) => overlaps(labelBox(at, text), card))) ?? null;
+}
+
+/**
+ * Whether a point is in any of some boxes: a port that a card above its own
+ * lies over shows no mark.
+ *
+ * @param {Point} point
+ * @param {{ left: number, top: number, right: number, bottom: number }[]} boxes
+ */
+export function within(point, boxes) {
+  return boxes.some((box) => point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom);
 }
 
 /**

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { besidePort, curvePath, labelSpot, marginBar, pointOn, port, wholeCard } from '../app/lib/link-lines.js';
+import { besidePort, curvePath, dotPort, labelSpot, marginBar, pointOn, port, tickPath, tickPoint, wholeCard, within } from '../app/lib/link-lines.js';
 
 /**
  * @param {number} left
@@ -53,4 +53,31 @@ test('a link to the whole card has no bar in its margin; words have one beside t
   assert.equal(wholeCard(words, left), false);
   assert.deepEqual(marginBar(port(left, words, right), left, words), { x: 194, y: 100, width: 3, height: 20 });
   assert.deepEqual(marginBar(port(right, box(420, 40, 60, 20), left), right, box(420, 40, 60, 20)), { x: 403, y: 40, width: 3, height: 20 });
+});
+
+test('a line to a place on the map goes into its dot from the side', () => {
+  const dot = box(500, 95, 10, 10);
+  const a = port(left, dot, dot);
+  assert.deepEqual(a, { x: 200, y: 100, side: 1 });
+  // From the left: on the left of the rim, 2 px clear.
+  assert.deepEqual(dotPort(dot, a), { x: 498, y: 100, side: -1 });
+  assert.deepEqual(dotPort(dot, { x: 900, y: 100 }), { x: 512, y: 100, side: 1 });
+});
+
+test('a line to a tick on the timeline goes into it from above', () => {
+  const tick = box(290, 700, 4, 20);
+  const a = port(left, tick, tick);
+  // The tick is to the right and far below: the right edge, low on the card.
+  assert.deepEqual(a, { x: 200, y: 294, side: 1 });
+  const at = tickPoint(tick, left);
+  assert.deepEqual(at, { x: 292, y: 700 });
+  assert.equal(tickPath(a, at), 'M200,294 C240,294 292,497 292,700');
+  // A tick above the card: its lower edge, and in from below.
+  assert.deepEqual(tickPoint(box(290, -60, 4, 20), left), { x: 292, y: -40 });
+});
+
+test('a point in any of some boxes', () => {
+  assert.ok(within({ x: 200, y: 50 }, [box(150, 0, 200, 200)]));
+  assert.ok(!within({ x: 400, y: 50 }, [box(150, 0, 200, 200)]));
+  assert.ok(!within({ x: 0, y: 0 }, []));
 });

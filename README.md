@@ -132,12 +132,17 @@ group moves only, never snaps, and is one step for Undo. A solid white line
 shows a link; a dashed gray line joins the places where the same highlighted
 words show on more than one card. Drawing a link again removes it, and
 removing a highlight removes its links. A link's two ends are each a span of
-word addresses or a card's address, kept with the workspace. A label at the middle of each link says
+word addresses or a card's address, kept with the workspace. A label beside each link says
 what it is: a tap changes it from "link" to "quotes", "fulfills" and
 "contrasts", and back. A link with a type has an arrow, from where the link
-started to where it was dropped. Every line shows over its own two cards, but a card above both of its
-ends covers it, label and all (`app/lib/cover.js`, an SVG mask per set of
-covering cards).
+started to where it was dropped. No line covers the text: every line between
+cards (links, the same words, cross-references, and the lines to the map and
+the timeline) is a curve from each card's edge, at the height of the words it
+joins, drawn under the cards (`app/lib/link-lines.js`). A dot marks where it
+leaves a card, and a bar in the margin a link's words. The lines to the map
+and the timeline show again over the map and the strip, where they end. A
+label stands beside a port or along the curve where no card is; with no room,
+it shows while one of its cards is the one touched last.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked
 words become a card of their own, a phrase card. Note, on the rail, puts a
@@ -356,7 +361,7 @@ npm run verify   # the tests (with the CRAP check), the types and a build: the b
 | --- | --- |
 | `app/routes/` | Pages. `table.html` is the table, `search.html` the search and its `results` fragment, `card/[address].html` one card as a fragment, `guide/` the guide's Markdown pages, `credits.html` the sources, `design.html` the design system, `touch.html` the touch test. |
 | `app/elements/` | Custom elements: `bible-table`, `passage-search`, `gesture-card`, `map-view`, `reading-settings`, `contrast-chart`, `kjv-verse`, `table-rail`, `time-line`, `table-menu`, `note-editor` (the dock of the on-screen keyboard while a note is written), `touch-keys`, `video-player`, `svg-icon`, and for the touch test `touch-probe` and `calibration-target`. |
-| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `apca.js`, `chrome.js`, `citations.js`, `compare.js`, `cover.js`, `gesture.js`, `grammar.js`, `history.js`, `keyboard.js`, `lemma.js`, `links.js`, `map.js`, `markdown.js`, `motion.js`, the notes' `note-*.js`, `palm.js`, `pointer-log.js`, `reference.js`, `rules.js`, `screen.js`, `snap.js`, `spatial.js`, `speech.js`, `study.js`, `syllables.js`, `timeline.js`, `trail.js`, `words.js`, `workspace.js`. |
+| `app/lib/` | Modules with no DOM dependency where possible: `affine.js`, `apca.js`, `chrome.js`, `citations.js`, `compare.js`, `gesture.js`, `grammar.js`, `history.js`, `keyboard.js`, `lemma.js`, `links.js`, `link-lines.js`, `map.js`, `markdown.js`, `motion.js`, the notes' `note-*.js`, `palm.js`, `pointer-log.js`, `reference.js`, `rules.js`, `screen.js`, `snap.js`, `spatial.js`, `speech.js`, `study.js`, `syllables.js`, `timeline.js`, `trail.js`, `words.js`, `workspace.js`. |
 | `app/data/bible.js` | The server's access to the text: passages by reference, search, and word statistics. |
 | `app/data/study.js` | The passage guide, the parallel passages and the landscape. |
 | `app/data/canon.js` | The books by group, and the traditional author of each. |

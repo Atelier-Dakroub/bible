@@ -109,7 +109,7 @@ To see the cross-references of a verse:
 
 The panel lists the references, most voted first. Put them on the table as you put any result.
 
-When a verse on one card refers to a verse on another card, a dotted gray line joins the two verses.
+When a verse on one card refers to a verse on another card, a dotted gray curve joins the two cards. It leaves each card at its edge, level with the verse, and goes under the cards, so it does not cover the text.
 
 ## The Old Testament in the New
 
