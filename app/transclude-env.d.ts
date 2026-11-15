@@ -2766,6 +2766,32 @@ export type GuideIndexContext = {
 /** Data returned by `guide-index`'s <script server> block. */
 export type GuideIndexData = {};
 
+/** The `ctx` argument of `offline`'s <script server> loader. */
+export type OfflineContext = {
+  url: string;
+  params: {};
+  route: {
+    id: string;
+    pattern: string;
+    path: string
+  };
+  layout: {};
+  request: Request | null;
+  fragment: string | null;
+  action: unknown;
+  response: {
+    status: number;
+    headers: Headers
+  };
+  cookies: __Cookies;
+  absolute: (path: string) => string;
+  revalidateTag: (tag: string) => void;
+  after: (work: Promise<unknown>) => void
+};
+
+/** Data returned by `offline`'s <script server> block. */
+export type OfflineData = {};
+
 /** The `ctx` argument of `search`'s <script server> loader. */
 export type SearchContext = {
   url: string;

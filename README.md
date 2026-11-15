@@ -807,6 +807,35 @@ and the panel steps aside so the card shows. A field's text is 16px, so the
 phone does not zoom in on it. The table takes every touch (`touch-action:
 none`), so a pinch on it scales a card, not the page.
 
+## Offline, and on the Home Screen
+
+The app installs from the browser, or from Share, Add to Home Screen on a
+phone (`public/manifest.webmanifest`), and opens full screen.
+
+A service worker (`public/sw.js`) keeps it working without a connection. It
+keeps two caches:
+
+- **The shell:** what the build lists in `/precache.json` (`precache: true`
+  in `transclude.config.js`). That is the prerendered pages, the code, the
+  fonts, the icons and the map, but not the pictures. The worker fills it
+  when it installs, and brings it up to the current build each time the
+  table opens.
+- **What the reader opened:** cards, searches, studies, cross-references
+  and pictures. It keeps the newest 1,500.
+
+Online, every page and card comes from the server, and the kept copy is
+replaced. The copy answers only when the network fails, fails on the server,
+or takes more than four seconds. Offline, a card that was never opened does
+not load. The table keeps it in the saved table and tries again on the next
+visit. A page that was never opened shows `/offline`. The recordings, the
+videos and the MCP bridge always go to the network. Under the dev server
+there is no `/precache.json`, so the worker passes everything on.
+`test/sw.test.js` runs the worker in a sandbox.
+
+The icons come from two drawings, `public/icons/app.svg` and
+`public/icons/favicon.svg`. `npm run icons` (`tools/icons.js`, which needs
+`rsvg-convert`) makes the PNGs, the maskable icon and `favicon.ico` from them.
+
 ## The map data
 
 `app/data/map/near-east.json` is the base map: land, natural lakes and rivers

@@ -8,6 +8,12 @@ The table is a surface with no edge. Everything you put on it is a card: a passa
 
 The browser keeps the table for you. When you open the table again, the same cards are in the same places. To keep a table under a name, or in a file, see [Tools](/guide/tools#saved).
 
+### Without a connection
+
+The table opens without a connection, if this device has opened it before. The cards and searches that you opened while connected come back. A card that you did not open while connected does not load. It stays in your table, and it comes back when you are connected again.
+
+To open the table as an app of its own, install it from the browser. On a phone, tap **Share**, then **Add to Home Screen**.
+
 ## The rail
 
 The rail is the strip of tools on one edge of the screen. At first it is on the left. It has these buttons, in this order:

@@ -65,6 +65,11 @@ export default {
   // into a page, with its title and the way back (lib/markdown.js).
   markdown: guidePage,
 
+  // /precache.json: every prerendered page, hashed asset and public file,
+  // each with what says it changed. The service worker (public/sw.js) reads it
+  // to keep the table, its code, fonts, icons and map for use offline.
+  precache: true,
+
   outDir: 'dist',
   typesFile: 'app/transclude-env.d.ts',
 };

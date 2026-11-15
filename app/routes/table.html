@@ -72,6 +72,15 @@
 </style>
 
 <main>
+  <!-- The service worker (public/sw.js), which keeps the table for use
+       offline. Each visit asks it to bring its copy up to the current build. -->
+  <script>
+    navigator.serviceWorker
+      ?.register('/sw.js')
+      .then(() => navigator.serviceWorker.ready)
+      .then((registration) => registration.active?.postMessage('refresh'))
+      .catch(() => {});
+  </script>
   <!-- The reader's settings (reading-settings, on /design) and the size of
        the interface, applied before the page paints. The same script is in
        routes/design.html (a test keeps the two the same). -->
