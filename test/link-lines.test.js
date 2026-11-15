@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { besidePort, curvePath, dotPort, labelSpot, marginBar, pointOn, port, tickPath, tickPoint, wholeCard, within } from '../app/lib/link-lines.js';
+import { besidePort, clearOf, curvePath, dotPort, labelSpot, marginBar, pointOn, port, tickPath, tickPoint, wholeCard, within } from '../app/lib/link-lines.js';
 
 /**
  * @param {number} left
@@ -80,4 +80,13 @@ test('a point in any of some boxes', () => {
   assert.ok(within({ x: 200, y: 50 }, [box(150, 0, 200, 200)]));
   assert.ok(!within({ x: 400, y: 50 }, [box(150, 0, 200, 200)]));
   assert.ok(!within({ x: 0, y: 0 }, []));
+});
+
+test('a label keeps clear of the panels as of the cards', () => {
+  const a = port(left, left, right);
+  const b = port(right, right, left);
+  assert.equal(clearOf({ x: 300, y: 150 }, 'link', [box(280, 140, 40, 40)]), false);
+  assert.equal(clearOf({ x: 300, y: 150 }, 'link', []), true);
+  // A panel over the gap beside the start: beside the end.
+  assert.deepEqual(labelSpot(a, b, 'link', [left, right, box(200, 100, 60, 100)]), besidePort(b, 'link'));
 });

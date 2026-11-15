@@ -157,18 +157,30 @@ export function besidePort(end, text) {
 }
 
 /**
+ * Whether a label at a point would be clear of some boxes.
+ *
+ * @param {Point} at
+ * @param {string} text
+ * @param {{ left: number, top: number, right: number, bottom: number }[]} boxes
+ */
+export function clearOf(at, text, boxes) {
+  const label = labelBox(at, text);
+  return !boxes.some((box) => overlaps(label, box));
+}
+
+/**
  * Where a link's label stands: beside one of its ports, or along its curve,
- * wherever no card is; null where every place is under a card.
+ * wherever no card or panel is; null where every place is under one.
  *
  * @param {Port} a where the link starts
  * @param {Port} b where it ends
  * @param {string} text
- * @param {Box[]} cards the cards on the screen
+ * @param {Box[]} boxes the cards and the panels on the screen
  * @returns {Point | null}
  */
-export function labelSpot(a, b, text, cards) {
+export function labelSpot(a, b, text, boxes) {
   const places = [besidePort(a, text), besidePort(b, text), ...ALONG.map((t) => pointOn(a, b, t))];
-  return places.find((at) => !cards.some((card) => overlaps(labelBox(at, text), card))) ?? null;
+  return places.find((at) => clearOf(at, text, boxes)) ?? null;
 }
 
 /**

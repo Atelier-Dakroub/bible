@@ -190,6 +190,11 @@ type Point_3 = {
   x: number;
   y: number;
 };
+type LabelRoom = {
+  boxes: DOMRect[];
+  panels: DOMRect[];
+  top: Element | undefined;
+};
 type StoredCard = {
   id: string;
   address: string;
@@ -1162,20 +1167,21 @@ export type BibleTableMembers = {
   drawTimeLines(): void;
   loadReferences(card: Element): Promise<void>;
   verseBox(card: Element, verse: Element): DOMRect;
-  referenceLines(): {
+  referenceLines(panels: DOMRect[]): {
     lines: SVGPathElement[];
     marks: Element[];
   };
+  panelBoxes(): DOMRect[];
   drawSoon(): void;
   cardsAt(address: string): HTMLElement[];
   placesOf(span: End): Place[];
   wordPlaces(span: Highlight): Place[];
   draw(): void;
-  sameLines(): {
+  sameLines(panels: DOMRect[]): {
     lines: SVGPathElement[];
     marks: Element[];
   };
-  linkLines(): {
+  linkLines(panels: DOMRect[]): {
     lines: SVGPathElement[];
     marks: Element[];
     labels: {
@@ -1184,10 +1190,7 @@ export type BibleTableMembers = {
       typed: boolean;
     }[];
   };
-  drawLink(link: Link, cards: Element[], table: {
-    boxes: DOMRect[];
-    top: Element | undefined;
-  }): {
+  drawLink(link: Link, cards: Element[], room: LabelRoom): {
     lines: SVGPathElement[];
     marks: Element[];
     label: {

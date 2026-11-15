@@ -141,7 +141,7 @@ the timeline) is a curve from each card's edge, at the height of the words it
 joins, drawn under the cards (`app/lib/link-lines.js`). A dot marks where it
 leaves a card, and a bar in the margin a link's words. The lines to the map
 and the timeline show again over the map and the strip, where they end. A
-label stands beside a port or along the curve where no card is; with no room,
+label stands beside a port or along the curve where no card or panel is; with no room,
 it shows while one of its cards is the one touched last.
 
 Phrases and notes: lift the marking finger on the empty table, and the marked

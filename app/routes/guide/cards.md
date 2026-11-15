@@ -145,7 +145,7 @@ No line covers the text. Each line leaves a card at the side that faces the othe
 
 A label beside each link says what the link is. Tap the label to change it, in this order: "link", "quotes", "fulfills", "contrasts", and "link" again. A link with a type has an arrow, from where you started the link to where you dropped it.
 
-The label stands where no card is: beside the dot at one end, or along the curve. When cards are close together and there is no room, the label shows only after you touch one of the two cards.
+The label stands where no card or panel is: beside the dot at one end, or along the curve. When cards are close together and there is no room, the label shows only after you touch one of the two cards.
 
 To remove a link, draw it again. When you remove a highlight, its links go too.
 

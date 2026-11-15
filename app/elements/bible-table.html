@@ -159,7 +159,7 @@
   import { toMarkdown } from '../lib/note-markdown.js';
   import { KINDS, isKind, labelOf, nextKind } from '../lib/note-kinds.js';
   import { LANGUAGE_NAMES, Reader, Recording, joinText, namedVoice, readerChoice, sayWord } from '../lib/speech.js';
-  import { besidePort, curvePath, dotPort, labelSpot, marginBar, port, tickPath, tickPoint, wholeCard, within } from '../lib/link-lines.js';
+  import { besidePort, clearOf, curvePath, dotPort, labelSpot, marginBar, port, tickPath, tickPoint, wholeCard, within } from '../lib/link-lines.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -525,9 +525,10 @@
    * @param {LinkEnds[]} ends
    * @param {string} kind
    * @param {Element[]} cards
+   * @param {DOMRect[]} panels the panels on show
    */
-  function softCurves(ends, kind, cards) {
-    return { lines: ends.map((each) => curveOf(curvePath(each.a, each.b), kind)), marks: ends.flatMap((each) => endMarks(each, cards, softDot)) };
+  function softCurves(ends, kind, cards, panels) {
+    return { lines: ends.map((each) => curveOf(curvePath(each.a, each.b), kind)), marks: ends.flatMap((each) => endMarks(each, cards, softDot, panels)) };
   }
 
   /**
@@ -570,36 +571,45 @@
 
   /**
    * The marks of both ends of a curve, but not one that a card above its own
-   * lies over.
+   * lies over, or a panel.
    *
    * @param {LinkEnds} ends
    * @param {Element[]} cards
-   * @param {(at: Port, card: DOMRect, words: DOMRect) => Element[]} [marker] a link's marks, or soft dots
+   * @param {(at: Port, card: DOMRect, words: DOMRect) => Element[]} marker a link's marks, or soft dots
+   * @param {DOMRect[]} panels the panels on show
    */
-  function endMarks(ends, cards, marker = portMarks) {
+  function endMarks(ends, cards, marker, panels) {
     const sides = [
       { place: ends.start, at: ends.a, box: ends.from },
       { place: ends.end, at: ends.b, box: ends.to },
     ];
-    return sides
-      .filter(({ place, at }) => !within(at, cards.filter((card) => levelOf(card) > levelOf(place.card)).map((card) => card.getBoundingClientRect())))
-      .flatMap(({ place, at, box }) => marker(at, box, place.box));
+    /** @param {Element} card the cards above it, and the panels */
+    const over = (card) => [...cards.filter((each) => levelOf(each) > levelOf(card)).map((each) => each.getBoundingClientRect()), ...panels];
+    return sides.filter(({ place, at }) => !within(at, over(place.card))).flatMap(({ place, at, box }) => marker(at, box, place.box));
   }
 
   /**
-   * Where a link's label stands: where no card is (lib/link-lines.js); else,
-   * while one of its cards is the one touched last, beside the start, so its
-   * type can still be changed; else nowhere.
+   * @typedef {{ boxes: DOMRect[], panels: DOMRect[], top: Element | undefined }} LabelRoom
+   *   what a label keeps off: the cards' and the panels' boxes, the panels
+   *   alone, and the card touched last
+   */
+
+  /**
+   * Where a link's label stands: where no card or panel is
+   * (lib/link-lines.js); else, while one of its cards is the one touched
+   * last, beside the start, so its type can still be changed, but never on a
+   * panel; else nowhere.
    *
    * @param {LinkEnds} first the link's first curve
    * @param {string} text
-   * @param {DOMRect[]} boxes the cards' boxes
-   * @param {Element | undefined} top
+   * @param {LabelRoom} room
    */
-  function spotFor(first, text, boxes, top) {
-    const open = labelSpot(first.a, first.b, text, boxes);
+  function spotFor(first, text, room) {
+    const open = labelSpot(first.a, first.b, text, room.boxes);
     if (open) return open;
-    return first.start.card === top || first.end.card === top ? besidePort(first.a, text) : null;
+    const beside = besidePort(first.a, text);
+    const touched = first.start.card === room.top || first.end.card === room.top;
+    return touched && clearOf(beside, text, room.panels) ? beside : null;
   }
 
   /**
@@ -607,12 +617,11 @@
    *
    * @param {{ type?: string }} link
    * @param {LinkEnds | undefined} first
-   * @param {DOMRect[]} boxes
-   * @param {Element | undefined} top
+   * @param {LabelRoom} room
    */
-  function linkLabel(link, first, boxes, top) {
+  function linkLabel(link, first, room) {
     const text = link.type || 'link';
-    const spot = first ? spotFor(first, text, boxes, top) : null;
+    const spot = first ? spotFor(first, text, room) : null;
     return { at: spot ?? { x: NaN, y: NaN }, text, typed: Boolean(link.type) };
   }
 
@@ -3756,8 +3765,10 @@
      * A curve for each cross-reference from a verse on one card to a verse
      * on another, once per pair of verses whichever way the reference runs:
      * from each card's edge at the verse, under the cards.
+     *
+     * @param {DOMRect[]} panels the panels on show
      */
-    referenceLines() {
+    referenceLines(panels) {
       const cards = [...this.world().querySelectorAll('gesture-card')];
       const verses = cards.map(versesOfCard);
       const pairs = referencePairs(cards.map((card, at) => ({ verses: [...verses[at].keys()], refs: references.get(card) ?? null })));
@@ -3772,7 +3783,20 @@
       };
       /** @param {{ card: number, id: string }} end */
       const placeOf = (end) => ({ card: cards[end.card], box: boxOf(end) });
-      return softCurves(pairs.map(({ from, to }) => linkEnds(placeOf(from), placeOf(to))), 'ref', cards);
+      return softCurves(pairs.map(({ from, to }) => linkEnds(placeOf(from), placeOf(to))), 'ref', cards, panels);
+    },
+
+    /**
+     * The boxes of the panels on show (the rail, the search panel, Tools, the
+     * note editor, the timeline strip): the lines' labels and dots keep off
+     * them.
+     *
+     * @returns {DOMRect[]}
+     */
+    panelBoxes() {
+      return [...this.querySelectorAll('table-rail, passage-search, table-menu, note-editor, time-line')]
+        .map((panel) => panel.getBoundingClientRect())
+        .filter((box) => box.width > 0 && box.height > 0);
     },
 
     drawSoon() {
@@ -3836,10 +3860,11 @@
       // of the others. Their marks, and the ends on the map, go over them.
       const under = /** @type {SVGGElement} */ (this.querySelector('.table__links-drawn'));
       under.removeAttribute('transform');
-      const links = this.linkLines();
+      const panels = this.panelBoxes();
+      const links = this.linkLines(panels);
       const places = this.placeLines();
-      const refs = this.referenceLines();
-      const same = this.sameLines();
+      const refs = this.referenceLines(panels);
+      const same = this.sameLines(panels);
       this.placeLabels(links.labels);
       under.replaceChildren(...places.lines, ...refs.lines, ...same.lines, ...links.lines);
       drawn.replaceChildren(...places.over, ...refs.marks, ...same.marks, ...links.marks, ...this.guideLines(), ...this.pendingLines());
@@ -3848,14 +3873,16 @@
     /**
      * The same words on several cards: a chain of curves from each place to
      * the next, under the cards.
+     *
+     * @param {DOMRect[]} panels the panels on show
      */
-    sameLines() {
+    sameLines(panels) {
       const cards = [...this.world().querySelectorAll('gesture-card')];
       const ends = this.highlights.flatMap((span) => {
         const places = this.placesOf(span);
         return places.slice(1).map((place, at) => linkEnds(places[at], place));
       });
-      return softCurves(ends, 'same', cards);
+      return softCurves(ends, 'same', cards, panels);
     },
 
     /**
@@ -3863,12 +3890,15 @@
      * of the other, a curve from port to port under the cards, with the
      * ports marked over them. A typed link has an arrow at its far end. Every
      * link has a label, beside a port or along its first curve where no card
-     * is (one with no place where there is none).
+     * or panel is (one with no place where there is none).
+     *
+     * @param {DOMRect[]} panels the panels on show
      */
-    linkLines() {
+    linkLines(panels) {
       const cards = [...this.world().querySelectorAll('gesture-card')];
-      const table = { boxes: cards.map((card) => card.getBoundingClientRect()), top: topCard(cards) };
-      const drawn = this.links.map((link) => this.drawLink(link, cards, table));
+      /** @type {LabelRoom} */
+      const room = { boxes: [...cards.map((card) => card.getBoundingClientRect()), ...panels], panels, top: topCard(cards) };
+      const drawn = this.links.map((link) => this.drawLink(link, cards, room));
       return { lines: drawn.flatMap((each) => each.lines), marks: drawn.flatMap((each) => each.marks), labels: drawn.map((each) => each.label) };
     },
 
@@ -3877,9 +3907,9 @@
      *
      * @param {Link} link
      * @param {Element[]} cards
-     * @param {{ boxes: DOMRect[], top: Element | undefined }} table
+     * @param {LabelRoom} room
      */
-    drawLink(link, cards, table) {
+    drawLink(link, cards, room) {
       const ends = this.placesOf(link.b);
       const curves = this.placesOf(link.a).flatMap((start) => {
         const near = nearest(start, ends);
@@ -3887,8 +3917,8 @@
       });
       return {
         lines: curves.map((each) => linkCurve(each.a, each.b, link.type)),
-        marks: curves.flatMap((each) => endMarks(each, cards)),
-        label: linkLabel(link, curves[0], table.boxes, table.top),
+        marks: curves.flatMap((each) => endMarks(each, cards, portMarks, room.panels)),
+        label: linkLabel(link, curves[0], room),
       };
     },
 
