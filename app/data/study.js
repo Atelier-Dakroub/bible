@@ -25,6 +25,7 @@ import { imagesOf } from './images.js';
 import { videosFor } from './videos.js';
 import { CREDIT as QUOTATIONS, quotationsOf } from './quotations.js';
 import { CREDIT as TOPICS, topic, topicsOf } from './topics.js';
+import { commentariesOn } from './commentaries.js';
 
 /** @typedef {import('./bible.js').Result} Result */
 /** @typedef {import('./bible.js').Results} Results */
@@ -40,7 +41,8 @@ import { CREDIT as TOPICS, topic, topicsOf } from './topics.js';
  *   references: Result[], referenceSummary: string,
  *   people: Named[], places: Named[], groups: Named[],
  *   events: { id: string, title: string, label: string }[],
- *   mapIds: string, credit: string, topics: { key: string, name: string }[]
+ *   mapIds: string, credit: string, topics: { key: string, name: string }[],
+ *   commentaries: { address: string, title: string, text: string }[]
  * }} Guide
  */
 
@@ -241,6 +243,8 @@ export async function guideResults(address) {
     mapIds,
     credit,
     topics: await topicsOf(toAddress(ref)),
+    // The commentaries' comments on it, each a card (data/commentaries.js).
+    commentaries: await commentariesOn(ref),
   };
   return answer({
     summary: `Guide to ${title}: ${verseCount(ids.length)}.`,

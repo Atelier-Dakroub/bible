@@ -7,6 +7,7 @@
   import { landscape } from '../../data/study.js';
   import { quoteMark } from '../../data/quotations.js';
   import { recordingsOf } from '../../data/audio.js';
+  import { commentaryView, isCommentary } from '../../data/commentaries.js';
   import { parseAddress, shortTitle, stepAddress } from '../../lib/reference.js';
   import { parseSpanAddress } from '../../lib/words.js';
 
@@ -27,6 +28,8 @@
   //                             player, with the passages it shows
   //   note:<id>                 a note; its text is in the browser, and
   //                             `quotes` names the spans it quotes
+  //   commentary:mhcc:JHN.3.16  a commentary's comments on a passage, a page
+  //                             at a time (~2 for the second; data/commentaries.js)
   export const prerender = false;
 
   // `version` picks the text: kjv (the default), bsb, both side by side, the
@@ -55,7 +58,8 @@
    *   reversed: import('../../data/bible.js').ReverseVerse[],
    *   syntax: Awaited<ReturnType<typeof syntaxOf>> | null,
    *   image: import('../../data/images.js').Image | null, shows: { id: string, name: string }[], listen: string,
-   *   video: import('../../data/videos.js').VideoView | null
+   *   video: import('../../data/videos.js').VideoView | null,
+   *   commentary: import('../../data/commentaries.js').CommentaryView | null
    * }} Card
    */
 
@@ -65,7 +69,7 @@
    * @param {Partial<Card> & { kind: string, address: string, version: string, title: string }} fields
    * @returns {Card}
    */
-  const card = (fields) => ({ short: '', near: '', verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', video: null, ...fields });
+  const card = (fields) => ({ short: '', near: '', verses: [], rows: [], opening: '', count: '', entity: null, map: null, detail: null, note: '', back: '', next: '', quotes: [], reversed: [], syntax: null, landscape: null, shade: NO_BOX, levant: NO_BOX, levantClip: NO_BOX, source: null, image: null, shows: [], listen: '', video: null, commentary: null, ...fields });
 
   const IMAGE = /^image:([\w-]{1,60})$/;
   const VIDEO = /^video:([\w-]{1,60})$/;
@@ -156,6 +160,18 @@
   }
 
   /**
+   * A commentary's comments on a passage, such as commentary:mhcc:JHN.3.16.
+   *
+   * @type {Maker}
+   */
+  async function commentaryCard(address, version) {
+    const commentary = await commentaryView(address);
+    if (!commentary) return missing('No commentary has that address.');
+    const pages = commentary.pages > 1 ? ` · page ${commentary.page} of ${commentary.pages}` : '';
+    return card({ kind: 'commentary', address, version, title: commentary.title, opening: `${commentary.commentary.name}${pages}`, commentary, back: commentary.back, next: commentary.next });
+  }
+
+  /**
    * A person, place, group or event, such as person:david_994.
    *
    * @type {Maker}
@@ -234,6 +250,7 @@
     [(address) => VIDEO.test(address), videoCard],
     [(address) => NOTE.test(address), noteCard],
     [(address) => parseSpanAddress(address) !== null, phraseCard],
+    [(address) => isCommentary(address), commentaryCard],
     [(address) => address.includes(':'), entityCard],
   ];
 
@@ -359,15 +376,15 @@
          as the pages of a book; on the right, Copy, Sync and close as
          small icons, each with its name for a screen reader and a pointer. -->
     <header class="passage__header">
-      <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${back}" disabled="${!back}" aria-label="The passage before" title="The passage before"><svg-icon library="ui" name="back"></svg-icon></button>
+      <button if="kind === 'passage' || kind === 'commentary'" type="button" class="passage__step" data-step-to="${back}" disabled="${!back}" aria-label="${kind === 'commentary' ? 'The page or comment before' : 'The passage before'}" title="${kind === 'commentary' ? 'The page or comment before' : 'The passage before'}"><svg-icon library="ui" name="back"></svg-icon></button>
       <h2 if="short" class="passage__heading" data-title="${title}" data-near="${near}" data-short="${short}" style="--title-chars: ${title.length}; --near-chars: ${near.length}; --chars: ${short.length}">${title}</h2>
       <h2 else class="passage__heading">${title}</h2>
-      <button if="kind === 'passage'" type="button" class="passage__step" data-step-to="${next}" disabled="${!next}" aria-label="The passage after" title="The passage after"><svg-icon library="ui" name="next"></svg-icon></button>
+      <button if="kind === 'passage' || kind === 'commentary'" type="button" class="passage__step" data-step-to="${next}" disabled="${!next}" aria-label="${kind === 'commentary' ? 'The page or comment after' : 'The passage after'}" title="${kind === 'commentary' ? 'The page or comment after' : 'The passage after'}"><svg-icon library="ui" name="next"></svg-icon></button>
       <span class="passage__spacer"></span>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon passage__listen" data-action="listen" data-listen="${listen}" aria-pressed="false" aria-label="Read aloud" title="Read aloud, in the device's voice"><svg-icon library="ui" name="listen"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'phrase'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the words with their reference" title="Copy the words with their reference"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'note'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the note as Markdown" title="Copy the note as Markdown"><svg-icon library="ui" name="copy"></svg-icon></button>
-      <button if="kind === 'passage'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
+      <button if="kind === 'passage' || kind === 'commentary'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
       <button type="button" class="passage__icon" data-action="link" aria-label="Link ${title} to another card" title="Link: drag to another card, or click to choose one"><svg-icon library="ui" name="link"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
@@ -443,6 +460,19 @@
         <p class="entity__credit">${video ? video.credit : ''} <a if="video && video.play.kind !== 'link'" class="video-card__source" href="${video ? video.link : ''}" target="_blank" rel="noopener noreferrer">Watch at the source<svg-icon library="ui" name="external" label=", in a new tab"></svg-icon></a></p>
       </figcaption>
     </figure>
+    <!-- A commentary: its comments on the passage, a page at a time. Each
+         comment begins with its verses; a reference in it puts that passage
+         beside the card. -->
+    <div if="commentary" class="commentary">
+      <template each="shown of commentary ? commentary.shown : []">
+        <p if="shown.label" class="commentary__verses">${shown.label}</p>
+        <h3 if="shown.heading" class="commentary__heading">${shown.heading}</h3>
+        <p if="shown.runs.length" class="commentary__text"><template each="run of shown.runs"><strong if="run.kind === 'b'">${run.text}</strong><em if="run.kind === 'i'">${run.text}</em><button if="run.kind === 'ref'" type="button" class="cite" data-cite="${run.ref}">${run.text}</button><span if="run.kind === 'note'" class="commentary__note">[${run.text}]</span><span if="run.kind === 'text'">${run.text}</span></template></p>
+      </template>
+      <p if="commentary && !commentary.shown.length" class="commentary__none">${commentary ? commentary.commentary.short : ''} has no comment on this passage.</p>
+      <p if="commentary && commentary.pages > 1" class="commentary__page">Page ${commentary ? commentary.page : 1} of ${commentary ? commentary.pages : 1}. Step with › for more.</p>
+      <p class="entity__credit">${commentary ? commentary.commentary.name : ''} (${commentary ? commentary.commentary.year : ''}). Public domain, from the SWORD Project (CrossWire).</p>
+    </div>
     <div if="entity" class="entity-card">
       <p class="entity__facts">${entity ? entity.facts.join(' · ') : ''}</p>
       <p if="entity && entity.summary" class="entity__summary"><template each="part of entity ? entity.summaryParts : []"><button if="part.address" type="button" class="cite" data-cite="${part.address}">${part.text}</button><span if="!part.address">${part.text}</span></template></p>

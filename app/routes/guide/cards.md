@@ -159,6 +159,7 @@ To put marked words into a note as a quote, lift the marking finger on a note. S
 ## Other cards
 
 - **A person, place, group or event.** Pull the heading of an entry out of the search panel. Tap the card's heading to show the entry in the panel again. A reference in its text puts that passage beside the card.
+- **A commentary.** Tap a commentary in the passage guide. See [Study](/guide/study#commentaries).
 - **A picture.** Tap a picture in the search panel. The names under the picture show what it shows.
 - **A video.** See [Listen and watch](/guide/listen-watch#videos).
 - **The map.** See [The map](/guide/map).

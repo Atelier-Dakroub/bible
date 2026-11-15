@@ -53,6 +53,7 @@ Tap the heading of a passage card. Or give the card the focus and press <kbd>Ent
 - **Video**: the videos of the passage.
 - **Parallel passages**: other passages that tell the same thing, verse after verse in the same order. For example, Kings and Chronicles, or the Gospels.
 - The quotations: **The Old Testament it quotes**, or **Quoted in the New Testament**.
+- **Commentaries**: what each commentary says on the passage, with its first words. Tap one to put it on the table as a card. See [Commentaries](#commentaries).
 - **Cross-references**: the references of all its verses together, most voted first.
 - **People**, **Places**, **Groups** and **Topics** that the passage names, as buttons.
 - **Events, on the timeline**, with their dates.
@@ -99,6 +100,27 @@ A group that nothing names and that has no members, such as the Pharisees, has n
 The study comes from the app's own data, the same as the guide. No language model writes it. To have Claude add notes of its own, see [The assistant](/guide/assistant).
 
 The guide finds a parallel only where many verses refer to each other in order. It does not find a quotation of one verse in this way. The quotations have their own part of the guide.
+
+## Commentaries
+
+Five old commentaries come with the app. All are in the public domain:
+
+| Commentary | Covers |
+| --- | --- |
+| **Matthew Henry**, Concise Commentary (1706–1721) | The whole Bible, a section of verses at a time |
+| **Jamieson-Fausset-Brown** (1871) | The whole Bible, verse by verse, with notes on the Hebrew and Greek |
+| **Wesley**, Explanatory Notes (1754–1765) | Almost the whole Bible, in short notes |
+| **Geneva notes** (1599) | Most of the Bible: the verse, then its notes, as the Geneva Bible prints them |
+| **Catena Aurea**, Thomas Aquinas (1842 translation) | The four Gospels, in the words of the Church Fathers |
+
+To read one, open the passage guide and tap the commentary under **Commentaries**. Or drag it out to the side to put it where you want.
+
+On a commentary card:
+
+- Each comment begins with its verses, such as "Verses 1–8". A commentary that writes on a section of verses shows the section that the passage is in.
+- A long comment comes one page at a time. Tap **›** for the next page, then the next comment, and **‹** to go back.
+- A reference in the comment puts that passage beside the card.
+- **Sync** joins the card to synced passage cards. When the passage steps, the commentary goes to the same passage. When the commentary steps to the next comment, the passage goes to that comment's verses.
 
 ## Cross-references
 

@@ -301,6 +301,17 @@
           </button>
         </li>
       </ol>
+      <!-- The commentaries (data/commentaries.js): a tap puts one beside the
+           passage as a card, a sideways drag pulls it out. -->
+      <h3 if="guide && guide.commentaries.length" class="guide__heading">Commentaries</h3>
+      <ol if="guide && guide.commentaries.length" class="results__list">
+        <li each="item of guide ? guide.commentaries : []">
+          <button type="button" class="result" data-address="${item.address}">
+            <span class="result__title">${item.title}</span>
+            <span class="result__text">${item.text}</span>
+          </button>
+        </li>
+      </ol>
       <h3 class="guide__heading">Cross-references</h3>
       <p class="guide__none">${guide ? guide.referenceSummary : ''}</p>
       <ol if="guide && guide.references.length" class="results__list">

@@ -155,6 +155,7 @@
   import { keepStorage } from '../lib/persist.js';
   import { footnoteTitle } from '../lib/footnotes.js';
   import { pastedReferences } from '../lib/citations.js';
+  import { syncedAddress } from '../lib/commentary-address.js';
   import { notesMatching } from '../lib/note-search.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
@@ -4153,10 +4154,14 @@
     async step(card, address) {
       const others = card.dataset.sync === undefined
         ? []
-        : [...this.world().querySelectorAll('gesture-card[data-kind="passage"][data-sync]')].filter((each) => each !== card);
-      await Promise.all(
-        [card, ...others].map((each) => this.replaceCard(/** @type {Card} */ (each), address, /** @type {HTMLElement} */ (each).dataset.version ?? 'kjv')),
-      );
+        : [...this.world().querySelectorAll('gesture-card:is([data-kind="passage"], [data-kind="commentary"])[data-sync]')].filter((each) => each !== card);
+      // A synced commentary goes to the same passage, and a passage to the
+      // commentary's (lib/commentary-address.js).
+      const moves = others
+        .map((each) => ({ each: /** @type {Card} */ (each), to: syncedAddress(/** @type {HTMLElement} */ (each).dataset.address ?? '', address) }))
+        // A commentary's next page leaves a synced passage where it is.
+        .filter(({ each, to }) => to !== each.dataset.address);
+      await Promise.all([this.replaceCard(card, address, versionOf(card)), ...moves.map(({ each, to }) => this.replaceCard(each, to, versionOf(each)))]);
       this.keep();
     },
 

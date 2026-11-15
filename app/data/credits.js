@@ -104,6 +104,14 @@ export const CREDITS = [
         url: 'https://github.com/BradyStephenson/bible-data',
         changes: 'Reshaped into one file, with each reference read as an address.',
       },
+      {
+        name: 'Commentaries',
+        by: "Matthew Henry's Concise Commentary (1706–1721); Jamieson, Fausset and Brown (1871); John Wesley's Explanatory Notes (1754–1765); the Geneva Bible notes (1599); Thomas Aquinas's Catena Aurea, translated by John Henry Newman (1842). From the SWORD Project (CrossWire)",
+        gives: 'The commentary cards, and the commentaries in the passage guide.',
+        license: 'Public domain',
+        url: 'https://www.crosswire.org/sword/modules/ModDisp.jsp?modType=Commentaries',
+        changes: 'Read from the modules by verse, with their markup kept as headings, paragraphs, bold, italic, notes and references.',
+      },
     ],
   },
   {

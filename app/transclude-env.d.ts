@@ -481,6 +481,11 @@ type Guide_2 = {
     key: string;
     name: string;
   }[];
+  commentaries: {
+    address: string;
+    title: string;
+    text: string;
+  }[];
 };
 type Named = {
   id: string;
@@ -775,6 +780,35 @@ type RowPart = {
   label: string;
   text: string;
   gloss: string;
+};
+type CommentaryView = {
+  commentary: Commentary;
+  title: string;
+  passage: string;
+  shown: Shown[];
+  back: string;
+  next: string;
+  page: number;
+  pages: number;
+};
+type Commentary = {
+  id: string;
+  name: string;
+  short: string;
+  year: string;
+  source: string;
+  license: string;
+  books: string[];
+};
+type Shown = {
+  heading: string;
+  label: string;
+  runs: Run_3[];
+};
+type Run_3 = {
+  kind: 'b' | 'i' | 'note' | 'ref' | 'text';
+  text: string;
+  ref: string;
 };
 
 /** Properties of `<bible-table>`, from its <script element> block. */
@@ -3153,6 +3187,7 @@ export type CardAddressData = {
   }[];
   listen: string;
   video: VideoView | null;
+  commentary: CommentaryView | null;
 };
 
 /** The `ctx` argument of `404`'s <script server> loader. */

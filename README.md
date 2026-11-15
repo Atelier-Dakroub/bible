@@ -981,6 +981,36 @@ shows the note. Section headings and Strong's tags are left out. A psalm
 title joins verse 1, as in the KJV data. 31,086 verses; the 16 KJV verses
 with no BSB text have no entry.
 
+## The commentaries
+
+`app/data/commentaries/<id>/<BOOK>.json` holds five public-domain
+commentaries, from the SWORD Project's modules (CrossWire): Matthew Henry's
+Concise (`mhcc`), Jamieson-Fausset-Brown (`jfb`), Wesley's Notes
+(`wesley`), the Geneva notes (`geneva`) and the Catena Aurea on the Gospels
+(`catena`). `source.json` names each, with its books.
+
+```sh
+node tools/import-commentaries.js <folder of the unpacked modules>
+```
+
+The folder holds each module from
+`crosswire.org/ftpmirror/pub/sword/packages/rawzip/<name>.zip`, unpacked in a
+folder of its name. `tools/lib/sword.js` reads the modules' compressed
+blocks with Node's zlib; `tools/lib/commentary-markup.js` turns their OSIS or
+ThML into headings and paragraphs of runs (bold, italic, notes, references
+with their addresses), so a card renders text and no HTML from the source.
+A comment the module writes once for several verses is one entry with a
+range. 52,000 entries, about 32 MB; each of the 61,691 references in them
+reads as an address.
+
+A card's address names the commentary and a passage, and a page:
+`commentary:mhcc:JHN.3.16`, `commentary:jfb:GEN.1.1~2`
+(`app/data/commentaries.js`). Cards do not scroll, so a long comment comes
+about 4,000 characters at a time, and the card's ‹ and › step through the
+pages and the comments. Where no comment starts in the passage, the card
+shows the one before it in the chapter. A synced commentary card steps with
+the synced passages (`app/lib/commentary-address.js`).
+
 ## The entity data
 
 `app/data/entities/` comes from
