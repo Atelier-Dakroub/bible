@@ -2725,10 +2725,7 @@ export type DesignData = {
       size: number;
     }[];
   };
-  relief: {
-    id: string;
-    d: string;
-  }[];
+  relief: any[];
   eras: {
     name: string;
     label: string;

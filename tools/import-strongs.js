@@ -212,7 +212,7 @@ for (const { id } of books) {
     }
   }
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(result));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
+  loaderLines.push(`  '${id}': () => json('strongs/${id}.json'),`);
 }
 
 const hebrew = await readDictionary(hebrewFile);
@@ -240,7 +240,7 @@ for (const [code, entry] of Object.entries(greek)) {
 await writeFile(path.join(out, 'lexicon.json'), JSON.stringify(lexicon));
 await writeFile(
   path.join(out, 'index.js'),
-  ['// Written by tools/import-strongs.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+  ['// Written by tools/import-strongs.js. Do not edit.', '', "import { json } from '../load.js';", '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
 );
 await writeFile(
   path.join(out, 'source.json'),

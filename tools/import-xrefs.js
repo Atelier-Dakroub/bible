@@ -101,11 +101,11 @@ for (const [book, verses] of byBook) {
 }
 
 const loaderLines = OSIS.filter(([, id]) => byBook.has(id)).map(
-  ([, id]) => `  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`,
+  ([, id]) => `  '${id}': () => json('xrefs/${id}.json'),`,
 );
 await writeFile(
   path.join(out, 'index.js'),
-  ['// Written by tools/import-xrefs.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+  ['// Written by tools/import-xrefs.js. Do not edit.', '', "import { json } from '../load.js';", '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
 );
 await writeFile(
   path.join(out, 'source.json'),

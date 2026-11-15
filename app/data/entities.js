@@ -4,6 +4,7 @@
 // Dates follow Floyd Nolen Jones's chronology in astronomical years (-4003 is
 // 4004 BC). Everything that shows a date also shows that source.
 
+import { json } from './load.js';
 import { loaders } from './entities/verses/index.js';
 import timeline from './entities/timeline.json' with { type: 'json' };
 import world from './world/polities.json' with { type: 'json' };
@@ -67,8 +68,8 @@ const seaOf = (width, height, land) => `M-10 -10H${width + 10}V${height + 10}H-1
 /** @returns {Promise<MapDetail>} */
 export async function mapDetail() {
   const [{ default: base }, { default: relief }] = await Promise.all([
-    import('./map/near-east.json', { with: { type: 'json' } }),
-    import('./map/relief.json', { with: { type: 'json' } }),
+    json('map/near-east.json'),
+    json('map/relief.json'),
   ]);
   const land = (base.landDetail ?? base.land).join('');
   return {
@@ -94,13 +95,13 @@ export async function mapDetail() {
  */
 export async function mapOf() {
   const [{ default: base }, { default: relief }, { onMap, project }, { ranges }, { waters }, known, { default: ancient }] = await Promise.all([
-    import('./map/near-east.json', { with: { type: 'json' } }),
-    import('./map/relief.json', { with: { type: 'json' } }),
+    json('map/near-east.json'),
+    json('map/relief.json'),
     import('../lib/map.js'),
     import('./map/ranges.js'),
     import('./map/waters.js'),
     entities(),
-    import('./map/ancient.json', { with: { type: 'json' } }),
+    json('map/ancient.json'),
   ]);
   // The places that the names of the waters stand for (data/map/waters.js).
   const named = new Set(waters.flatMap((water) => [water.place ?? '', ...(water.also ?? [])]).filter(Boolean));
@@ -203,7 +204,7 @@ let all = null;
 
 /** @returns {Promise<Record<string, Entity>>} */
 export function entities() {
-  all ??= import('./entities/entities.json', { with: { type: 'json' } }).then((module) => module.default);
+  all ??= json('entities/entities.json').then((module) => module.default);
   return all;
 }
 
@@ -225,7 +226,7 @@ let dictionary = null;
  * @param {string} word
  */
 export async function eastonFor(word) {
-  dictionary ??= import('./entities/easton.json', { with: { type: 'json' } }).then((module) => module.default);
+  dictionary ??= json('entities/easton.json').then((module) => module.default);
   const terms = await dictionary;
   const base = word.toLowerCase().replace(/[’']s$/, '').replace(/[^\p{L}-]/gu, '');
   if (base.length < 3) return null;

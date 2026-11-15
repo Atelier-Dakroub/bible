@@ -221,11 +221,11 @@ await writeFile(path.join(out, 'easton.json'), JSON.stringify(dictionary));
 const loaderLines = [];
 for (const [, id] of OSIS) {
   await writeFile(path.join(out, 'verses', `${id}.json`), JSON.stringify(byBook.get(id) ?? {}));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
+  loaderLines.push(`  '${id}': () => json('entities/verses/${id}.json'),`);
 }
 await writeFile(
   path.join(out, 'verses', 'index.js'),
-  ['// Written by tools/import-theographic.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+  ['// Written by tools/import-theographic.js. Do not edit.', '', "import { json } from '../../load.js';", '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
 );
 await writeFile(
   path.join(out, 'source.json'),

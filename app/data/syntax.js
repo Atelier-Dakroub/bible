@@ -14,6 +14,7 @@
 // The Greek is Nestle's text of 1904, which differs in places from the
 // Textus Receptus that the KJV translated; the Hebrew is the Leningrad Codex.
 
+import { json } from './load.js';
 import { answer, book, books, lemmaCodes, passage, strongsBook } from './bible.js';
 import { findBook, formatReference, parseAddress, toAddress, versesIn } from '../lib/reference.js';
 import { tokenize } from '../lib/words.js';
@@ -45,7 +46,7 @@ const loaded = new Map();
 function sentencesOf(id) {
   let promise = loaded.get(id);
   if (!promise) {
-    promise = import(`./syntax/${id}.json`, { with: { type: 'json' } })
+    promise = json(`syntax/${id}.json`)
       .then((module) => module.default.sentences)
       .catch(() => []);
     loaded.set(id, promise);

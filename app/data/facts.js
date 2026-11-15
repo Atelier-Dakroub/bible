@@ -5,6 +5,7 @@
 // Every fact is computed, not written by hand, so it is as true as the data,
 // and it names its source. They are worked out once, when first asked for.
 
+import { json } from './load.js';
 import { allVerses, books, original, strongsResults } from './bible.js';
 import { entities } from './entities.js';
 import { journeysFor } from './journeys.js';
@@ -130,7 +131,7 @@ async function workOut() {
   }
 
   // Parallel passages.
-  const { default: parallels } = await import('./parallels.json', { with: { type: 'json' } });
+  const { default: parallels } = await json('parallels.json');
   for (const [a, b] of /** @type {[string, string, number][]} */ ([...parallels]).sort((x, y) => y[2] - x[2]).slice(0, 4)) {
     found.push(fact({ text: `${titleOf(a)} and ${titleOf(b)} tell much the same thing: the cross-references join them verse by verse.`, address: a, source: 'Worked out from the cross-references of OpenBible.info (CC BY).' }));
   }

@@ -3,6 +3,7 @@
 // A book is loaded the first time something asks for it and kept. Search asks
 // for all 66, so the first search takes longer than the rest.
 
+import { json } from './load.js';
 import { videosFor } from './videos.js';
 import index from './kjv/books.json' with { type: 'json' };
 import { loaders } from './kjv/index.js';
@@ -330,7 +331,7 @@ function originalBook(id) {
 
 /** @returns {Promise<Record<string, string>>} the grammar codes in words */
 function grammarOf() {
-  grammarCodes ??= import('./original/grammar.json', { with: { type: 'json' } }).then((module) => module.default);
+  grammarCodes ??= json('original/grammar.json').then((module) => module.default);
   return grammarCodes;
 }
 
@@ -690,7 +691,7 @@ let lexicon = null;
  * @returns {Promise<Entry | null>}
  */
 export async function entryFor(code, verseCount) {
-  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  lexicon ??= json('strongs/lexicon.json').then((module) => module.default);
   const found = (await lexicon)[code];
   if (!found) return null;
   const hebrew = code.startsWith('H');
@@ -804,7 +805,7 @@ let used = null;
 export async function lemmaCodes(text) {
   const said = SAID[text.toLowerCase()];
   if (said) return [said];
-  lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+  lexicon ??= json('strongs/lexicon.json').then((module) => module.default);
   lemmas ??= lemmaIndex(/** @type {Record<string, { xlit: string }>} */ (await lexicon));
   const codes = lemmas.get(plain(text)) ?? [];
   if (codes.length < 2) return codes;
@@ -1464,7 +1465,7 @@ export async function search(query, limit = 50) {
     const codes = await lemmaCodes(text);
     if (codes.length) {
       const [first, ...rest] = codes;
-      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      lexicon ??= json('strongs/lexicon.json').then((module) => module.default);
       const known = await lexicon;
       const also = rest.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
       return { ...(await strongsResults(first, limit)), also };
@@ -1486,7 +1487,7 @@ export async function search(query, limit = 50) {
   if (/^[\p{L}ʼʻ'’-]+$/u.test(text)) {
     const codes = await lemmaCodes(text);
     if (codes.length) {
-      lexicon ??= import('./strongs/lexicon.json', { with: { type: 'json' } }).then((module) => module.default);
+      lexicon ??= json('strongs/lexicon.json').then((module) => module.default);
       const known = await lexicon;
       also = codes.map((code) => ({ code, label: `${code} ${known[code]?.xlit ?? ''}`.trim() }));
     }

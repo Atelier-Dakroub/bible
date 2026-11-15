@@ -4,6 +4,7 @@
 // Nave's Topical Bible (1896) is in the public domain; the CSV file it comes
 // from is Brady Stephenson's, under CC BY 4.0.
 
+import { json } from './load.js';
 import books from './kjv/books.json' with { type: 'json' };
 import { versesIn, parseAddress } from '../lib/reference.js';
 
@@ -26,7 +27,7 @@ let all = null;
 
 /** @returns {Promise<Record<string, StoredTopic>>} */
 function topics() {
-  all ??= import('./topics.json', { with: { type: 'json' } }).then((module) => module.default.topics);
+  all ??= json('topics.json').then((module) => module.default.topics);
   return all;
 }
 

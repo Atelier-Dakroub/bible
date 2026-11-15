@@ -8,6 +8,7 @@
 
 import { books, lemmaCodes, passage, preview } from '../../data/bible.js';
 import { entities } from '../../data/entities.js';
+import { json } from '../../data/load.js';
 import { formatReference, parseReference, toAddress } from '../../lib/reference.js';
 
 const LIMIT = 6;
@@ -62,7 +63,7 @@ async function codesFor(wanted) {
  * @returns {Promise<Suggestion[]>}
  */
 async function wordsFor(wanted) {
-  lexicon ??= import('../../data/strongs/lexicon.json', { with: { type: 'json' } }).then((module) => /** @type {any} */ (module.default));
+  lexicon ??= json('strongs/lexicon.json').then((module) => /** @type {any} */ (module.default));
   const words = await lexicon;
   return (await codesFor(wanted)).slice(0, 2).flatMap((code) => {
     const entry = words[code];

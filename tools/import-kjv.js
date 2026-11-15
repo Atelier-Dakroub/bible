@@ -53,7 +53,7 @@ for (const [, id] of OSIS) {
     chapters,
   };
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(book));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
+  loaderLines.push(`  '${id}': () => json('kjv/${id}.json'),`);
   index.push({
     id,
     name: book.name,
@@ -68,7 +68,7 @@ for (const [, id] of OSIS) {
 await writeFile(path.join(out, 'books.json'), JSON.stringify(index, null, 2) + '\n');
 await writeFile(
   path.join(out, 'index.js'),
-  ['// Written by tools/import-kjv.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+  ['// Written by tools/import-kjv.js. Do not edit.', '', "import { json } from '../load.js';", '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
 );
 await writeFile(
   path.join(out, 'source.json'),

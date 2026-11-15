@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env node_modules/.bin/transclude-dev",
-    "build": "transclude-build",
+    "build": "transclude-build && node tools/edge-data.js",
     "start": "node --env-file-if-exists=.env node_modules/.bin/transclude-serve",
     "preview": "npm run build && npm start",
     "check": "transclude-check",

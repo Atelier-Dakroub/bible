@@ -3,6 +3,8 @@
 // Societies' dictionaries (CC BY-SA 4.0): the Greek after Louw and Nida's
 // semantic domains, and the Semantic Dictionary of Biblical Hebrew.
 
+import { json } from './load.js';
+
 export const CREDIT =
   "Senses: the UBS Dictionary of the Greek New Testament and the Semantic Dictionary of Biblical Hebrew (© United Bible Societies, CC BY-SA 4.0).";
 
@@ -19,7 +21,7 @@ let all = null;
 
 /** @returns {Promise<Record<string, StoredSense[]>>} */
 function senses() {
-  all ??= import('./senses.json', { with: { type: 'json' } }).then((module) => module.default.senses);
+  all ??= json('senses.json').then((module) => module.default.senses);
   return all;
 }
 

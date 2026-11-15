@@ -126,12 +126,12 @@ for (const { id, verses: counts } of books) {
   });
   total += Object.keys(result).length;
   await writeFile(path.join(out, `${id}.json`), JSON.stringify(result));
-  loaderLines.push(`  '${id}': () => import('./${id}.json', { with: { type: 'json' } }),`);
+  loaderLines.push(`  '${id}': () => json('bsb/${id}.json'),`);
 }
 
 await writeFile(
   path.join(out, 'index.js'),
-  ['// Written by tools/import-bsb.js. Do not edit.', '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
+  ['// Written by tools/import-bsb.js. Do not edit.', '', "import { json } from '../load.js';", '', 'export const loaders = {', ...loaderLines, '};', ''].join('\n'),
 );
 await writeFile(
   path.join(out, 'source.json'),
