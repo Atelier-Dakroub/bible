@@ -3,6 +3,7 @@
   import { mapDetail, mapOf, timeline } from '../data/entities.js';
   import { readJson } from '../data/load.js';
   import { KM_PER_UNIT, nameLevels, project } from '../lib/map.js';
+  import { fitPath } from '../lib/path-fit.js';
   import { formatReference, parseAddress } from '../lib/reference.js';
   import { ERAS, positionOf, yearLabel } from '../lib/timeline.js';
 
@@ -147,16 +148,20 @@
     );
     const k = view.w / 1000;
     const layers = layersOf(sources, close);
+    // Only what the view shows, at half a pixel (lib/path-fit.js): the map's
+    // own paths cover the whole map at its closest detail.
+    const fit = (/** @type {string} */ d) => fitPath(d, view, k / 2);
+    const land = layers.land.map(fit).filter(Boolean);
     return {
       viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
-      land: layers.land,
-      lakes: layers.lakes,
+      land: land.map((d, n) => ({ id: `${layers.clip}-${n}`, d })),
+      lakes: layers.lakes.map(fit).filter(Boolean),
       clip: layers.clip,
       rivers: map.rivers,
       places: candidates.filter((/** @type {any} */ _, /** @type {number} */ i) => levels[i] === 0).map((/** @type {any} */ place) => ({ ...place, r: 4 * k, dx: 7 * k, dy: 4 * k })),
       font: 13 * k,
       halo: 3 * k,
-      relief: layers.bands.map((/** @type {any} */ _, /** @type {number} */ n) => ({ id: `${layers.prefix}-${n}`, n })),
+      relief: layers.bands.map((/** @type {string} */ d, /** @type {number} */ n) => ({ id: `${layers.prefix}-${n}`, n, d: fit(d) })),
       shade: { href: `/map/${layers.shade}.png`, ...relief.shades[layers.shade] },
       waters: waters.map((water) => {
         const at = project(water.x, water.y);
@@ -267,10 +272,6 @@
         { x: 38.6, y: 21.2, label: 'Red Sea', size: 0.8 },
         { x: 51.6, y: 26.6, label: 'Persian Gulf', size: 0.8 },
       ]),
-      relief: [
-        ...relief.bands.map((d, n) => ({ id: `rr-relief-${n}`, d })),
-        ...relief.levant.bands.map((d, n) => ({ id: `rr-levant-${n}`, d })),
-      ],
       eras: ERAS.map((era) => ({ name: era.name, label: yearLabel(era.from) })),
       ticks: timeline.slice(0, 400).map((event) => ({
         at: (positionOf(event.start) * 100).toFixed(2),
@@ -636,13 +637,17 @@
       capitals; places in verdigris. Time and charts use the same pigments.
     </p>
     <div class="design__desk">
-      <!-- The relief and the land, once for both maps: each map draws them
-           with <use>, clipped to the land, so the sea stays flat. -->
+      <!-- The land and the relief of each map, once: the map draws them
+           with <use>, and the land is also the relief's clip, so the sea
+           stays flat. -->
       <svg class="rr-defs" width="0" height="0" aria-hidden="true">
         <defs>
-          <clipPath id="rr-land"><path each="d of world.land" d="${d}"></path></clipPath>
-          <clipPath id="rr-land-detail"><path each="d of israel.land" d="${d}"></path></clipPath>
-          <path each="band of relief" id="${band.id}" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke"></path>
+          <path each="shape of world.land" id="${shape.id}" d="${shape.d}" vector-effect="non-scaling-stroke"></path>
+          <path each="shape of israel.land" id="${shape.id}" d="${shape.d}" vector-effect="non-scaling-stroke"></path>
+          <clipPath id="rr-land"><use each="shape of world.land" href="#${shape.id}"></use></clipPath>
+          <clipPath id="rr-land-detail"><use each="shape of israel.land" href="#${shape.id}"></use></clipPath>
+          <path each="band of world.relief" id="${band.id}" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke"></path>
+          <path each="band of israel.relief" id="${band.id}" d="${band.d}" fill-rule="evenodd" vector-effect="non-scaling-stroke"></path>
         </defs>
       </svg>
       <article class="rr-card rr-card--place design__wide">
@@ -654,7 +659,7 @@
         </header>
         <div class="rr-card__body">
           <svg class="rr-map" viewBox="${world.viewBox}" role="img" aria-label="Map of the biblical world">
-            <path each="d of world.land" d="${d}" class="rr-map__land"></path>
+            <use each="shape of world.land" href="#${shape.id}" class="rr-map__land"></use>
             <!-- The clip makes the group a layer of its own, so the hill shade
                  blends only with what is inside it: the paper goes in first. -->
             <g class="rr-relief" clip-path="url(#${world.clip})">
@@ -684,7 +689,7 @@
         </header>
         <div class="rr-card__body">
           <svg class="rr-map" viewBox="${israel.viewBox}" role="img" aria-label="Map of the land of Israel">
-            <path each="d of israel.land" d="${d}" class="rr-map__land"></path>
+            <use each="shape of israel.land" href="#${shape.id}" class="rr-map__land"></use>
             <!-- The clip makes the group a layer of its own, so the hill shade
                  blends only with what is inside it: the paper goes in first. -->
             <g class="rr-relief" clip-path="url(#${israel.clip})">
