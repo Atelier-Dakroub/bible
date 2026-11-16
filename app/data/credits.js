@@ -87,6 +87,13 @@ export const CREDITS = [
         changes: 'Only the quotations, joined with those of Nestle.',
       },
       {
+        name: 'Bible Quotation Database',
+        by: 'Luke Plant, from the lists of bible-researcher.com and kalvesmaki.com',
+        gives: 'The places where the New Testament quotes the Old. The app does not use it yet; it is here with thanks to Luke Plant, who gave it to the public domain.',
+        license: 'Public domain',
+        url: 'https://github.com/spookylukey/bible-quotation-database',
+      },
+      {
         name: 'Cross-references',
         by: 'OpenBible.info, from the Treasury of Scripture Knowledge',
         gives: 'The cross-references of each verse, best first.',
