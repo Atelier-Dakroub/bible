@@ -231,13 +231,6 @@ export const CREDITS = [
         license: 'Links only',
         url: 'https://watch.thechosen.tv/',
       },
-      {
-        name: "The app's own reading",
-        by: 'Made for the app with Qwen3-TTS (Apache 2.0), in a voice designed for it: a synthetic voice, not a recording of a person',
-        gives: 'The KJV and the BSB read aloud.',
-        license: 'CC0',
-        licenseUrl: CC0,
-      },
     ],
   },
   {

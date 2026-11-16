@@ -8,17 +8,15 @@ for anyone who makes their own.
 
 ## The voices
 
-A voice is a short clip and its words in `reference/`:
+A voice is a short clip and its words: `<name>.wav` and `<name>.txt` in the
+folder that `VOICE_REFERENCE` names, or in `reference/` here, which git
+ignores. The project has no voices of its own: the author's recordings are for the
+author's own use, and their clips are kept outside the project. Design your own.
 
-- `plain-male`: the app's voice, chosen on 2026-11-10. A man of about 40, plain
-  and direct, a natural pace, neither deep nor solemn.
-- `calm-male`: a calm, soft-spoken man of about 45, unhurried and gentle.
-- `plain-female`: a woman of about 40, plain and direct.
-
-Each was designed by description with Qwen3-TTS VoiceDesign, then locked:
+A voice is designed by description with Qwen3-TTS VoiceDesign, then locked:
 one verse it read is the reference that the Base model clones for every verse,
 so a whole Bible is one reader. (Designed alone, the voice drifts from passage
-to passage.) The descriptions:
+to passage.) The descriptions of the author's three voices, as examples:
 
 - plain-male: "A man of about 35 to 45 with a natural mid-range voice, not deep
   and not a baritone. Plain and direct, like a good teacher reading aloud to a
@@ -35,8 +33,8 @@ to passage.) The descriptions:
 
 A new voice: design it (Qwen3-TTS-12Hz-1.7B-VoiceDesign, `generate_voice_design`
 with a description), pick one verse of 6 to 15 seconds that sounds like the
-voice at its most typical, and put it and its words here as `<name>.wav` and
-`<name>.txt`.
+voice at its most typical, and put it and its words in the folder of the
+voices as `<name>.wav` and `<name>.txt`.
 
 ## Making a recording
 

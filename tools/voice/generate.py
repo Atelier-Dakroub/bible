@@ -9,8 +9,10 @@ project's folder. Settings by environment:
     WHISPER_MODEL  whisper.cpp's ggml-base.en.bin, for the check of each verse
     VOICE_WORK     a folder for the work in progress (default: .voice-work)
     BIBLE_AUDIO    the folder of the recordings, as the app reads it (default: audio)
+    VOICE_REFERENCE  the folder of the voices' clips (default: tools/voice/reference,
+                   which git ignores: the clips are not part of the project)
 
-A voice is its reference clip and its words, tools/voice/reference/<voice>.wav
+A voice is its reference clip and its words, <VOICE_REFERENCE>/<voice>.wav
 and .txt: a voice designed by description (Qwen3-TTS VoiceDesign) and then
 locked by cloning one verse of it with the Base model, so that every verse is
 read by the same reader. Another voice is another clip: --voice calm-male.
@@ -137,7 +139,7 @@ from qwen_tts import Qwen3TTSModel
 
 device = 'mps' if torch.backends.mps.is_available() else 'cpu'
 model = Qwen3TTSModel.from_pretrained(os.environ['QWEN_BASE'], device_map=device, dtype=torch.bfloat16, attn_implementation='sdpa')
-reference = os.path.join(ROOT, 'tools', 'voice', 'reference', args.voice)
+reference = os.path.join(os.environ.get('VOICE_REFERENCE') or os.path.join(ROOT, 'tools', 'voice', 'reference'), args.voice)
 prompt = model.create_voice_clone_prompt(ref_audio=f'{reference}.wav', ref_text=open(f'{reference}.txt').read().strip())
 
 def read(address, text):
@@ -159,13 +161,11 @@ def read(address, text):
 # ---- The chapters ---------------------------------------------------------
 
 times = json.load(open(TIMES)) if os.path.exists(TIMES) else {
-    'source': 'The app\'s own reading, made with Qwen3-TTS (Apache 2.0) in a voice designed for it (tools/voice)',
+    'source': 'Read with Qwen3-TTS (Apache 2.0) by tools/voice/generate.py',
     'chapters': {},
 }
 if not os.path.exists(VOICE):
-    reader = {'plain-male': 'The app\'s voice', 'calm-male': 'The app\'s calm voice', 'plain-female': 'The app\'s voice, female'}.get(args.voice)
-    if reader:
-        json.dump({'reader': reader}, open(VOICE, 'w'))
+    json.dump({'reader': args.voice.replace('-', ' ').replace('_', ' ').capitalize()}, open(VOICE, 'w'))
 
 for book in args.books:
     chapters = {}

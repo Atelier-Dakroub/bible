@@ -91,9 +91,10 @@ its code have the Apache 2.0 license.
 - **Time:** on an M4 Max, a whole version takes about 60 hours. The Gospel of
   John takes about 2 hours. If the run stops, start it again: it goes on from
   the next chapter.
-- **The voice:** a voice is a short clip and its words. The app has three
-  voices, which were designed from a description: `plain-male`, `calm-male` and
-  `plain-female`. You can design a new voice from a description too.
+- **The voice:** a voice is a short clip and its words. You design it from a
+  description of the voice that you want. The app does not include a voice,
+  so you make your own. The tool's README gives the descriptions of three
+  voices as examples.
 
 [tools/voice/README.md](../tools/voice/README.md) tells you how to set it up
 and how to start a run. The tool writes the chapter files and

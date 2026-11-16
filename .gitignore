@@ -12,5 +12,7 @@ dist
 # The recordings (docs/recordings.md): the chapter files and their times.json,
 # served by app/server.js, not kept in git.
 /audio/
+# The clips of the voices that tools/voice/generate.py reads.
+/tools/voice/reference/
 
 /.voice-work/
