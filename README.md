@@ -345,7 +345,10 @@ Study tools:
   books: each a bar as long as its verses, cut into chapters, with its group
   and the author tradition gives it.
 
-`/touch` is the touch test page for the panel.
+`/touch` is the touch test page for the panel, and `/viewport` shows what a
+browser reports about the screen. Both are for a copy that runs locally: the
+hosted site (`worker.js`) answers them with its 404 page, and the service
+worker leaves them out of the offline shell.
 
 ```sh
 npm install

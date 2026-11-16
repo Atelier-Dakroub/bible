@@ -151,6 +151,7 @@ const LIST = JSON.stringify({
     { url: '/images/picture.jpg', revision: '"p"' },
     { url: '/offline', revision: '"o"' },
     { url: '/table', revision: '"t1"' },
+    { url: '/touch', revision: '"x"' },
   ],
 });
 
@@ -160,13 +161,14 @@ const SITE = {
   '/images/picture.jpg': 'picture',
   '/offline': 'offline page',
   '/table': 'the table',
+  '/touch': 'the touch test',
   '/card/JHN.3.16': 'a card',
 };
 
 /** @param {{ body: string } | null} answer */
 const text = (answer) => answer?.body;
 
-test('installing fills the shell from the list, without the pictures', async () => {
+test('installing fills the shell from the list, without the pictures or the test pages', async () => {
   const worker = sandbox(SITE);
   await worker.fire('install');
   const shell = worker.named.get('bible-shell');

@@ -21,6 +21,9 @@ import { hold } from './app/data/load.js';
 
 const worker = workerFrom({ config, manifest, entry, bundle });
 
+/** Test pages for a touch panel and a screen, for a copy run locally only. */
+const TEST_PAGES = new Set(['/touch', '/viewport']);
+
 export default {
   /**
    * @param {Request} request
@@ -29,6 +32,9 @@ export default {
    */
   fetch(request, env, ctx) {
     hold(env);
+    const url = new URL(request.url);
+    // The app's own 404 page: a path that no route has.
+    if (TEST_PAGES.has(url.pathname)) return worker.fetch(new Request(new URL('/-/not-here', url), request), env, /** @type {any} */ (ctx));
     return worker.fetch(request, env, /** @type {any} */ (ctx));
   },
 };

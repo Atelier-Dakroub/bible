@@ -45,13 +45,17 @@ function strategyFor(path) {
   return 'network-first';
 }
 
+/** The test pages, which no one needs offline, and which the hosted site does not serve (worker.js). */
+const TEST_PAGES = new Set(['/touch', '/viewport']);
+
 /**
- * Whether a file of the precache list goes in the shell.
+ * Whether a file of the precache list goes in the shell: not the pictures,
+ * and not the test pages.
  *
  * @param {string} url
  */
 function inShell(url) {
-  return !url.startsWith('/images/');
+  return !url.startsWith('/images/') && !TEST_PAGES.has(url);
 }
 
 /**
