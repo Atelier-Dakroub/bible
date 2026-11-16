@@ -9,8 +9,8 @@ dist
 /.wrangler/
 .DS_Store
 
-# The KJV read aloud (tools/import-audio.js): about 1.4 GB of chapter files,
-# served by routes/audio, not kept in git.
+# The recordings (docs/recordings.md): the chapter files and their times.json,
+# served by app/server.js, not kept in git.
 /audio/
 
 /.voice-work/

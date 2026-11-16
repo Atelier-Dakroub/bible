@@ -8,6 +8,7 @@ project's folder. Settings by environment:
     QWEN_BASE      the Qwen3-TTS-12Hz-1.7B-Base model folder (a Hugging Face snapshot)
     WHISPER_MODEL  whisper.cpp's ggml-base.en.bin, for the check of each verse
     VOICE_WORK     a folder for the work in progress (default: .voice-work)
+    BIBLE_AUDIO    the folder of the recordings, as the app reads it (default: audio)
 
 A voice is its reference clip and its words, tools/voice/reference/<voice>.wav
 and .txt: a voice designed by description (Qwen3-TTS VoiceDesign) and then
@@ -20,11 +21,13 @@ with too many words wrong (more than MAX_WER) is read again with the next
 seed, up to TRIES times; the best take is kept. The verses of a chapter are
 trimmed of silence, joined with a pause, softened in the treble (SOFTEN),
 made even in loudness, and encoded
-as AAC (mono, 48 kb/s): audio/<voice>/<version>/<BOOK>.<chapter>.m4a, outside
-git. The time each verse begins goes into app/data/audio/<voice>-<version>.json,
-in the form of app/data/audio/kjv.json:
-    { source, license, reader, chapters: { "JHN.1": [seconds, [start of each verse, in tenths]] } }
-A chapter already made is not made again, so a run that stops goes on.
+as AAC (mono, 48 kb/s): <BIBLE_AUDIO>/<voice>/<version>/<BOOK>.<chapter>.m4a,
+outside git. The time each verse begins goes into times.json beside them, in
+the form that app/data/audio.js reads (docs/recordings.md):
+    { source, chapters: { "JHN.1": [seconds, [start of each verse, in tenths]] } }
+The voice's name, which the app shows, goes into <BIBLE_AUDIO>/<voice>/voice.json
+if it has none. A chapter already made is not made again, so a run that stops
+goes on.
 """
 
 import argparse, hashlib, json, os, re, subprocess, sys, tempfile, time
@@ -54,12 +57,13 @@ args = ap.parse_args()
 
 ROOT = os.getcwd()
 WORK = os.environ.get('VOICE_WORK', os.path.join(ROOT, '.voice-work'))
-OUT = os.path.join(ROOT, 'audio', args.voice, args.version)
-TIMES = os.path.join(ROOT, 'app', 'data', 'audio', f'{args.voice}-{args.version}.json')
+RECORDINGS = os.path.join(ROOT, os.environ.get('BIBLE_AUDIO') or 'audio')
+OUT = os.path.join(RECORDINGS, args.voice, args.version)
+TIMES = os.path.join(OUT, 'times.json')
+VOICE = os.path.join(RECORDINGS, args.voice, 'voice.json')
 WHISPER = os.environ['WHISPER_MODEL']
 LEXICON = json.load(open(os.path.join(ROOT, 'tools', 'voice', 'lexicon.json')))
 os.makedirs(OUT, exist_ok=True)
-os.makedirs(os.path.dirname(TIMES), exist_ok=True)
 
 # ---- The text -------------------------------------------------------------
 
@@ -156,10 +160,12 @@ def read(address, text):
 
 times = json.load(open(TIMES)) if os.path.exists(TIMES) else {
     'source': 'The app\'s own reading, made with Qwen3-TTS (Apache 2.0) in a voice designed for it (tools/voice)',
-    'license': 'CC0-1.0',
-    'reader': {'plain-male': 'The app\'s voice: a plain male voice', 'calm-male': 'The app\'s voice: a calm male voice', 'plain-female': 'The app\'s voice: a plain female voice'}.get(args.voice, args.voice),
     'chapters': {},
 }
+if not os.path.exists(VOICE):
+    reader = {'plain-male': 'The app\'s voice', 'calm-male': 'The app\'s calm voice', 'plain-female': 'The app\'s voice, female'}.get(args.voice)
+    if reader:
+        json.dump({'reader': reader}, open(VOICE, 'w'))
 
 for book in args.books:
     chapters = {}

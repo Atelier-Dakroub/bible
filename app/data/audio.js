@@ -11,9 +11,8 @@
 //   <BIBLE_AUDIO>/<voice>/<version>/JHN.3.m4a
 //   <BIBLE_AUDIO>/<voice>/<version>/times.json
 //
-// times.json: { "chapters": { "JHN.3": [seconds, [start of each verse, in tenths]] } }.
-// The times of tools/voice/generate.py are in app/data/audio/<voice>-<version>.json,
-// which is read where the folder has no times.json. app/server.js serves the
+// times.json: { "chapters": { "JHN.3": [seconds, [start of each verse, in tenths]] } },
+// as tools/voice/generate.py and tools/join-verses.js write it. app/server.js serves the
 // files: /audio/<voice>/<version>/JHN.3.m4a. Where a chapter's file is not
 // there, the passage has no such recording, and the device's voice reads it.
 
@@ -37,9 +36,9 @@ const VOICE_NAME = /^[a-z0-9][a-z0-9_-]*$/i;
 /**
  * @typedef {{
  *   id: string, version: string, kind: 'own', reader: string,
- *   dir: string, url: string, times: string[]
+ *   dir: string, url: string, times: string
  * }} Recording a recording: its folder on disk, its address on the server,
- *   and the files that can hold its times, the first found used
+ *   and the file of its times
  */
 
 /** Seconds before the next verse at which a verse ends: about half the pause of 0.55 s between verses. */
@@ -102,7 +101,7 @@ export async function findRecordings(root) {
  */
 function recordingAt(root, voice, version, reader) {
   const dir = `${root}/${voice}/${version}`;
-  return { id: `${voice}-${version}`, version, kind: 'own', reader, dir, url: `/audio/${voice}/${version}`, times: [`${dir}/times.json`, `app/data/audio/${voice}-${version}.json`] };
+  return { id: `${voice}-${version}`, version, kind: 'own', reader, dir, url: `/audio/${voice}/${version}`, times: `${dir}/times.json` };
 }
 
 /** @type {Promise<Recording[]> | null} */
@@ -128,16 +127,13 @@ export function recordings() {
 const loaded = new Map();
 
 /**
- * The first of some files that reads as JSON, or null.
+ * A file read as JSON, or null when it is not there.
  *
- * @param {string[]} paths
+ * @param {string} path
  */
-async function firstJson(paths) {
-  for (const path of paths) {
-    const text = await files.readFile(path, 'utf8').catch(() => null);
-    if (text !== null) return JSON.parse(text);
-  }
-  return null;
+async function readJsonFile(path) {
+  const text = await files.readFile(path, 'utf8').catch(() => null);
+  return text === null ? null : JSON.parse(text);
 }
 
 /**
@@ -150,7 +146,7 @@ async function firstJson(paths) {
 function timesOf(recording) {
   let times = loaded.get(recording.id);
   if (!times) {
-    times = files ? firstJson(recording.times).then((data) => data?.chapters ?? {}, () => ({})) : Promise.resolve({});
+    times = files ? readJsonFile(recording.times).then((data) => data?.chapters ?? {}, () => ({})) : Promise.resolve({});
     loaded.set(recording.id, times);
     // Read again in a minute: a recording being made grows.
     setTimeout(() => loaded.delete(recording.id), 60_000);

@@ -96,10 +96,9 @@ its code have the Apache 2.0 license.
   `plain-female`. You can design a new voice from a description too.
 
 [tools/voice/README.md](../tools/voice/README.md) tells you how to set it up
-and how to start a run. The tool writes the chapter files to
-`audio/<voice>/<version>/`, and the times to
-`app/data/audio/<voice>-<version>.json`. The app reads the times from there when
-the folder has no `times.json`.
+and how to start a run. The tool writes the chapter files and
+`times.json` to `audio/<voice>/<version>/` (or to the folder in `BIBLE_AUDIO`),
+and the voice's name to `voice.json`.
 
 Do not copy the voice of a real person without their permission.
 

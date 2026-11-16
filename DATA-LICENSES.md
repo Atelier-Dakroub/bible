@@ -57,8 +57,7 @@ ODbL, LGPL) applies to the files under it, not to the rest of the app.
 | `app/data/videos.json`: BibleProject | YouTube ids of BibleProject's videos, played in YouTube's player | BibleProject permits the embed on a not-for-profit page; the videos are theirs |
 | `app/data/videos.json`: JESUS (1979) | Stream and still addresses of the Jesus Film Project's film | © Jesus Film Project. Their permission for this use is being asked; until it is given, do not show this source on a public site. |
 | `app/data/videos.json`: The Chosen | Links and titles of episodes | © 5&2 Studios / The Chosen, LLC: links only |
-| `app/data/audio/kjv.json` (the times of each verse) | LibriVox's King James Version, read by Michael Armenta | Public domain; the recordings themselves are not in git |
-| `app/data/audio/plain-male-*.json`, the app's own recordings, `tools/voice/reference/` | The app's own reading, made with Qwen3-TTS (Apache 2.0) in a voice designed for it, not cloned from a person | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| The app's own recordings (not in git), `tools/voice/reference/` | The app's own reading, made with Qwen3-TTS (Apache 2.0) in a voice designed for it, not cloned from a person | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 ## Fonts
 

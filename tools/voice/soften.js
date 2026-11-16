@@ -4,7 +4,7 @@
 //
 //   node tools/voice/soften.js [voice]        (plain-male unless named)
 //
-// Each chapter of audio/<voice>/<version> that its times file lists and
+// Each chapter of <BIBLE_AUDIO>/<voice>/<version> that its times.json lists and
 // softened.txt does not is decoded, softened, made even in loudness again,
 // and encoded as before (AAC, mono, 48 kb/s). Its audio must not move, as the
 // times of its verses are kept. The encoder pads the end of the file by up to
@@ -25,8 +25,8 @@ const voice = process.argv[2] ?? 'plain-male';
 const seconds = async (file) => Number((await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file])).stdout);
 
 for (const version of ['kjv', 'bsb']) {
-  const folder = `audio/${voice}/${version}`;
-  const times = JSON.parse(await readFile(`app/data/audio/${voice}-${version}.json`, 'utf8').catch(() => '{"chapters":{}}')).chapters;
+  const folder = `${process.env.BIBLE_AUDIO || 'audio'}/${voice}/${version}`;
+  const times = JSON.parse(await readFile(`${folder}/times.json`, 'utf8').catch(() => '{"chapters":{}}')).chapters;
   const done = new Set((await readFile(`${folder}/softened.txt`, 'utf8').catch(() => '')).split('\n').filter(Boolean));
   let count = 0;
   for (const key of Object.keys(times)) {

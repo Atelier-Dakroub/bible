@@ -6,8 +6,7 @@
 //
 //   node tools/edge-data.js      (npm run build runs it)
 //
-// Every .json file under app/data, except the recordings' times
-// (app/data/audio), which only a copy with recordings reads. Hard links, so
+// Every .json file under app/data. Hard links, so
 // the data is not on the disk twice. Cloudflare serves no file over 25 MiB,
 // so a larger one stops the build here rather than failing on the site.
 
@@ -18,11 +17,9 @@ const FROM = 'app/data';
 const TO = 'dist/edge/data';
 /** Cloudflare's limit for one file of a worker's assets. */
 const MAX_BYTES = 25 * 1024 * 1024;
-/** Folders under app/data that the site does not read. */
-const LEFT_OUT = new Set(['audio']);
 
 /**
- * Every .json file under a folder, but not in the folders left out.
+ * Every .json file under a folder.
  *
  * @param {string} dir
  * @returns {string[]}
@@ -30,7 +27,7 @@ const LEFT_OUT = new Set(['audio']);
 function jsonFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) return LEFT_OUT.has(relative(FROM, full)) ? [] : jsonFiles(full);
+    if (entry.isDirectory()) return jsonFiles(full);
     return entry.name.endsWith('.json') ? [full] : [];
   });
 }

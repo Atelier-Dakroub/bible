@@ -369,7 +369,6 @@ npm run verify   # the tests (with the CRAP check), the types and a build: the b
 | `app/data/parallels.json` | The parallel passages, made from the cross-references by `tools/import-parallels.js`. |
 | `app/data/kjv/` | The KJV, one JSON file per book, made by the import. |
 | `tools/` | The imports: `import-kjv.js` and its parser, `import-xrefs.js`, `import-parallels.js`, `import-strongs.js`, `import-theographic.js`, `import-bsb.js`, `import-world.js`, `import-kings.js`, `import-map.js`, `import-coast.js`, `import-rivers.js`, `import-relief.js`, `import-ancient.js`, `import-original.js`, `import-syntax.js`, `import-senses.js`, `import-topics.js`, `import-quotations.js`, `import-images.js` and `import-videos.js`. Also the MCP server (`mcp-server.js`), the CRAP check (`crap.js`), the notices (`notices.js`), the AI voice (`voice/`) and the joining of recordings made a verse to a file (`join-verses.js`). |
-| `app/data/audio/` | The time each verse begins in each recording that `tools/voice/generate.py` makes. |
 | `app/data/videos.json` | The videos and the passages each one shows. |
 | `app/data/strongs/` | The Strong's numbers, one JSON file per book, and the dictionary. |
 | `app/data/entities/` | People, places, groups, events, the verses that name them, and Easton's dictionary. |

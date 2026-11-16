@@ -30,8 +30,8 @@ test("the recordings in a folder: each voice's versions, with its name", async (
         { id: 'plain-male-bsb', version: 'bsb', reader: "The app's voice", url: '/audio/plain-male/bsb' },
       ],
     );
-    // The times: the folder's own first, then those of tools/voice/generate.py.
-    assert.deepEqual(found[1].times, [join(root, 'plain-male', 'kjv', 'times.json').replaceAll('\\', '/'), 'app/data/audio/plain-male-kjv.json']);
+    // The times: beside the chapters.
+    assert.equal(found[1].times, join(root, 'plain-male', 'kjv', 'times.json').replaceAll('\\', '/'));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

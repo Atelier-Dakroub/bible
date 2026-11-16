@@ -59,8 +59,9 @@ Without it: `QWEN_BASE=<Qwen3-TTS-12Hz-1.7B-Base folder> WHISPER_MODEL=<ggml-bas
   before then (the KJV's Matthew, Mark, John, 3 John and Luke 1–20, and the
   BSB's John) were read at 0.9.
 - The chapter's verses are joined with a pause, made even in loudness, and
-  encoded as AAC (48 kb/s): `audio/<voice>/<version>/<BOOK>.<chapter>.m4a`,
-  outside git. The times go into `app/data/audio/<voice>-<version>.json`.
+  encoded as AAC (48 kb/s): `<BIBLE_AUDIO>/<voice>/<version>/<BOOK>.<chapter>.m4a`
+  (`audio` when `BIBLE_AUDIO` is not set), outside git. The times go into
+  `times.json` beside them, and the voice's name into `<voice>/voice.json`.
 - A chapter already made is skipped, so a run that stops goes on.
 - `lexicon.json` respells names for the voice ("Lamech": "Lamek").
 - Speed on an M4 Max: a little faster than the audio's own length (about
