@@ -259,6 +259,12 @@
   /** @param {EventTarget | null} target the target, if it is an HTML element */
   const htmlOf = (target) => (target instanceof HTMLElement ? target : null);
 
+  /** @param {EventTarget | null} target whether it is in the words selected */
+  const onSelection = (target) => {
+    const selection = getSelection();
+    return Boolean(selection && !selection.isCollapsed && target instanceof Node && selection.containsNode(target, true));
+  };
+
   /**
    * Where a card's reading begins: the verse asked for, else where it last
    * stopped, else its start ('').
@@ -1643,7 +1649,10 @@
       this.addEventListener('lostpointercapture', (event) => {
         if (event.target === this) this.release(event);
       }, options);
-      this.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+      // The browser's menu shows only on selected words, for its Copy.
+      this.addEventListener('contextmenu', (event) => {
+        if (!onSelection(event.target)) event.preventDefault();
+      }, options);
       // Not passive: a pinch must not zoom the whole page.
       this.addEventListener('wheel', (event) => this.wheel(event), { signal, passive: false });
       document.addEventListener('paste', (event) => this.pasted(event), options);

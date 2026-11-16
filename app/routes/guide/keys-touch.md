@@ -115,6 +115,7 @@ See [Notes](/guide/notes#keys-for-formatting) for the keys that make headings an
 | Move a card freely, with no snap | Turn off **Snap** in **Tools**, **Table** | Hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag |
 | Scale a card | Pinch it with two fingers | Pinch on the trackpad, or <kbd>Control</kbd> or <kbd>Command</kbd> and the wheel |
 | Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari only) |
+| Select words to copy | Double-tap the words, then select them | Double-click the words, then drag over them |
 | Mark words | Hold the card with one finger, run a finger of the other hand over the words | Hold <kbd>Option</kbd> (<kbd>Alt</kbd>) and drag over the words |
 | Draw a link | Mark words, then drag the marking finger onto another card | The same, with <kbd>Option</kbd> held |
 | Make a phrase card | Mark words, then lift the marking finger on the empty table | The same, with <kbd>Option</kbd> held |

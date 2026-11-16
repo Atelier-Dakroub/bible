@@ -1371,6 +1371,16 @@
     /* Vertical swipes scroll the list. Sideways moves reach the script, which
        pulls a card out. */
     touch-action: pan-y;
+    /* The words of the guide, a commentary or a dictionary entry select, as
+       on a page. A result does not: a sideways drag pulls it out as a card. */
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+    cursor: auto;
+  }
+  .search__results :is([data-address], button, summary, label) {
+    user-select: none;
+    -webkit-user-select: none;
   }
 </style>
 

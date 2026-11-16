@@ -27,6 +27,12 @@
      written as one CSS transform. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
 
+     Text mode: a double tap or a double-click on the words (READABLE) lets
+     them select, as on a page, so that Copy copies them. In text mode a
+     press on the words is the browser's, and the card moves from its header
+     and its edges. A press off the card, or Escape, ends it. The first tap
+     of the two does what a tap does.
+
      A mouse, a trackpad and a keyboard do the same. One button moves the card.
      The table turns a pinch on the trackpad, or Control and the wheel, into
      zoomAt(), and Safari's trackpad turn into turnAt(). Option (Alt) and a
@@ -94,6 +100,13 @@
   const GROUP_MS = 500;
   // A tap is short and still. Anything longer or further is a move.
   const TAP_MS = 350;
+  // A second tap this soon after the first, and this near it, on the words
+  // is a double tap: the card goes into text mode.
+  const DOUBLE_MS = 400;
+  const DOUBLE_PX = 24;
+  // The words of a card that select in text mode. A note selects while it
+  // is written, so it has no text mode.
+  const READABLE = '.passage__text, .passage__original, .passage__interlinear, .passage__reverse, .passage__syntax, .passage__parallel, .commentary, .entity-card';
   // The keyboard's steps.
   const KEY_STEP = 20;
   const KEY_STEP_LONG = 100;
@@ -187,6 +200,10 @@
     marking: null,
     /** @type {{ id: number, x: number, y: number, t: number, target: EventTarget | null } | null} */
     tap: null,
+    /** @type {{ x: number, y: number, t: number } | null} the last tap on the words, which a second may make a double tap */
+    lastTap: null,
+    /** @type {AbortController | null} text mode: its listeners on the page, which end it */
+    reading: null,
     /** @type {{ id: number, x: number, y: number, dragging: boolean } | null} a line drawn from the link button */
     handle: null,
     /** whether the last press on the link button drew a line, so its click is not a click */
@@ -203,7 +220,10 @@
     guiding: false,
 
     connected({ signal }) {
-      signal.addEventListener('abort', () => clearTimeout(this.groupTimer));
+      signal.addEventListener('abort', () => {
+        clearTimeout(this.groupTimer);
+        this.stopReading();
+      });
       const parent = this.parent();
       const start = translation(
         Number(this.x) * parent.clientWidth - this.offsetWidth / 2,
@@ -366,7 +386,7 @@
     /** @param {PointerEvent} event */
     press(event) {
       const target = elementOf(event.target);
-      if (this.notMine(event, target)) return;
+      if (this.notMine(event, target) || this.reads(target)) return;
       this.forgetLost();
       if (this.marking || this.markFrom(event, target)) return;
       this.tap = this.firstTap(event);
@@ -805,8 +825,68 @@
      * @param {PointerEvent} event
      */
     sendTap(tap, event) {
-      if (!tap || !isTap(tap, event)) return;
+      if (!tap || !isTap(tap, event) || this.doubleTap(tap)) return;
       this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: tap.target, x: tap.x, y: tap.y } }));
+    },
+
+    /**
+     * Whether a tap is the second of a double tap on the words. It puts the
+     * card into text mode, and the table does not hear it: the first tap
+     * did what a tap does.
+     *
+     * @param {{ x: number, y: number, t: number, target: EventTarget | null }} tap
+     */
+    doubleTap(tap) {
+      const target = elementOf(tap.target);
+      const onWords = Boolean(target?.closest(READABLE)) && this.dataset.kind !== 'note';
+      const last = this.lastTap;
+      this.lastTap = onWords ? { x: tap.x, y: tap.y, t: tap.t } : null;
+      if (!onWords || !last || tap.t - last.t > DOUBLE_MS || Math.hypot(tap.x - last.x, tap.y - last.y) > DOUBLE_PX) return false;
+      this.lastTap = null;
+      this.startReading(/** @type {Element} */ (target));
+      return true;
+    },
+
+    /**
+     * Whether a press is on the words of a card in text mode: the browser
+     * selects them, and the card does not move.
+     *
+     * @param {Element | null} target
+     */
+    reads(target) {
+      return Boolean(this.reading && target?.closest(READABLE));
+    },
+
+    /**
+     * Text mode: the words select as on a page, and Copy copies them. The
+     * word tapped is selected. A press off the card, or Escape, ends it.
+     *
+     * @param {Element} target
+     */
+    startReading(target) {
+      if (!this.reading) {
+        this.reading = new AbortController();
+        const { signal } = this.reading;
+        this.dataset.reading = '';
+        document.addEventListener('pointerdown', (event) => {
+          if (!(event.target instanceof Node && this.contains(event.target))) this.stopReading();
+        }, { signal, capture: true });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') this.stopReading();
+        }, { signal });
+      }
+      const word = target.closest('[data-w], .inter__word');
+      if (word) getSelection()?.selectAllChildren(word);
+    },
+
+    /** Ends text mode, and the selection in the card with it. */
+    stopReading() {
+      if (!this.reading) return;
+      this.reading.abort();
+      this.reading = null;
+      delete this.dataset.reading;
+      const selection = getSelection();
+      if (selection?.anchorNode && this.contains(selection.anchorNode)) selection.removeAllRanges();
     },
 
     /** No pointer holds the card: it comes down, and the table keeps it. */
@@ -910,6 +990,18 @@
   /* A card a hand or the mouse holds. */
   :scope.is-held {
     cursor: grabbing;
+  }
+  /* Text mode: the words select, as on a page. The header and the edges
+     still move the card. A thin ring shows the mode. */
+  :scope[data-reading] > .passage {
+    outline: 1px dashed color-mix(in oklab, var(--lapis), transparent 40%);
+    outline-offset: 3px;
+  }
+  :scope[data-reading] :is(.passage__text, .passage__original, .passage__interlinear, .passage__reverse, .passage__syntax, .passage__parallel, .commentary, .entity-card) {
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+    cursor: text;
   }
 </style>
 

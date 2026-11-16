@@ -53,6 +53,8 @@ Tap ‹ or › beside the heading. The card goes to the passage before or after,
 
 Tap the copy button. The words of the card go to the clipboard, in the version on show, with the reference and the version under them. The button says "Copied".
 
+To copy only some of the words, double-tap or double-click the words. The card goes into text mode, and a dashed ring shows round it. Now a drag on the words selects them, as on a web page. Copy them with <kbd>Command</kbd>+<kbd>C</kbd> (<kbd>Ctrl</kbd>+<kbd>C</kbd>), or from the menu on the selected words. In text mode, move the card by its heading or its edges. To end text mode, tap or click off the card, or press <kbd>Escape</kbd>.
+
 ### The heading
 
 Tap the heading of a passage card. The search panel shows the passage guide: parallels, quotations, cross-references, the people and places it names, and more. See [Study](/guide/study#the-passage-guide). With the keyboard, give the card the focus and press <kbd>Enter</kbd>.
