@@ -20,6 +20,11 @@
   // with about.html, or redirects it.
   "assets": { "directory": "dist/edge", "binding": "ASSETS", "html_handling": "none" },
 
+  // Each address's share of the site: 600 units a minute in each Cloudflare
+  // location, a search 5 and anything else 1 (app/lib/rate-limit.js). The
+  // namespace is this account's own number for the counter.
+  "ratelimits": [{ "name": "LIMITER", "namespace_id": "1961", "simple": { "limit": 600, "period": 60 } }],
+
   // The hosted site. The deploy makes the DNS record and the certificate in
   // the dakroub.co zone. A copy deployed elsewhere puts its own domain here.
   "routes": [{ "pattern": "bible.dakroub.co", "custom_domain": true }]
