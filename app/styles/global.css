@@ -1251,6 +1251,16 @@ gesture-card[data-zoom='far'] .note__text {
   background: var(--accent);
   color: var(--on-accent);
 }
+/* Stays filled under a pointer: the light tint of every button's hover
+   (reading-room.css) would leave its light words on a light ground. A
+   fifth of the ink mixed in instead: darker in the light scheme, lighter in
+   the dark, so its words stand out a little more, not less. */
+@media (hover: hover) {
+  .guide__study:hover {
+    border-color: color-mix(in oklab, var(--accent), var(--ink) 20%);
+    background: color-mix(in oklab, var(--accent), var(--ink) 20%);
+  }
+}
 
 /* The words on the table that render the original word being studied. */
 .w.is-studied {
