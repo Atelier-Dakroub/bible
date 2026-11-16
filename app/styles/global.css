@@ -1131,6 +1131,12 @@ gesture-card[data-answered] > .passage--note {
   padding: 0.25rem 0.9rem 0.8rem;
 }
 
+/* The reader's notes that a search found, above its results: the heading
+   lines up with the text of the notes under it (.result). */
+.search__notes .guide__heading {
+  padding-inline: 0.8rem;
+}
+
 /* A note's kind before its words in the search panel's lists. */
 .note-kind {
   display: block;
