@@ -71,6 +71,13 @@ for (const [name, palette] of Object.entries(settings)) {
     // The text on a fill: a chip, a highlight, a tab.
     assert.ok(Math.abs(contrast(palette.ink, palette.tint)) >= 75, 'ink on tint');
     assert.ok(Math.abs(contrast(palette.ink, palette.wash)) >= 75, 'ink on a highlight');
+    // Selected words keep their color on the selection, the words of Christ
+    // in their own deeper rubric.
+    const onSelection = { ...NEEDS, rubric: 0, 'rubric-selected': 75, edge: 0 };
+    for (const [token, needs] of Object.entries(onSelection)) {
+      const lc = Math.abs(contrast(palette[token], palette.selection));
+      assert.ok(lc >= needs, `${token} ${palette[token]} on the selection ${palette.selection}: Lc ${lc.toFixed(1)}, needs ${needs}`);
+    }
     assert.ok(Math.abs(contrast(palette['on-pigment'], palette.lapis)) >= 60, 'a pressed button');
     // A field's edge shows where to type: 3:1 by WCAG 2 (1.4.11).
     assert.ok(wcag(palette['field-edge'], palette.paper) >= 3, `field edge ${palette['field-edge']} on ${palette.paper}: ${wcag(palette['field-edge'], palette.paper).toFixed(2)}:1`);

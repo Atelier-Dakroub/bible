@@ -36,7 +36,9 @@
      soft     Lc 70 to 85   labels, notes, verse numbers
      pigments Lc 71 to 88   labels and links in a kind's color
      edge     Lc 17 to 40   lines: not text, so Lc 15 is the floor (night
-                            cards also have a shadow) */
+                            cards also have a shadow)
+   and every text color on the selection too: ink Lc 83 to 91, the deeper
+   rubric 76 to 78, the soft ink and the pigments 67 to 77. */
 
 /* The fonts: Literata for everything that is read, and Atkinson
    Hyperlegible Next for everything that is used. Both are under the SIL Open
@@ -192,6 +194,11 @@
   --tint: light-dark(#efe8da, #3b342c);
   --sea: light-dark(#dfe6e6, #26302f);
   --wash: light-dark(#f4e2a8, #5b4a22);
+  /* The selection: a wash of lapis, pale by day and deep by night. Text
+     keeps its color on it, but the words of Christ take a deeper rubric by
+     day, which keeps them at Lc 75. Checked on every paper. */
+  --selection: light-dark(#d0dff9, #16243c);
+  --rubric-selected: light-dark(#70130b, #ffc6ba);
   /* Text on a pigment, such as a pressed button. */
   --on-pigment: light-dark(#fcf9f2, #1f1b17);
   /* Shadows: warm and soft by day; deeper at night, where a card also has
@@ -495,6 +502,14 @@ input[type='text'] {
 }
 :root[data-red='off'] .rr-text .wj {
   color: inherit;
+}
+
+/* Selected words: on the lapis wash (--selection). */
+::selection {
+  background-color: var(--selection);
+}
+:root:not([data-red='off']) :is(.wj, .wj *)::selection {
+  color: var(--rubric-selected);
 }
 /* The words the translators supplied, in italic, as the KJV prints them. */
 .rr-text .add {
