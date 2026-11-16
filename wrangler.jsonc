@@ -18,10 +18,9 @@
   // The worker reads the data through ASSETS (app/data/load.js). "none",
   // because the pages are the worker's: without it the edge answers /about
   // with about.html, or redirects it.
-  "assets": { "directory": "dist/edge", "binding": "ASSETS", "html_handling": "none" }
+  "assets": { "directory": "dist/edge", "binding": "ASSETS", "html_handling": "none" },
 
-  // A custom domain goes here, and the deploy then makes the DNS record and the
-  // certificate, so the next person reads the address without logging in:
-  //
-  //   "routes": [{ "pattern": "example.com", "custom_domain": true }]
+  // The hosted site. The deploy makes the DNS record and the certificate in
+  // the dakroub.co zone. A copy deployed elsewhere puts its own domain here.
+  "routes": [{ "pattern": "bible.dakroub.co", "custom_domain": true }]
 }
