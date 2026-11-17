@@ -54,9 +54,9 @@ wrong, and save the file. Copy it to `test/recordings/` on the Mac.
 1. **Palm.** Rest the side of your hand on the panel while you drag a card
    with the other hand. The card must not jump. On the touch page, the palm's
    rings are dashed and **Palm touches** counts them.
-2. **Fingers.** Pinch and turn a card with two fingers, fast and slow. Put
-   three fingers on a card. Pan the empty table with one and with two
-   fingers.
+2. **Fingers.** Pinch with two fingers on a card and on the empty table,
+   fast and slow: the table zooms about the fingers, and no card scales.
+   Put three fingers on a card. Pan the empty table with one finger.
 3. **Pull out.** Drag a search result sideways onto the table. Scroll the
    results up and down with one finger. Neither must do the other.
 4. **Highlight.** Hold a card with one hand and mark words with the other.

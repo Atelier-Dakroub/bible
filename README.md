@@ -48,7 +48,7 @@ Hide. Search, Timeline and Tools open and close their panels beside the rail;
 Map and Books put their cards on the table or take them away, and are lapis
 while the card is there; Overview shows the whole table, small, each card as it is with a label of
 its title, spread apart so that none overlaps, and a tap on a card or a place goes there at full size
-(`app/lib/overview.js`; also O, or a pinch in on the empty table); Hide clears
+(`app/lib/overview.js`; also O, or a pinch in past 25%); Hide clears
 the screen of the rail and the panels, and leaves one Show button. The rail goes on any edge: drag its grip (⋮⋮) to an edge, tap
 the grip for the next edge, or choose in Tools, Table. A panel's grip drags
 it off the rail to float anywhere, and back onto the rail to dock; its float
@@ -259,20 +259,30 @@ verses the BSB leaves out of its main text, such as Matthew 17:21. Highlights,
 links, quotes in notes and cards of words work on the words of both (a BSB
 word is addressed apart, as `JHN.3.16.b3`); word studies read the KJV.
 
-Cards zoom semantically: below about half size, a card shows its short form
-(heading, opening words, verse count), and a passage longer than 24 verses
-arrives in that form. Search on the rail, or "/", opens the search panel;
-its × closes it.
+The table zooms from 25% to 200% (`app/lib/zoom.js`): two fingers anywhere,
+on the table or on a card, zoom it about the place between them; so do a
+trackpad pinch, Control (or Command) and the wheel, the − 100% + buttons in
+the corner of the free part, and + − and 0 with no card in focus. A pinch on
+past 25% shows the overview, and leaving it brings back the zoom before. The
+zoom is kept with the table and is not a step to undo. Below 40%, each card
+shows its name on a chip, as in the overview, and still moves.
+
+Cards are always upright at their own size: they do not turn or scale. A
+card's Short form button shows only its heading, opening words and verse
+count, and a passage longer than 24 verses arrives in that form. A table kept
+before the zoom opens as it looked: the middle scale of its cards becomes the
+zoom, and a card that was under half size opens in its short form. Search on
+the rail, or "/", opens the search panel; its × closes it.
 
 Mouse, trackpad and keyboard: everything the hands do has another way.
 
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
 | Pan the table | Drag the empty table | Drag the empty table, or scroll | Arrow keys (Shift: further) |
-| See the whole table (the overview) | Overview, or pinch in on the empty table | Overview, or pinch in over the empty table | O |
+| Zoom the table | Pinch, on the table or on a card | Pinch on the trackpad, Control (or Command) + wheel, or − and + in the corner | `+`, `-`, and `0` for full size |
+| See the whole table (the overview) | Overview, or pinch in past 25% | Overview, or pinch in past 25% | O |
 | Move a card | Drag it | Drag it | Tab to it, then the arrow keys |
-| Scale a card | Pinch it | Pinch on the trackpad, or Control (or Command) + wheel | `+` and `-` |
-| Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari) | `[` and `]` |
+| Fold a card to its short form | Short form, on the card | Short form, on the card | — |
 | Mark words | Hold the card, run a finger over them | Option + drag over them | — |
 | Remove a card | × | × | Delete or Backspace |
 | Undo, Redo | Undo, Redo | Undo, Redo | Command-Z, Shift-Command-Z (Control on other computers) |
@@ -281,10 +291,9 @@ The guide's Keys and touch page (`/guide/keys-touch`) lists every key.
 
 Marking with the keyboard alone is not there yet.
 
-Snapping: a card that a hand or a mouse holds snaps upright when it is within
-5° of upright (or of a quarter turn), and to full size within 4%. An upright
-card lines up with the edges and middles of the other upright cards, or sits
-one gap (1rem) beside them, within 12 px, and dotted guides show where.
+Snapping: a card that a hand or a mouse holds lines up with the edges and
+middles of the other cards, or sits one gap (1rem) beside them, within 12 px
+on the screen at any zoom, and dotted guides show where.
 Snap, in Tools, Table, turns it off and on. With a mouse, hold Command or Control
 while you drag to move freely. The wheel and the keys do not snap.
 
@@ -295,8 +304,8 @@ Study tools:
   parallel passages, its cross-references (joined over all its verses, most
   voted first), the people, places and groups it names, its events with
   their dates, and the notes on the table that quote it. "Put them beside
-  the card" lays the parallels out in a row to the right of the card, at
-  its size. "Show its places on the map" marks them all on the map.
+  the card" lays the parallels out in a row to the right of the card.
+  "Show its places on the map" marks them all on the map.
 - **Start a study**, at the top of the guide, lays the passage out as a
   study, from the guide's own data (`studyPlan` in `app/data/study.js`,
   `/study/:address`, `app/lib/study.js`): the Old Testament it quotes on its
@@ -304,8 +313,9 @@ Study tools:
   note with headings, the people it names, its parallels, the five
   cross-references with the most votes, and the map with its places. Each
   verse comes once, and God and Jesus get no card. The columns go to the
-  right of the cards on the table, at the scale that fits the screen across
-  (not below 0.6), every card linked to the passage, as one step for Undo.
+  right of the cards on the table, at their own size, and the table zooms
+  out until they fit the screen across (not below 60%), every card linked to
+  the passage, as one step for Undo.
   The same button on a word study lays out the word's landscape and a verse
   for each sense (then for each book that uses it most), and marks the word
   on every card; on a topic of Nave's, a passage for each part of the topic
@@ -834,10 +844,11 @@ rail is along the bottom, where a thumb reaches, with icons only. The
 panels are sheets the width of the screen above it, and one is open at a
 time; the search panel, with its results, fills the screen above the rail.
 A panel cannot float. The timeline starts closed; open, its strip moves sideways under a finger.
-A card from the search panel goes on the table at the width of the screen,
-and the panel steps aside so the card shows. A field's text is 16px, so the
-phone does not zoom in on it. The table takes every touch (`touch-action:
-none`), so a pinch on it scales a card, not the page.
+A card from the search panel goes on the table at the left edge; if it is
+wider than the screen, the table zooms out until it fits, and the panel steps
+aside so the card shows. A field's text is 16px, so the phone does not zoom
+in on it. The table takes every touch (`touch-action: none`), so a pinch on
+it zooms the table, not the page.
 
 ## Offline, and on the Home Screen
 

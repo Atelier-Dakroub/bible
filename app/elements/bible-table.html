@@ -171,7 +171,7 @@
   import { notesMatching } from '../lib/note-search.js';
   import { emptyTrail } from '../lib/trail.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
-  import { columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
+  import { LEAST, columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
   import { edit as editNoteText, show as showNoteText } from '../lib/note-editing.js';
   import { foldedIn, foldQuote, quoteAt } from '../lib/note-quotes.js';
   import { toMarkdown } from '../lib/note-markdown.js';
@@ -2454,7 +2454,7 @@
     /**
      * Puts a study's cards down in their columns, to the right of the cards
      * already on the table, and zooms the table out, if it must, until the
-     * study fits the free part of the screen across.
+     * study fits the free part of the screen across (not below LEAST).
      *
      * @param {Card[][]} columns
      * @param {Set<Element>} before the cards on the table before the study
@@ -2474,10 +2474,12 @@
           this.raise(card);
         }),
       );
-      // The table zooms out until the study fits across, and shows it.
+      // The table zooms out until the study fits across, but not below
+      // LEAST, where the words are still read; then it shows the study.
       const widths = sizes.map((column) => Math.max(0, ...column.map((size) => size.width)));
       const across = widths.reduce((sum, width) => sum + width, 0) + ROW_GAP * Math.max(0, widths.length - 1);
-      const zoom = clampZoom(Math.min(this.zoom, across > 0 ? (free.right - free.left - 2 * margin) / across : this.zoom));
+      const fits = across > 0 ? Math.max(LEAST, (free.right - free.left - 2 * margin) / across) : this.zoom;
+      const zoom = clampZoom(Math.min(this.zoom, fits));
       this.zoomTo(offsetFor(start, { x: free.left + margin, y: free.top + margin }, zoom), zoom);
       this.keepSoon();
     },

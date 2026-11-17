@@ -70,7 +70,7 @@ The table keeps its marks with it.
 
 ### Cards
 
-**Snap**: when it is on, a card that you let go turns upright, goes to full size and lines up with the other cards. Hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag to move a card freely. See [Start here](/guide/start#snapping).
+**Snap**: when it is on, a card that you move lines up with the other cards. Hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag to move a card freely. See [Start here](/guide/start#snapping).
 
 ### Tools and panels
 

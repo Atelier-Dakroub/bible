@@ -129,7 +129,7 @@ In the overview, every card shows as it is, small, as windows do in the Mac's Ex
 
 The cards never get too small to find. If the whole table does not fit on the screen at that size, as often on a phone, the overview shows the part around where you were. Pan to see the rest.
 
-If you put a card on the table, or use **Undo**, while the overview shows, the table goes back to full size first.
+If you put a card on the table, or use **Undo**, while the overview shows, the table leaves the overview first.
 
 A tap on the empty table also folds the search results away. Tap the search field to see them again.
 

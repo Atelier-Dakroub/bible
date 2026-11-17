@@ -77,7 +77,7 @@ The buttons of the guide:
 | Right | The five cross-references with the most votes. |
 | Last | The map, with the passage's places marked, if the map is not on the table yet. |
 
-The study goes in the open table to the right of your cards, and the table moves to show it. The cards are made smaller so that more of the study fits on the screen.
+The study goes in the open table to the right of your cards, and the table moves to show it. If the study is wider than the screen, the table zooms out so that more of it fits, but not below 60%, where the words are still easy to read.
 
 - **The study note** says what the study holds, and has three headings for you to write under: Observations, Questions and Application.
 - **Every card is linked to the passage.** A quotation is a "quotes" link, from the New Testament to the Old. So the whole study moves as one group (see [Move linked cards together](/guide/cards#move-linked-cards-together)).

@@ -2,7 +2,7 @@
 
 This guide tells you how to use the Bible table, page by page.
 
-The Bible table is a surface for Bible study. Each passage, person, place, map, picture and note is a card. You put cards on the table, then move, turn and scale them. You highlight words and draw links between cards. A rail of tools sits on one edge of the screen. The table works on a phone, a laptop, a large touch panel and a wall display.
+The Bible table is a surface for Bible study. Each passage, person, place, map, picture and note is a card. You put cards on the table and move them, and you zoom the table in and out. You highlight words and draw links between cards. A rail of tools sits on one edge of the screen. The table works on a phone, a laptop, a large touch panel and a wall display.
 
 [Open the table](/table)
 
