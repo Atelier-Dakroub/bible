@@ -11,8 +11,9 @@
 // shown, and snaps the shown one from it each time. So a snap never builds up:
 // a finger that keeps moving pulls the card free again.
 //
-// Everything is in the coordinates of the cards' parent, where the table does
-// not scale, so pixels there are pixels on the screen.
+// Everything is in the coordinates of the cards' parent, the table's world.
+// The table zooms the world, so the card passes a reach divided by the zoom:
+// the same distance on the screen at any zoom.
 
 import { angleOf, scaleOf } from './affine.js';
 

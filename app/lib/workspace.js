@@ -23,13 +23,14 @@
 /** @typedef {import('./rules.js').Rule} Rule */
 /** @typedef {StoredCard & { title: string, text: string }} ListItem a card gathered into a list: as it was kept on the table, with its title and first words for the list's row */
 /** @typedef {{ id: string, title?: string, items: ListItem[] }} List a list card's cards (bible-table, lists); its card is list:<id> */
-/** @typedef {{ offset: Point, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], lists: List[], trail: import('./trail.js').Trail }} Workspace `trail` is the search panel's research trail (lib/trail.js); like the offset, it is not a step to undo */
+/** @typedef {{ offset: Point, zoom: number, cards: StoredCard[], highlights: Highlight[], links: Link[], notes: Note[], rules: Rule[], lists: List[], trail: import('./trail.js').Trail }} Workspace `zoom` is the table's (lib/zoom.js); `trail` is the search panel's research trail (lib/trail.js); like the offset and the zoom, it is not a step to undo */
 
 import { isKind } from './note-kinds.js';
 import { isWordAddress, STYLES } from './words.js';
 import { sameRule, toRule } from './rules.js';
 import { TYPES } from './links.js';
 import { emptyTrail, toTrail } from './trail.js';
+import { clampZoom } from './zoom.js';
 
 const KEY = 'bible.table.v1';
 const NAMED_KEY = 'bible.workspaces.v1';
@@ -37,7 +38,7 @@ const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 's
 
 /** @returns {Workspace} */
 export function empty() {
-  return { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: emptyTrail() };
+  return { offset: { x: 0, y: 0 }, zoom: 1, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: emptyTrail() };
 }
 
 /**
@@ -74,6 +75,7 @@ function fromValue(value) {
   if (!value || typeof value !== 'object') return empty();
 
   const offset = isPoint(value.offset) ? { x: value.offset.x, y: value.offset.y } : { x: 0, y: 0 };
+  const zoom = clampZoom(Number(value.zoom ?? 1));
   /** @type {Set<string>} */
   const ids = new Set();
   const cards = Array.isArray(value.cards)
@@ -114,7 +116,7 @@ function fromValue(value) {
     const rule = toRule(each);
     if (rule && !rules.some((kept) => sameRule(kept, rule))) rules.push(rule);
   }
-  return { offset, cards, highlights, links, notes, rules, lists: toLists(value.lists), trail: toTrail(value.trail) };
+  return { offset, zoom, cards, highlights, links, notes, rules, lists: toLists(value.lists), trail: toTrail(value.trail) };
 }
 
 /**
@@ -190,8 +192,9 @@ export function save(workspace) {
 
 /**
  * The workspace as a string that is the same whenever what is on the table is
- * the same: for the undo history. The pan offset is left out, because a pan
- * is not something to undo, and the cards are in id order, because the order
+ * the same: for the undo history. The pan offset and the zoom are left out,
+ * because a pan or a zoom is not something to undo, and the cards are in id
+ * order, because the order
  * in which they arrive from the server is not part of the workspace.
  *
  * @param {Workspace} workspace

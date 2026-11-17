@@ -1,11 +1,11 @@
-<!-- An object on the table. One finger moves it. Two fingers move, turn and
-     scale it.
+<!-- An object on the table. One finger moves it. A second finger hands both
+     to the table, which zooms (card-pinch), unless it marks words.
 
      Marking takes two hands. One finger holds the card still for a moment
      (HOLD_MS, within STILL_PX), and a second finger that then lands on a word
      marks words instead of turning the card: it runs from the word it landed
      on to the word it lifts from. Two fingers that land together, or a second
-     finger that lands off the words, still move, turn and scale the card.
+     finger that lands off the words, zoom the table.
 
      A marking finger that leaves the card draws a link instead: the marked
      words are one end, and wherever the finger lifts is the other. The table
@@ -24,7 +24,9 @@
      and the table offers a list of the cards to link to.
 
      The card's position is a matrix in the coordinates of its offset parent,
-     written as one CSS transform. Nothing else about the card changes during a
+     written as one CSS transform. The parent is the table's world, which the
+     table scales by its zoom (its inline style scale), so a point on the
+     screen is divided by the zoom on its way in. Nothing else about the card changes during a
      gesture, so a move costs a composite and no layout.
 
      Text mode: a double tap or a double-click on the words (READABLE) lets
@@ -67,6 +69,8 @@
        card-group   a group drag: detail { phase: 'start' | 'move' | 'end',
                     dx, dy }, the card's move since the start
        card-paint   the card moved or changed form, so lines to it move too
+       card-pinch   a second finger came down, and the table takes both:
+                    detail { pointers: [{ id, x, y }, …] } (on the screen)
        card-tap     one finger touched and lifted without moving: detail
                     { target, x, y } (x and y on the screen; none from Enter)
        card-remove  the close button was pressed; the card removes itself next -->
@@ -75,7 +79,7 @@
   import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
   import { centroid, dropLost, step } from '../lib/gesture.js';
   import { inBsb, paintWords, span, wordAt } from '../lib/words.js';
-  import { boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
+  import { REACH, boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -193,6 +197,8 @@
     points: null,
     /** @type {Point | null} the parent's corner on screen, read when a gesture starts */
     origin: null,
+    /** the table's zoom, read when a gesture starts */
+    factor: 1,
     frame: 0,
     /** @type {{ x: number, y: number, t: number } | null} where the holding finger last settled */
     still: null,
@@ -283,7 +289,13 @@
     /** @param {Point} at screen coordinates */
     parentPoint(at) {
       const box = this.parent().getBoundingClientRect();
-      return { x: at.x - box.left, y: at.y - box.top };
+      const zoom = this.zoomOf();
+      return { x: (at.x - box.left) / zoom, y: (at.y - box.top) / zoom };
+    },
+
+    /** The table's zoom: the scale of the parent, 1 where it has none. */
+    zoomOf() {
+      return Number.parseFloat(this.parent().style.scale) || 1;
     },
 
     /**
@@ -314,8 +326,9 @@
      * @param {number} dy
      */
     moveBy(dx, dy) {
-      const box = this.getBoundingClientRect();
-      this.transformBy(translation(dx, dy), this.parentPoint({ x: box.left + box.width / 2, y: box.top + box.height / 2 }));
+      // A step of the keys is the same on the screen at any zoom.
+      const zoom = this.zoomOf();
+      this.transformBy(translation(dx / zoom, dy / zoom), this.parentPoint(this.middle()));
     },
 
     /** The middle of the card on the screen. */
@@ -389,9 +402,31 @@
       if (this.notMine(event, target) || this.reads(target)) return;
       this.forgetLost();
       if (this.marking || this.markFrom(event, target)) return;
+      if (this.points?.size) {
+        this.handOff(event);
+        return;
+      }
       this.tap = this.firstTap(event);
       this.take(event.pointerId, { x: event.clientX, y: event.clientY });
       this.armGroup(event);
+    },
+
+    /**
+     * A second finger: the card lets go, and the table takes both fingers
+     * to zoom. Where the first finger moved the card, it stays.
+     *
+     * @param {PointerEvent} event
+     */
+    handOff(event) {
+      const points = /** @type {Map<number, Point>} */ (this.points);
+      const origin = this.origin ?? { x: 0, y: 0 };
+      const pointers = [...points].map(([id, at]) => ({ id, x: origin.x + at.x * this.factor, y: origin.y + at.y * this.factor }));
+      pointers.push({ id: event.pointerId, x: event.clientX, y: event.clientY });
+      points.clear();
+      this.tap = null;
+      this.still = null;
+      this.letGo();
+      this.dispatchEvent(new CustomEvent('card-pinch', { bubbles: true, detail: { pointers } }));
     },
 
     /**
@@ -677,6 +712,7 @@
       if (points.size === 0) {
         const box = this.parent().getBoundingClientRect();
         this.origin = { x: box.left, y: box.top };
+        this.factor = this.zoomOf();
         this.raw = this.matrix;
         this.others = null;
       }
@@ -701,8 +737,8 @@
      * @param {number} [scale] the size to arrive at
      */
     hold(pointerId, at, scale = 1) {
-      const box = this.parent().getBoundingClientRect();
-      this.matrix = gripAt(at.x - box.left, at.y - box.top, scale);
+      const local = this.parentPoint(at);
+      this.matrix = gripAt(local.x, local.y, scale);
       this.paint();
       this.take(pointerId, at);
     },
@@ -716,8 +752,8 @@
      * @param {number} [scale] the size to arrive at
      */
     placeAt(at, scale = 1) {
-      const box = this.parent().getBoundingClientRect();
-      this.matrix = gripAt(at.x - box.left, at.y - box.top, scale);
+      const local = this.parentPoint(at);
+      this.matrix = gripAt(local.x, local.y, scale);
       top += 1;
       this.style.zIndex = String(top);
       this.paint();
@@ -925,7 +961,8 @@
         return turned;
       }
       this.others ??= this.otherBoxes();
-      const { dx, dy, guides } = snapBox(boxOf(turned, this.offsetWidth, this.offsetHeight), this.others);
+      // The reach is on the screen: at half size, twice as far on the table.
+      const { dx, dy, guides } = snapBox(boxOf(turned, this.offsetWidth, this.offsetHeight), this.others, REACH / this.factor);
       this.showGuides(guides);
       return { ...turned, e: turned.e + dx, f: turned.f + dy };
     },
@@ -957,7 +994,7 @@
     /** @param {Point} at screen coordinates */
     local(at) {
       const origin = this.origin ?? { x: 0, y: 0 };
-      return { x: at.x - origin.x, y: at.y - origin.y };
+      return { x: (at.x - origin.x) / this.factor, y: (at.y - origin.y) / this.factor };
     },
 
     paint() {

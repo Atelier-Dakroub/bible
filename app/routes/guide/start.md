@@ -81,8 +81,10 @@ A passage of more than 24 verses comes onto the table at half size, in its short
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
 | Move a card | Drag it with one finger | Drag it | Move to it with <kbd>Tab</kbd>, then press the arrow keys |
-| Scale a card | Pinch it with two fingers | Pinch on the trackpad, or hold <kbd>Control</kbd> or <kbd>Command</kbd> and turn the wheel | <kbd>+</kbd> and <kbd>-</kbd> |
-| Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari only) | <kbd>[</kbd> and <kbd>]</kbd> |
+| Scale a card | — | — | <kbd>+</kbd> and <kbd>-</kbd> |
+| Turn a card | — | — | <kbd>[</kbd> and <kbd>]</kbd> |
+
+Two fingers on a card zoom the whole table, not the card. See [Zoom the table](#zoom-the-table).
 
 Hold <kbd>Shift</kbd> with the arrow keys to move a card further.
 
@@ -104,18 +106,30 @@ To move a card freely with a mouse, hold <kbd>Command</kbd> or <kbd>Control</kbd
 
 Hold <kbd>Shift</kbd> with the arrow keys to pan further. To see the whole table, use the overview.
 
+## Zoom the table
+
+The table zooms from 25% to 200%. The zoom is kept with the table, and Undo does not change it.
+
+| To | Touch | Mouse or trackpad | Keyboard |
+| --- | --- | --- | --- |
+| Zoom in or out | Pinch with two fingers, on the table or on a card | Pinch on the trackpad, or hold <kbd>Control</kbd> or <kbd>Command</kbd> and turn the wheel | <kbd>+</kbd> and <kbd>-</kbd>, when no card has the focus |
+| Zoom in or out a step | Tap **−** or **+** in the lower right corner | Click **−** or **+** | — |
+| Go back to full size | Tap the percentage between **−** and **+** | Click the percentage | <kbd>0</kbd> |
+
+The zoom stays about the place between your fingers, or under the pointer. On the map, a pinch zooms the map, not the table.
+
 ## The overview
 
 On a large table, or on a phone, the overview shows the whole table, small. Use it to see where everything is, and to go to any part of the table at once.
 
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
-| Show the overview | Tap **Overview** on the rail, or pinch in with two fingers on the empty table | Click **Overview**, or pinch in on the trackpad over the empty table | <kbd>O</kbd> |
+| Show the overview | Tap **Overview** on the rail, or pinch in past 25% | Click **Overview**, or pinch in past 25%, or click **−** at 25% | <kbd>O</kbd> |
 | Go to a card | Tap it | Click it | — |
 | Go to a place | Tap the table there | Click the table there | — |
-| Go back to full size | Spread two fingers, or tap **Overview** again | Spread two fingers on the trackpad, or click **Overview** again | <kbd>O</kbd> or <kbd>Escape</kbd> |
+| Go back | Spread two fingers, or tap **Overview** again | Spread two fingers on the trackpad, or click **Overview** again | <kbd>O</kbd> or <kbd>Escape</kbd> |
 
-In the overview, every card shows as it is, small, as windows do in the Mac's Exposé. A label in the color of its kind gives its title, at one size on every card. The cards spread apart so that none covers another; they go back to their places when you leave the overview. The links between the cards stay, thin and faint, without their labels. The other lines hide. You can pan, but you cannot move a card or write. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
+In the overview, every card shows as it is, small, as windows do in the Mac's Exposé. A label in the color of its kind gives its title, at one size on every card. The cards spread apart so that none covers another; they go back to their places when you leave the overview. The links between the cards stay, thin and faint, without their labels. The other lines hide. You can pan, but you cannot move a card or write. When you go back, the table comes back at the zoom it had before. A card that you go to comes to the middle of the screen at full size. A long card shows its top.
 
 The cards never get too small to find. If the whole table does not fit on the screen at that size, as often on a phone, the overview shows the part around where you were. Pan to see the rest.
 

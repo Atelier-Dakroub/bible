@@ -12,8 +12,10 @@ On a Mac, use <kbd>Command</kbd> where this page says <kbd>Command</kbd> or <kbd
 | --- | --- |
 | <kbd>/</kbd> | Opens the search panel and puts the cursor in the field |
 | Arrow keys, when nothing has the focus | Pan the table |
-| <kbd>O</kbd>, when nothing has the focus | Shows the whole table, small (the overview), or goes back to full size |
-| <kbd>Escape</kbd>, in the overview | Goes back to full size |
+| <kbd>O</kbd>, when nothing has the focus | Shows the whole table, small (the overview), or goes back |
+| <kbd>Escape</kbd>, in the overview | Goes back to the zoom before the overview |
+| <kbd>+</kbd> and <kbd>-</kbd>, when nothing has the focus | Zoom the table in and out a step |
+| <kbd>0</kbd>, when nothing has the focus | Zooms the table to full size |
 | <kbd>Shift</kbd> and an arrow key | Pans the table further |
 | <kbd>Command</kbd> or <kbd>Control</kbd> and <kbd>Z</kbd> | Undo |
 | <kbd>Shift</kbd>, <kbd>Command</kbd> or <kbd>Control</kbd>, and <kbd>Z</kbd> | Redo |
@@ -109,12 +111,12 @@ See [Notes](/guide/notes#keys-for-formatting) for the keys that make headings an
 | To | Touch | Mouse or trackpad |
 | --- | --- | --- |
 | Pan the table | Drag the empty table | Drag the empty table, or scroll |
-| Show the whole table (the overview) | Pinch in with two fingers on the empty table | Pinch in on the trackpad over the empty table |
+| Zoom the table in or out | Pinch with two fingers, on the table or on a card | Pinch on the trackpad, or <kbd>Control</kbd> or <kbd>Command</kbd> and the wheel, or the **−** and **+** buttons in the corner |
+| Zoom back to full size | Tap the percentage in the corner | Click the percentage, or press <kbd>0</kbd> |
+| Show the whole table (the overview) | Pinch in past 25% | Pinch in past 25%, or press <kbd>O</kbd> |
 | Go to a card or a place in the overview | Tap it | Click it |
 | Move a card | Drag it with one finger | Drag it |
 | Move a card freely, with no snap | Turn off **Snap** in **Tools**, **Table** | Hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag |
-| Scale a card | Pinch it with two fingers | Pinch on the trackpad, or <kbd>Control</kbd> or <kbd>Command</kbd> and the wheel |
-| Turn a card | Turn two fingers on it | Turn two fingers on the trackpad (Safari only) |
 | Select words to copy | Double-tap the words, then select them | Double-click the words, then drag over them |
 | Mark words | Hold the card with one finger, run a finger of the other hand over the words | Hold <kbd>Option</kbd> (<kbd>Alt</kbd>) and drag over the words |
 | Draw a link | Mark words, then drag the marking finger onto another card | The same, with <kbd>Option</kbd> held |
@@ -133,7 +135,7 @@ The app chooses a size for the kind of screen. To make everything smaller or lar
 - Each panel is the width of the screen, and one panel opens at a time. A panel cannot float.
 - A card from the search panel goes on the table at the width of the screen. The search panel steps aside so that you can see the card.
 - The timeline is closed at first.
-- A pinch on a card scales the card, not the page. A pinch on the empty table shows the overview.
+- A pinch zooms the table, not the page. On the map, a pinch zooms the map.
 
 ### A tablet
 

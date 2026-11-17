@@ -67,7 +67,7 @@ test('the table pans by the mean move of the fingers in both frames', () => {
 });
 
 test('a broken or old workspace reads as an empty table', () => {
-  const blank = { offset: { x: 0, y: 0 }, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: { steps: [], index: -1 } };
+  const blank = { offset: { x: 0, y: 0 }, zoom: 1, cards: [], highlights: [], links: [], notes: [], rules: [], lists: [], trail: { steps: [], index: -1 } };
   assert.deepEqual(parse(null), blank);
   assert.deepEqual(parse('not json'), blank);
   const kept = parse(
@@ -77,6 +77,10 @@ test('a broken or old workspace reads as an empty table', () => {
     }),
   );
   assert.deepEqual(kept.offset, { x: 5, y: 6 });
+  // A table kept before the zoom is at full size; a zoom out of range is kept in it.
+  assert.equal(kept.zoom, 1);
+  assert.equal(parse(JSON.stringify({ zoom: 0.5 })).zoom, 0.5);
+  assert.equal(parse(JSON.stringify({ zoom: 9 })).zoom, 2);
   assert.deepEqual(kept.cards.map((card) => card.address), ['JHN.3.16']);
 });
 

@@ -1,7 +1,13 @@
 <!-- The table: an infinite surface that holds the cards.
 
-     The table never turns or scales. Fingers on an empty part of it pan
-     everything on it together, and there is no edge.
+     The table never turns. One finger on an empty part of it pans
+     everything on it together, and there is no edge. Two fingers anywhere,
+     on the table or on a card, zoom it (lib/zoom.js), from a quarter of full
+     size to twice it, about the place between them; a card hands its two
+     fingers to the table (card-pinch). A pinch on past the least zoom shows
+     the overview. The zoom is kept with the table, and is not a step to undo.
+     The zoom buttons in the corner of the free part, and + - and 0 with no
+     card in focus, do the same in steps.
 
      A card is a server fragment, /card/<address>?fragment=card, fetched when a
      passage is placed. A card's version buttons (KJV, BSB, Both) fetch the
@@ -92,9 +98,9 @@
      A mouse, a trackpad and a keyboard work too:
        wheel, or two fingers on a trackpad   pan the table
        pinch on a trackpad, or Control (or Command) and the wheel
-                                             scale the card under the pointer
-       turn two fingers on the trackpad      turn the card (Safari only)
+                                             zoom the table about the pointer
        arrow keys, with no card in focus     pan the table
+       + - and 0, with no card in focus      zoom in, out, and to full size
 
      The overview (lib/overview.js): the whole table, small, to see where
      everything is on a large table and to go to any part of it at once. The
@@ -106,7 +112,9 @@
      spread of two fingers, Escape, O or Overview again comes back to the
      middle. In the overview a finger pans, and the cards take no touches;
      whatever changes the cards or brings one (FULL_SIZE) comes back to full
-     size first. The overview is not kept: the table is kept as at full size.
+     size first. The overview is not kept: the table is kept at the zoom it
+     had before the overview, which a spread, Escape, O or Overview brings
+     back; a tap on a tile comes to full size.
 
      Far (the Interface setting, for a wall seen from across the room): the
      arrow keys move the focus from card to card and to the panels' controls
@@ -149,6 +157,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
+  import { LEAST_ZOOM, MOST_ZOOM, clampZoom, nextStep, offsetFor, percent, pinchZoom, tablePoint } from '../lib/zoom.js';
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, listNamed, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
@@ -761,13 +770,13 @@
    * @param {{ x1: number, y1: number, x2: number, y2: number }} guide
    * @param {DOMRect} world where the table's world is on the screen
    */
-  function guideLine(guide, world) {
+  function guideLine(guide, world, zoom) {
     const element = document.createElementNS(SVG, 'line');
     element.setAttribute('class', 'guide');
-    element.setAttribute('x1', String(guide.x1 + world.left));
-    element.setAttribute('y1', String(guide.y1 + world.top));
-    element.setAttribute('x2', String(guide.x2 + world.left));
-    element.setAttribute('y2', String(guide.y2 + world.top));
+    element.setAttribute('x1', String(world.left + guide.x1 * zoom));
+    element.setAttribute('y1', String(world.top + guide.y1 * zoom));
+    element.setAttribute('x2', String(world.left + guide.x2 * zoom));
+    element.setAttribute('y2', String(world.top + guide.y2 * zoom));
     return element;
   }
 
@@ -1538,8 +1547,12 @@
     offset: { x: 0, y: 0 },
     /** @type {Map<number, Point> | null} */
     fingers: null,
-    /** the table's scale: 1, or less while the overview shows */
+    /** the table's scale: its zoom (lib/zoom.js), or the overview's, which can be less */
     zoom: 1,
+    /** the zoom before the overview, which leaving it brings back */
+    zoomBefore: 1,
+    /** @type {{ zoom: number, at: Point, spread: number } | null} a pinch under way: the zoom it began at, the place of the table between the fingers then, and their spread */
+    pinch: null,
     /** whether the overview shows (lib/overview.js) */
     overview: false,
     /** @type {{ x: number, y: number, moved: boolean } | null} where one finger on the empty table came down: a tap, unless it moves */
@@ -1617,6 +1630,8 @@
         this.pendingTrail = null;
       });
       this.offset = workspace.offset;
+      this.zoom = workspace.zoom;
+      this.scaleWorld();
       this.highlights = workspace.highlights;
       this.links = workspace.links;
       this.notes = workspace.notes;
@@ -1742,8 +1757,26 @@
         panel?.showEntity(/** @type {CustomEvent} */ (event).detail.id);
       }, options);
       this.addEventListener('timeline-toggle', () => this.drawSoon(), options);
-      // The rail has moved the panels: the lines to the timeline follow.
-      this.addEventListener('chrome-arrange', () => this.drawSoon(), options);
+      // The rail has moved the panels: the lines to the timeline follow, and
+      // the zoom buttons keep to the corner of the free part.
+      this.addEventListener('chrome-arrange', () => {
+        this.drawSoon();
+        this.placeZoomButtons();
+      }, options);
+      addEventListener('resize', () => this.placeZoomButtons(), options);
+      requestAnimationFrame(() => this.placeZoomButtons());
+      // A second finger on a card: the table takes both, and zooms.
+      this.addEventListener('card-pinch', (event) => this.takePinch(/** @type {CustomEvent} */ (event).detail.pointers), options);
+      // A finger on a card while one pans the table: the two zoom it, and
+      // the card never hears of the second.
+      this.addEventListener('pointerdown', (event) => {
+        // The map's frame keeps its own two fingers, which zoom the map.
+        if (this.overview || this.fingers?.size !== 1 || !this.cardAt(event.target) || elementOf(event.target)?.closest('map-view')) return;
+        event.stopPropagation();
+        this.takePinch([{ id: event.pointerId, x: event.clientX, y: event.clientY }]);
+      }, { ...options, capture: true });
+      this.querySelector('.table__zoom')?.addEventListener('click', (event) => this.zoomButton(event), options);
+      document.addEventListener('keydown', (event) => this.zoomKey(event), options);
       // On a phone, one panel is open at a time: the one that opens closes
       // the others (each sends panel-open only on a phone).
       this.addEventListener('panel-open', (event) => this.onePanel(/** @type {CustomEvent} */ (event).detail.panel), options);
@@ -1911,18 +1944,144 @@
     },
 
     /**
-     * A pinch on a trackpad (a wheel with Control or Command): the card under
-     * it zooms.
+     * A pinch on a trackpad (a wheel with Control or Command): the table
+     * zooms about the pointer. Past the least zoom, the overview shows; in
+     * the overview, the overview's pinch.
      *
      * @param {WheelEvent} event
      * @param {number} unit
      */
     wheelZoom(event, unit) {
       if (!event.ctrlKey && !event.metaKey) return false;
-      const card = this.overview ? null : this.cardAt(event.target);
-      if (card) card.zoomAt({ x: event.clientX, y: event.clientY }, Math.exp((-event.deltaY * unit) / 200));
-      else this.wheelOverview(event, unit);
+      if (this.overview) {
+        this.wheelOverview(event, unit);
+        return true;
+      }
+      const point = { x: event.clientX, y: event.clientY };
+      const factor = Math.exp((-event.deltaY * unit) / 200);
+      // At the least zoom, a pinch in goes on, and once far enough the
+      // overview shows; a pinch out starts again from here.
+      const least = clampZoom(this.zoom * factor) === this.zoom && factor < 1;
+      this.wheelPinch = least ? this.wheelPinch + Math.log(factor) : 0;
+      clearTimeout(this.wheelPinchTimer);
+      this.wheelPinchTimer = setTimeout(() => {
+        this.wheelPinch = 0;
+      }, 300);
+      if (pinchZoom(this.zoom, Math.exp(this.wheelPinch)).overview) {
+        this.wheelPinch = 0;
+        this.enterOverview();
+        return true;
+      }
+      this.zoomAbout(point, this.zoom * factor);
       return true;
+    },
+
+    /**
+     * Zooms the table about a point on the screen, which stays where it is.
+     *
+     * @param {Point} point
+     * @param {number} zoom
+     */
+    zoomAbout(point, zoom) {
+      const next = clampZoom(zoom);
+      this.setView(keeping(point, this.offset, this.zoom, next), next);
+    },
+
+    /**
+     * Shows the table at an offset and a zoom at once, for a gesture: the
+     * lines hide while it changes, and are drawn again where it rests.
+     *
+     * @param {Point} offset
+     * @param {number} zoom
+     */
+    setView(offset, zoom) {
+      this.stopGlide();
+      this.offset = offset;
+      this.zoom = zoom;
+      this.scaleWorld();
+      this.classList.add('is-scaling');
+      cancelAnimationFrame(this.frame);
+      this.frame = requestAnimationFrame(() => {
+        const world = this.world();
+        world.style.left = `${this.offset.x}px`;
+        world.style.top = `${this.offset.y}px`;
+      });
+      clearTimeout(this.restTimer);
+      this.restTimer = setTimeout(() => {
+        this.classList.remove('is-scaling');
+        this.drawSoon();
+      }, 120);
+      this.keepSoon();
+    },
+
+    /** The world at the table's zoom, and the buttons say it. */
+    scaleWorld() {
+      this.world().style.scale = this.zoom === 1 ? '' : String(this.zoom);
+      this.showZoom();
+    },
+
+    /** The zoom buttons: the zoom now, and which way it can go. */
+    showZoom() {
+      const group = this.querySelector('.table__zoom');
+      if (!group) return;
+      const zoom = this.overview ? this.zoomBefore : this.zoom;
+      const reset = group.querySelector('[data-zoom="reset"]');
+      if (reset) reset.textContent = this.overview ? 'All' : percent(zoom);
+      group.querySelector('[data-zoom="in"]')?.toggleAttribute('disabled', !this.overview && zoom >= MOST_ZOOM - 0.001);
+      group.querySelector('[data-zoom="out"]')?.toggleAttribute('disabled', this.overview);
+    },
+
+    /**
+     * The zoom buttons: out and in a step, and back to full size. Past the
+     * least zoom, out shows the overview; in the overview, in leaves it.
+     *
+     * @param {Event} event
+     */
+    zoomButton(event) {
+      const button = event.target instanceof Element ? event.target.closest('[data-zoom]') : null;
+      if (!(button instanceof HTMLElement)) return;
+      this.zoomStep(/** @type {'in' | 'out' | 'reset'} */ (button.dataset.zoom));
+    },
+
+    /**
+     * + and - zoom a step, and 0 comes to full size, when nothing has the
+     * focus, as for the arrow keys.
+     *
+     * @param {KeyboardEvent} event
+     */
+    zoomKey(event) {
+      /** @type {Record<string, 'in' | 'out' | 'reset'>} */
+      const keys = { '+': 'in', '=': 'in', '-': 'out', _: 'out', 0: 'reset' };
+      const asks = keys[event.key];
+      if (!asks || !freeKey(event, this)) return;
+      event.preventDefault();
+      this.zoomStep(asks);
+    },
+
+    /**
+     * A step of the zoom about the middle of the free part, in a short zoom.
+     *
+     * @param {'in' | 'out' | 'reset'} asks
+     */
+    zoomStep(asks) {
+      if (this.overview) {
+        if (asks !== 'out') this.leaveOverview(null, null);
+        return;
+      }
+      if (asks === 'out' && this.zoom <= LEAST_ZOOM + 0.001) {
+        this.enterOverview();
+        return;
+      }
+      const next = asks === 'reset' ? 1 : nextStep(this.zoom, asks === 'in' ? 1 : -1);
+      this.zoomTo(keeping(middleOf(this.free()), this.offset, this.zoom, next), next);
+      this.keepSoon();
+    },
+
+    /** The zoom buttons keep to the lower right corner of the free part. */
+    placeZoomButtons() {
+      const free = this.free();
+      this.style.setProperty('--free-right', `${Math.round(innerWidth - free.right)}px`);
+      this.style.setProperty('--free-bottom', `${Math.round(innerHeight - free.bottom)}px`);
     },
 
     /**
@@ -1963,24 +2122,28 @@
      * @param {AbortSignal} signal
      */
     trackpad(signal) {
-      /** @type {{ card: Card, at: Point, scale: number, rotation: number } | null} */
+      /** @type {{ zoom: number } | null} */
       let gesture = null;
       /** @param {any} event */
       const start = (event) => {
         event.preventDefault();
-        const card = this.overview ? null : this.cardAt(event.target);
-        gesture = card ? { card, at: { x: event.clientX, y: event.clientY }, scale: 1, rotation: 0 } : null;
-        this.pinchFrom = card ? 0 : 1;
+        gesture = this.overview ? null : { zoom: this.zoom };
+        this.pinchFrom = 1;
       };
       /** @param {any} event */
       const change = (event) => {
         event.preventDefault();
-        // Over the empty table, or in the overview: the overview's pinch.
-        if (!gesture) return this.pinchTo(event.scale, { x: event.clientX, y: event.clientY });
-        gesture.card.zoomAt(gesture.at, event.scale / gesture.scale);
-        gesture.card.turnAt(gesture.at, ((event.rotation - gesture.rotation) * Math.PI) / 180);
-        gesture.scale = event.scale;
-        gesture.rotation = event.rotation;
+        const point = { x: event.clientX, y: event.clientY };
+        // In the overview: the overview's pinch.
+        if (!gesture) return this.pinchTo(event.scale, point);
+        const { zoom, overview } = pinchZoom(gesture.zoom, event.scale);
+        if (overview) {
+          gesture = null;
+          this.pinchFrom = 0;
+          this.enterOverview();
+          return;
+        }
+        this.zoomAbout(point, zoom);
       };
       /** @param {any} event */
       const end = (event) => {
@@ -2270,10 +2433,11 @@
       const corner = { x: Math.max(free.left + margin, ...rights.map((right) => right + 4 * ROW_GAP)), y: free.top + margin };
       const sizes = columns.map((column) => column.map((card) => ({ width: card.offsetWidth, height: card.offsetHeight })));
       const { scale, at } = layOut(sizes, corner, free.right - free.left - 2 * margin, ROW_GAP);
-      const world = this.world().getBoundingClientRect();
+      // The layout is on the screen; the cards go on the table, at the zoom.
       columns.forEach((column, i) =>
         column.forEach((card, j) => {
-          card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: at[i][j].x - world.left, f: at[i][j].y - world.top });
+          const place = tablePoint(at[i][j], this.offset, this.zoom);
+          card.setMatrix({ a: scale / this.zoom, b: 0, c: 0, d: scale / this.zoom, e: place.x, f: place.y });
           this.raise(card);
         }),
       );
@@ -2356,9 +2520,9 @@
         return;
       }
       const box = beside.getBoundingClientRect();
-      const world = this.world().getBoundingClientRect();
+      const corner = tablePoint({ x: box.right, y: box.top }, this.offset, this.zoom);
       const scale = /** @type {Card} */ (beside).matrix?.a ?? 1;
-      card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: box.right + ROW_GAP - world.left, f: box.top - world.top });
+      card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: corner.x + ROW_GAP, f: corner.y });
       this.raise(card);
     },
 
@@ -2370,10 +2534,9 @@
      * @param {string} version kjv, bsb, both, original, interlinear, reverse or syntax; '' for the KJV
      */
     async placeRow(addresses, version) {
-      const start = this.openSpot();
-      const world = this.world().getBoundingClientRect();
-      let x = start.x - world.left;
-      const y = start.y - world.top;
+      const start = tablePoint(this.openSpot(), this.offset, this.zoom);
+      let x = start.x;
+      const y = start.y;
       /** @type {{ address: string, title: string }[]} */
       const placed = [];
       this.applying += 1;
@@ -2557,6 +2720,30 @@
       // One finger may tap (in the overview); two may pinch.
       this.tapFrom = fingers.size === 1 ? { x: event.clientX, y: event.clientY, moved: false } : null;
       this.pinchFrom = fingers.size === 2 ? spread([...fingers.values()]) : 0;
+      this.pinch = null;
+    },
+
+    /**
+     * Two fingers that came down on a card: the table takes them, to zoom.
+     *
+     * @param {{ id: number, x: number, y: number }[]} pointers on the screen
+     */
+    takePinch(pointers) {
+      if (this.overview) return;
+      this.stopGlide();
+      const fingers = /** @type {Map<number, Point>} */ (this.fingers);
+      for (const { id, x, y } of pointers) {
+        try {
+          this.setPointerCapture(id);
+        } catch {
+          continue;
+        }
+        fingers.set(id, { x, y });
+      }
+      this.classList.add('is-panning');
+      this.tapFrom = null;
+      this.pinchFrom = 0;
+      this.pinch = null;
     },
 
     /** @param {PointerEvent} event */
@@ -2565,18 +2752,48 @@
       if (!fingers.has(event.pointerId)) return;
       const after = new Map(fingers);
       after.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      this.untap(event);
+      // Two fingers at full size or near it zoom; in the overview, a spread
+      // leaves it.
+      if (after.size >= 2 && !this.overview) {
+        this.fingers = after;
+        this.pinchMove([...after.values()].slice(0, 2));
+        return;
+      }
       const moved = pan(fingers, after);
       this.offset = { x: this.offset.x + moved.x, y: this.offset.y + moved.y };
       this.fingers = after;
-      this.untap(event);
       if (after.size === 2) this.pinchTo(spread([...after.values()]), centre([...after.values()]));
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.paint());
     },
 
+    /**
+     * Two fingers move: the table zooms by how far they spread, and the place
+     * that was between them stays between them, so they pan it too. Past the
+     * least zoom, the overview shows.
+     *
+     * @param {Point[]} points the two fingers, on the screen
+     */
+    pinchMove(points) {
+      const middle = centre(points);
+      const now = Math.max(1, spread(points));
+      this.pinch ??= { zoom: this.zoom, at: tablePoint(middle, this.offset, this.zoom), spread: now };
+      const { zoom, overview } = pinchZoom(this.pinch.zoom, now / this.pinch.spread);
+      if (overview) {
+        this.pinch = null;
+        this.pinchFrom = 0;
+        this.enterOverview();
+        return;
+      }
+      this.setView(offsetFor(this.pinch.at, middle, zoom), zoom);
+    },
+
     /** @param {PointerEvent} event */
     release(event) {
       const fingers = /** @type {Map<number, Point>} */ (this.fingers);
+      // One finger fewer: a pinch begins again from the fingers that are left.
+      if (fingers.has(event.pointerId)) this.pinch = null;
       if (fingers.delete(event.pointerId) && fingers.size === 0) {
         this.classList.remove('is-panning');
         if (event.type === 'pointerup') this.tapUp(event);
@@ -2661,6 +2878,7 @@
       const once = this.spreadFor(cards, boxes, first);
       const { shifts, view } = once.view.scale < first.scale ? this.spreadFor(cards, boxes, once.view) : once;
       this.writing?.end();
+      this.zoomBefore = this.zoom;
       this.overview = true;
       this.tiles(cards, true);
       this.style.setProperty('--overview-scale', String(view.scale));
@@ -2738,12 +2956,14 @@
     leaveOverview(point, card, animate = true) {
       if (!this.overview) return;
       const free = this.clearOfSearch(this.free());
-      const offset = card ? centring(this.placeOf(card), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, 1);
+      // To a card: at full size. Else to the zoom before the overview.
+      const zoom = card ? 1 : this.zoomBefore;
+      const offset = card ? centring(this.placeOf(card), free) : keeping(point ?? middleOf(free), this.offset, this.zoom, zoom);
       const cards = this.tableCards();
       this.overview = false;
       this.classList.remove('is-overview');
       this.tiles(cards, false);
-      this.zoomTo(offset, 1, animate);
+      this.zoomTo(offset, zoom, animate);
       this.spreadCards(cards, null);
       this.showOverview();
       this.keepSoon();
@@ -2817,7 +3037,7 @@
       const from = { x: this.offset.x - offset.x, y: this.offset.y - offset.y, scale: this.zoom };
       this.offset = offset;
       this.zoom = scale;
-      world.style.scale = scale === 1 ? '' : String(scale);
+      this.scaleWorld();
       world.style.left = `${offset.x}px`;
       world.style.top = `${offset.y}px`;
       if (!animate || lessMotion()) return this.drawSoon();
@@ -3631,11 +3851,11 @@
     async placeBeside(addresses) {
       const anchor = this.guideCard?.isConnected ? /** @type {Card} */ (/** @type {unknown} */ (this.guideCard)) : null;
       if (!anchor) return this.placeEach(addresses);
-      const world = this.world().getBoundingClientRect();
       const box = anchor.getBoundingClientRect();
+      const corner = tablePoint({ x: box.right, y: box.top }, this.offset, this.zoom);
       const scale = scaleOf(anchor.matrix);
-      let x = box.right - world.left + ROW_GAP;
-      const y = box.top - world.top;
+      let x = corner.x + ROW_GAP;
+      const y = corner.y;
       this.applying += 1;
       try {
         for (const address of addresses) {
@@ -4142,7 +4362,7 @@
     guideLines() {
       if (!this.guides.length) return [];
       const world = this.world().getBoundingClientRect();
-      return this.guides.map((guide) => guideLine(guide, world));
+      return this.guides.map((guide) => guideLine(guide, world, this.zoom));
     },
 
     /**
@@ -5257,9 +5477,10 @@
       const cards = [...this.world().querySelectorAll('gesture-card')].flatMap((card) => this.storedOf(/** @type {Card} */ (/** @type {unknown} */ (card))) ?? []);
       // The cards that did not load stay in the table that is kept.
       const kept = this.unloaded.filter((stored) => !cards.some((card) => card.id === stored.id));
-      // In the overview, the table is kept as it will be at full size.
-      const offset = this.overview ? keeping(middleOf(this.free()), this.offset, this.zoom, 1) : this.offset;
-      return { offset, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, lists: this.lists, trail: this.trailNow() };
+      // In the overview, the table is kept as it will be when it leaves.
+      const zoom = this.overview ? this.zoomBefore : this.zoom;
+      const offset = this.overview ? keeping(middleOf(this.free()), this.offset, this.zoom, zoom) : this.offset;
+      return { offset, zoom, cards: [...cards, ...kept], highlights: this.highlights, links: this.links, notes: this.notes, rules: this.rules, lists: this.lists, trail: this.trailNow() };
     },
 
     /** The search panel's trail, or the one a table brought that the panel has not taken yet. */
@@ -5417,6 +5638,11 @@
       this.lists = target.lists;
       this.rules = target.rules;
       if (record) this.panel()?.setTrail?.(target.trail, true);
+      // An opened table brings its zoom; an undo leaves the zoom, as the pan.
+      if (record && target.zoom !== this.zoom) {
+        this.zoom = target.zoom;
+        this.scaleWorld();
+      }
       if (target.offset.x === this.offset.x && target.offset.y === this.offset.y) return;
       this.offset = target.offset;
       this.paint();
@@ -5706,8 +5932,54 @@
   }
   /* While the table zooms in or out, the lines wait: they are drawn where
      it rests. */
-  :scope.is-zooming :is(.table__lines, .table__links, .table__labels) {
+  :scope:is(.is-zooming, .is-scaling) :is(.table__lines, .table__links, .table__labels) {
     visibility: hidden;
+  }
+  /* The zoom buttons: in the lower right corner of the free part of the
+     screen (placeZoomButtons), over the cards and under the panels. */
+  .table__zoom {
+    position: absolute;
+    right: calc(var(--free-right, 0px) + 0.75rem);
+    bottom: calc(var(--free-bottom, 0px) + 0.75rem);
+    z-index: 1000000;
+    display: flex;
+    gap: 1px;
+    padding: 1px;
+    border: 1px solid var(--card-edge);
+    border-radius: var(--radius);
+    background: var(--card-edge);
+    box-shadow: 0 2px 10px var(--shade-near);
+  }
+  .table__zoom button {
+    min-width: var(--control-height, 2.25rem);
+    min-height: var(--control-height, 2.25rem);
+    padding: 0 0.5rem;
+    border: 0;
+    border-radius: 0;
+    background: var(--paper);
+    font: 500 0.85rem/1 var(--sans);
+    font-variant-numeric: tabular-nums;
+  }
+  .table__zoom button:first-child {
+    border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+  }
+  .table__zoom button:last-child {
+    border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0;
+  }
+  .table__zoom [data-zoom='reset'] {
+    min-width: 3.75rem;
+  }
+  .table__zoom button:disabled {
+    color: var(--muted);
+    cursor: default;
+  }
+  @media (hover: hover) {
+    .table__zoom button:not(:disabled):hover {
+      background: var(--tint);
+    }
+  }
+  :scope[data-chrome-hidden] .table__zoom {
+    display: none;
   }
   /* A short message at the top of the screen (toast), over everything, clear
      of the rail at the foot of a phone and of its notch. Its width is its
@@ -5984,6 +6256,13 @@
 <div class="table__footnote" popover role="note" aria-labelledby="footnote-label">
   <p class="footnote__label" id="footnote-label"></p>
   <p class="footnote__text"></p>
+</div>
+<!-- The table's zoom (zoomStep): out, the zoom now (a tap comes to full
+     size), in. -->
+<div class="table__zoom" role="group" aria-label="Zoom the table">
+  <button type="button" data-zoom="out" aria-label="Zoom out" aria-keyshortcuts="-" title="Zoom out (-)">−</button>
+  <button type="button" data-zoom="reset" aria-keyshortcuts="0" title="Full size (0)">100%</button>
+  <button type="button" data-zoom="in" aria-label="Zoom in" aria-keyshortcuts="+" title="Zoom in (+)">+</button>
 </div>
 <p class="table__toast" role="status"></p>
 <slot></slot>
