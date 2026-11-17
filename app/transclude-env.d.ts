@@ -50,11 +50,9 @@ type Whole = {
 };
 type Card = HTMLElement & {
   matrix: Matrix;
-  hold(id: number, at: Point, scale?: number | undefined): void;
-  placeAt(at: Point, scale?: number | undefined): void;
+  hold(id: number, at: Point): void;
+  placeAt(at: Point): void;
   setMatrix(m: Matrix): void;
-  zoomAt(at: Point, factor: number): void;
-  turnAt(at: Point, radians: number): void;
 };
 type Matrix = {
   a: number;
@@ -90,6 +88,7 @@ type StoredCard = {
   version?: string | undefined;
   sync?: boolean | undefined;
   compare?: boolean | undefined;
+  short?: boolean | undefined;
   view?: {
     x: number;
     y: number;
@@ -244,9 +243,11 @@ type FetchOptions = {
   id?: string | undefined;
   sync?: boolean | undefined;
   compare?: boolean | undefined;
+  short?: boolean | undefined;
 };
 type Workspace = {
   offset: Point;
+  zoom: number;
   cards: StoredCard[];
   highlights: Highlight[];
   links: Link[];
@@ -829,6 +830,12 @@ export type BibleTableMembers = {
   offset: Point;
   fingers: Map<number, Point> | null;
   zoom: number;
+  zoomBefore: number;
+  pinch: {
+    zoom: number;
+    at: Point;
+    spread: number;
+  } | null;
   overview: boolean;
   tapFrom: {
     x: number;
@@ -889,6 +896,16 @@ export type BibleTableMembers = {
   overPanel(target: EventTarget | null): boolean;
   wheel(event: WheelEvent): void;
   wheelZoom(event: WheelEvent, unit: number): boolean;
+  zoomAbout(point: Point, zoom: number): void;
+  setView(offset: Point, zoom: number): void;
+  scaleTimer: any;
+  scaleWorld(): void;
+  farOut(): void;
+  showZoom(): void;
+  zoomButton(event: Event): void;
+  zoomKey(event: KeyboardEvent): void;
+  zoomStep(asks: 'in' | 'out' | 'reset'): void;
+  placeZoomButtons(): void;
   wheelOverview(event: WheelEvent, unit: number): void;
   zoomAsked(asks: 'in' | 'out', point: Point): void;
   trackpad(signal: AbortSignal): void;
@@ -984,7 +1001,13 @@ export type BibleTableMembers = {
   keepSoon(): void;
   world(): HTMLElement;
   press(event: PointerEvent): void;
+  takePinch(pointers: {
+    id: number;
+    x: number;
+    y: number;
+  }[]): void;
   drag(event: PointerEvent): void;
+  pinchMove(points: Point[]): void;
   release(event: PointerEvent): void;
   untap(event: PointerEvent): void;
   tapUp(event: PointerEvent): void;
@@ -1061,13 +1084,10 @@ export type BibleTableMembers = {
     pointer: Pull | null;
     version?: string | undefined;
   }): Promise<void>;
-  putDown(card: Card, pointer: Pull | null, scale: number): void;
-  phoneSpot(card: Element, scale: number): {
-    at: {
-      x: number;
-      y: number;
-    };
-    scale: number;
+  putDown(card: Card, pointer: Pull | null): void;
+  phoneSpot(card: Element): {
+    x: number;
+    y: number;
   };
   mark({
     from, to
@@ -1288,6 +1308,7 @@ export type BibleTableMembers = {
   clickLabel(target: Element | null): boolean;
   cardButton(card: Card, button: HTMLButtonElement): void;
   setSync(card: HTMLElement, on: boolean): void;
+  setShort(card: HTMLElement, on: boolean): void;
   setCompare(card: HTMLElement, on: boolean): void;
   readAloud(card: HTMLElement, button: HTMLButtonElement, from?: string | undefined): Promise<void>;
   stopListening(card: HTMLElement): void;
@@ -1370,7 +1391,7 @@ export type BibleTableMembers = {
   writingArea(): Box_2;
   paintQuoted(root: Element): void;
   fetchCard(address: string, {
-    version, replacing, id, sync, compare
+    version, replacing, id, sync, compare, short
   }: FetchOptions): Promise<Card | null>;
   dropLinksOfGone(card: HTMLElement): void;
   contentGone(address: string): boolean;
@@ -1393,10 +1414,11 @@ export type BibleTableMembers = {
   noteAt(address: string): false | Note | null;
   putCard(card: HTMLElement, replacing: Element | null, id: string | undefined): boolean;
   markCard(card: HTMLElement, {
-    sync, compare, version, note
+    sync, compare, short, version, note
   }: {
     sync: boolean;
     compare: boolean;
+    short: boolean;
     version: string;
     note: any;
   }): void;
@@ -1516,7 +1538,6 @@ export type ContrastChartMembers = {
 export type GestureCardProps = {
   x: number;
   y: number;
-  angle: number;
 };
 
 /** Members of `<gesture-card>`, from its `export const prototype`. */
@@ -1524,6 +1545,7 @@ export type GestureCardMembers = {
   matrix: Matrix | null;
   points: Map<number, Point> | null;
   origin: Point | null;
+  factor: number;
   frame: number;
   still: {
     x: number;
@@ -1543,6 +1565,12 @@ export type GestureCardMembers = {
     t: number;
     target: EventTarget | null;
   } | null;
+  lastTap: {
+    x: number;
+    y: number;
+    t: number;
+  } | null;
+  reading: AbortController | null;
   handle: {
     id: number;
     x: number;
@@ -1564,13 +1592,12 @@ export type GestureCardMembers = {
     signal: any;
   }): void;
   disconnected(): void;
-  transformBy(change: Matrix, about: Point): void;
+  transformBy(change: Matrix): void;
   parentPoint(at: Point): {
     x: number;
     y: number;
   };
-  zoomAt(at: Point, factor: number): void;
-  turnAt(at: Point, radians: number): void;
+  zoomOf(): number;
   moveBy(dx: number, dy: number): void;
   middle(): {
     x: number;
@@ -1581,6 +1608,7 @@ export type GestureCardMembers = {
   keyActions(long: boolean): Record<string, () => void>;
   parent(): HTMLElement;
   press(event: PointerEvent): void;
+  handOff(event: PointerEvent): void;
   notMine(event: PointerEvent, target: Element | null): boolean;
   grabHandle(event: PointerEvent, target: Element | null): boolean;
   moveHandle(event: PointerEvent): void;
@@ -1612,8 +1640,8 @@ export type GestureCardMembers = {
   sendLink(type: string, event: PointerEvent | null): void;
   paintMarking(): void;
   take(pointerId: number, at: Point): void;
-  hold(pointerId: number, at: Point, scale?: number | undefined): void;
-  placeAt(at: Point, scale?: number | undefined): void;
+  hold(pointerId: number, at: Point): void;
+  placeAt(at: Point): void;
   setMatrix(matrix: Matrix): void;
   drag(event: PointerEvent): void;
   dropMovedTap(event: PointerEvent): void;
@@ -1627,9 +1655,18 @@ export type GestureCardMembers = {
     t: number;
     target: EventTarget | null;
   } | null, event: PointerEvent): void;
+  doubleTap(tap: {
+    x: number;
+    y: number;
+    t: number;
+    target: EventTarget | null;
+  }): boolean;
+  reads(target: Element | null): boolean;
+  startReading(target: Element): void;
+  stopReading(): void;
   letGo(): void;
   snaps(event: PointerEvent): boolean;
-  snapped(raw: Matrix, about: Point): Matrix;
+  snapped(raw: Matrix): Matrix;
   otherBoxes(): Box_3[];
   showGuides(guides: Guide[]): void;
   act(event: MouseEvent): void;
@@ -2838,7 +2875,6 @@ export type DesignData = {
       size: number;
     }[];
   };
-  relief: any[];
   eras: {
     name: string;
     label: string;
