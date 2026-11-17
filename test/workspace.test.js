@@ -230,7 +230,21 @@ test('a card kept turned or scaled comes back upright at its own size, and a sma
     }),
   );
   const upright = (/** @type {number} */ e, /** @type {number} */ f) => ({ a: 1, b: 0, c: 0, d: 1, e, f });
+  // The middle scale of the three is 1: the table stays at full size.
+  assert.equal(kept.zoom, 1);
   assert.deepEqual(kept.cards[0], { id: 'a', address: 'GEN.1', matrix: upright(10, 20), short: true });
   assert.deepEqual(kept.cards[1], { id: 'b', address: 'JHN.3', matrix: upright(30, 40) });
   assert.deepEqual(kept.cards[2], { id: 'c', address: 'ROM.8', matrix: upright(0, 0), short: true });
+});
+
+test('a table kept with its cards at half size zooms to half, and looks as it did', () => {
+  const half = (/** @type {number} */ e, /** @type {number} */ f) => ({ a: 0.6, b: 0, c: 0, d: 0.6, e, f });
+  const kept = parse(JSON.stringify({ offset: { x: 5, y: 5 }, cards: [{ id: 'a', address: 'GEN.1', matrix: half(60, 120) }, { id: 'b', address: 'JHN.3', matrix: half(300, 120) }] }));
+  assert.equal(kept.zoom, 0.6);
+  // On the screen, each card is where it was: offset + zoom · place.
+  assert.deepEqual(kept.cards.map((card) => [card.matrix.e * kept.zoom, card.matrix.f * kept.zoom].map((n) => Math.round(n))), [[60, 120], [300, 120]]);
+  assert.ok(kept.cards.every((card) => card.matrix.a === 1 && !card.short));
+  // Kept again, it stays as it is.
+  assert.deepEqual(parse(JSON.stringify(kept)).cards, kept.cards);
+  assert.equal(parse(JSON.stringify(kept)).zoom, 0.6);
 });

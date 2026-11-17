@@ -77,17 +77,20 @@ function fromValue(value) {
   if (!value || typeof value !== 'object') return empty();
 
   const offset = isPoint(value.offset) ? { x: value.offset.x, y: value.offset.y } : { x: 0, y: 0 };
-  const zoom = clampZoom(Number(value.zoom ?? 1));
+  const kept = Array.isArray(value.cards) ? value.cards.filter(isCard) : [];
+  // A table kept before the table zoomed had cards at their own scales. The
+  // table takes their usual scale as its zoom, and their places are on a
+  // table that size, so the table looks as it did.
+  const shrink = clampZoom(keptScale(kept));
+  const zoom = shrink !== 1 ? shrink : clampZoom(Number(value.zoom ?? 1));
   /** @type {Set<string>} */
   const ids = new Set();
-  const cards = Array.isArray(value.cards)
-    ? value.cards.filter(isCard).map((/** @type {any} */ card, /** @type {number} */ i) => {
-        let id = typeof card.id === 'string' && card.id && !ids.has(card.id) ? card.id : `card${i}`;
-        while (ids.has(id)) id = `${id}x`;
-        ids.add(id);
-        return toStored(card, id);
-      })
-    : [];
+  const cards = kept.map((/** @type {any} */ card, /** @type {number} */ i) => {
+    let id = typeof card.id === 'string' && card.id && !ids.has(card.id) ? card.id : `card${i}`;
+    while (ids.has(id)) id = `${id}x`;
+    ids.add(id);
+    return toStored(card, id, shrink);
+  });
   const highlights = Array.isArray(value.highlights) ? value.highlights.filter(isSpan).map(toHighlight) : [];
   const links = Array.isArray(value.links)
     ? value.links
@@ -122,19 +125,34 @@ function fromValue(value) {
 }
 
 /**
+ * The scale of most of the cards of a table kept before the table zoomed:
+ * the middle one. 1 when every card is upright at its own size, as every
+ * card is since.
+ *
+ * @param {any[]} cards values that isCard
+ */
+function keptScale(cards) {
+  const old = cards.some(({ matrix: m }) => m.a !== 1 || m.b !== 0 || m.c !== 0 || m.d !== 1);
+  if (!old) return 1;
+  const scales = cards.map(({ matrix: m }) => Math.hypot(m.a, m.b)).sort((x, y) => x - y);
+  return scales[Math.floor(scales.length / 2)] || 1;
+}
+
+/**
  * A card as it is kept, from what was read.
  *
  * @param {any} card a value that isCard
  * @param {string} id
+ * @param {number} [shrink] the table's usual scale before it zoomed: the card's place is on a table that size
  * @returns {StoredCard}
  */
-function toStored(card, id) {
+function toStored(card, id, shrink = 1) {
   const m = card.matrix;
   /** @type {StoredCard} */
-  const stored = { id, address: card.address, matrix: { a: 1, b: 0, c: 0, d: 1, e: m.e, f: m.f } };
+  const stored = { id, address: card.address, matrix: { a: 1, b: 0, c: 0, d: 1, e: m.e / shrink, f: m.f / shrink } };
   // A card kept from before the table zoomed could be turned and scaled: it
-  // stands upright at its own size where it was, and one under half size,
-  // which showed its short form, keeps it.
+  // stands upright at its own size, and one under half size, which showed
+  // its short form, keeps it.
   if (card.short === true || Math.hypot(m.a, m.b) < SHORT_BELOW) stored.short = true;
   if (VERSIONS.includes(String(card.version))) stored.version = card.version;
   if (card.sync === true) stored.sync = true;
