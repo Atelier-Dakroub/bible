@@ -111,7 +111,7 @@ What the script does, and why:
 | Contact size | Touch with a fingertip, then with the flat of a finger | **Contact size** shows Reported, with more than one size. This panel shows "Fixed at 50 × 50". |
 | Screen mapping | Touch the center of each crosshair several times | Each offset is less than about 10 px |
 | Input rate | Move one finger steadily | **Input samples** shows 60 per second or more |
-| Gestures | Move, turn and scale the two cards | The card stays under the fingers |
+| Gestures | Move the two cards with one finger each | The card stays under the finger |
 
 If all five crosshairs show about the same large offset, the VM screen does
 not cover the full panel. Go back to step 2.3. If the offsets in Y are large at

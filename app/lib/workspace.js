@@ -17,7 +17,7 @@
 /** @typedef {import('./affine.js').Point} Point */
 /** @typedef {import('./words.js').Highlight} Highlight */
 /** @typedef {import('./links.js').Span} Span */
-/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean, view?: { x: number, y: number, w: number } }} StoredCard `version` is kjv, bsb or both; `compare` marks the differences in both; `view` is the part of the map in the map card's frame (lib/map.js) */
+/** @typedef {{ id: string, address: string, matrix: Matrix, version?: string, sync?: boolean, compare?: boolean, short?: boolean, view?: { x: number, y: number, w: number } }} StoredCard `matrix` is a move only: a card is upright at its own size; `version` is kjv, bsb or both; `compare` marks the differences in both; `short` shows its short form; `view` is the part of the map in the map card's frame (lib/map.js) */
 /** @typedef {import('./links.js').Link} Link */
 /** @typedef {{ id: string, text: string, doc?: any, quotes: Span[], kind?: import('./note-kinds.js').Kind, answered?: boolean, title?: string }} Note `doc` is its words as a document (lib/note-doc.js); `text` the same as plain text; `kind` its kind (lib/note-kinds.js), none for a plain note; `answered` a question's box; `title` the reader's own, else the kind's name shows */
 /** @typedef {import('./rules.js').Rule} Rule */
@@ -35,6 +35,8 @@ import { clampZoom } from './zoom.js';
 const KEY = 'bible.table.v1';
 const NAMED_KEY = 'bible.workspaces.v1';
 const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'];
+/** The scale under which a card kept from before the zoom showed its short form. */
+const SHORT_BELOW = 0.55;
 
 /** @returns {Workspace} */
 export function empty() {
@@ -127,8 +129,13 @@ function fromValue(value) {
  * @returns {StoredCard}
  */
 function toStored(card, id) {
+  const m = card.matrix;
   /** @type {StoredCard} */
-  const stored = { id, address: card.address, matrix: card.matrix };
+  const stored = { id, address: card.address, matrix: { a: 1, b: 0, c: 0, d: 1, e: m.e, f: m.f } };
+  // A card kept from before the table zoomed could be turned and scaled: it
+  // stands upright at its own size where it was, and one under half size,
+  // which showed its short form, keeps it.
+  if (card.short === true || Math.hypot(m.a, m.b) < SHORT_BELOW) stored.short = true;
   if (VERSIONS.includes(String(card.version))) stored.version = card.version;
   if (card.sync === true) stored.sync = true;
   if (card.compare === true) stored.compare = true;

@@ -1,13 +1,9 @@
-// Snapping, for a card that a hand or a mouse holds.
+// Snapping, for a card that a hand or a mouse holds: its edges and middle
+// line up with those of the other cards, or sit a GAP beside them, within
+// REACH pixels. Cards never turn or scale (gesture-card), so every box is
+// upright.
 //
-// Three snaps, in this order:
-//   - the turn: within ANGLE of upright (or of a quarter turn), the card
-//     stands exactly upright (or at the quarter turn);
-//   - the scale: within SCALE of full size, the card is exactly full size;
-//   - the place: an upright card's edges and middle line up with those of the
-//     other upright cards, or sit a GAP beside them, within REACH pixels.
-//
-// The gesture keeps the matrix the fingers ask for apart from the one that is
+// The gesture keeps the matrix the finger asks for apart from the one that is
 // shown, and snaps the shown one from it each time. So a snap never builds up:
 // a finger that keeps moving pulls the card free again.
 //
@@ -15,73 +11,15 @@
 // The table zooms the world, so the card passes a reach divided by the zoom:
 // the same distance on the screen at any zoom.
 
-import { angleOf, scaleOf } from './affine.js';
-
 /** @typedef {import('./affine.js').Matrix} Matrix */
-/** @typedef {import('./affine.js').Point} Point */
 /** @typedef {{ left: number, top: number, right: number, bottom: number }} Box */
 /** @typedef {{ x1: number, y1: number, x2: number, y2: number }} Guide */
 
-export const ANGLE = (5 * Math.PI) / 180;
-export const SCALE = 0.04;
 export const REACH = 12;
 export const GAP = 24;
 
-const QUARTER = Math.PI / 2;
-
 /**
- * The same card, turned and scaled so that `about` stays where it is.
- *
- * @param {Matrix} m
- * @param {number} angle the new turn
- * @param {number} scale the new scale
- * @param {Point} about
- * @returns {Matrix}
- */
-function withTurnAndScale(m, angle, scale, about) {
-  // The point of the card under `about`.
-  const det = m.a * m.d - m.b * m.c;
-  const x = about.x - m.e;
-  const y = about.y - m.f;
-  const p = { x: (m.d * x - m.c * y) / det, y: (m.a * y - m.b * x) / det };
-  // Exact for a quarter turn: cos and sin of those are -1, 0 or 1.
-  const quarter = Math.abs(angle / QUARTER - Math.round(angle / QUARTER)) < 1e-9;
-  const cos = quarter ? Math.round(Math.cos(angle)) : Math.cos(angle);
-  const sin = quarter ? Math.round(Math.sin(angle)) : Math.sin(angle);
-  const a = scale * cos;
-  const b = scale * sin;
-  return { a, b, c: -b, d: a, e: about.x - (a * p.x - b * p.y), f: about.y - (b * p.x + a * p.y) };
-}
-
-/**
- * The turn and the scale, snapped.
- *
- * @param {Matrix} m
- * @param {Point} about the point that stays still, such as the fingers' middle
- * @returns {Matrix}
- */
-export function snapTurnAndScale(m, about) {
-  const angle = angleOf(m);
-  const scale = scaleOf(m);
-  const nearest = Math.round(angle / QUARTER) * QUARTER;
-  const turn = Math.abs(angle - nearest) < ANGLE ? nearest : angle;
-  const size = Math.abs(scale - 1) < SCALE ? 1 : scale;
-  if (turn === angle && size === scale) return m;
-  return withTurnAndScale(m, turn, size, about);
-}
-
-/**
- * True when the matrix stands upright.
- *
- * @param {Matrix} m
- */
-export function isUpright(m) {
-  // Matrices built up from many small steps keep a trace of a turn.
-  return Math.abs(m.b) < 1e-9 && Math.abs(m.c) < 1e-9 && m.a > 0;
-}
-
-/**
- * The box an upright card covers.
+ * The box a card covers.
  *
  * @param {Matrix} m
  * @param {number} width the card's own width

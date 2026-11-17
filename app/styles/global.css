@@ -331,8 +331,8 @@ gesture-card.is-grouped > .rr-card {
 gesture-card.is-grouped > .passage,
 gesture-card.is-grouped > .rr-card {
   /* The same width on the screen at any size of the card. */
-  outline: calc(2.5px / var(--card-scale, 1)) solid color-mix(in srgb, var(--lapis) 80%, transparent);
-  outline-offset: calc(3px / var(--card-scale, 1));
+  outline: calc(2.5px / var(--table-zoom, 1)) solid color-mix(in srgb, var(--lapis) 80%, transparent);
+  outline-offset: calc(3px / var(--table-zoom, 1));
 }
 .passage--note { --kind: var(--ink-soft); }
 .passage--commentary { --kind: var(--slate); }
@@ -676,61 +676,27 @@ gesture-card.is-grouped > .rr-card {
   text-underline-offset: 0.2em;
 }
 
-/* Semantic zoom. A card scaled below about half size shows its short form:
-   the heading and the opening words, set larger so they stay readable at
-   that scale. The full verses come back when the card grows. */
+/* The short form (the card's Short form button, data-form="short" on
+   gesture-card): the heading, the opening words and the count of verses, in
+   place of the verses and the version bar. The card stays at its own size,
+   and its buttons stay, so it steps, links and copies as before. */
 .passage__short {
   display: none;
   margin: 0;
 }
-gesture-card[data-zoom='far'] .passage__short {
+gesture-card[data-form='short'] .passage__short {
   display: block;
-  font-size: 1.6em;
-  line-height: 1.35;
 }
-gesture-card[data-zoom='far'] .passage__heading {
-  font-size: 2.2em;
-}
-/* A passage's title in the short form: its book short ("1 Cor 13"), as
-   large as the room beside the steps and close allows (the header less its
-   three buttons, 15rem), between 1em and 2.2em of the card. */
-gesture-card[data-zoom='far'] .passage__heading[data-short] {
-  font-size: 0;
-}
-gesture-card[data-zoom='far'] .passage__heading[data-short]::after {
-  content: attr(data-short);
-  content: attr(data-short) / '';
-  font-size: clamp(calc(1rem * var(--read-scale)), calc((100cqi - 15.25rem) / (var(--chars, 10) * 0.54)), calc(2.2rem * var(--read-scale)));
-}
-gesture-card[data-zoom='far'] .passage__close,
-gesture-card[data-zoom='far'] .passage__step {
-  font-size: 2.4em;
-  width: 5rem;
-  height: 5rem;
-}
-gesture-card[data-zoom='far'] .passage__icon {
+gesture-card[data-form='short'] :is(kjv-verse, .passage__text, .passage__parallel, .passage__tools, .passage__original, .passage__interlinear, .passage__reverse, .passage__syntax) {
   display: none;
 }
-/* The link button stays in the short form, as large as close, so a small
-   card on a phone can still start a link. It sits in the bottom corner,
-   beside the count of verses, where the heading leaves room. */
-gesture-card[data-zoom='far'] > .passage {
-  position: relative;
-}
-gesture-card[data-zoom='far'] .passage__icon[data-action='link'] {
-  position: absolute;
-  right: 0.5rem;
-  bottom: 0.4rem;
-  display: grid;
-  width: 5rem;
-  height: 5rem;
-  font-size: 2.4em;
-}
-gesture-card[data-zoom='far'] kjv-verse,
-gesture-card[data-zoom='far'] .passage__text,
-gesture-card[data-zoom='far'] .passage__parallel,
-gesture-card[data-zoom='far'] .passage__versions {
+/* The button shows what it does: fold to the short form, or unfold. */
+.passage__form .form__unfold,
+gesture-card[data-form='short'] .passage__form .form__fold {
   display: none;
+}
+gesture-card[data-form='short'] .passage__form .form__unfold {
+  display: inline-block;
 }
 .passage__count {
   display: block;
@@ -820,11 +786,6 @@ gesture-card[data-zoom='far'] .passage__versions {
   font: 500 max(0.6rem, 11px) var(--sans);
 }
 
-/* In the short form the version bar goes; the steps beside the heading stay,
-   set larger (above), so a long chapter that arrives small can still step. */
-gesture-card[data-zoom='far'] .passage__tools {
-  display: none;
-}
 
 /* A phrase card is narrower: it holds a few words. */
 .passage--phrase {
@@ -1213,12 +1174,18 @@ gesture-card.is-writing > .passage {
   color: var(--muted);
   font: 0.8rem/1.4 var(--sans);
 }
-gesture-card[data-zoom='far'] .note__quote,
-gesture-card[data-zoom='far'] .note__hint {
+/* A note's short form: its first lines, without its quotes. While it is
+   written, it shows whole. */
+gesture-card[data-form='short']:not(.is-writing) .note__quote,
+gesture-card[data-form='short']:not(.is-writing) .note__hint {
   display: none;
 }
-gesture-card[data-zoom='far'] .note__text {
-  font-size: 1.6em;
+gesture-card[data-form='short']:not(.is-writing) .note__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 /* A word study in the search panel. */
@@ -1531,8 +1498,8 @@ gesture-card[data-zoom='far'] .note__text {
   font: 500 var(--ui-text)/1.3 var(--sans);
 }
 gesture-card.is-drop-target > .passage {
-  outline: calc(3px / var(--card-scale, 1)) solid var(--verdigris);
-  outline-offset: calc(3px / var(--card-scale, 1));
+  outline: calc(3px / var(--table-zoom, 1)) solid var(--verdigris);
+  outline-offset: calc(3px / var(--table-zoom, 1));
 }
 
 /* A word that names a person, place or group: a tap shows it. */
@@ -2780,7 +2747,7 @@ gesture-card[data-compare] .bsb__d {
     stroke: var(--lapis);
   }
 }
-gesture-card[data-zoom='far'] .landscape__summary {
+gesture-card[data-form='short'] .landscape__summary {
   display: none;
 }
 

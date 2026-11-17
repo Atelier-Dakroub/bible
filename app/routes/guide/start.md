@@ -74,27 +74,21 @@ Copy a list of references, or any text with references in it, such as a sermon o
 - `John 3:16, 18; 4:1` gives three cards: John 3:16, John 3:18 and John 4:1.
 - The pasted text stays on your device.
 
-A passage of more than 24 verses comes onto the table at half size, in its short form. See [Cards](/guide/cards#size-and-the-short-form).
+A passage of more than 24 verses comes onto the table in its short form. See [Cards](/guide/cards#the-short-form).
 
-## Move, turn and scale a card
+## Move a card
 
 | To | Touch | Mouse or trackpad | Keyboard |
 | --- | --- | --- | --- |
 | Move a card | Drag it with one finger | Drag it | Move to it with <kbd>Tab</kbd>, then press the arrow keys |
-| Scale a card | — | — | <kbd>+</kbd> and <kbd>-</kbd> |
-| Turn a card | — | — | <kbd>[</kbd> and <kbd>]</kbd> |
 
-Two fingers on a card zoom the whole table, not the card. See [Zoom the table](#zoom-the-table).
+Cards stay upright, at their own size. Two fingers on a card zoom the whole table, not the card. See [Zoom the table](#zoom-the-table). To make a card take less room, use its **Short form** button. See [Cards](/guide/cards#the-short-form).
 
 Hold <kbd>Shift</kbd> with the arrow keys to move a card further.
 
 ### Snapping
 
-When you hold a card and let it go, it snaps:
-
-- It turns upright when it is near upright, or near a quarter turn.
-- It goes to full size when it is near full size.
-- It lines up with the edges and middles of the other upright cards, or one gap beside them. Dotted guides show where it lines up.
+When you move a card near another card, it snaps: it lines up with the edges and middles of the other card, or one gap beside it. Dotted guides show where it lines up.
 
 To move a card freely with a mouse, hold <kbd>Command</kbd> or <kbd>Control</kbd> while you drag. To stop all snapping, turn off **Snap** in **Tools**, **Table**. The wheel and the keys do not snap.
 
@@ -117,6 +111,8 @@ The table zooms from 25% to 200%. The zoom is kept with the table, and Undo does
 | Go back to full size | Tap the percentage between **−** and **+** | Click the percentage | <kbd>0</kbd> |
 
 The zoom stays about the place between your fingers, or under the pointer. On the map, a pinch zooms the map, not the table.
+
+Below 40%, each card shows its title on a label in the color of its kind, as in the overview, so that you can find it. You can still move the cards.
 
 ## The overview
 

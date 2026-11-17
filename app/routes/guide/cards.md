@@ -14,6 +14,7 @@ These buttons are at the top of the card:
 | › | After the heading | Goes to the passage after, of the same length. |
 | Speaker | At the top | Reads the passage aloud. See [Listen and watch](/guide/listen-watch). |
 | Copy | At the top | Copies the words with their reference and version. |
+| Short form | At the top | Shows only the heading, the first words and the number of verses. Tap it again to show the whole passage. See [The short form](#the-short-form). |
 | Sync | At the top | Makes the card step with the other synced cards. |
 | Link | At the top | Links the whole card to another card. See [Links between cards](#links-between-cards). |
 | **×** | At the top | Takes the card off the table. |
@@ -59,11 +60,15 @@ To copy only some of the words, double-tap or double-click the words. The card g
 
 Tap the heading of a passage card. The search panel shows the passage guide: parallels, quotations, cross-references, the people and places it names, and more. See [Study](/guide/study#the-passage-guide). With the keyboard, give the card the focus and press <kbd>Enter</kbd>.
 
-## Size and the short form
+## The short form
 
-When you make a card smaller than about half size, it shows its short form: the heading, the first words and the number of verses. Make it larger again to read the whole passage.
+Tap the **Short form** button at the top of a card. The card then shows only its heading, its first words and the number of verses. It takes less room on the table, and its other buttons still work. Tap the button again to show the whole passage. A note in its short form shows its first three lines, without its quotes.
 
-A passage's heading always stays on one line. In the short form, it uses the short name of its book, such as "1 Cor 13" for 1 Corinthians 13 or "Song 2:1" for Song of Solomon 2:1. At full size, a heading that is too long for the room beside the buttons uses the short name too, such as "2 Cor 6:11". A card in Both is wide, so it keeps the full name. A long reference shows in smaller letters.
+A passage of more than 24 verses comes onto the table in its short form.
+
+Cards do not change size or turn. To see more of the table, or to make everything larger, zoom the table. See [Zoom the table](/guide/start#zoom-the-table).
+
+A passage's heading always stays on one line. A heading that is too long for the room beside the buttons uses the short name of its book, such as "2 Cor 6:11" for 2 Corinthians 6:11. A card in Both is wide, so it keeps the full name. A long reference shows in smaller letters.
 
 ## Words on a card
 
@@ -109,7 +114,7 @@ A link joins two cards, or words on two cards. Every card can have links: passag
 
 ### Link two whole cards
 
-Drag the link button at the top of a card onto another card, with one finger or the mouse. On a small card in its short form, the link button is in the bottom corner, beside the count of verses. Lift it on the other card. A line now joins the two cards.
+Drag the link button at the top of a card onto another card, with one finger or the mouse. Lift it on the other card. A line now joins the two cards.
 
 You can also tap or click the link button. A list of the other cards on the table opens. Choose a card from the list. The list also reaches cards that are off the screen, and it works with the keyboard. "Linked" in the list shows a card that is linked already. Escape closes the list.
 

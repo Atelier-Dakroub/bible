@@ -38,8 +38,6 @@ First give the card the focus: press <kbd>Tab</kbd> until the card has the focus
 | --- | --- |
 | Arrow keys | Move the card |
 | <kbd>Shift</kbd> and an arrow key | Moves the card further |
-| <kbd>+</kbd> and <kbd>-</kbd> | Make the card larger or smaller |
-| <kbd>[</kbd> and <kbd>]</kbd> | Turn the card |
 | <kbd>Enter</kbd> | Does what a tap on the heading does. On a passage, opens its guide. |
 | <kbd>Delete</kbd> or <kbd>Backspace</kbd> | Takes the card off the table. Undo brings it back. |
 

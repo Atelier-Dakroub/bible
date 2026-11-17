@@ -1,7 +1,7 @@
 # bible
 
 A multi-touch research surface for the Bible. The text goes on a table as
-cards that you move, turn, scale, highlight and connect. The app is built
+cards that you move, highlight and connect, on a table that zooms. The app is built
 with [transclude](https://transclude.dev).
 
 ## Quick start
@@ -37,8 +37,9 @@ link. The libraries in the browser build are in THIRD-PARTY-NOTICES.md.
 ## The app
 
 `/table` is the table: search the text, then tap a result or drag it out
-sideways to put the passage on the table as a card. Cards move, turn and
-scale; a drag on the empty table pans everything, and the table has no edge.
+sideways to put the passage on the table as a card. Cards move, and each
+can fold to a short form; a drag on the empty table pans everything, two
+fingers zoom it from 25% to 200%, and the table has no edge.
 What is on the table is kept in the browser as addresses and positions.
 
 The tools are on one rail (`app/elements/table-rail.html`), on the left at

@@ -218,3 +218,19 @@ test('lists come back with their cards, and a broken one is left out', () => {
   assert.deepEqual(lists, [{ id: 'l1', title: 'Grace', items: [{ id: 'c1', address: 'JHN.3.16', matrix, version: 'bsb', title: 'John 3:16', text: 'For God so loved' }] }]);
   assert.deepEqual(parse('{}').lists, []);
 });
+
+test('a card kept turned or scaled comes back upright at its own size, and a small one short', () => {
+  const kept = parse(
+    JSON.stringify({
+      cards: [
+        { id: 'a', address: 'GEN.1', matrix: { a: 0.4, b: 0, c: 0, d: 0.4, e: 10, f: 20 } },
+        { id: 'b', address: 'JHN.3', matrix: { a: Math.cos(0.2) * 1.5, b: Math.sin(0.2) * 1.5, c: -Math.sin(0.2) * 1.5, d: Math.cos(0.2) * 1.5, e: 30, f: 40 } },
+        { id: 'c', address: 'ROM.8', matrix: { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }, short: true },
+      ],
+    }),
+  );
+  const upright = (/** @type {number} */ e, /** @type {number} */ f) => ({ a: 1, b: 0, c: 0, d: 1, e, f });
+  assert.deepEqual(kept.cards[0], { id: 'a', address: 'GEN.1', matrix: upright(10, 20), short: true });
+  assert.deepEqual(kept.cards[1], { id: 'b', address: 'JHN.3', matrix: upright(30, 40) });
+  assert.deepEqual(kept.cards[2], { id: 'c', address: 'ROM.8', matrix: upright(0, 0), short: true });
+});

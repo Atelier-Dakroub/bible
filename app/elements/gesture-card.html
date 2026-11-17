@@ -5,7 +5,8 @@
      (HOLD_MS, within STILL_PX), and a second finger that then lands on a word
      marks words instead of turning the card: it runs from the word it landed
      on to the word it lifts from. Two fingers that land together, or a second
-     finger that lands off the words, zoom the table.
+     finger that lands off the words, zoom the table. The card itself never
+     turns or scales: it is always upright, at its own size.
 
      A marking finger that leaves the card draws a link instead: the marked
      words are one end, and wherever the finger lifts is the other. The table
@@ -15,8 +16,8 @@
      for GROUP_MS and then moved, moves the card and the cards linked to it.
      The card sends `card-group` as the group starts, moves and ends, and the
      table moves the others by as much (detail { phase, dx, dy }, the move in
-     the parent's coordinates). A second finger ends the group, and the card
-     turns and scales alone. A group does not snap.
+     the parent's coordinates). A second finger ends the group, and zooms
+     the table. A group does not snap.
 
      The link button in the card's header ([data-action="link"]) links the
      whole card: one finger or the mouse drags a line from it, and the card
@@ -26,8 +27,13 @@
      The card's position is a matrix in the coordinates of its offset parent,
      written as one CSS transform. The parent is the table's world, which the
      table scales by its zoom (its inline style scale), so a point on the
-     screen is divided by the zoom on its way in. Nothing else about the card changes during a
-     gesture, so a move costs a composite and no layout.
+     screen is divided by the zoom on its way in. Nothing else about the card
+     changes during a gesture, so a move costs a composite and no layout.
+
+     The short form (data-form="short"), which the table sets from the card's
+     Short form button: the heading, the opening words and the count of
+     verses, in place of the verses. The content decides what each form
+     shows; see .passage__short in global.css.
 
      Text mode: a double tap or a double-click on the words (READABLE) lets
      them select, as on a page, so that Copy copies them. In text mode a
@@ -36,28 +42,19 @@
      of the two does what a tap does.
 
      A mouse, a trackpad and a keyboard do the same. One button moves the card.
-     The table turns a pinch on the trackpad, or Control and the wheel, into
-     zoomAt(), and Safari's trackpad turn into turnAt(). Option (Alt) and a
-     drag on the words marks them, the way the second hand does. A card takes
-     the focus with Tab or a click, and then:
+     A pinch on the trackpad, or Control and the wheel, zooms the table.
+     Option (Alt) and a drag on the words marks them, the way the second hand
+     does. A card takes the focus with Tab or a click, and then:
        arrow keys          move it (with Shift, further)
-       + and -             scale it
-       [ and ]             turn it
        Delete, Backspace   take it off the table (Undo brings it back)
        Enter               the same as a tap on its heading
 
      Snapping (app/lib/snap.js): while a hand or a mouse holds the card, it
-     stands upright near upright, takes full size near full size, and lines
-     up with the other cards near their edges. It sends `card-guides` with
+     lines up with the other cards near their edges. It sends `card-guides` with
      { guides } in the parent's coordinates, so the table can draw where it
      lines up, and an empty list when it lets go. Command or Control held
      during a drag moves the card freely, and data-snap="off" on an ancestor
      turns snapping off. The wheel and the keys do not snap.
-
-     Semantic zoom: the card sets data-zoom="far" when it is scaled below
-     FAR_BELOW, and "near" again above NEAR_ABOVE. The gap between the two keeps
-     a pinch near the line from flicking between forms. The content decides
-     what each form shows; for a passage, see .passage__short in global.css.
 
      Events, all bubbling:
        card-change  a gesture ended, so the position is worth keeping
@@ -76,10 +73,10 @@
        card-remove  the close button was pressed; the card removes itself next -->
 
 <script element>
-  import { clampScale, multiply, rotation, scaleAbout, scaleOf, toCSS, translation } from '../lib/affine.js';
-  import { centroid, dropLost, step } from '../lib/gesture.js';
+  import { multiply, toCSS, translation } from '../lib/affine.js';
+  import { dropLost, step } from '../lib/gesture.js';
   import { inBsb, paintWords, span, wordAt } from '../lib/words.js';
-  import { REACH, boxOf, isUpright, snapBox, snapTurnAndScale } from '../lib/snap.js';
+  import { REACH, boxOf, snapBox } from '../lib/snap.js';
 
   /** @typedef {import('../lib/affine.js').Matrix} Matrix */
   /** @typedef {import('../lib/affine.js').Point} Point */
@@ -89,14 +86,8 @@
     x: 0.5,
     /** Where the card starts, as a fraction of the parent's height. */
     y: 0.5,
-    /** The turn the card starts with, in degrees. */
-    angle: 0,
   };
 
-  const MIN_SCALE = 0.3;
-  const MAX_SCALE = 6;
-  const FAR_BELOW = 0.55;
-  const NEAR_ABOVE = 0.65;
   // How long, and how still, a finger holds a card before a second finger marks.
   const HOLD_MS = 200;
   const STILL_PX = 10;
@@ -114,8 +105,6 @@
   // The keyboard's steps.
   const KEY_STEP = 20;
   const KEY_STEP_LONG = 100;
-  const KEY_SCALE = 1.1;
-  const KEY_TURN = Math.PI / 12;
   // How long after the last wheel, gesture or key the change counts as done.
   const SETTLE_MS = 400;
 
@@ -124,16 +113,13 @@
   const GRIP = { x: 48, y: 32 };
 
   /**
-   * A card at `scale` with its grip on the point (x, y).
+   * A card with its grip on the point (x, y).
    *
    * @param {number} x
    * @param {number} y
-   * @param {number} scale
    * @returns {Matrix}
    */
-  function gripAt(x, y, scale) {
-    return multiply(translation(x - GRIP.x * scale, y - GRIP.y * scale), scaleAbout(scale, { x: 0, y: 0 }));
-  }
+  const gripAt = (x, y) => translation(x - GRIP.x, y - GRIP.y);
 
   // The card touched last goes on top. One counter for every card on the page.
   let top = 1;
@@ -231,16 +217,10 @@
         this.stopReading();
       });
       const parent = this.parent();
-      const start = translation(
+      this.matrix = translation(
         Number(this.x) * parent.clientWidth - this.offsetWidth / 2,
         Number(this.y) * parent.clientHeight - this.offsetHeight / 2,
       );
-      const half = { x: this.offsetWidth / 2, y: this.offsetHeight / 2 };
-      const turn = multiply(
-        translation(half.x, half.y),
-        multiply(rotation((Number(this.angle) * Math.PI) / 180), translation(-half.x, -half.y)),
-      );
-      this.matrix = multiply(start, turn);
       this.points = new Map();
       this.paint();
 
@@ -273,14 +253,12 @@
     },
 
     /**
-     * Changes the card by `change`, a matrix in the parent's coordinates, and
-     * keeps its scale inside the limits, about `about`.
+     * Moves the card by `change`, a matrix in the parent's coordinates.
      *
      * @param {Matrix} change
-     * @param {Point} about in the parent's coordinates
      */
-    transformBy(change, about) {
-      this.matrix = clampScale(multiply(change, /** @type {Matrix} */ (this.matrix)), MIN_SCALE, MAX_SCALE, about);
+    transformBy(change) {
+      this.matrix = multiply(change, /** @type {Matrix} */ (this.matrix));
       cancelAnimationFrame(this.frame);
       this.frame = requestAnimationFrame(() => this.paint());
       this.settle();
@@ -299,36 +277,13 @@
     },
 
     /**
-     * Scales the card about a point on the screen, which stays where it is.
-     *
-     * @param {Point} at screen coordinates
-     * @param {number} factor
-     */
-    zoomAt(at, factor) {
-      const about = this.parentPoint(at);
-      this.transformBy(scaleAbout(factor, about), about);
-    },
-
-    /**
-     * Turns the card about a point on the screen.
-     *
-     * @param {Point} at screen coordinates
-     * @param {number} radians
-     */
-    turnAt(at, radians) {
-      const about = this.parentPoint(at);
-      const turn = multiply(translation(about.x, about.y), multiply(rotation(radians), translation(-about.x, -about.y)));
-      this.transformBy(turn, about);
-    },
-
-    /**
      * @param {number} dx
      * @param {number} dy
      */
     moveBy(dx, dy) {
       // A step of the keys is the same on the screen at any zoom.
       const zoom = this.zoomOf();
-      this.transformBy(translation(dx / zoom, dy / zoom), this.parentPoint(this.middle()));
+      this.transformBy(translation(dx / zoom, dy / zoom));
     },
 
     /** The middle of the card on the screen. */
@@ -360,16 +315,14 @@
 
     /**
      * What each key does with the focus on the card: the arrows move it
-     * (further with Shift), + and - scale it, [ and ] turn it, Enter opens
-     * its heading, and Delete takes it off the table.
+     * (further with Shift), Enter opens its heading, and Delete takes it off
+     * the table.
      *
      * @param {boolean} long
      * @returns {Record<string, () => void>}
      */
     keyActions(long) {
       const far = long ? KEY_STEP_LONG : KEY_STEP;
-      const zoom = (/** @type {number} */ factor) => () => this.zoomAt(this.middle(), factor);
-      const turn = (/** @type {number} */ angle) => () => this.turnAt(this.middle(), angle);
       const remove = () => {
         this.dispatchEvent(new CustomEvent('card-remove', { bubbles: true }));
         this.remove();
@@ -379,12 +332,6 @@
         ArrowRight: () => this.moveBy(far, 0),
         ArrowUp: () => this.moveBy(0, -far),
         ArrowDown: () => this.moveBy(0, far),
-        '+': zoom(KEY_SCALE),
-        '=': zoom(KEY_SCALE),
-        '-': zoom(1 / KEY_SCALE),
-        _: zoom(1 / KEY_SCALE),
-        ']': turn(KEY_TURN),
-        '[': turn(-KEY_TURN),
         Enter: () => this.dispatchEvent(new CustomEvent('card-tap', { bubbles: true, detail: { target: this.querySelector('.passage__heading') ?? this } })),
         Delete: remove,
         Backspace: remove,
@@ -734,26 +681,24 @@
      *
      * @param {number} pointerId
      * @param {Point} at screen coordinates
-     * @param {number} [scale] the size to arrive at
      */
-    hold(pointerId, at, scale = 1) {
+    hold(pointerId, at) {
       const local = this.parentPoint(at);
-      this.matrix = gripAt(local.x, local.y, scale);
+      this.matrix = gripAt(local.x, local.y);
       this.paint();
       this.take(pointerId, at);
     },
 
     /**
-     * Puts the card down upright, at its own size, with its grip on the point.
-     * The grip is near the top, so a long passage hangs down from the point
-     * and its heading stays on the screen.
+     * Puts the card down with its grip on the point. The grip is near the
+     * top, so a long passage hangs down from the point and its heading stays
+     * on the screen.
      *
      * @param {Point} at screen coordinates
-     * @param {number} [scale] the size to arrive at
      */
-    placeAt(at, scale = 1) {
+    placeAt(at) {
       const local = this.parentPoint(at);
-      this.matrix = gripAt(local.x, local.y, scale);
+      this.matrix = gripAt(local.x, local.y);
       top += 1;
       this.style.zIndex = String(top);
       this.paint();
@@ -814,20 +759,19 @@
     },
 
     /**
-     * Moves the card as the fingers moved, kept within its sizes, snapped
-     * unless Command or Control is held.
+     * Moves the card as the finger moved, snapped unless Command or Control
+     * is held.
      *
      * @param {Map<number, Point>} points
      * @param {Map<number, Point>} after
      * @param {PointerEvent} event
      */
     moveTo(points, after, event) {
-      const moved = multiply(step(points, after), /** @type {Matrix} */ (this.raw ?? this.matrix));
-      const about = centroid(after);
-      const raw = clampScale(moved, MIN_SCALE, MAX_SCALE, about);
+      // One finger: a second hands both to the table (handOff).
+      const raw = multiply(step(points, after), /** @type {Matrix} */ (this.raw ?? this.matrix));
       this.raw = raw;
       const snaps = this.snaps(event);
-      this.matrix = snaps ? this.snapped(raw, about) : raw;
+      this.matrix = snaps ? this.snapped(raw) : raw;
       if (!snaps) this.showGuides([]);
       this.points = after;
       cancelAnimationFrame(this.frame);
@@ -948,30 +892,24 @@
     },
 
     /**
-     * The matrix to show for what the fingers ask for.
+     * The matrix to show for where the finger asks for.
      *
      * @param {Matrix} raw
-     * @param {Point} about the fingers' middle, in the parent's coordinates
      * @returns {Matrix}
      */
-    snapped(raw, about) {
-      const turned = snapTurnAndScale(raw, about);
-      if (!isUpright(turned)) {
-        this.showGuides([]);
-        return turned;
-      }
+    snapped(raw) {
       this.others ??= this.otherBoxes();
       // The reach is on the screen: at half size, twice as far on the table.
-      const { dx, dy, guides } = snapBox(boxOf(turned, this.offsetWidth, this.offsetHeight), this.others, REACH / this.factor);
+      const { dx, dy, guides } = snapBox(boxOf(raw, this.offsetWidth, this.offsetHeight), this.others, REACH / this.factor);
       this.showGuides(guides);
-      return { ...turned, e: turned.e + dx, f: turned.f + dy };
+      return { ...raw, e: raw.e + dx, f: raw.f + dy };
     },
 
-    /** The boxes of the other upright cards beside this one. */
+    /** The boxes of the other cards beside this one. */
     otherBoxes() {
       return [...(this.parentElement?.children ?? [])].flatMap((element) => {
         const card = /** @type {HTMLElement & { matrix?: Matrix | null }} */ (element);
-        if (card === this || card.localName !== 'gesture-card' || !card.matrix || !isUpright(card.matrix)) return [];
+        if (card === this || card.localName !== 'gesture-card' || !card.matrix) return [];
         return [boxOf(card.matrix, card.offsetWidth, card.offsetHeight)];
       });
     },
@@ -998,15 +936,8 @@
     },
 
     paint() {
-      const matrix = /** @type {Matrix} */ (this.matrix);
-      this.style.transform = toCSS(matrix);
-      const scale = scaleOf(matrix);
-      // For a size that must not follow the card's (the overview's tiles).
-      this.style.setProperty('--card-scale', String(scale));
+      this.style.transform = toCSS(/** @type {Matrix} */ (this.matrix));
       this.moveGroup();
-      const far = this.dataset.zoom === 'far';
-      if (!far && scale < FAR_BELOW) this.dataset.zoom = 'far';
-      if (far && scale > NEAR_ABOVE) this.dataset.zoom = 'near';
       this.dispatchEvent(new Event('card-paint', { bubbles: true }));
     },
   };

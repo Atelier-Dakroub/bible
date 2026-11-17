@@ -399,6 +399,7 @@
       <button if="kind === 'note'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the note as Markdown" title="Copy the note as Markdown"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'list'" type="button" class="passage__icon" data-action="copy" aria-label="Copy the list as text" title="Copy the list as text"><svg-icon library="ui" name="copy"></svg-icon></button>
       <button if="kind === 'passage' || kind === 'commentary'" type="button" class="passage__icon" data-action="sync" aria-pressed="false" aria-label="Sync: step through the text with the other synced cards" title="Sync: step through the text with the other synced cards"><svg-icon library="ui" name="sync"></svg-icon></button>
+      <button if="kind === 'passage' || kind === 'phrase' || kind === 'note'" type="button" class="passage__icon passage__form" data-action="short" aria-pressed="false" aria-label="Short form" title="Short form: the heading and the first words only"><svg-icon library="ui" name="fold" class="form__fold"></svg-icon><svg-icon library="ui" name="unfold" class="form__unfold"></svg-icon></button>
       <button type="button" class="passage__icon" data-action="link" aria-label="Link ${title} to another card" title="Link: drag to another card, or click to choose one"><svg-icon library="ui" name="link"></svg-icon></button>
       <button type="button" class="passage__close" data-action="close" aria-label="Remove ${title} from the table">×</button>
     </header>
@@ -415,8 +416,8 @@
       </div>
       <button if="version === 'both'" type="button" data-action="compare" aria-pressed="false" title="Bold: words the other translation does not have">Compare</button>
     </div>
-    <!-- The short form, shown in place of the verses when the card is small.
-         See gesture-card's data-zoom. -->
+    <!-- The short form, shown in place of the verses when the card's Short
+         form button is on (data-form="short" on gesture-card). -->
     <p class="passage__short">
       <span class="passage__opening">${opening}</span>
       <span class="passage__count">${count}</span>

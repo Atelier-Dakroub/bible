@@ -19,6 +19,12 @@ export const MOST_ZOOM = 2;
  */
 export const ON_TO_OVERVIEW = 0.7;
 
+/**
+ * Below this zoom, each card shows its name on a chip, as in the overview,
+ * so that it can be found; its words are too small to read.
+ */
+export const TILE_ZOOM = 0.4;
+
 /** The steps of the zoom buttons and the + and - keys. */
 export const STEPS = [0.25, 0.33, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
 

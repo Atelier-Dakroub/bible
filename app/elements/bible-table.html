@@ -1,11 +1,14 @@
 <!-- The table: an infinite surface that holds the cards.
 
-     The table never turns. One finger on an empty part of it pans
+     The table never turns, and neither does a card: every card is upright at
+     its own size, and only the table zooms. One finger on an empty part of it pans
      everything on it together, and there is no edge. Two fingers anywhere,
      on the table or on a card, zoom it (lib/zoom.js), from a quarter of full
      size to twice it, about the place between them; a card hands its two
      fingers to the table (card-pinch). A pinch on past the least zoom shows
-     the overview. The zoom is kept with the table, and is not a step to undo.
+     the overview. Below TILE_ZOOM, each card shows its name on a chip, as in
+     the overview, and still moves (is-far). The zoom is kept with the table,
+     and is not a step to undo.
      The zoom buttons in the corner of the free part, and + - and 0 with no
      card in focus, do the same in steps.
 
@@ -104,8 +107,8 @@
 
      The overview (lib/overview.js): the whole table, small, to see where
      everything is on a large table and to go to any part of it at once. The
-     rail's Overview, O, a pinch in with two fingers on the empty table, or a
-     trackpad pinch over it, shows it: the table scales down until every card
+     rail's Overview, O, or a pinch on past the least zoom shows it: the
+     table scales down until every card
      is on the screen, and each card is a tile of its kind's pigment with its
      title. The lines stay. A tap on a tile comes back to that card at full
      size, in the middle; a tap on the table comes back to that place. A
@@ -120,8 +123,8 @@
      arrow keys move the focus from card to card and to the panels' controls
      instead, as a remote's do (remoteKey).
 
-     Snapping (gesture-card): a held card snaps upright, to full size, and
-     into line with the other cards, and the table draws the guides it sends.
+     Snapping (gesture-card): a held card snaps into line with the other
+     cards, and the table draws the guides it sends.
      The menu's Snap button turns it off and on, as data-snap="off" here.
      The wheel is left alone over the panels, which scroll their own lists.
      The cards have their own keys (gesture-card).
@@ -130,7 +133,7 @@
        a tap on a passage's heading (or Enter on the card)  the passage guide
                      in the search panel; its notes are added here
        Put them beside the card   the guide's parallels, in a row to the right
-                     of the card, at its size
+                     of the card
        Mark it on every card      a rule mark (app/lib/rules.js): every word
                      on the table that renders a Strong's number, names an
                      entity, or is in a marked run is marked, live. The menu
@@ -149,7 +152,6 @@
   import { ARROWS, inset, nearestIn, nearestTo, shiftInto, viewportBox } from '../lib/spatial.js';
   import { isPhone } from '../lib/screen.js';
   import { typing } from '../lib/keyboard.js';
-  import { scaleOf } from '../lib/affine.js';
   import { pan } from '../lib/gesture.js';
   import { WIDTH } from '../lib/map.js';
   import { nextStyle, sameRule, stylesFor, toggleRule } from '../lib/rules.js';
@@ -157,7 +159,7 @@
   import { lessMotion } from '../lib/motion.js';
   import { around, centre, centring, keeping, keyAsks, labelled, middle as middleOf, onTable, overviewOf, pinchAsks, shifted, spread, spreadOut, tappedIn } from '../lib/overview.js';
   import { createPalmGuard } from '../lib/palm.js';
-  import { LEAST_ZOOM, MOST_ZOOM, clampZoom, nextStep, offsetFor, percent, pinchZoom, tablePoint } from '../lib/zoom.js';
+  import { LEAST_ZOOM, MOST_ZOOM, TILE_ZOOM, clampZoom, nextStep, offsetFor, percent, pinchZoom, tablePoint } from '../lib/zoom.js';
   import { TYPES, cluster, dropLinksTo, firstCovered, isWhole, linked, nextType, referencePairs, removed, sameEnd, setLink, toggleLink, unlink } from '../lib/links.js';
   import { covers, inBsb, paintHighlights, parseSpanAddress, spanAddress, STYLES, toggle, wordAt, wordKey } from '../lib/words.js';
   import { diffCards, empty, fromFile, listNamed, load, loadNamed, newId, parse, save, saveNamed, snapshot, toFile } from '../lib/workspace.js';
@@ -181,7 +183,7 @@
   /** @typedef {import('../lib/affine.js').Point} Point */
   /** @typedef {{ id: number, x: number, y: number, down: boolean }} Pull */
   /** @typedef {HTMLElement & { view: import('../lib/map.js').View | null, setView(view: import('../lib/map.js').View): void, fit(ids: string[], more?: { x: number, y: number }[]): Promise<void>, shows(id: string): boolean, relabel(): void }} MapView */
-  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point, scale?: number): void, placeAt(at: Point, scale?: number): void, setMatrix(m: Matrix): void, zoomAt(at: Point, factor: number): void, turnAt(at: Point, radians: number): void }} Card */
+  /** @typedef {HTMLElement & { matrix: Matrix, hold(id: number, at: Point): void, placeAt(at: Point): void, setMatrix(m: Matrix): void }} Card */
   /** @typedef {import('../lib/workspace.js').StoredCard} StoredCard */
   /** @typedef {{ element: Element, x?: number, y?: number }} Tap a tap on a card: what it touched, and where on the screen */
 
@@ -922,7 +924,8 @@
   function cardFlags(card) {
     const sync = card.dataset.sync !== undefined;
     const compare = card.dataset.compare !== undefined && versionOf(card) === 'both';
-    return { ...(sync ? { sync } : {}), ...(compare ? { compare } : {}) };
+    const short = card.dataset.form === 'short';
+    return { ...(sync ? { sync } : {}), ...(compare ? { compare } : {}), ...(short ? { short } : {}) };
   }
 
   /**
@@ -1244,7 +1247,7 @@
   }
   /** @typedef {import('../lib/workspace.js').Workspace} Workspace */
   /** @typedef {import('../lib/workspace.js').Note} Note */
-  /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean, compare?: boolean }} FetchOptions */
+  /** @typedef {{ version?: string, replacing?: Element | null, id?: string, sync?: boolean, compare?: boolean, short?: boolean }} FetchOptions */
   /** @typedef {import('../lib/rules.js').Rule} Rule */
 
   const NAME_KEY = 'bible.workspace.name';
@@ -1377,7 +1380,6 @@
   // A passage longer than this arrives small, in its short form, so a whole
   // chapter does not cover the table. Two fingers make it large.
   const LONG = 24;
-  const LONG_SCALE = 0.5;
 
   const SVG = 'http://www.w3.org/2000/svg';
 
@@ -2016,10 +2018,26 @@
       this.keepSoon();
     },
 
-    /** The world at the table's zoom, and the buttons say it. */
+    /**
+     * The world at the table's zoom, and the buttons say it. Far out, the
+     * cards show their names (farOut).
+     */
     scaleWorld() {
       this.world().style.scale = this.zoom === 1 ? '' : String(this.zoom);
+      this.style.setProperty('--table-zoom', String(this.zoom));
+      this.farOut();
       this.showZoom();
+    },
+
+    /**
+     * Below TILE_ZOOM, each card shows its name on a chip, as in the
+     * overview, and still moves (is-far). The overview names its own tiles.
+     */
+    farOut() {
+      const far = !this.overview && this.zoom < TILE_ZOOM;
+      if (far === this.classList.contains('is-far')) return;
+      this.classList.toggle('is-far', far);
+      if (!this.overview) this.tiles(this.tableCards(), far);
     },
 
     /** The zoom buttons: the zoom now, and which way it can go. */
@@ -2130,8 +2148,8 @@
     },
 
     /**
-     * Safari sends a pinch and a turn on the trackpad as gesture events,
-     * with the scale and the turn since the gesture began.
+     * Safari sends a pinch on the trackpad as gesture events, with the
+     * scale since the gesture began: it zooms the table. Its turn is not used.
      *
      * @param {AbortSignal} signal
      */
@@ -2433,9 +2451,9 @@
     },
 
     /**
-     * Puts a study's cards down in their columns, at the scale that fits the
-     * free part of the screen across, to the right of the cards already on
-     * the table, and glides the table to show it.
+     * Puts a study's cards down in their columns, to the right of the cards
+     * already on the table, and zooms the table out, if it must, until the
+     * study fits the free part of the screen across.
      *
      * @param {Card[][]} columns
      * @param {Set<Element>} before the cards on the table before the study
@@ -2446,17 +2464,21 @@
       const rights = [...before].filter((each) => each.isConnected).map((each) => each.getBoundingClientRect().right);
       const corner = { x: Math.max(free.left + margin, ...rights.map((right) => right + 4 * ROW_GAP)), y: free.top + margin };
       const sizes = columns.map((column) => column.map((card) => ({ width: card.offsetWidth, height: card.offsetHeight })));
-      const { scale, at } = layOut(sizes, corner, free.right - free.left - 2 * margin, ROW_GAP);
-      // The layout is on the screen; the cards go on the table, at the zoom.
+      // The cards go on the table at their own size, from the corner.
+      const start = tablePoint(corner, this.offset, this.zoom);
+      const { at } = layOut(sizes, start, Infinity, ROW_GAP);
       columns.forEach((column, i) =>
         column.forEach((card, j) => {
-          const place = tablePoint(at[i][j], this.offset, this.zoom);
-          card.setMatrix({ a: scale / this.zoom, b: 0, c: 0, d: scale / this.zoom, e: place.x, f: place.y });
+          card.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: at[i][j].x, f: at[i][j].y });
           this.raise(card);
         }),
       );
-      const shift = free.left + margin - corner.x;
-      if (shift) this.glide(shift, 0);
+      // The table zooms out until the study fits across, and shows it.
+      const widths = sizes.map((column) => Math.max(0, ...column.map((size) => size.width)));
+      const across = widths.reduce((sum, width) => sum + width, 0) + ROW_GAP * Math.max(0, widths.length - 1);
+      const zoom = clampZoom(Math.min(this.zoom, across > 0 ? (free.right - free.left - 2 * margin) / across : this.zoom));
+      this.zoomTo(offsetFor(start, { x: free.left + margin, y: free.top + margin }, zoom), zoom);
+      this.keepSoon();
     },
 
     /**
@@ -2520,8 +2542,8 @@
     },
 
     /**
-     * A new note beside the first card it links to, at its scale, else in
-     * the open part of the table.
+     * A new note beside the first card it links to, else in the open part of
+     * the table.
      *
      * @param {Card} card
      * @param {End[]} targets
@@ -2535,8 +2557,7 @@
       }
       const box = beside.getBoundingClientRect();
       const corner = tablePoint({ x: box.right, y: box.top }, this.offset, this.zoom);
-      const scale = /** @type {Card} */ (beside).matrix?.a ?? 1;
-      card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: corner.x + ROW_GAP, f: corner.y });
+      card.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: corner.x + ROW_GAP, f: corner.y });
       this.raise(card);
     },
 
@@ -2895,7 +2916,6 @@
       this.zoomBefore = this.zoom;
       this.overview = true;
       this.tiles(cards, true);
-      this.style.setProperty('--overview-scale', String(view.scale));
       this.classList.add('is-overview');
       this.zoomTo(view.offset, view.scale);
       this.spreadCards(cards, shifts);
@@ -2955,7 +2975,6 @@
     refitOverview() {
       const view = this.overview ? this.overviewView(this.tableCards().map((card) => onTable(card.getBoundingClientRect(), this.offset, this.zoom))) : null;
       if (!view) return;
-      this.style.setProperty('--overview-scale', String(view.scale));
       this.zoomTo(view.offset, view.scale, false);
     },
 
@@ -3105,7 +3124,9 @@
     async place({ address, pointer, version }) {
       const card = await this.fetchCard(address, version ? { version } : {});
       if (!card) return;
-      this.putDown(card, pointer, Number(card.dataset.verses) > LONG ? LONG_SCALE : 1);
+      // A long passage comes in its short form.
+      if (Number(card.dataset.verses) > LONG) this.setShort(card, true);
+      this.putDown(card, pointer);
       this.keep();
     },
 
@@ -3115,34 +3136,31 @@
      *
      * @param {Card} card
      * @param {Pull | null} pointer
-     * @param {number} scale
      */
-    putDown(card, pointer, scale) {
-      if (pointer?.down) card.hold(pointer.id, pointer, scale);
-      else if (pointer) card.placeAt(pointer, scale);
-      else if (isPhone()) {
-        const spot = this.phoneSpot(card, scale);
-        card.placeAt(spot.at, spot.scale);
-      } else card.placeAt(this.openSpot(), scale);
+    putDown(card, pointer) {
+      if (pointer?.down) card.hold(pointer.id, pointer);
+      else if (pointer) card.placeAt(pointer);
+      else if (isPhone()) card.placeAt(this.phoneSpot(card));
+      else card.placeAt(this.openSpot());
     },
 
     /**
-     * Where a new card goes on a phone, and at what size: the width of the
-     * screen at most, at the left edge, near the top, and a little lower
-     * for each card after it.
+     * Where a new card goes on a phone: at the left edge, near the top, and
+     * a little lower for each card after it. A card wider than the screen at
+     * the zoom now zooms the table out until it fits.
      *
      * @param {Element} card
-     * @param {number} scale the size the card would have elsewhere
      */
-    phoneSpot(card, scale) {
+    phoneSpot(card) {
       const EDGE = 8;
       const width = card instanceof HTMLElement ? card.offsetWidth : 0;
-      const fit = width ? Math.min(scale, (innerWidth - 2 * EDGE) / width) : scale;
+      const fit = width ? clampZoom((innerWidth - 2 * EDGE) / width) : this.zoom;
+      if (fit < this.zoom) this.zoomTo(keeping({ x: EDGE, y: this.free().top }, this.offset, this.zoom, fit), fit, false);
       const step = (this.world().querySelectorAll('gesture-card').length - 1) % 6;
       // Below the notch: the free part of the screen begins under it.
       const top = Math.max(EDGE, this.free().top) + step * 24;
-      // The grip is GRIP (gesture-card) from the card's corner, at its scale.
-      return { at: { x: EDGE + 48 * fit, y: top + 32 * fit }, scale: fit };
+      // The grip is GRIP (gesture-card) from the card's corner, at the zoom.
+      return { x: EDGE + 48 * this.zoom, y: top + 32 * this.zoom };
     },
 
     /** @param {{ from: string, to: string }} detail */
@@ -3848,7 +3866,7 @@
 
     /**
      * Puts cards down in a row to the right of the card whose guide is on
-     * show, at its size, as one step that undo takes back.
+     * show, as one step that undo takes back.
      *
      * @param {string[]} addresses
      */
@@ -3867,7 +3885,6 @@
       if (!anchor) return this.placeEach(addresses);
       const box = anchor.getBoundingClientRect();
       const corner = tablePoint({ x: box.right, y: box.top }, this.offset, this.zoom);
-      const scale = scaleOf(anchor.matrix);
       let x = corner.x + ROW_GAP;
       const y = corner.y;
       this.applying += 1;
@@ -3875,9 +3892,9 @@
         for (const address of addresses) {
           const card = await this.fetchCard(address, {});
           if (!card) continue;
-          card.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: x, f: y });
+          card.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
           this.raise(card);
-          x += card.offsetWidth * scale + ROW_GAP;
+          x += card.offsetWidth + ROW_GAP;
         }
         this.later = true;
       } finally {
@@ -4429,8 +4446,8 @@
 
     /** @param {StoredCard} stored */
     async restore(stored) {
-      const { id, address, matrix, version, sync, compare, view } = stored;
-      const card = await this.fetchCard(address, { version, id, sync, compare });
+      const { id, address, matrix, version, sync, compare, short, view } = stored;
+      const card = await this.fetchCard(address, { version, id, sync, compare, short });
       // A card that does not load (offline, a server error) stays in the
       // saved table, so the next visit tries it again.
       if (!card) {
@@ -4480,6 +4497,7 @@
         id: card.dataset.id,
         sync: card.dataset.sync !== undefined,
         compare: card.dataset.compare !== undefined,
+        short: card.dataset.form === 'short',
       });
       if (!next) return null;
       next.setMatrix(matrix);
@@ -4587,6 +4605,11 @@
           this.keep();
         },
         copy: () => this.copyCard(card, button),
+        short: () => {
+          this.setShort(card, card.dataset.form !== 'short');
+          this.keep();
+          this.drawSoon();
+        },
         link: () => this.chooseLink(card, button),
         listen: () => this.readAloud(card, button),
         'note-kind': () => this.changeKind(card),
@@ -4605,6 +4628,19 @@
       if (on) card.dataset.sync = '';
       else delete card.dataset.sync;
       card.querySelector('[data-action="sync"]')?.setAttribute('aria-pressed', String(on));
+    },
+
+    /**
+     * The card's short form: its heading, its opening words and the count of
+     * its verses, in place of the verses (gesture-card, global.css).
+     *
+     * @param {HTMLElement} card
+     * @param {boolean} on
+     */
+    setShort(card, on) {
+      if (on) card.dataset.form = 'short';
+      else delete card.dataset.form;
+      card.querySelector('[data-action="short"]')?.setAttribute('aria-pressed', String(on));
     },
 
     /**
@@ -5140,7 +5176,7 @@
      * @param {FetchOptions} options
      * @returns {Promise<Card | null>}
      */
-    async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false, compare = false }) {
+    async fetchCard(address, { version = 'kjv', replacing = null, id, sync = false, compare = false, short = false }) {
       if (this.contentGone(address)) return null;
       const note = this.noteAt(address);
       const card = await loadCard(address, version, note ? note.quotes : []);
@@ -5149,7 +5185,9 @@
         return null;
       }
       if (!this.putCard(card, replacing, id)) return null;
-      this.markCard(card, { sync, compare, version, note });
+      this.markCard(card, { sync, compare, short, version, note });
+      // Far out, or in the overview, a new card shows its name too.
+      if (this.overview || this.classList.contains('is-far')) this.tiles([/** @type {Card} */ (/** @type {unknown} */ (card))], true);
       this.paintList(card);
       await customElements.whenDefined('gesture-card');
       this.drawSoon();
@@ -5303,8 +5341,8 @@
     },
 
     /**
-     * Takes cards out of a list, in a column beside it, each at its own size,
-     * upright; all of them, or those named. One step that undo takes back.
+     * Takes cards out of a list, in a column beside it: all of them, or those
+     * named. One step that undo takes back.
      *
      * @param {HTMLElement} listCard
      * @param {string[]} [ids]
@@ -5316,14 +5354,13 @@
       if (!taking.length) return;
       this.changeList(list.id, (each) => ({ ...each, items: each.items.filter((item) => !taking.includes(item)) }));
       const matrix = /** @type {Card} */ (/** @type {unknown} */ (listCard)).matrix;
-      await this.putColumn(taking, matrix.e + listCard.offsetWidth * scaleOf(matrix) + ROW_GAP, matrix.f);
+      await this.putColumn(taking, matrix.e + listCard.offsetWidth + ROW_GAP, matrix.f);
       this.keep();
       this.drawSoon();
     },
 
     /**
-     * Cards that were kept, put down one under another from a point, each at
-     * its own size, upright.
+     * Cards that were kept, put down one under another from a point.
      *
      * @param {import('../lib/workspace.js').ListItem[]} items
      * @param {number} x
@@ -5332,10 +5369,9 @@
     async putColumn(items, x, top) {
       let y = top;
       for (const item of items) {
-        const scale = scaleOf(item.matrix);
-        await this.restore({ ...item, matrix: { a: scale, b: 0, c: 0, d: scale, e: x, f: y } });
+        await this.restore({ ...item, matrix: { a: 1, b: 0, c: 0, d: 1, e: x, f: y } });
         const card = this.cardsAt(item.address).find((each) => idOf(each) === item.id);
-        y += (card?.offsetHeight ?? 200) * scale + ROW_GAP / 2;
+        y += (card?.offsetHeight ?? 200) + ROW_GAP / 2;
       }
     },
 
@@ -5382,8 +5418,7 @@
       this.lists = [...this.lists, { id, items: [] }];
       const listCard = await this.fetchCard(`list:${id}`, {});
       if (!listCard) return;
-      const scale = scaleOf(card.matrix);
-      listCard.setMatrix({ a: scale, b: 0, c: 0, d: scale, e: card.matrix.e, f: card.matrix.f });
+      listCard.setMatrix({ a: 1, b: 0, c: 0, d: 1, e: card.matrix.e, f: card.matrix.f });
       this.raise(listCard);
       this.gather(listCard, group);
     },
@@ -5421,10 +5456,11 @@
      * marks every card has.
      *
      * @param {HTMLElement} card
-     * @param {{ sync: boolean, compare: boolean, version: string, note: any }} state
+     * @param {{ sync: boolean, compare: boolean, short: boolean, version: string, note: any }} state
      */
-    markCard(card, { sync, compare, version, note }) {
+    markCard(card, { sync, compare, short, version, note }) {
       if (sync) this.setSync(card, true);
+      if (short) this.setShort(card, true);
       if (compare) this.setCompare(card, version === 'both');
       if (note) this.fillNote(card, note);
       this.paintCard(card);
@@ -5896,8 +5932,8 @@
      held. The cards take no touches, so a finger pans and taps the table.
      Each card shows as it is, small, as the Mac's Exposé shows windows, with
      its name on a label at its top: a chip in its kind's pigment, at one
-     size to read whatever the scale (--overview-scale) and the card's own
-     (--card-scale). The chip may be wider than its card, as a name on the
+     size to read whatever the zoom (--table-zoom). The chip shows too when
+     the table is zoomed out far (is-far). The chip may be wider than its card, as a name on the
      map is, so it never wraps or is cut; where cards overlap, the chip of
      the card on top shows. The lines between words (the same words, the
      cross-references) are too fine to see at this size and hide; the links
@@ -5914,8 +5950,8 @@
       transition: translate 320ms cubic-bezier(0.2, 0, 0, 1);
     }
   }
-  :scope.is-overview gesture-card::after {
-    --tile-unit: calc(1rem / (var(--overview-scale, 1) * var(--card-scale, 1)));
+  :scope:is(.is-overview, .is-far) gesture-card::after {
+    --tile-unit: calc(1rem / var(--table-zoom, 1));
     content: attr(data-tile);
     position: absolute;
     top: calc(0.5 * var(--tile-unit));
@@ -5923,10 +5959,10 @@
     z-index: 1;
     translate: -50% 0;
     padding: calc(0.2 * var(--tile-unit)) calc(0.6 * var(--tile-unit));
-    border: calc(1px / (var(--overview-scale, 1) * var(--card-scale, 1))) solid color-mix(in srgb, var(--tile-kind, var(--lapis)) 45%, var(--edge));
+    border: calc(1px / var(--table-zoom, 1)) solid color-mix(in srgb, var(--tile-kind, var(--lapis)) 45%, var(--edge));
     border-radius: calc(1 * var(--tile-unit));
     background: color-mix(in srgb, var(--tile-kind, var(--lapis)) 18%, var(--paper));
-    box-shadow: 0 calc(1px / (var(--overview-scale, 1) * var(--card-scale, 1))) calc(4px / (var(--overview-scale, 1) * var(--card-scale, 1))) var(--shade-near);
+    box-shadow: 0 calc(1px / var(--table-zoom, 1)) calc(4px / var(--table-zoom, 1)) var(--shade-near);
     color: var(--ink);
     font: 600 calc(0.85 * var(--tile-unit)) / 1.3 var(--sans);
     white-space: nowrap;
