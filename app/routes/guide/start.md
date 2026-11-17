@@ -82,7 +82,7 @@ A passage of more than 24 verses comes onto the table in its short form. See [Ca
 | --- | --- | --- | --- |
 | Move a card | Drag it with one finger | Drag it | Move to it with <kbd>Tab</kbd>, then press the arrow keys |
 
-Cards stay upright, at their own size. Two fingers on a card zoom the whole table, not the card. See [Zoom the table](#zoom-the-table). To make a card take less room, use its **Short form** button. See [Cards](/guide/cards#the-short-form).
+Two fingers on a card zoom the whole table, not the card. See [Zoom the table](#zoom-the-table). To make a card take less room, use its **Short form** button. See [Cards](/guide/cards#the-short-form).
 
 Hold <kbd>Shift</kbd> with the arrow keys to move a card further.
 

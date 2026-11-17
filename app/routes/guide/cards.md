@@ -66,7 +66,7 @@ Tap the **Short form** button at the top of a card. The card then shows only its
 
 A passage of more than 24 verses comes onto the table in its short form.
 
-Cards do not change size or turn. To see more of the table, or to make everything larger, zoom the table. See [Zoom the table](/guide/start#zoom-the-table).
+To see more of the table, or to make everything larger, zoom the table. See [Zoom the table](/guide/start#zoom-the-table).
 
 A passage's heading always stays on one line. A heading that is too long for the room beside the buttons uses the short name of its book, such as "2 Cor 6:11" for 2 Corinthians 6:11. A card in Both is wide, so it keeps the full name. A long reference shows in smaller letters.
 
@@ -127,7 +127,7 @@ Cards that are linked move as a group. A pile of ideas then goes anywhere on the
 - **With a mouse or a trackpad:** hold Shift and drag a card.
 - **With a finger:** hold a card still for half a second, then drag it with the same finger.
 
-When the group starts, a blue ring shows round each card in it, before anything moves. The group is every card that you can reach from the card along links, one step after another: if A links to B and B links to C, all three move. The cards in the group only move: they do not turn or change size. A drag without Shift, or a finger that moves at once, moves one card only. One Undo puts the whole group back.
+When the group starts, a blue ring shows round each card in it, before anything moves. The group is every card that you can reach from the card along links, one step after another: if A links to B and B links to C, all three move. A drag without Shift, or a finger that moves at once, moves one card only. One Undo puts the whole group back.
 
 A link between two piles joins them into one group. To move a pile alone, take that link away first.
 

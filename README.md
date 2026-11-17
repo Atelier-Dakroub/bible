@@ -267,9 +267,9 @@ past 25% shows the overview, and leaving it brings back the zoom before. The
 zoom is kept with the table and is not a step to undo. Below 40%, each card
 shows its name on a chip, as in the overview, and still moves.
 
-Cards are always upright at their own size: they do not turn or scale. A
-card's Short form button shows only its heading, opening words and verse
-count, and a passage longer than 24 verses arrives in that form. A table kept
+Only the table zooms; each card keeps its own size. A card's Short form
+button shows only its heading, opening words and verse count, and a passage
+longer than 24 verses arrives in that form. A table kept
 before the zoom opens as it looked: the middle scale of its cards becomes the
 zoom, and a card that was under half size opens in its short form. Search on
 the rail, or "/", opens the search panel; its × closes it.
