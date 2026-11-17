@@ -1764,6 +1764,8 @@
         this.placeZoomButtons();
       }, options);
       addEventListener('resize', () => this.placeZoomButtons(), options);
+      // A phone's browser bar comes and goes, and the rail grows over it.
+      visualViewport?.addEventListener('resize', () => requestAnimationFrame(() => this.placeZoomButtons()), options);
       requestAnimationFrame(() => this.placeZoomButtons());
       // A second finger on a card: the table takes both, and zooms.
       this.addEventListener('card-pinch', (event) => this.takePinch(/** @type {CustomEvent} */ (event).detail.pointers), options);
@@ -2077,11 +2079,23 @@
       this.keepSoon();
     },
 
-    /** The zoom buttons keep to the lower right corner of the free part. */
+    /**
+     * The zoom buttons keep to the lower right corner of the free part, and
+     * clear of the rail where it really is: on a phone, the rail grows below
+     * the free part, clear of the browser's bar and the home bar.
+     */
     placeZoomButtons() {
       const free = this.free();
-      this.style.setProperty('--free-right', `${Math.round(innerWidth - free.right)}px`);
-      this.style.setProperty('--free-bottom', `${Math.round(innerHeight - free.bottom)}px`);
+      // From the table's own edges: on a phone it runs on under the browser's bar.
+      const table = this.getBoundingClientRect();
+      let right = free.right;
+      let bottom = free.bottom;
+      const rail = this.querySelector('table-rail');
+      const box = rail?.getClientRects().length ? rail.getBoundingClientRect() : null;
+      if (box && box.width > box.height && box.top > table.top + table.height / 2) bottom = Math.min(bottom, box.top);
+      if (box && box.height > box.width && box.left > table.left + table.width / 2) right = Math.min(right, box.left);
+      this.style.setProperty('--free-right', `${Math.round(table.right - right)}px`);
+      this.style.setProperty('--free-bottom', `${Math.round(table.bottom - bottom)}px`);
     },
 
     /**
