@@ -2010,8 +2010,9 @@
         world.style.left = `${this.offset.x}px`;
         world.style.top = `${this.offset.y}px`;
       });
-      clearTimeout(this.restTimer);
-      this.restTimer = setTimeout(() => {
+      // Its own timer: a pan's (paint) must not cancel the lines' return.
+      clearTimeout(this.scaleTimer);
+      this.scaleTimer = setTimeout(() => {
         this.classList.remove('is-scaling');
         this.drawSoon();
       }, 120);
@@ -3117,6 +3118,8 @@
     drawnAt: null,
     /** @type {any} */
     restTimer: 0,
+    /** @type {any} the zoom at rest, when the lines come back */
+    scaleTimer: 0,
 
     /**
      * @param {{ address: string, pointer: Pull | null, version?: string }} detail
