@@ -332,6 +332,11 @@
       }, { signal });
 
       input.addEventListener('input', () => this.queueSearch(), { signal });
+      this.querySelector('.search__clear')?.addEventListener('click', () => {
+        input.value = '';
+        input.focus();
+        this.queueSearch();
+      }, { signal });
       form.addEventListener(
         'submit',
         (event) => {
@@ -1175,11 +1180,20 @@
     padding: var(--bar-padding);
     border-bottom: 1px solid color-mix(in srgb, var(--edge) 60%, transparent);
   }
+  /* The field, with its own clear button at the end. The browser's clear
+     button shows only in some browsers, and on a phone only while the field
+     has the focus, so this one takes its place. */
+  .search__field {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
   input {
     flex: 1;
     min-width: 0;
     min-height: var(--control-height);
-    padding: 0 0.75rem;
+    padding: 0 2.4rem 0 0.75rem;
     border: 1px solid var(--field-edge);
     border-radius: var(--radius-small);
     background: var(--paper);
@@ -1190,6 +1204,33 @@
   }
   input::placeholder {
     color: var(--muted);
+  }
+  input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .search__clear {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    display: grid;
+    place-items: center;
+    min-width: 2.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0 var(--radius-small) var(--radius-small) 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 1.1rem;
+  }
+  @media (hover: hover) {
+    .search__clear:hover {
+      background: var(--tint);
+    }
+  }
+  /* An empty field has nothing to clear. */
+  input:placeholder-shown + .search__clear {
+    display: none;
   }
   button[type='submit'] {
     min-height: var(--control-height);
@@ -1387,7 +1428,10 @@
 <search>
 <form action="/search">
   <button type="button" class="panel__grip" data-grip="search" aria-label="Move the search panel: drag it, or use the arrow keys" title="Drag to move, or use the arrow keys; drag onto the rail to dock"><svg-icon library="ui" name="grip"></svg-icon></button>
-  <input id="search-field" type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
+  <span class="search__field">
+    <input id="search-field" type="search" name="q" placeholder="John 3:16, or words" aria-label="Search the text" autocomplete="off" />
+    <button type="button" class="search__clear" aria-label="Clear the search" title="Clear"><svg-icon library="ui" name="close"></svg-icon></button>
+  </span>
   <button type="submit">Search</button>
   <button type="button" class="panel__button panel__float" data-chrome="float" data-panel="search" aria-pressed="false" aria-label="Float the search panel" title="Float: off the rail, where it stays"><svg-icon library="ui" name="float"></svg-icon></button>
   <button type="button" class="panel__button" data-chrome="close" data-panel="search" aria-label="Close the search panel" title="Close"><svg-icon library="ui" name="close"></svg-icon></button>

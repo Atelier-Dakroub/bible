@@ -11,7 +11,8 @@ The panel grows as you use it. At first it is only the field. When an answer com
 
 - A tap on the empty table folds the results away. Tap the field to see them again.
 - In the field, <kbd>Escape</kbd> folds the results away. Press it again to close the panel.
-- The **×** at the top of the panel closes it.
+- The **×** in the field clears the field. It shows when the field has words in it.
+- The **×** at the top right of the panel closes it.
 
 ## What you can search for
 
