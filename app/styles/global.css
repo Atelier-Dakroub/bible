@@ -533,7 +533,9 @@ gesture-card.is-grouped > .rr-card {
   container-type: inline-size;
 }
 .passage__heading[data-near] {
-  overflow: hidden;
+  /* Cut at the sides only: the line is tight (1.15), and the tops of tall
+     letters stand above it. */
+  overflow-x: clip;
   font-size: 0;
   white-space: nowrap;
 }
