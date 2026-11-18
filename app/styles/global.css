@@ -523,27 +523,30 @@ gesture-card.is-grouped > .rr-card {
 /* A passage's title stays on one line. It is drawn over the heading, with
    no text of its own (the "/ ''"), so the full title stays in the heading
    for a screen reader, the overview and Copy. A title too long for the room
-   beside the seven buttons has its book short ("2 Cor 6:11"; the card route
-   chooses). The size: the room (the header less its buttons, 15rem) over
-   the characters at 0.54em each (the widest measured; most are 0.45em to
-   0.5em), from 0.9rem to 1.4rem. */
+   beside the eight buttons has its book short ("2 Cor 6:11"; the card route
+   chooses). The size: the room (the header less its buttons, their gaps and
+   the heading's margins, 17.6rem) over the characters at 0.58em each (the
+   widest measured, "Num 32:33–42", is 0.56em; most are 0.45em to 0.5em),
+   from 0.9rem to 1.4rem. A title that still does not fit is cut at the
+   room's end, and never runs under the › button. */
 .passage__header:has(> .passage__heading[data-near]) {
   container-type: inline-size;
 }
 .passage__heading[data-near] {
+  overflow: hidden;
   font-size: 0;
   white-space: nowrap;
 }
 .passage__heading[data-near]::after {
   content: attr(data-near);
   content: attr(data-near) / '';
-  font-size: clamp(0.9rem, calc((100cqi - 15rem) / (var(--near-chars, 10) * 0.54)), 1.4rem);
+  font-size: clamp(0.9rem, calc((100cqi - 17.6rem) / (var(--near-chars, 10) * 0.58)), 1.4rem);
 }
 /* Both translations side by side: the card is wide, and the full title fits. */
 .passage--both .passage__heading[data-near]::after {
   content: attr(data-title);
   content: attr(data-title) / '';
-  font-size: clamp(0.9rem, calc((100cqi - 15rem) / (var(--title-chars, 10) * 0.54)), 1.4rem);
+  font-size: clamp(0.9rem, calc((100cqi - 17.6rem) / (var(--title-chars, 10) * 0.58)), 1.4rem);
 }
 /* A phrase card is as wide as it needs, up to its most: its title, short,
    widens it rather than wrap. */
