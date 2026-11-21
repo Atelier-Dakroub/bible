@@ -457,7 +457,9 @@ gesture-card.is-grouped > .rr-card {
    reading setting) puts each verse on a line of its own. Both translations
    side by side stay verse by verse. */
 :root:not([data-layout='verses']) .passage__text kjv-verse {
-  display: inline;
+  /* !important: kjv-verse's own styles make it a block, and they are in a
+     layer above the app's (styles/index.css). */
+  display: inline !important;
 }
 :root:not([data-layout='verses']) .passage__text kjv-verse .verse__block--p {
   display: inline;
@@ -693,15 +695,17 @@ gesture-card[data-form='short'] .passage__short {
   display: block;
 }
 gesture-card[data-form='short'] :is(kjv-verse, .passage__text, .passage__parallel, .passage__tools, .passage__original, .passage__interlinear, .passage__reverse, .passage__syntax) {
-  display: none;
+  display: none !important;
 }
-/* The button shows what it does: fold to the short form, or unfold. */
+/* The button shows what it does: fold to the short form, or unfold. Each
+   icon is an svg-icon, whose own styles set its display in a layer above
+   the app's (styles/index.css), so these rules are !important. */
 .passage__form .form__unfold,
 gesture-card[data-form='short'] .passage__form .form__fold {
-  display: none;
+  display: none !important;
 }
 gesture-card[data-form='short'] .passage__form .form__unfold {
-  display: inline-block;
+  display: inline-flex !important;
 }
 .passage__count {
   display: block;
@@ -2801,7 +2805,9 @@ gesture-card[data-form='short'] .landscape__summary {
 }
 /* Hidden by the rail's Hide: every panel goes, until Show. */
 bible-table[data-chrome-hidden] :is(passage-search, time-line, table-menu) {
-  display: none;
+  /* !important: each panel sets its own display, in a layer above the
+     app's (styles/index.css). */
+  display: none !important;
 }
 /* On a phone nothing floats: no grip and no float button. */
 @media (max-width: 700px), (max-height: 500px) {

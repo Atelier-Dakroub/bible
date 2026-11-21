@@ -1,0 +1,10 @@
+/* The stylesheet every page links (transclude.config.js).
+
+   The app's own styles go in the layer `app`, under the layer `transclude`
+   that holds each element's styles. So an element's rules win over the
+   app's, whatever their specificity: a global `button` rule sets the default
+   look, and an element's own button keeps the look it gives itself. The
+   order is set here, before any element's styles come. */
+@layer app, transclude;
+
+@import './global.css' layer(app);

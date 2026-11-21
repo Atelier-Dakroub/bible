@@ -1189,16 +1189,12 @@
     flex: 1;
     min-width: 0;
   }
+  /* The field's look is the reading room's (input[type='search']); here only
+     its place in the row, and room at its end for the clear button. */
   input {
     flex: 1;
     min-width: 0;
-    min-height: var(--control-height);
-    padding: 0 2.4rem 0 0.75rem;
-    border: 1px solid var(--field-edge);
-    border-radius: var(--radius-small);
-    background: var(--paper);
-    color: inherit;
-    font: inherit;
+    padding-inline-end: 2.4rem;
     user-select: text;
     -webkit-user-select: text;
   }

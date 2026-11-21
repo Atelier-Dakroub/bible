@@ -11,7 +11,7 @@ export default {
   appDir: 'app',
   routesDir: 'routes',
   elementsDir: 'elements',
-  stylesheet: 'app/styles/global.css',
+  stylesheet: 'app/styles/index.css',
 
   // Dev and production both listen here, so this app has one port. `PORT` in the
   // environment wins.

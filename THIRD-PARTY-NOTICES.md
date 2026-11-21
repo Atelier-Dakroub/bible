@@ -6,7 +6,7 @@ Lightning CSS and others) do not go to the browser, and are not listed.
 
 Written by `node tools/notices.js` from the license files in node_modules.
 
-## @transclude/core 1.6.0 (MIT)
+## @transclude/core 1.7.0 (MIT)
 
 ```
 MIT License
