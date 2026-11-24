@@ -958,6 +958,7 @@ export type BibleTableMembers = {
     x: number;
     y: number;
   }[] | undefined): Promise<void>;
+  welcome(): Promise<void>;
   addNote({
     doc, title, kind
   }: {
@@ -1888,7 +1889,7 @@ export type PassageSearchMembers = {
   }[]): void;
   showQuestions(opening?: boolean | undefined): void;
   discover(which?: string | undefined): Promise<boolean>;
-  searchFor(text: string): void;
+  searchFor(text: string): Promise<boolean>;
   showRules(rules: {
     kind: string;
     value: string;

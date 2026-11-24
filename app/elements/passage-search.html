@@ -738,12 +738,16 @@
       return this.run(new URLSearchParams({ discover: which, fragment: 'results' }), 'trail');
     },
 
-    /** @param {string} text */
+    /**
+     * Searches for a text, as if it were typed; done when the results show.
+     *
+     * @param {string} text
+     */
     searchFor(text) {
       const input = /** @type {HTMLInputElement} */ (this.querySelector('input'));
       input.value = text;
       this.reveal();
-      this.run(undefined, 'open');
+      return this.run(undefined, 'open');
     },
 
     /**

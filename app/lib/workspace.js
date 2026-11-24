@@ -32,7 +32,7 @@ import { TYPES } from './links.js';
 import { emptyTrail, toTrail } from './trail.js';
 import { clampZoom } from './zoom.js';
 
-const KEY = 'bible.table.v1';
+export const KEY = 'bible.table.v1';
 const NAMED_KEY = 'bible.workspaces.v1';
 const VERSIONS = ['kjv', 'bsb', 'both', 'original', 'interlinear', 'reverse', 'syntax'];
 /** The scale under which a card kept from before the zoom showed its short form. */

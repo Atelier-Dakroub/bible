@@ -170,6 +170,7 @@
   import { inAList, listHolding, listName, listText, moved, withItems } from '../lib/lists.js';
   import { notesMatching } from '../lib/note-search.js';
   import { emptyTrail } from '../lib/trail.js';
+  import { firstVisit, HIGHLIGHTS as WELCOME_MARKS, LINKS as WELCOME_LINKS, NOTE as WELCOME_NOTE, PASSAGES as WELCOME_PASSAGES, SEARCH as WELCOME_SEARCH } from '../lib/welcome.js';
   import { docOf, fromOutline, quotesIn, toText } from '../lib/note-doc.js';
   import { LEAST, columnsOf, layOut, linksOf, studyDoc } from '../lib/study.js';
   import { edit as editNoteText, show as showNoteText } from '../lib/note-editing.js';
@@ -1619,6 +1620,8 @@
       } catch {
         this.name = '';
       }
+      // Read before load(): the first visit has no table kept yet.
+      const first = firstVisit();
       const workspace = load();
       // The search panel takes the trail once it is defined: until then the
       // table keeps it, so a save does not lose it.
@@ -1628,7 +1631,9 @@
         if (!panel) return;
         panel.notesFor = (/** @type {string} */ address) => this.notesAt(address);
         panel.notesFound = (/** @type {string} */ query) => this.notesFound(query);
-        panel.setTrail(this.pendingTrail ?? emptyTrail(), true);
+        // On the first visit, the first table's search takes the place of
+        // a "Did you know?".
+        panel.setTrail(this.pendingTrail ?? emptyTrail(), !first);
         this.pendingTrail = null;
       });
       this.offset = workspace.offset;
@@ -1642,13 +1647,17 @@
       this.shownPlaces = new Set();
       this.paint();
       this.applying += 1;
-      Promise.all(workspace.cards.map((stored) => this.restore(stored))).finally(() => {
-        this.applying -= 1;
-        const missing = this.unloaded.length;
-        if (missing) this.toast(missing === 1 ? 'One card could not load. It is kept: reload to try again.' : `${missing} cards could not load. They are kept: reload to try again.`);
-        this.history?.reset(snapshot(this.current()));
-        this.finish();
-      });
+      Promise.all(workspace.cards.map((stored) => this.restore(stored)))
+        // The first table is there before the undo history begins: Undo
+        // does not take it apart.
+        .then(() => (first ? this.welcome() : undefined))
+        .finally(() => {
+          this.applying -= 1;
+          const missing = this.unloaded.length;
+          if (missing) this.toast(missing === 1 ? 'One card could not load. It is kept: reload to try again.' : `${missing} cards could not load. They are kept: reload to try again.`);
+          this.history?.reset(snapshot(this.current()));
+          this.finish();
+        });
       customElements.whenDefined('table-menu').then(() => {
         /** @type {any} */ (this.querySelector('table-menu'))?.setName(this.name);
         this.showHistory();
@@ -2498,6 +2507,32 @@
       this.paintMap();
       await customElements.whenDefined('map-view');
       await this.mapView()?.fit(list, more);
+    },
+
+    /**
+     * The first table (lib/welcome.js): its note and its passages laid out
+     * as a study's columns, their words marked and linked, and its search in
+     * the panel. On a phone, one column at the width of the screen, and the
+     * search folded under the field, so that the cards show.
+     */
+    async welcome() {
+      await customElements.whenDefined('table-rail');
+      await new Promise((done) => requestAnimationFrame(() => done(null)));
+      const note = `note:${this.addNote({ doc: fromOutline(WELCOME_NOTE.text), title: WELCOME_NOTE.title })}`;
+      const cards = /** @type {Card[]} */ ((await Promise.all([note, ...WELCOME_PASSAGES].map((address) => this.fetchCard(address, {})))).filter(Boolean));
+      if (!cards.length) return;
+      // The note, and beside it the passages, one above the other: the
+      // table stays at full size on a laptop.
+      const [first, ...rest] = cards;
+      this.layStudy(isPhone() ? [cards] : [[first], rest].filter((column) => column.length), new Set());
+      this.highlights = WELCOME_MARKS.map((mark) => ({ ...mark }));
+      this.links = WELCOME_LINKS.map((link) => ({ ...link }));
+      paintHighlights(this.world(), this.highlights);
+      this.drawSoon();
+      await customElements.whenDefined('passage-search');
+      const panel = /** @type {any} */ (this.panel());
+      await panel?.searchFor(WELCOME_SEARCH);
+      if (isPhone()) panel?.fold?.();
     },
 
     /**

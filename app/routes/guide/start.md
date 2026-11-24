@@ -6,6 +6,8 @@ This page tells you about the table and the rail, how to put a passage down, and
 
 The table is a surface with no edge. Everything you put on it is a card: a passage, a person, a place, the map, a picture, a video or a note.
 
+The first time you open the table, it is not empty. A note tells you what to try. Beside it are Genesis 1:1-5 and John 1:1-5, which begin with the same words. Those words are marked on both cards, and a line links them. The search panel shows a search for the same words. Move these cards, change them or take them away, as any other cards. To start with an empty table, tap **New table** in **Tools**.
+
 The browser keeps the table for you. When you open the table again, the same cards are in the same places. To keep a table under a name, or in a file, see [Tools](/guide/tools#saved).
 
 ### Without a connection
