@@ -1259,6 +1259,11 @@
   .trail__discover {
     color: var(--ochre);
   }
+  /* Pressed, the ✦ takes the light ink of the pressed lapis: the ochre is
+     dull on it. */
+  .trail__discover[aria-pressed='true'] {
+    color: var(--on-pigment);
+  }
   .trail__step {
     flex: none;
     width: 2.2rem;
